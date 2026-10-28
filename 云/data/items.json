@@ -1,0 +1,19 @@
+{
+	"_comment": "物品表。加新物品：照 glowing_wood 抄一条。rarity 取 common / uncommon / rare / epic / legendary；burn = 燃烧值；icon = 图（res:// 路径，背包里按整数倍放大）；personal = 私人物品（不能烧掉，比如照片、信）。文字中英两套。",
+	"base_burn": 10,
+	"launch_burn": 200,
+	"items": [
+		{
+			"id": "glowing_wood",
+			"name": {"en": "Glowing Wood", "zh": "发光的木头"},
+			"rarity": "uncommon",
+			"burn": 50,
+			"icon": "res://art/level1/wood.png",
+			"personal": false,
+			"desc": {
+				"en": "A branch from Jupiter's forest that never quite stopped burning. Warm to the touch, and it smells a little like rain.",
+				"zh": "木星森林里一截一直没有熄灭的树枝。摸起来暖暖的，闻起来有一点雨的味道。"
+			}
+		}
+	]
+}

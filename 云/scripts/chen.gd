@@ -46,6 +46,7 @@ const EYE_CHANCE := 0.25           # 眨眼时有多大可能换成第三只眼
 
 var facing := 1                    # 1 朝右，-1 朝左
 var auto_dir := 0.0                # 非 0 时自己走（--walk、空格展示模式）
+var input_enabled := true          # false = 不听键盘（过场、打开面板时）；auto_dir 照样能让她走
 var _steps := {}                   # 动画名 → 每帧步长
 var _last_run_frame := -1          # 上一个显示的 run 帧，换帧时按它的步长前进
 var _idle_t := 0.0
@@ -93,22 +94,24 @@ func _build_frames() -> SpriteFrames:
 
 
 func _process(delta: float) -> void:
-	var dir := Input.get_axis("ui_left", "ui_right")
-	if Input.is_key_pressed(KEY_A):
-		dir -= 1.0
-	if Input.is_key_pressed(KEY_D):
-		dir += 1.0
+	var dir := 0.0
+	if input_enabled:
+		dir = Input.get_axis("ui_left", "ui_right")
+		if Input.is_key_pressed(KEY_A):
+			dir -= 1.0
+		if Input.is_key_pressed(KEY_D):
+			dir += 1.0
 	if dir == 0.0:
 		dir = auto_dir
 	if dir != 0.0:
 		_set_facing(1 if dir > 0.0 else -1)
-		spr.speed_scale = FAST if Input.is_key_pressed(KEY_SHIFT) else 1.0
+		spr.speed_scale = FAST if input_enabled and Input.is_key_pressed(KEY_SHIFT) else 1.0
 		if spr.animation != &"run":
 			_last_run_frame = -1
 			spr.play(&"run")
 			_last_run_frame = spr.frame
 	else:
-		var down := Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S)
+		var down := input_enabled and (Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S))
 		var want := &"front" if down and ANIMS.has("front") else &"idle"
 		var is_front := String(spr.animation).begins_with("front")
 		if spr.animation == &"run" or is_front != (want == &"front"):

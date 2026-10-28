@@ -1,0 +1,81 @@
+{
+  "_note": "飞行段的测试背包（占位，等剧情）。名字和描述全部是占位，等正式的 data/items.json 和 i18n 做好以后换掉。字段：id（唯一）、kind（material = 普通材料，自动烧；personal = 私人物品 / 朋友的东西，轮到它时弹决定卡）、fuel（烧掉给多少燃料）、icon（res:// 路径，24×24）、count（几件一样的，展开成几条）、name / desc（{en, zh}）。数组顺序 = 默认燃烧顺序。",
+  "flight": {
+    "from": "jupiter",
+    "to": "mercury",
+    "need": 350
+  },
+  "items": [
+    {
+      "id": "wood",
+      "kind": "material",
+      "fuel": 40,
+      "count": 5,
+      "icon": "res://art/flight/item_wood.png",
+      "name": {"en": "Glowwood", "zh": "发光木头"},
+      "desc": {"en": "Still warm from the forest.", "zh": "还带着森林里的温度。"}
+    },
+    {
+      "id": "moss",
+      "kind": "material",
+      "fuel": 20,
+      "count": 1,
+      "icon": "res://art/flight/item_moss.png",
+      "name": {"en": "Dry moss", "zh": "干苔藓"},
+      "desc": {"en": "Burns fast. Smells like rain.", "zh": "烧得很快，有雨的味道。"}
+    },
+    {
+      "id": "canvas",
+      "kind": "material",
+      "fuel": 30,
+      "count": 1,
+      "icon": "res://art/flight/item_canvas.png",
+      "name": {"en": "Torn canvas", "zh": "破帆布"},
+      "desc": {"en": "Used to be the ship's sunshade.", "zh": "原来是飞船的遮阳篷。"}
+    },
+    {
+      "id": "pinecone",
+      "kind": "personal",
+      "fuel": 70,
+      "count": 1,
+      "icon": "res://art/flight/item_pinecone.png",
+      "placeholder": true,
+      "name": {"en": "A pinecone", "zh": "一颗松果"},
+      "desc": {"en": "She pressed it into my hand. \"Plant it, and a forest will come find you.\"",
+               "zh": "她塞到我手里的。「种下去，就会有一片森林来找你。」"}
+    },
+    {
+      "id": "drawing",
+      "kind": "personal",
+      "fuel": 70,
+      "count": 1,
+      "icon": "res://art/flight/item_drawing.png",
+      "placeholder": true,
+      "name": {"en": "Her drawing of me", "zh": "她画的我"},
+      "desc": {"en": "The eyes are way too big. I don't think I've ever looked that happy.",
+               "zh": "眼睛画得太大了。我好像从来没有笑得那么开心过。"}
+    },
+    {
+      "id": "letter",
+      "kind": "personal",
+      "fuel": 70,
+      "count": 1,
+      "icon": "res://art/flight/item_letter.png",
+      "placeholder": true,
+      "name": {"en": "Unsent letter", "zh": "没寄出的信"},
+      "desc": {"en": "To home. Three lines in, I ran out of things I knew how to say.",
+               "zh": "写给家里的。写到第三行，就不知道该怎么说下去了。"}
+    },
+    {
+      "id": "scarf",
+      "kind": "personal",
+      "fuel": 70,
+      "count": 1,
+      "icon": "res://art/flight/item_scarf.png",
+      "placeholder": true,
+      "name": {"en": "Mom's scarf", "zh": "妈妈的围巾"},
+      "desc": {"en": "She wrapped it around me twice the day I left. \"It's cold out there.\"",
+               "zh": "出发那天，妈妈给我绕了两圈。「外面冷。」"}
+    }
+  ]
+}

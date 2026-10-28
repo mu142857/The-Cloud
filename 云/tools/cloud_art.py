@@ -24,6 +24,13 @@
 - 余晖的光芒：不再按角度调制整团余晖（硬边分档后是一圈锯齿），改成两道宽光柱加进档位里。
 - 高空：high 不漂、只放在余晖右边；余晖那块换成 streaks（叠加混合、会漂的几缕亮丝），漂过余晖只会更亮。
 - 色相拉开：暗部往靛蓝紫（~287°）、受光往玫瑰（~345~356°），夜空中上段也往 287° 转。
+
+第三版（同一天）改了：
+- 余晖回到第一版的柔和扇形光芒（glow_sky），但不抖动：余晖分 GLOW_LEVELS × GLOW_SUB 个很细的小档，天的每档也按行
+  细分 SKY_FINE 小档，相邻两档几乎一样，硬边也看不出台阶 / 色环；银河同样细分。代价是天这张图颜色多（~600 色）。
+- 中景构图：mid 两座云山、midfar 一座（cloud_mountain，单独一张 Field、自己的色阶，暗端偏玫瑰紫吃余晖反光，
+  内部鼓包也有受光边，下半截往暗里沉），mid / midfar 各有几处留白（flats：云沉下去、变平、不长积云堆）。
+- 积雨云柱：鼓包随机撒、大小差很多，不再一层层对齐。
 除了天，每层宽 960、左右无缝。所有随机都固定 seed。
 """
 from __future__ import annotations
@@ -206,40 +213,52 @@ def glow_level(x, y):
     return v
 
 
-# 余晖里的几道光芒：从太阳沉下去的那一点往上扇开的宽光柱。第一版是把余晖按很多个角度频率调制，
-# 分成硬边色带以后等亮线变成一圈锯齿；现在只有三道，截面是三角形（中间加得多、两边少），
-# 加进余晖的连续档位里再分档：每一档的边在光柱那里往上尖出去一块，像一道道光。(角度 弧度, 半宽 弧度)
-RAYS = ((-0.5, 0.12), (0.3, 0.1))
+# 余晖里的光芒（第三版回到第一版的样子）：从太阳沉下去的那一点往上扇开的一道道细长楔形，往外渐渐淡掉。
+# 第一版靠满屏 Bayer 抖动做柔和；第二版硬边分 6 档，等亮线成了一圈圈色环 / 锯齿。第三版：余晖分成
+# GLOW_LEVELS × GLOW_SUB 个很细的小档（相邻两档 L 只差 ~0.01，硬边也看不出台阶），不抖动；光芒的调制照第一版。
+GLOW_SUB = 4
+RAY_K = 0.2
 
 
-def ray_level(x, y):
-    """光柱给余晖加几档（连续）：靠近太阳的地方加满，往外淡掉。"""
+def glow_sky(x, y):
+    """天上用的余晖强度（带光芒）。别处（wash、星星、银河）用不带光芒的 glow_level。"""
     x = np.asarray(x, float)
-    if y >= HORIZON - 3:
-        return np.zeros_like(x)
-    ang = np.arctan2(x - GLOW_X, HORIZON + 14 - y)
-    b = np.zeros_like(x)
-    for a, hw in RAYS:
-        b = np.maximum(b, np.clip(1 - np.abs(ang - a) / hw, 0, 1))
     v = glow_level(x, y)
-    return 0.7 * b * np.clip((v - 0.08) / 0.25, 0, 1) * np.clip((0.9 - v) / 0.3, 0, 1)
+    if y < HORIZON - 3:
+        ang = np.arctan2(x - GLOW_X, HORIZON + 14 - y)
+        ray = 0.5 * np.sin(ang * 23 + 0.7) + 0.35 * np.sin(ang * 37 + 2.1) + 0.25 * np.sin(ang * 61 + 4.0)
+        v = v * (1 + RAY_K * ray * np.clip((HORIZON - y) / 30, 0, 1))
+    return v
 
 
 def glow_target(y):
-    """余晖在 y 这一行往什么颜色推（分 4 档，免得色数爆）。"""
+    """余晖在 y 这一行往什么颜色推（分 16 档：相邻两档几乎一样，不出横线）。"""
     f = np.clip((y - 92) / 46, 0, 1)
-    f = np.floor(f * 4) / 4
+    f = np.floor(f * 16) / 16
     return mix(GLOW_HI, GLOW_C, f)
 
 
 _GC = {}
 
 
+SKY_FINE = 3        # 天的每一档再细分几小档（按行，不抖动）
+
+
+def sky_base(y):
+    """y 这一行的天色：BANDS 两档之间按 SKY_FINE 小档插值（相邻小档几乎一样，不抖动也看不出台阶）。"""
+    i, f = band_frac(y)
+    if i + 1 >= len(BANDS) or f <= 0:
+        return BAND_C[i], (i, 0)
+    k = int(np.floor(f * SKY_FINE))
+    return (mix(BAND_C[i], BAND_C[i + 1], k / SKY_FINE) if k else BAND_C[i]), (i, k)
+
+
 def glow_color(band, level, y=HORIZON):
+    base, bk = sky_base(y)
     tgt = glow_target(y)
-    key = (band, level, tgt)
+    key = (bk, level, tgt)
     if key not in _GC:
-        _GC[key] = mix(BAND_C[band], tgt, GLOW_STEP * level) if level else BAND_C[band]
+        _GC[key] = mix(base, tgt, GLOW_STEP / GLOW_SUB * level) if level else base
     return _GC[key]
 
 
@@ -440,16 +459,10 @@ def sky():
         if i + 1 >= len(BANDS):
             idx[y] = i
             continue
-        r = BAND_Y[i + 1] - y                          # 离下一档还有几行
-        tall = BAND_Y[i + 1] - BAND_Y[i] > 6
-        idx[y] = i + ((r == 1) & pat50(xs, y)) + ((r == 2) & tall & pat25(xs, y))
-    # 分档是往下取整，平均会比第一版（抖动）暗半档：外圈（紫的那几档）补回半档；芯（≥ 5 档，橙的那块）不补，
-    # 橙色的面积和亮度和第一版一样，不扩大
-    def glow_lv(y):
-        g = glow_level(xs, y) * GLOW_LEVELS
-        return np.where(g > 0.1, g + 0.5 * np.clip(5 - g, 0, 1), g) + ray_level(xs, y)
-    lvl = narrow_levels(np.stack([glow_lv(y) for y in range(H)]))
-    lvl = np.minimum(lvl, GLOW_LEVELS)
+        idx[y] = i                                     # 天：按行细分的色带（sky_base），不抖动
+    # 余晖：很细的小档，四舍五入，不抖动（平均亮度和第一版的抖动一样）
+    lvl = np.stack([np.round(glow_sky(xs, y) * GLOW_LEVELS * GLOW_SUB) for y in range(H)]).astype(int)
+    lvl = np.minimum(lvl, GLOW_LEVELS * GLOW_SUB)
     for y in range(H):
         for bi, li in set(zip(idx[y].tolist(), lvl[y].tolist())):
             sel = (idx[y] == bi) & (lvl[y] == li)
@@ -474,12 +487,13 @@ def sky():
         v = np.exp(-d * d) * (0.35 + 0.9 * patch[y]) * np.clip(1 - y / 128, 0, 1) ** 0.6
         v *= 1 - np.clip(glow_level(xs, y) * 4, 0, 1)
         mw[y] = v
-    kk = narrow_levels(np.clip(mw * 2.2 - 0.25, 0, 2))
+    # 和余晖一样：细分成 8 个小档（每档只往 MW_C 推 0.04），不抖动
+    kk = np.round(np.clip(mw * 2.2 - 0.25, 0, 2) * 4).astype(int)
     for y in range(0, 128):
         k = kk[y]
         for x in np.nonzero(k)[0]:
             base = tuple(int(t) for t in lay.a[y, x, :3])
-            lay.a[y, x] = tuple(mix(base, MW_C, 0.16 * k[x])) + (255,)
+            lay.a[y, x] = tuple(mix(base, MW_C, 0.04 * k[x])) + (255,)
     # 暗星：越往上越密，余晖里没有，银河里更密；大多数只比夜空亮一点点，少数亮一档
     for _ in range(900):
         x = int(rng.uniform(0, 480))
@@ -514,6 +528,7 @@ def wash():
         cone = np.exp(-((xs - GLOW_X) / (14 + dy * 1.1)) ** 2) * np.exp(-dy / 46) * 0.55
         lvs[y] = np.clip(vx * np.exp(-dy / WASH_Y[1]) + cone, 0, 1) * WASH_LEVELS
     # 整片同一档，只在两档交界窄窄一条稀疏抖动：云上不要满屏的棋盘格
+    lvs[:WASH_Y[0]] = lvs[WASH_Y[0]]       # 上面一行照抄，免得第一行被当成档边、抖成一排点
     kk = narrow_levels(lvs)
     for y in range(WASH_Y[0], H):
         k = kk[y]
@@ -636,17 +651,17 @@ def tower(lay, cx, seed):
     rng = np.random.default_rng(seed)
     pf = Puffs(bands=(1.3, 2.8, 5.5))
     items = []
-    y = 168.0
-    while y > 66:
-        f = (168 - y) / 102                    # 0 底 .. 1 顶
+    # 第三版：鼓包不再按一层层（每层左右三颗、同一高度）排，那样读起来像一摞台阶；
+    # 改成在柱身里随机撒二十几颗大小差很多的球，高度、左右都错开，边上的鼓出去、里面的被盖住
+    for i in range(30):
+        f = rng.uniform(0, 1) if i > 1 else (0.0, 1.0)[i]
+        y = 168 - 102 * f
         half = 40 - 14 * f                     # 柱身半宽
         sh = 22 * f ** 1.4                     # 往右偏
-        for k in range(3):
-            u = (k - 1) + rng.uniform(-0.35, 0.35)
-            rx = half * rng.uniform(0.5, 0.72)
-            ry = rx * rng.uniform(0.62, 0.8)
-            items.append((y - ry, cx + sh + u * half * 0.62, rx, ry))
-        y -= rng.uniform(13, 18)
+        rx = half * rng.uniform(0.3, 0.75)
+        ry = rx * rng.uniform(0.62, 0.85)
+        u = rng.uniform(-1, 1)
+        items.append((y - ry, cx + sh + u * (half - rx * 0.5), rx, ry))
     # 砧：又宽又扁，往右伸得远，左边短
     for k in range(6):
         rx = rng.uniform(26, 40)
@@ -985,18 +1000,32 @@ def despeckle(idx, passes=2):
 
 
 def sea_row(F, rng, base, z0, scale, sq, fog, n_heaps, h_range, w_range, deck_h, dark=0.0, depth=2, wave=0.0,
-            big=0.0, rmin=2.0, kids=(3, 6), ks=(0.3, 0.55)):
+            big=0.0, rmin=2.0, kids=(3, 6), ks=(0.3, 0.55), flats=()):
     """一排云：先铺一层矮的云甲板（团顶在 base - deck_h 上下，带菜花），再在上面撒 n_heaps 堆大小不一的积云
-    （高度 h_range，偶尔一堆特别高：big = 概率）。wave = 这一排的底沿随 x 起伏多少像素（云丘 / 云谷）。"""
+    （高度 h_range，偶尔一堆特别高：big = 概率）。wave = 这一排的底沿随 x 起伏多少像素（云丘 / 云谷）。
+    flats = [(x, 半宽, 往下沉几像素)]：构图上的留白，这一段云沉下去、变平、不长积云堆，露出后面更远的云海。"""
     w = F.w
     ph = rng.uniform(0, 2 * np.pi, 5)
     fr = rng.choice([6, 7, 8, 9, 11, 13], 2, replace=False)
 
+    def flat_k(x):
+        k = 0.0
+        for fx, hw, drop in flats:
+            d = abs((x - fx + w / 2) % w - w / 2) / hw
+            if d < 1:
+                k = max(k, 0.5 + 0.5 * np.cos(np.pi * d))
+        return k
+
     def b_at(x):
         # 云丘 / 云谷：几个低频 + 两个中频的起伏（频率是整数：左右无缝）
         t = 2 * np.pi * x / w
-        return base + wave * (0.5 * np.sin(2 * t + ph[0]) + 0.35 * np.sin(3 * t + ph[1]) + 0.25 * np.sin(5 * t + ph[2])
-                              + 0.3 * np.sin(fr[0] * t + ph[3]) + 0.2 * np.sin(fr[1] * t + ph[4]))
+        b = base + wave * (0.5 * np.sin(2 * t + ph[0]) + 0.35 * np.sin(3 * t + ph[1]) + 0.25 * np.sin(5 * t + ph[2])
+                           + 0.3 * np.sin(fr[0] * t + ph[3]) + 0.2 * np.sin(fr[1] * t + ph[4]))
+        for fx, hw, drop in flats:
+            d = abs((x - fx + w / 2) % w - w / 2) / hw
+            if d < 1:
+                b += drop * (0.5 + 0.5 * np.cos(np.pi * d))
+        return b
 
     # 甲板：一串中等的团，间距不匀
     F.new_group()
@@ -1004,13 +1033,15 @@ def sea_row(F, rng, base, z0, scale, sq, fog, n_heaps, h_range, w_range, deck_h,
     x = rng.uniform(0, w)
     end = x + w
     while x < end:
-        r = scale * rng.uniform(0.55, 1.45)
+        r = scale * rng.uniform(0.55, 1.45) * (1 - 0.45 * flat_k(x))
         F.cauli(x % w, b_at(x) - deck_h + r * sq, r, z0 + rng.uniform(-1, 1), rng, sq, depth=max(1, depth - 1),
                 kids=kids, ks=ks, dark=dark + 0.05, fog=fog, rmin=rmin, ref=b_at(x) - deck_h, unit=scale * sq * 1.6)
         x += r * rng.uniform(1.1, 1.9)
     # 积云堆：位置不匀（有的挤在一起，有的隔很远）
     xs = np.sort(rng.uniform(0, w, n_heaps))
     for cx in xs:
+        if flat_k(cx) > 0.05:
+            continue
         hh = rng.uniform(*h_range)
         if rng.random() < big:
             hh *= rng.uniform(1.6, 2.3)
@@ -1022,8 +1053,10 @@ def sea_row(F, rng, base, z0, scale, sq, fog, n_heaps, h_range, w_range, deck_h,
 FOG_STEPS = (0.0, 0.12, 0.24, 0.36, 0.5, 0.64)
 
 
-def sea_layer2(rows, pal, fog_c, seed, **kw):
-    """rows = [dict(base, z, scale, sq, fog, n, h, w, deck, ...)]，从远到近。kw 给 Field.render。"""
+def sea_layer2(rows, pal, fog_c, seed, bigs=(), big_pal=None, big_kw=None, **kw):
+    """rows = [dict(base, z, scale, sq, fog, n, h, w, deck, ...)]，从远到近。kw 给 Field.render。
+    bigs = [dict(x, base, h, w, z, sq, fog)]：构图主体的「云山」，单独一张 Field 画（自己的色阶、内部鼓包也有受光边），
+    再按 z 和这一层合在一起（前面一排照样盖住它的下半截）。"""
     F = Field()
     rng = np.random.default_rng(seed)
     for r in rows:
@@ -1032,7 +1065,32 @@ def sea_layer2(rows, pal, fog_c, seed, **kw):
                 r.pop("w"), r.pop("deck"), **r)
     lay = Layer()
     lay.a = F.render(pal, fog_c=fog_c, fog_steps=FOG_STEPS, **kw)
+    if bigs:
+        FB = Field()
+        for b in bigs:
+            cloud_mountain(FB, rng, **b)
+        img = FB.render(big_pal, fog_c=fog_c, fog_steps=FOG_STEPS, **big_kw)
+        m = (FB.sid >= 0) & (FB.z > F.z)
+        lay.a[m] = img[m]
     return lay
+
+
+def cloud_mountain(F, rng, x, base, h, w, z, sq=0.62, fog=0.0, lean=6.0, n=13):
+    """云海里冒出来的一座云山：十几颗大小不一的球，越往上越窄、越小，位置和高度都错开（不一层层对齐），
+    低的离观众近、盖住上面那颗的下半截；每颗再长一圈菜花。最高那颗顶在 base - h。"""
+    F.new_group()
+    F.row += 1
+    items = []
+    for i in range(n):
+        f = 1.0 if i == 0 else rng.uniform(0, 1) ** 0.85          # 0 底 .. 1 顶
+        hw = w / 2 * (1 - 0.42 * f)
+        r = hw * rng.uniform(0.45, 0.8) if i else hw * 0.7
+        cx = x + lean * f + (rng.uniform(-1, 1) * (hw - r * 0.6) if i else 0)
+        top = base - h * f + (rng.uniform(0, 4) if i else 0)
+        items.append((top + r * sq, cx, r))
+    for cy, cx, r in sorted(items):
+        F.cauli(cx, cy, r, z + (cy - base) * 0.5 + rng.uniform(-1, 1), rng, sq, depth=2, kids=(2, 5), ks=(0.28, 0.55),
+                body=True, fog=fog, rmin=2.5, spread=(-170, -10), ref=base - h, unit=h * 0.5)
 
 
 def build_far():
@@ -1053,26 +1111,37 @@ def build_far():
 
 def build_midfar():
     pal = cloud_pal(0.19, 0.52, 6, C_lo=0.055, C_hi=0.09, h_lo=290, h_hi=350)
+    flats = ((250, 45, 5), (700, 40, 4))
     rows = [
-        dict(base=166, z=0, scale=8, sq=0.5, fog=0.24, n=8, h=(3, 11), w=(26, 70), deck=2, wave=4, big=0.25, rmin=1.6),
-        dict(base=177, z=30, scale=11, sq=0.54, fog=0.12, n=6, h=(4, 13), w=(36, 80), deck=2.5, wave=4, big=0.2,
-             rmin=1.8),
+        dict(base=166, z=0, scale=8, sq=0.5, fog=0.24, n=8, h=(3, 11), w=(26, 70), deck=2, wave=4, big=0.2, rmin=1.6,
+             flats=flats),
+        dict(base=177, z=30, scale=11, sq=0.54, fog=0.12, n=6, h=(4, 13), w=(36, 80), deck=2.5, wave=4, big=0.15,
+             rmin=1.8, flats=flats),
     ]
-    return sea_layer2(rows, pal, band_color(160), 31, body=2, rim=(1.0, 2.5), crease=1.5, bands=(1.0, 2.2), run_bands=(3, 8),
+    bigs = (dict(x=560, base=170, h=24, w=74, z=4, sq=0.55, fog=0.18, lean=4, n=10),)
+    big_pal = cloud_pal(0.22, 0.56, 6, C_lo=0.06, C_hi=0.095, h_lo=312, h_hi=356)
+    big_kw = dict(body=2, rim=(1.0, 2.5), rim_lv=(3, 2), crease=1.5, cz_rim=1.0, run_bands=(8, 16), env_smooth=15)
+    return sea_layer2(rows, pal, band_color(160), 31, bigs=bigs, big_pal=big_pal, big_kw=big_kw, body=2, rim=(1.0, 2.5), crease=1.5, bands=(1.0, 2.2), run_bands=(3, 8),
                       rim_lv=(3, 2))
 
 
 def build_mid():
     pal = cloud_pal(0.11, 0.40, 6, C_lo=0.05, C_hi=0.085, h_lo=287, h_hi=346)
+    # 构图：两座云山（主体，受光面朝余晖）+ 三处留白（云沉下去、变平，露出更远的云海）；其余小团当陪衬
+    flats = ((120, 70, 9), (560, 55, 8), (905, 45, 7))
     rows = [
-        dict(base=190, z=0, scale=17, sq=0.62, fog=0.12, n=5, h=(6, 16), w=(60, 120), deck=3, wave=5, big=0.0,
-             kids=(2, 4), ks=(0.35, 0.6)),
-        dict(base=203, z=40, scale=21, sq=0.66, fog=0.0, n=4, h=(6, 14), w=(70, 130), deck=3, wave=4, big=0.1,
-             kids=(2, 4), ks=(0.35, 0.6),
-             dark=0.12),
+        dict(base=190, z=0, scale=15, sq=0.62, fog=0.12, n=6, h=(4, 12), w=(50, 100), deck=3, wave=4, big=0.0,
+             kids=(2, 4), ks=(0.35, 0.6), flats=flats),
+        dict(base=203, z=40, scale=19, sq=0.66, fog=0.0, n=5, h=(4, 11), w=(60, 120), deck=3, wave=4, big=0.0,
+             kids=(2, 4), ks=(0.35, 0.6), dark=0.12, flats=flats),
     ]
-    return sea_layer2(rows, pal, band_color(190), 41, body=2, rim=(1.5, 3.0), crease=2.0, bands=(0.7, 1.5, 2.6),
-                      run_bands=(5, 12, 22), rim_lv=(2, 1))
+    bigs = (dict(x=335, base=194, h=48, w=84, z=6, fog=0.06, lean=6, n=15),
+            dict(x=760, base=194, h=36, w=70, z=6, fog=0.06, lean=4, n=12))
+    big_pal = cloud_pal(0.15, 0.50, 7, C_lo=0.055, C_hi=0.09, h_lo=306, h_hi=352)   # 暗端偏玫瑰紫：吃一点余晖反光
+    big_kw = dict(body=3, rim=(2.0, 4.5), rim_lv=(3, 1), crease=2.0, cz_rim=1.5, run_bands=(10, 20, 30),
+                  env_smooth=15)
+    return sea_layer2(rows, pal, band_color(190), 41, bigs=bigs, big_pal=big_pal, big_kw=big_kw, body=2,
+                      rim=(1.5, 3.0), crease=2.0, bands=(0.7, 1.5, 2.6), run_bands=(5, 12, 22), rim_lv=(2, 1))
 
 
 def build_near():

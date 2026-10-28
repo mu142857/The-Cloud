@@ -1,0 +1,271 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://art/underwater/deep.png" id="1_deep"]
+[ext_resource type="Texture2D" path="res://art/underwater/surface.png" id="2_surface"]
+[ext_resource type="Texture2D" path="res://art/underwater/far.png" id="3_far"]
+[ext_resource type="Texture2D" path="res://art/underwater/midfar.png" id="4_midfar"]
+[ext_resource type="Texture2D" path="res://art/underwater/head.png" id="5_head"]
+[ext_resource type="Texture2D" path="res://art/underwater/headweeds.png" id="6_headweeds"]
+[ext_resource type="Texture2D" path="res://art/underwater/kelp.png" id="7_kelp"]
+[ext_resource type="Texture2D" path="res://art/underwater/main.png" id="8_main"]
+[ext_resource type="Texture2D" path="res://art/underwater/bedlight.png" id="9_bedlight"]
+[ext_resource type="Texture2D" path="res://art/underwater/bedweeds.png" id="10_bedweeds"]
+[ext_resource type="Texture2D" path="res://art/underwater/front.png" id="11_front"]
+[ext_resource type="Texture2D" path="res://art/underwater/caustic.png" id="12_caustic"]
+[ext_resource type="Texture2D" path="res://art/underwater/headlight.png" id="13_headlight"]
+[ext_resource type="Script" path="res://scripts/underwater_test.gd" id="20_script"]
+[ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
+[ext_resource type="Shader" path="res://scripts/underwater_surface.gdshader" id="22_surface"]
+[ext_resource type="Shader" path="res://scripts/underwater_sway.gdshader" id="23_sway"]
+[ext_resource type="Shader" path="res://scripts/underwater_shafts.gdshader" id="24_shafts"]
+[ext_resource type="Shader" path="res://scripts/underwater_caustics.gdshader" id="25_caustics"]
+[ext_resource type="Script" path="res://scripts/underwater_shafts.gd" id="31_shafts"]
+[ext_resource type="Script" path="res://scripts/underwater_motes.gd" id="32_motes"]
+[ext_resource type="Script" path="res://scripts/underwater_bubbles.gd" id="33_bubbles"]
+[ext_resource type="Script" path="res://scripts/underwater_whale.gd" id="34_whale"]
+[ext_resource type="Script" path="res://scripts/underwater_glow.gd" id="35_glow"]
+[ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
+
+[sub_resource type="CanvasItemMaterial" id="add"]
+blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="vig"]
+shader = ExtResource("21_vig")
+shader_parameter/strength = 0.6
+shader_parameter/tint = Color(0.78, 0.87, 1.0, 1)
+
+[sub_resource type="ShaderMaterial" id="surface_mat"]
+shader = ExtResource("22_surface")
+shader_parameter/c0 = Color(0.169, 0.251, 0.302, 1)
+shader_parameter/c1 = Color(0.255, 0.353, 0.388, 1)
+shader_parameter/c2 = Color(0.361, 0.451, 0.482, 1)
+shader_parameter/c3 = Color(0.482, 0.553, 0.573, 1)
+shader_parameter/speed = 0.8
+shader_parameter/wobble = 3.0
+shader_parameter/flicker = 0.9
+
+[sub_resource type="ShaderMaterial" id="kelp_mat"]
+shader = ExtResource("23_sway")
+shader_parameter/amp = 4.0
+shader_parameter/speed = 0.5
+shader_parameter/wavelength = 160.0
+shader_parameter/power = 1.7
+shader_parameter/bend = 0.05
+
+[sub_resource type="ShaderMaterial" id="headweeds_mat"]
+shader = ExtResource("23_sway")
+shader_parameter/amp = 2.0
+shader_parameter/speed = 0.55
+shader_parameter/wavelength = 120.0
+shader_parameter/power = 1.4
+shader_parameter/bend = 0.12
+
+[sub_resource type="ShaderMaterial" id="bedweeds_mat"]
+shader = ExtResource("23_sway")
+shader_parameter/amp = 2.0
+shader_parameter/speed = 0.6
+shader_parameter/wavelength = 120.0
+shader_parameter/power = 1.3
+shader_parameter/bend = 0.12
+
+[sub_resource type="ShaderMaterial" id="front_mat"]
+shader = ExtResource("23_sway")
+shader_parameter/amp = 6.0
+shader_parameter/speed = 0.42
+shader_parameter/wavelength = 240.0
+shader_parameter/power = 1.6
+shader_parameter/bend = 0.03
+
+[sub_resource type="ShaderMaterial" id="shafts_mat"]
+shader = ExtResource("24_shafts")
+shader_parameter/color = Color(0.55, 0.74, 0.92, 1)
+shader_parameter/step_a = 0.018
+
+[sub_resource type="ShaderMaterial" id="caustics_mat"]
+shader = ExtResource("25_caustics")
+shader_parameter/pattern = ExtResource("12_caustic")
+shader_parameter/color = Color(0.5, 0.7, 0.86, 1)
+shader_parameter/strength = 0.45
+shader_parameter/speed = 1.0
+shader_parameter/squash = 3.0
+shader_parameter/lit = Vector2(300, 150)
+shader_parameter/step_a = 0.05
+
+[sub_resource type="ShaderMaterial" id="headlight_mat"]
+shader = ExtResource("25_caustics")
+shader_parameter/pattern = ExtResource("12_caustic")
+shader_parameter/color = Color(0.5, 0.7, 0.86, 1)
+shader_parameter/strength = 0.2
+shader_parameter/speed = 0.8
+shader_parameter/squash = 1.4
+shader_parameter/lit = Vector2(360, 120)
+shader_parameter/step_a = 0.05
+
+[node name="UnderwaterTest" type="Node2D"]
+script = ExtResource("20_script")
+
+[node name="Deep" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Deep"]
+texture = ExtResource("1_deep")
+centered = false
+
+[node name="Surface" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Surface"]
+material = SubResource("surface_mat")
+texture = ExtResource("2_surface")
+centered = false
+
+[node name="Deeper" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.05, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Whale" type="Node2D" parent="Deeper"]
+script = ExtResource("34_whale")
+
+[node name="Far" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.08, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Far"]
+texture = ExtResource("3_far")
+centered = false
+
+[node name="MidFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.17, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="MidFar"]
+texture = ExtResource("4_midfar")
+centered = false
+
+[node name="Head" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.3, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Head"]
+texture = ExtResource("5_head")
+centered = false
+
+[node name="Caustics" type="Sprite2D" parent="Head"]
+material = SubResource("headlight_mat")
+texture = ExtResource("13_headlight")
+centered = false
+
+[node name="Weeds" type="Sprite2D" parent="Head"]
+texture_repeat = 2
+material = SubResource("headweeds_mat")
+position = Vector2(0, 182)
+texture = ExtResource("6_headweeds")
+centered = false
+
+[node name="Glow" type="Node2D" parent="Head"]
+script = ExtResource("35_glow")
+lights = Array[Vector3]([Vector3(369, 114, 1)])
+period = 6.5
+seed = 4
+
+[node name="Light" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Shafts" type="ColorRect" parent="Light"]
+material = SubResource("shafts_mat")
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2
+script = ExtResource("31_shafts")
+
+[node name="Kelp" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.52, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Kelp"]
+texture_repeat = 2
+material = SubResource("kelp_mat")
+position = Vector2(0, 20)
+texture = ExtResource("7_kelp")
+centered = false
+
+[node name="Motes" type="Node2D" parent="Kelp"]
+material = SubResource("add")
+script = ExtResource("32_motes")
+
+[node name="Main" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Main"]
+texture = ExtResource("8_main")
+centered = false
+
+[node name="Caustics" type="Sprite2D" parent="Main"]
+material = SubResource("caustics_mat")
+texture = ExtResource("9_bedlight")
+centered = false
+
+[node name="Weeds" type="Sprite2D" parent="Main"]
+texture_repeat = 2
+material = SubResource("bedweeds_mat")
+position = Vector2(0, 196)
+texture = ExtResource("10_bedweeds")
+centered = false
+
+[node name="Glow" type="Node2D" parent="Main"]
+script = ExtResource("35_glow")
+lights = Array[Vector3]([Vector3(612, 226, 2)])
+period = 5.0
+seed = 8
+
+[node name="Bubbles" type="Node2D" parent="Main"]
+script = ExtResource("33_bubbles")
+sources = Array[Vector2]([Vector2(300, 225), Vector2(688, 226)])
+
+[node name="Motes" type="Node2D" parent="Main"]
+material = SubResource("add")
+script = ExtResource("32_motes")
+count = 16
+area = Rect2(0, 40, 960, 150)
+base_alpha = Vector2(0.04, 0.1)
+drift = Vector2(-3.5, 1.2)
+seed = 33
+
+[node name="Chen" parent="." instance=ExtResource("40_chen")]
+position = Vector2(204, 226)
+
+[node name="ChenBubbles" type="Node2D" parent="."]
+script = ExtResource("33_bubbles")
+follow = NodePath("../Chen")
+seed = 12
+
+[node name="Front" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.4, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Front"]
+texture_repeat = 2
+material = SubResource("front_mat")
+position = Vector2(0, 40)
+texture = ExtResource("11_front")
+centered = false
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(240, 135)
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="Vignette" type="ColorRect" parent="Overlay"]
+material = SubResource("vig")
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2

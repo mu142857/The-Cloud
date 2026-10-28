@@ -1,0 +1,113 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/flight_test.gd" id="1_main"]
+[ext_resource type="Texture2D" path="res://art/flight/sky_green.png" id="2_skyg"]
+[ext_resource type="Texture2D" path="res://art/flight/sky_blue.png" id="3_skyb"]
+[ext_resource type="Texture2D" path="res://art/flight/stars.png" id="4_stars"]
+[ext_resource type="Texture2D" path="res://art/flight/wisps.png" id="5_wisps"]
+[ext_resource type="Texture2D" path="res://art/flight/mercury.png" id="6_merc"]
+[ext_resource type="Texture2D" path="res://art/flight/clouds_far.png" id="7_far"]
+[ext_resource type="Texture2D" path="res://art/flight/clouds_mid.png" id="8_mid"]
+[ext_resource type="Texture2D" path="res://art/flight/clouds_near.png" id="9_near"]
+[ext_resource type="Texture2D" path="res://art/flight/launch_forest.png" id="10_forest"]
+[ext_resource type="Script" path="res://scripts/flight_course.gd" id="11_course"]
+[ext_resource type="Script" path="res://scripts/flight_ship.gd" id="12_ship"]
+[ext_resource type="Script" path="res://scripts/flight_fx.gd" id="13_fx"]
+[ext_resource type="Script" path="res://scripts/flight_hud.gd" id="14_hud"]
+[ext_resource type="Script" path="res://scripts/flight_card.gd" id="15_card"]
+[ext_resource type="Script" path="res://scripts/flight_end.gd" id="16_end"]
+
+[node name="FlightTest" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Sky" type="Node2D" parent="."]
+
+[node name="Green" type="Sprite2D" parent="Sky"]
+texture = ExtResource("2_skyg")
+centered = false
+
+[node name="Blue" type="Sprite2D" parent="Sky"]
+modulate = Color(1, 1, 1, 0)
+texture = ExtResource("3_skyb")
+centered = false
+
+[node name="Stars" type="Parallax2D" parent="."]
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+ignore_camera_scroll = true
+
+[node name="Sprite" type="Sprite2D" parent="Stars"]
+texture = ExtResource("4_stars")
+centered = false
+
+[node name="Wisps" type="Parallax2D" parent="."]
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+ignore_camera_scroll = true
+
+[node name="Sprite" type="Sprite2D" parent="Wisps"]
+texture = ExtResource("5_wisps")
+centered = false
+
+[node name="Mercury" type="Sprite2D" parent="."]
+position = Vector2(560, 250)
+texture = ExtResource("6_merc")
+centered = false
+
+[node name="Far" type="Parallax2D" parent="."]
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+ignore_camera_scroll = true
+
+[node name="Sprite" type="Sprite2D" parent="Far"]
+texture = ExtResource("7_far")
+centered = false
+
+[node name="Mid" type="Parallax2D" parent="."]
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+ignore_camera_scroll = true
+
+[node name="Sprite" type="Sprite2D" parent="Mid"]
+texture = ExtResource("8_mid")
+centered = false
+
+[node name="Shake" type="Node2D" parent="."]
+
+[node name="Forest" type="Sprite2D" parent="Shake"]
+position = Vector2(0, 160)
+texture = ExtResource("10_forest")
+centered = false
+
+[node name="Course" type="Node2D" parent="Shake"]
+script = ExtResource("11_course")
+
+[node name="Ship" type="Node2D" parent="Shake"]
+position = Vector2(120, 196)
+script = ExtResource("12_ship")
+
+[node name="FX" type="Node2D" parent="Shake"]
+script = ExtResource("13_fx")
+
+[node name="Near" type="Parallax2D" parent="Shake"]
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+ignore_camera_scroll = true
+
+[node name="Sprite" type="Sprite2D" parent="Shake/Near"]
+texture = ExtResource("9_near")
+centered = false
+
+[node name="Tint" type="CanvasModulate" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="HUD" type="Node2D" parent="UI"]
+script = ExtResource("14_hud")
+
+[node name="Card" type="Node2D" parent="UI"]
+script = ExtResource("15_card")
+
+[node name="End" type="Node2D" parent="UI"]
+script = ExtResource("16_end")
