@@ -49,11 +49,20 @@ BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]])
 
 # ---------------------------------------------------------------- 颜色
 
+def hue_shift(L):
+    """按亮度把色相拉开：最暗处往靛蓝（偏一点紫）走 +17°，月光照到的亮处往青银走 −26°。
+    各处写的 h（246~262）是「中间那档」的色相，真正用的是 h + hue_shift(L)。整张图色相跨度约 45°。"""
+    t = float(np.clip((L - 0.06) / 0.44, 0, 1))
+    t = t * t * (3 - 2 * t)
+    return 17.0 - 43.0 * t
+
+
 def lch(L, C=None, h=256.0):
-    """OKLCh -> sRGB 元组。C 不给就按亮度给一个克制的色度（暗处略饱和一点，像夜里的蓝）。"""
+    """OKLCh -> sRGB 元组。C 不给就按亮度给一个克制的色度（暗处略饱和一点，像夜里的蓝）。
+    色相会按亮度偏移（hue_shift）：暗的偏靛、亮的偏青银。"""
     if C is None:
         C = 0.022 + 0.07 * min(L, 0.45)
-    return tuple(int(v) for v in from_lch(float(L), float(C), float(h)))
+    return tuple(int(v) for v in from_lch(float(L), float(C), float(h) + hue_shift(float(L))))
 
 
 def bramp(n, L0, L1, h_dark=258.0, h_lit=248.0, C0=None, C1=None):
@@ -244,7 +253,8 @@ def cloud_mask():
             if rng.random() < 0.85 or abs(u) < 0.5:
                 yc = cy + sl * (x - cx)
                 e = ((xx - x) / rx) ** 2 + ((yy - (yc - ry * 0.35)) / ry) ** 2
-                bottom = yy > yc + th * 0.3 * env + 0.6 + 1.3 * np.sin(xx * 0.11 + sd)   # 底边基本平，轻轻起伏
+                boff = rng.uniform(-1.5, 2.5) * env - (2.5 if abs(u) > 0.6 else 0)     # 每个鼓包的底各不一样高
+                bottom = yy > yc + th * 0.3 * env + boff + 1.3 * np.sin(xx * 0.11 + sd)
                 f = np.maximum(f, np.where(bottom, 0, 1 - e))
             x += rx * rng.uniform(0.6, 1.1)
         m |= (f > 0) & (f + 0.28 * (rough - 0.5) > 0.06)
@@ -1050,14 +1060,27 @@ def driftwood(lay, x, gy_of, pal, seed):
             py -= 0.85
             lay.put(px, py, pal[1])
             lay.put(px + 1, py, pal[n - 2 if k < sl - 1 else n - 1])
-    # 根盘：从左端的截面往外张开，根很多、弯着缠着，越往外越细；往下的扎进地里就停
+    # 根盘：左端一大团竖起来的根盘（比树干粗一圈、边缘参差，右上沿受光），根从盘边往外张开，
+    # 很多、弯着缠着，根部粗、越往外越细；往下的扎进地里就停
     th, bot = cols[0]
-    cy = bot - th / 2
-    for j, a0 in enumerate(np.linspace(-3.4, -0.9, 13)):
-        px, py = x + 1.0 + rng.uniform(-1, 1), cy + rng.uniform(-th / 2.5, th / 2.5)
+    cy = bot - th / 2 - 1
+    R = th * 0.85
+    rim = smooth1d(64, rng, 7, 1.0)
+    for dy in range(-int(R) - 2, int(R) + 3):
+        for dx in range(-int(R * 0.55) - 2, 3):
+            a = np.arctan2(dy, dx * 1.8)
+            rr = R * (1 + 0.22 * rim[int((a + np.pi) / (2 * np.pi) * 63)])
+            if np.hypot(dx * 1.8, dy) < rr and cy + dy <= gy_of(x + dx) + 1:
+                edge = np.hypot(dx * 1.8, dy) > rr - 1.6
+                v = 1 if not edge else (n - 2 if (dy < 0 and dx > -R * 0.3) else 0)
+                if (dx * 3 + dy * 5) % 7 == 0 and not edge:
+                    v = 0                                               # 盘里缠着的根缝
+                lay.put(x + dx, cy + dy, pal[v])
+    for j, a0 in enumerate(np.linspace(-3.6, -0.7, 17)):
+        px, py = x - R * 0.3 + rng.uniform(-1, 1), cy + rng.uniform(-R * 0.8, R * 0.8)
         ang = a0 + rng.uniform(-0.15, 0.15)
-        L = rng.uniform(10, 26) * (0.6 if j % 3 == 1 else 1.0)
-        w0 = 3.2 if j % 2 == 0 else 2.0
+        L = rng.uniform(9, 24) * (0.55 if j % 3 == 1 else 1.0)
+        w0 = 3.0 if j % 2 == 0 else 2.0
         curl = rng.uniform(-0.09, 0.09)
         for s in range(int(L * 2)):
             t = s / (L * 2)
@@ -1079,10 +1102,6 @@ def driftwood(lay, x, gy_of, pal, seed):
                 if qy > gy_of(qx) + 1:
                     break
                 lay.put(qx, qy, pal[0])
-    # 截面（根盘中心）暗、一圈年轮亮边
-    for dy in range(-int(th / 2) + 1, int(th / 2)):
-        lay.put(x, cy + dy, pal[0])
-        lay.put(x - 1, cy + dy, pal[1 if dy < 0 else 0])
 
 
 def reeds(lay, x, gy, h, seed, pal, k=7, cattail=None):

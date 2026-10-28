@@ -7,7 +7,7 @@ extends Node2D
 
 @export var count := 12
 @export var area := Rect2(0, 132, 960, 70)
-@export var color := Color(0.55, 0.68, 0.95)
+@export var color := Color(0.5, 0.7, 0.8)          # 亮的东西往青银走（和亮纹一致）
 @export var seed := 11
 
 var _m: Array[Dictionary] = []

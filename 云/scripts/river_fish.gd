@@ -9,9 +9,9 @@ extends Node2D
 @export var center_x := 338.0          # 亮纹的中线（屏幕 x），和 tools/river_art.py 的 MX 一样
 @export var spread := 16.0             # 在中线左右多远以内跳
 @export var water_y := Vector2(162.0, 176.0)
-@export var fish_color := Color(0.03, 0.045, 0.075)
-@export var back_color := Color(0.44, 0.5, 0.6)     # 背上被月光擦亮的那一两格
-@export var splash_color := Color(0.56, 0.62, 0.72)   # 不亮过亮纹最亮的那一档太多
+@export var fish_color := Color(0.04, 0.04, 0.085)    # 最暗处偏靛
+@export var back_color := Color(0.42, 0.5, 0.55)    # 背上被月光擦亮的那一两格
+@export var splash_color := Color(0.53, 0.62, 0.66)  # 不亮过亮纹最亮的那一档太多
 @export var seed := 5
 
 const DUR := 1.05                      # 在空中多少秒

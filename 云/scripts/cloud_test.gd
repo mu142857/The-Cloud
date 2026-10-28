@@ -9,6 +9,8 @@ extends Node2D
 ##   --x=300            开场镜头左边缘在 x=300（晨站在镜头里）
 ##   --walk=3           开场晨自动往右走 3 秒再停（负数往左走）
 ##   --shot=out.png     存一张图后退出：有 --walk 就在走完那一刻存，否则开场 20 帧后存
+##   --face=-1          开场晨面朝左（1 朝右）
+##   --sx=130           镜头钉住，让晨站在屏幕 x=130（看晨在余晖底下够不够跳；不跟随）
 ##   --shots=目录 --start=30 --every=3 --count=8
 ##                      连拍：从第 start 帧开始，每 every 帧存一张 目录/shot_000.png …，存够 count 张退出
 
@@ -30,6 +32,7 @@ var _start := 30
 var _every := 3
 var _count := 8
 var _saved := 0
+var _pin := -1.0
 
 
 func _ready() -> void:
@@ -51,6 +54,10 @@ func _ready() -> void:
 			_every = int(a.trim_prefix("--every="))
 		elif a.begins_with("--count="):
 			_count = int(a.trim_prefix("--count="))
+		elif a.begins_with("--face="):
+			chen._set_facing(-1 if int(a.trim_prefix("--face=")) < 0 else 1)
+		elif a.begins_with("--sx="):
+			_pin = float(a.trim_prefix("--sx="))
 	chen._snap()
 	if _walked:
 		chen.auto_dir = signf(_walk)
@@ -58,6 +65,8 @@ func _ready() -> void:
 	if _dir != "":
 		DirAccess.make_dir_recursive_absolute(_dir)
 	cam.position = Vector2(_cam_target(), 135.0)
+	if _pin >= 0.0:
+		cam.position.x = chen.position.x - _pin + 240.0
 
 
 func _read_ground() -> void:
@@ -91,7 +100,8 @@ func _process(delta: float) -> void:
 		if _shot != "":
 			_save(_shot)
 			get_tree().quit()
-	cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
+	if _pin < 0.0:
+		cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
 	cam.position.y = 135.0
 	if _shot != "" and not _walked and _frame == 20:
 		_save(_shot)

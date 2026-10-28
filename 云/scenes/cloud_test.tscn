@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Texture2D" path="res://art/cloud/sky.png" id="1_sky"]
 [ext_resource type="Texture2D" path="res://art/cloud/high.png" id="2_high"]
@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" path="res://art/cloud/front.png" id="9_front"]
 [ext_resource type="Texture2D" path="res://art/cloud/flash.png" id="10_flash"]
 [ext_resource type="Texture2D" path="res://art/cloud/wash.png" id="11_wash"]
+[ext_resource type="Texture2D" path="res://art/cloud/streaks.png" id="12_streaks"]
 [ext_resource type="Script" path="res://scripts/cloud_test.gd" id="20_script"]
 [ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
 [ext_resource type="Script" path="res://scripts/cloud_stars.gd" id="22_stars"]
@@ -42,14 +43,27 @@ script = ExtResource("22_stars")
 scroll_scale = Vector2(0.02, 1)
 repeat_size = Vector2(960, 0)
 repeat_times = 2
-autoscroll = Vector2(-1.5, 0)
 
 [node name="Sprite" type="Sprite2D" parent="High"]
 texture = ExtResource("2_high")
 centered = false
-position = Vector2(0, 71)
+position = Vector2(0, 64)
 region_enabled = true
-region_rect = Rect2(0, 71, 960, 53)
+region_rect = Rect2(0, 64, 960, 38)
+
+[node name="Streaks" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.02, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+autoscroll = Vector2(-1.5, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Streaks"]
+material = SubResource("add")
+texture = ExtResource("12_streaks")
+centered = false
+position = Vector2(0, 93)
+region_enabled = true
+region_rect = Rect2(0, 93, 960, 27)
 
 [node name="Spires" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.04, 1)
@@ -66,9 +80,9 @@ region_rect = Rect2(0, 43, 960, 138)
 [node name="Flash" type="Sprite2D" parent="Spires"]
 texture = ExtResource("10_flash")
 centered = false
-position = Vector2(0, 78)
+position = Vector2(0, 79)
 region_enabled = true
-region_rect = Rect2(0, 78, 960, 75)
+region_rect = Rect2(0, 79, 960, 77)
 script = ExtResource("23_lightning")
 
 [node name="Far" type="Parallax2D" parent="."]
@@ -80,9 +94,9 @@ autoscroll = Vector2(-0.8, 0)
 [node name="Sprite" type="Sprite2D" parent="Far"]
 texture = ExtResource("4_far")
 centered = false
-position = Vector2(0, 129)
+position = Vector2(0, 138)
 region_enabled = true
-region_rect = Rect2(0, 129, 960, 141)
+region_rect = Rect2(0, 138, 960, 132)
 
 [node name="MidFar" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.18, 1)
@@ -93,9 +107,9 @@ autoscroll = Vector2(-1.6, 0)
 [node name="Sprite" type="Sprite2D" parent="MidFar"]
 texture = ExtResource("5_midfar")
 centered = false
-position = Vector2(0, 140)
+position = Vector2(0, 146)
 region_enabled = true
-region_rect = Rect2(0, 140, 960, 130)
+region_rect = Rect2(0, 146, 960, 124)
 
 [node name="Mid" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.36, 1)
@@ -106,9 +120,9 @@ autoscroll = Vector2(-2.6, 0)
 [node name="Sprite" type="Sprite2D" parent="Mid"]
 texture = ExtResource("6_mid")
 centered = false
-position = Vector2(0, 156)
+position = Vector2(0, 164)
 region_enabled = true
-region_rect = Rect2(0, 156, 960, 114)
+region_rect = Rect2(0, 164, 960, 106)
 
 [node name="Wash" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0, 0)
@@ -119,7 +133,7 @@ texture = ExtResource("11_wash")
 centered = false
 position = Vector2(0, 141)
 region_enabled = true
-region_rect = Rect2(0, 141, 480, 92)
+region_rect = Rect2(0, 141, 480, 63)
 
 [node name="Near" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.6, 1)
@@ -130,9 +144,9 @@ autoscroll = Vector2(-4.0, 0)
 [node name="Sprite" type="Sprite2D" parent="Near"]
 texture = ExtResource("7_near")
 centered = false
-position = Vector2(0, 189)
+position = Vector2(0, 194)
 region_enabled = true
-region_rect = Rect2(0, 189, 960, 81)
+region_rect = Rect2(0, 194, 960, 76)
 
 [node name="Main" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.0, 1)
@@ -142,9 +156,9 @@ repeat_times = 2
 [node name="Sprite" type="Sprite2D" parent="Main"]
 texture = ExtResource("8_main")
 centered = false
-position = Vector2(0, 216)
+position = Vector2(0, 218)
 region_enabled = true
-region_rect = Rect2(0, 216, 960, 54)
+region_rect = Rect2(0, 218, 960, 52)
 
 [node name="Chen" parent="." instance=ExtResource("40_chen")]
 position = Vector2(204, 227)
@@ -157,9 +171,9 @@ repeat_times = 2
 [node name="Sprite" type="Sprite2D" parent="Front"]
 texture = ExtResource("9_front")
 centered = false
-position = Vector2(0, 239)
+position = Vector2(0, 242)
 region_enabled = true
-region_rect = Rect2(0, 239, 960, 31)
+region_rect = Rect2(0, 242, 960, 28)
 
 [node name="Camera" type="Camera2D" parent="."]
 position = Vector2(240, 135)
