@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Texture2D" path="res://art/forest/sky.png" id="1_sky"]
 [ext_resource type="Texture2D" path="res://art/forest/ridge.png" id="2_ridge"]
@@ -10,16 +10,14 @@
 [ext_resource type="Script" path="res://scripts/forest_test.gd" id="20_script"]
 [ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
 [ext_resource type="PackedScene" path="res://scenes/forest_shadows.tscn" id="30_shadows"]
+[ext_resource type="Script" path="res://scripts/fireflies.gd" id="31_fireflies"]
+[ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
 
 [sub_resource type="CanvasItemMaterial" id="add"]
 blend_mode = 1
 
 [sub_resource type="ShaderMaterial" id="vig"]
 shader = ExtResource("21_vig")
-
-[sub_resource type="Gradient" id="dust_alpha"]
-offsets = PackedFloat32Array(0, 0.2, 0.8, 1)
-colors = PackedColorArray(0.72, 0.84, 0.76, 0, 0.72, 0.84, 0.76, 0.33, 0.72, 0.84, 0.76, 0.33, 0.72, 0.84, 0.76, 0)
 
 [node name="ForestTest" type="Node2D"]
 script = ExtResource("20_script")
@@ -100,20 +98,12 @@ material = SubResource("add")
 polygon = PackedVector2Array(586.8404, 98, 605.9227, 98, 620.0294, 130, 641.29, 180, 650.5698, 203, 626.5463, 203, 617.3488, 180, 598.4412, 130)
 vertex_colors = PackedColorArray(0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.0488, 0.8, 0.92, 0.83, 0.0375, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.0375, 0.8, 0.92, 0.83, 0.0488)
 
-[node name="Dust" type="CPUParticles2D" parent="Main"]
+[node name="Fireflies" type="Node2D" parent="Main"]
 material = SubResource("add")
-position = Vector2(480, 147.5)
-amount = 45
-lifetime = 9.0
-preprocess = 9.0
-emission_shape = 3
-emission_rect_extents = Vector2(480, 47.5)
-direction = Vector2(1, -0.3)
-spread = 180.0
-gravity = Vector2(0, 0.6)
-initial_velocity_min = 1.0
-initial_velocity_max = 4.0
-color_ramp = SubResource("dust_alpha")
+script = ExtResource("31_fireflies")
+
+[node name="Chen" parent="." instance=ExtResource("40_chen")]
+position = Vector2(204, 229)
 
 [node name="Front" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.4, 1)

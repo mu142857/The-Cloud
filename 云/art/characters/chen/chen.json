@@ -1,0 +1,439 @@
+{
+ "frames": [
+  {
+   "filename": "chen 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 175
+  },
+  {
+   "filename": "chen 1",
+   "frame": {
+    "x": 40,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 100
+  },
+  {
+   "filename": "chen 2",
+   "frame": {
+    "x": 80,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 100
+  },
+  {
+   "filename": "chen 3",
+   "frame": {
+    "x": 120,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 4",
+   "frame": {
+    "x": 160,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 5",
+   "frame": {
+    "x": 200,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 6",
+   "frame": {
+    "x": 240,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 7",
+   "frame": {
+    "x": 280,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 8",
+   "frame": {
+    "x": 320,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 9",
+   "frame": {
+    "x": 360,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 10",
+   "frame": {
+    "x": 400,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 11",
+   "frame": {
+    "x": 440,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 12",
+   "frame": {
+    "x": 480,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 13",
+   "frame": {
+    "x": 520,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 14",
+   "frame": {
+    "x": 560,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 15",
+   "frame": {
+    "x": 600,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 16",
+   "frame": {
+    "x": 640,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 17",
+   "frame": {
+    "x": 680,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 18",
+   "frame": {
+    "x": 720,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 19",
+   "frame": {
+    "x": 760,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 20",
+   "frame": {
+    "x": 800,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 21",
+   "frame": {
+    "x": 840,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 22",
+   "frame": {
+    "x": 880,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 23",
+   "frame": {
+    "x": 920,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 24",
+   "frame": {
+    "x": 960,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 25",
+   "frame": {
+    "x": 1000,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 26",
+   "frame": {
+    "x": 1040,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 27",
+   "frame": {
+    "x": 1080,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 28",
+   "frame": {
+    "x": 1120,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 29",
+   "frame": {
+    "x": 1160,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 30",
+   "frame": {
+    "x": 1200,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 31",
+   "frame": {
+    "x": 1240,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 32",
+   "frame": {
+    "x": 1280,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 33",
+   "frame": {
+    "x": 1320,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 34",
+   "frame": {
+    "x": 1360,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 35",
+   "frame": {
+    "x": 1400,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 36",
+   "frame": {
+    "x": 1440,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 37",
+   "frame": {
+    "x": 1480,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen 38",
+   "frame": {
+    "x": 1520,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 150
+  }
+ ],
+ "meta": {
+  "image": "chen.png",
+  "size": {
+   "w": 1560,
+   "h": 42
+  },
+  "frameTags": [
+   {
+    "name": "run",
+    "from": 0,
+    "to": 2,
+    "direction": "forward"
+   },
+   {
+    "name": "idle",
+    "from": 3,
+    "to": 10,
+    "direction": "forward"
+   },
+   {
+    "name": "idle_blink",
+    "from": 11,
+    "to": 18,
+    "direction": "forward"
+   },
+   {
+    "name": "idle_eye",
+    "from": 19,
+    "to": 26,
+    "direction": "forward"
+   },
+   {
+    "name": "front",
+    "from": 27,
+    "to": 32,
+    "direction": "forward"
+   },
+   {
+    "name": "front_blink",
+    "from": 33,
+    "to": 38,
+    "direction": "forward"
+   }
+  ]
+ }
+}
