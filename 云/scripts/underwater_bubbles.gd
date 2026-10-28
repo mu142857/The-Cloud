@@ -7,7 +7,7 @@ extends Node2D
 
 @export var sources: Array[Vector2] = []
 @export var follow: NodePath
-@export var follow_offset := Vector2(5, -31)     # 晨嘴边（脚底为原点，朝右时；朝左 x 取反）
+@export var follow_offset := Vector2(5, -41)     # 晨嘴边（脚底为原点，朝右时；朝左 x 取反）：奥斯卡版站着约 52 像素高
 @export var every := Vector2(0.5, 2.6)           # 泉眼每隔几秒冒一个
 @export var follow_every := Vector2(3.5, 7.0)    # 晨每隔几秒吐一串
 @export var surface_y := 18.0

@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Texture2D" path="res://art/city/sky.png" id="1_sky"]
 [ext_resource type="Texture2D" path="res://art/city/ridge.png" id="2_ridge"]
@@ -10,16 +10,24 @@
 [ext_resource type="Script" path="res://scripts/city_test.gd" id="20_script"]
 [ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
 [ext_resource type="Script" path="res://scripts/city_crowd.gd" id="22_crowd"]
-[ext_resource type="Script" path="res://scripts/city_motes.gd" id="25_motes"]
+[ext_resource type="Script" path="res://scripts/city_train.gd" id="23_train"]
+[ext_resource type="Script" path="res://scripts/city_signals.gd" id="24_signals"]
+[ext_resource type="Script" path="res://scripts/city_pigeons.gd" id="26_pigeons"]
+[ext_resource type="Script" path="res://scripts/city_rain.gd" id="27_rain"]
+[ext_resource type="Script" path="res://scripts/city_flicker.gd" id="28_flicker"]
+[ext_resource type="Shader" path="res://scripts/city_wet.gdshader" id="29_wet"]
 [ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
-[ext_resource type="Texture2D" path="res://art/city/hood_7.png" id="50_hood7"]
 [ext_resource type="Texture2D" path="res://art/city/hood_11.png" id="50_hood11"]
 [ext_resource type="Texture2D" path="res://art/city/hood_18.png" id="50_hood18"]
-[ext_resource type="Texture2D" path="res://art/city/hood_34.png" id="50_hood34"]
-[ext_resource type="Texture2D" path="res://art/city/hood_50.png" id="50_hood50"]
+[ext_resource type="Texture2D" path="res://art/city/hood_30.png" id="50_hood30"]
+[ext_resource type="Texture2D" path="res://art/city/hood_100.png" id="50_hood100"]
+[ext_resource type="Texture2D" path="res://art/city/hood_128.png" id="50_hood128"]
 
 [sub_resource type="CanvasItemMaterial" id="add"]
 blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="wet"]
+shader = ExtResource("29_wet")
 
 [sub_resource type="ShaderMaterial" id="vig"]
 shader = ExtResource("21_vig")
@@ -65,13 +73,55 @@ region_rect = Rect2(0, 0, 960, 270)
 
 [node name="Crowd" type="Node2D" parent="Far"]
 script = ExtResource("22_crowd")
-texture = ExtResource("50_hood7")
-frame_size = Vector2i(9, 7)
-count = 12
+texture = ExtResource("50_hood11")
+frame_size = Vector2i(14, 11)
+types = 10
+frames = 8
+count = 40
 feet_y = 133
-speed = Vector2(7, 12)
+speed = Vector2(9, 17)
 tint = Color(0.471, 0.478, 0.494, 1)
 seed = 3
+
+[node name="Train" type="Node2D" parent="Far"]
+script = ExtResource("23_train")
+rail_y = 90
+cars = 7
+car_len = 20
+car_h = 5
+speed = 300.0
+interval = Vector2(6.0, 11.0)
+dir = -1
+far = true
+
+[node name="Signals" type="Node2D" parent="Far"]
+script = ExtResource("24_signals")
+points = PackedVector2Array(67, 100, 127, 116, 187, 22, 247, 116, 307, 76, 367, 81, 427, 95, 487, 54, 547, 137, 607, 26, 667, 53, 727, 66, 787, 88, 847, 69, 907, 35, 967, 25)
+dot = 1
+seed = 2
+
+[node name="Pigeons" type="Node2D" parent="Far"]
+script = ExtResource("26_pigeons")
+count = 34
+size = 0
+center = Vector2(330, 70)
+radius = Vector2(150, 20)
+orbit_speed = 0.16
+light = Color(0.5, 0.5, 0.52, 1)
+dark = Color(0.33, 0.335, 0.35, 1)
+seed = 31
+
+[node name="Rain" type="Node2D" parent="Far"]
+script = ExtResource("27_rain")
+count = 240
+length = 3
+speed = 110
+color = Color(0.33, 0.34, 0.36, 1)
+color_dim = Color(0.2, 0.205, 0.22, 1)
+area = Rect2(0, -10, 960, 240)
+ground = Vector2(150, 236)
+splash = false
+seed = 41
 
 [node name="Shafts" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.18, 1)
@@ -112,13 +162,37 @@ region_rect = Rect2(0, 0, 960, 270)
 
 [node name="Crowd" type="Node2D" parent="MidFar"]
 script = ExtResource("22_crowd")
-texture = ExtResource("50_hood11")
-frame_size = Vector2i(11, 11)
-count = 10
+texture = ExtResource("50_hood18")
+frame_size = Vector2i(18, 18)
+types = 10
+frames = 8
+count = 30
 feet_y = 155
-speed = Vector2(12, 20)
+speed = Vector2(16, 30)
 tint = Color(0.404, 0.412, 0.424, 1)
 seed = 5
+
+[node name="Flicker" type="Node2D" parent="MidFar"]
+script = ExtResource("28_flicker")
+rects = Array[Rect2]([Rect2(42, 158, 1, 5), Rect2(42, 148, 1, 5), Rect2(42, 118, 1, 5), Rect2(42, 108, 1, 5), Rect2(112, 108, 1, 5), Rect2(42, 98, 1, 5), Rect2(112, 98, 1, 5), Rect2(42, 78, 1, 5), Rect2(112, 58, 1, 5), Rect2(112, 48, 1, 5), Rect2(42, 38, 1, 5), Rect2(112, 38, 1, 5), Rect2(208, 148, 1, 5), Rect2(138, 138, 1, 5), Rect2(208, 138, 1, 5), Rect2(138, 128, 1, 5), Rect2(208, 108, 1, 5), Rect2(208, 88, 1, 5), Rect2(208, 68, 1, 5), Rect2(208, 58, 1, 5), Rect2(138, 28, 1, 5), Rect2(234, 158, 1, 5), Rect2(304, 148, 1, 5), Rect2(234, 138, 1, 5), Rect2(304, 138, 1, 5), Rect2(304, 118, 1, 5), Rect2(304, 108, 1, 5), Rect2(234, 98, 1, 5), Rect2(304, 78, 1, 5), Rect2(234, 68, 1, 5), Rect2(304, 68, 1, 5), Rect2(234, 58, 1, 5), Rect2(304, 58, 1, 5), Rect2(304, 38, 1, 5), Rect2(234, 28, 1, 5), Rect2(330, 148, 1, 5), Rect2(330, 138, 1, 5), Rect2(400, 128, 1, 5), Rect2(330, 88, 1, 5), Rect2(400, 88, 1, 5), Rect2(400, 68, 1, 5), Rect2(330, 58, 1, 5), Rect2(400, 38, 1, 5), Rect2(426, 158, 1, 5), Rect2(496, 128, 1, 5), Rect2(496, 108, 1, 5), Rect2(426, 98, 1, 5), Rect2(496, 98, 1, 5), Rect2(496, 88, 1, 5), Rect2(496, 48, 1, 5), Rect2(426, 38, 1, 5), Rect2(496, 38, 1, 5), Rect2(592, 118, 1, 5), Rect2(522, 108, 1, 5), Rect2(522, 88, 1, 5), Rect2(592, 88, 1, 5), Rect2(592, 78, 1, 5), Rect2(522, 68, 1, 5), Rect2(522, 58, 1, 5), Rect2(592, 58, 1, 5), Rect2(522, 38, 1, 5), Rect2(522, 28, 1, 5), Rect2(688, 158, 1, 5), Rect2(618, 148, 1, 5), Rect2(618, 138, 1, 5), Rect2(688, 138, 1, 5), Rect2(688, 108, 1, 5), Rect2(688, 98, 1, 5), Rect2(618, 88, 1, 5), Rect2(688, 28, 1, 5), Rect2(784, 158, 1, 5), Rect2(714, 148, 1, 5), Rect2(784, 148, 1, 5), Rect2(714, 128, 1, 5), Rect2(784, 128, 1, 5), Rect2(714, 118, 1, 5), Rect2(714, 78, 1, 5), Rect2(714, 68, 1, 5), Rect2(784, 68, 1, 5), Rect2(810, 158, 1, 5), Rect2(880, 158, 1, 5), Rect2(810, 118, 1, 5), Rect2(880, 108, 1, 5), Rect2(810, 98, 1, 5), Rect2(880, 98, 1, 5), Rect2(810, 88, 1, 5), Rect2(880, 58, 1, 5), Rect2(880, 48, 1, 5), Rect2(810, 28, 1, 5), Rect2(880, 28, 1, 5), Rect2(976, 148, 1, 5), Rect2(906, 138, 1, 5), Rect2(906, 128, 1, 5), Rect2(976, 108, 1, 5), Rect2(906, 98, 1, 5), Rect2(976, 88, 1, 5), Rect2(976, 78, 1, 5), Rect2(906, 58, 1, 5), Rect2(906, 48, 1, 5), Rect2(976, 48, 1, 5), Rect2(906, 38, 1, 5)])
+seed = 8
+
+[node name="Pigeons" type="Node2D" parent="MidFar"]
+script = ExtResource("26_pigeons")
+count = 36
+size = 1
+center = Vector2(420, 94)
+radius = Vector2(150, 24)
+orbit_speed = 0.2
+light = Color(0.49, 0.49, 0.51, 1)
+dark = Color(0.32, 0.325, 0.34, 1)
+seed = 32
+
+[node name="Signals" type="Node2D" parent="MidFar"]
+script = ExtResource("24_signals")
+points = PackedVector2Array(114, 73, 114, 84, 210, 82, 210, 61, 306, 133, 306, 64, 402, 98, 402, 64, 498, 73, 498, 138, 594, 42, 594, 95, 690, 71, 690, 100, 786, 110, 786, 59, 882, 100, 882, 101, 978, 74, 978, 34)
+dot = 2
+seed = 4
 
 [node name="Mid" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.62, 1)
@@ -134,13 +208,74 @@ region_rect = Rect2(0, 0, 960, 270)
 
 [node name="Crowd" type="Node2D" parent="Mid"]
 script = ExtResource("22_crowd")
-texture = ExtResource("50_hood18")
-frame_size = Vector2i(16, 18)
-count = 8
+texture = ExtResource("50_hood30")
+frame_size = Vector2i(26, 30)
+types = 10
+frames = 8
+count = 20
 feet_y = 177
-speed = Vector2(20, 32)
+speed = Vector2(28, 50)
 tint = Color(0.314, 0.325, 0.337, 1)
 seed = 7
+
+[node name="Signals" type="Node2D" parent="Mid"]
+script = ExtResource("24_signals")
+points = PackedVector2Array(138, 133, 138, 95, 298, 102, 298, 127, 449, 89, 449, 113, 618, 120, 618, 47, 778, 26, 778, 56, 938, 54, 938, 124)
+dot = 2
+seed = 6
+
+[node name="Flicker" type="Node2D" parent="Mid"]
+script = ExtResource("28_flicker")
+rects = Array[Rect2]([Rect2(134, 154, 2, 10), Rect2(21, 90, 2, 10), Rect2(134, 74, 2, 10), Rect2(21, 58, 2, 10), Rect2(181, 154, 2, 10), Rect2(181, 138, 2, 10), Rect2(294, 74, 2, 10), Rect2(181, 26, 2, 10), Rect2(294, 26, 2, 10), Rect2(445, 154, 2, 10), Rect2(445, 122, 2, 10), Rect2(445, 106, 2, 10), Rect2(445, 42, 2, 10), Rect2(501, 138, 2, 10), Rect2(614, 122, 2, 10), Rect2(501, 106, 2, 10), Rect2(501, 74, 2, 10), Rect2(501, 58, 2, 10), Rect2(614, 58, 2, 10), Rect2(501, 42, 2, 10), Rect2(661, 122, 2, 10), Rect2(661, 106, 2, 10), Rect2(774, 106, 2, 10), Rect2(934, 106, 2, 10), Rect2(821, 42, 2, 10)])
+seed = 9
+
+[node name="Train" type="Node2D" parent="Mid"]
+script = ExtResource("23_train")
+rail_y = 62
+cars = 8
+car_len = 46
+car_h = 13
+speed = 760.0
+interval = Vector2(4.0, 8.0)
+dir = 1
+far = false
+
+[node name="Pigeons" type="Node2D" parent="Mid"]
+script = ExtResource("26_pigeons")
+count = 30
+size = 3
+center = Vector2(330, 108)
+radius = Vector2(200, 30)
+orbit_speed = 0.17
+light = Color(0.47, 0.47, 0.49, 1)
+dark = Color(0.30, 0.305, 0.32, 1)
+seed = 33
+
+[node name="Perched" type="Node2D" parent="Mid"]
+script = ExtResource("26_pigeons")
+count = 18
+size = 3
+center = Vector2(0, 0)
+radius = Vector2(110, 26)
+orbit_speed = 0.6
+light = Color(0.47, 0.47, 0.49, 1)
+dark = Color(0.30, 0.305, 0.32, 1)
+seed = 34
+perch = true
+perch_y = 61
+train = NodePath("../Train")
+
+[node name="Rain" type="Node2D" parent="Mid"]
+script = ExtResource("27_rain")
+count = 150
+length = 5
+speed = 220
+color = Color(0.34, 0.35, 0.37, 1)
+color_dim = Color(0.17, 0.175, 0.19, 1)
+area = Rect2(0, -10, 960, 240)
+ground = Vector2(170, 236)
+splash = false
+seed = 42
 
 [node name="Main" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.0, 1)
@@ -156,21 +291,40 @@ region_rect = Rect2(0, 158, 960, 112)
 
 [node name="Crowd" type="Node2D" parent="Main"]
 script = ExtResource("22_crowd")
-texture = ExtResource("50_hood34")
-frame_size = Vector2i(26, 34)
-count = 4
+texture = ExtResource("50_hood100")
+frame_size = Vector2i(72, 100)
+types = 10
+frames = 8
+count = 9
 feet_y = 227
-speed = Vector2(46, 64)
+speed = Vector2(55, 95)
 tint = Color(0.212, 0.220, 0.231, 1)
 seed = 11
 
-[node name="Motes" type="Node2D" parent="Main"]
-script = ExtResource("25_motes")
-color = Color(0.45, 0.45, 0.46, 1)
-count = 16
+[node name="Rain" type="Node2D" parent="Main"]
+script = ExtResource("27_rain")
+count = 80
+length = 7
+speed = 380
+color = Color(0.38, 0.39, 0.41, 1)
+color_dim = Color(0.17, 0.175, 0.19, 1)
+area = Rect2(0, -10, 960, 240)
+ground = Vector2(229, 268)
+splash = true
+seed = 43
 
 [node name="Chen" parent="." instance=ExtResource("40_chen")]
 position = Vector2(204, 229)
+
+[node name="Wet" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Rect" type="ColorRect" parent="Wet"]
+material = SubResource("wet")
+offset_top = 230.0
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2
 
 [node name="Front" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.4, 1)
@@ -186,13 +340,27 @@ region_rect = Rect2(0, 0, 960, 270)
 
 [node name="Crowd" type="Node2D" parent="Front"]
 script = ExtResource("22_crowd")
-texture = ExtResource("50_hood50")
-frame_size = Vector2i(35, 50)
+texture = ExtResource("50_hood128")
+frame_size = Vector2i(91, 128)
+types = 10
+frames = 8
 count = 2
-feet_y = 276
-speed = Vector2(70, 90)
-tint = Color(0.078, 0.086, 0.098, 1)
+feet_y = 264
+speed = Vector2(150, 190)
+tint = Color(0.055, 0.063, 0.071, 1)
 seed = 13
+
+[node name="Rain" type="Node2D" parent="Front"]
+script = ExtResource("27_rain")
+count = 14
+length = 12
+speed = 620
+color = Color(0.3, 0.31, 0.33, 1)
+color_dim = Color(0.3, 0.31, 0.33, 1)
+area = Rect2(0, -40, 960, 240)
+ground = Vector2(240, 290)
+splash = false
+seed = 44
 
 [node name="Camera" type="Camera2D" parent="."]
 position = Vector2(240, 135)

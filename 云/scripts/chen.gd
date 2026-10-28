@@ -14,32 +14,39 @@ extends Node2D
 ## 主层 scroll 1.0，和世界坐标一致。
 
 # ===================================================================== 精灵配置（换素材只改这里）
-## 精灵表：一行横排，所有帧同一尺寸，从左往右编号 0、1、2…（tools/chen_sprites.py 生成）
-const SHEET := preload("res://art/characters/chen/chen.png")
-const FRAME_SIZE := Vector2i(40, 42)
-## 锚点（帧里的像素坐标）：x = 身体中线（翻转就绕这条线翻，最好取画布正中），y = 脚底那一行
-const FOOT := Vector2i(20, 41)
+## 精灵表：一行横排，所有帧同一尺寸，从左往右编号 0、1、2…
+## 现在是奥斯卡画的晨：源文件 art/characters/chen/chen_oscar.aseprite，tools/chen_from_aseprite.py 清杂点、裁好导出，
+## 帧号和 aseprite 里一样（爬起来 0~6、待机 7~10、看 11~14、走路 15~25、捡东西 26~30）。
+## 旧的那套（美术姐版，tools/chen_sprites.py）还在 art/characters/chen/chen.png、chen_getup.png。
+const SHEET := preload("res://art/characters/chen/chen_oscar.png")
+const FRAME_SIZE := Vector2i(68, 60)
+## 锚点（帧里的像素坐标）：x = 身体中线（翻转就绕这条线翻），y = 脚底那一行
+const FOOT := Vector2i(28, 56)
 ## 美术画的朝向：1 = 朝右，-1 = 朝左
 const ART_FACES := 1
 ## 每段动画：frames = 用精灵表里的哪几帧；ms = 每帧毫秒（一个数 = 每帧一样）；
-## step = 只有 run 要：这一帧换到下一帧时往前走几像素（和 frames 一样长）。
+## step = 会走路的段要：这一帧换到下一帧时往前走几像素（和 frames 一样长）。
 ## 必须有 run 和 idle；idle_blink / idle_eye（偶尔替换 idle 的一圈，帧数要和 idle 一样）、
 ## front / front_blink（正面站）可以没有。
+## run_start / run_stop 也可以没有：有的话起步先播 run_start 再接 run，松手先播 run_stop 再回 idle（都要 step）。
+## pickup（捡东西，第一关捡木头时播）可以没有，没有就退回压扁一下的老办法。
 ## 可选的几项（不写就用上面的默认）：sheet / size / foot = 这段用另一张精灵表、另一种帧尺寸和锚点；
 ## loop = false 播一遍停在最后一帧；then = 播完换成哪段。
-## lie / getup（第一关开场：脸朝下趴着 → 爬起来，tools/level1_chen_getup.py 生成）也是可选的，
-## 删掉的话关卡退回「把站立帧转 90°」的老办法。
-const GETUP_SHEET := preload("res://art/characters/chen/chen_getup.png")
+## lie / getup（第一关开场：脸朝下趴着 → 爬起来）也是可选的，删掉的话关卡退回「把站立帧转 90°」的老办法。
 const ANIMS := {
-	"run": {"frames": [0, 1, 2], "ms": [175, 100, 100], "step": [7, 4, 4]},
-	"idle": {"frames": [3, 4, 5, 6, 7, 8, 9, 10], "ms": 150},
-	"idle_blink": {"frames": [11, 12, 13, 14, 15, 16, 17, 18], "ms": 150},
-	"idle_eye": {"frames": [19, 20, 21, 22, 23, 24, 25, 26], "ms": 150},
-	"front": {"frames": [27, 28, 29, 30, 31, 32], "ms": 150},
-	"front_blink": {"frames": [33, 34, 35, 36, 37, 38], "ms": 150},
-	"lie": {"sheet": GETUP_SHEET, "size": Vector2i(64, 42), "foot": Vector2i(20, 41), "frames": [0], "ms": 400, "loop": false},
-	"getup": {"sheet": GETUP_SHEET, "size": Vector2i(64, 42), "foot": Vector2i(20, 41),
-		"frames": [1, 0, 1, 2, 3, 4, 5], "ms": [140, 420, 160, 460, 420, 200, 150], "loop": false, "then": "idle"},
+	# 跑：一步 3 帧（着地 → 腾空 → 前脚落地），一圈两步。着地那只脚每帧往后退 6~7 像素 → 约 67 像素 / 秒。
+	# 着地帧的脚比站着低 1~2 像素、腾空帧高一点，所以脚底按 57 算（站着是 56）。
+	"run": {"frames": [18, 19, 20, 21, 22, 23], "ms": 100, "step": [7, 6, 7, 7, 6, 7], "foot": Vector2i(28, 57)},
+	"run_start": {"frames": [15, 16, 17], "ms": 100, "step": [4, 6, 7], "loop": false, "then": "run"},
+	"run_stop": {"frames": [24, 25], "ms": 100, "step": [3, 0], "foot": Vector2i(28, 57), "loop": false, "then": "idle"},
+	"idle": {"frames": [7, 8, 9, 10], "ms": 100},
+	# 「看」：偶尔替换一圈待机，中间那帧停 0.7 秒
+	"idle_eye": {"frames": [11, 12, 13, 14], "ms": [100, 100, 700, 100]},
+	# 奥斯卡的「爬起来」每帧都是 100ms，开场坠毁以后太快，这里放慢（level_forest.gd 的 GETUP_* 跟着这串数）
+	"lie": {"frames": [0], "ms": 400, "loop": false},
+	"getup": {"frames": [0, 1, 2, 3, 4, 5, 6], "ms": [350, 250, 300, 450, 300, 200, 200], "loop": false, "then": "idle"},
+	# 捡东西：最低那帧（28）在第 0.14 秒，和 level_forest.gd 里木头飞起来的时间对上
+	"pickup": {"frames": [26, 27, 28, 29, 30], "ms": [60, 80, 300, 150, 150], "loop": false, "then": "idle"},
 }
 # =====================================================================
 
@@ -48,7 +55,7 @@ const GROUND := 228.0
 const SINK := 1                    # 脚底那行盖住地面最上面一行
 const FAST := 1.5                  # Shift
 const BLINK_EVERY := Vector2(2.5, 5.0)   # 隔几秒眨一次眼
-const EYE_CHANCE := 0.25           # 眨眼时有多大可能换成第三只眼
+const EYE_CHANCE := 0.25           # 该眨眼时有多大可能换成 idle_eye（奥斯卡版是「看」一眼）
 
 @onready var spr: AnimatedSprite2D = $Sprite
 
@@ -117,15 +124,21 @@ func _process(delta: float) -> void:
 	if dir != 0.0:
 		_set_facing(1 if dir > 0.0 else -1)
 		spr.speed_scale = FAST if input_enabled and Input.is_key_pressed(KEY_SHIFT) else 1.0
-		if spr.animation != &"run":
+		if not _moving(spr.animation) or spr.animation == &"run_stop":
+			# 刚停下又按：直接接着跑，不再起步一次
+			var again := spr.animation == &"run_stop"
 			_last_run_frame = -1
-			spr.play(&"run")
+			spr.play(&"run_start" if ANIMS.has("run_start") and not again else &"run")
 			_last_run_frame = spr.frame
 	else:
 		var down := input_enabled and (Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S))
 		var want := &"front" if down and ANIMS.has("front") else &"idle"
 		var is_front := String(spr.animation).begins_with("front")
-		if spr.animation == &"run" or is_front != (want == &"front"):
+		if spr.animation in [&"run", &"run_start"] and want == &"idle" and ANIMS.has("run_stop"):
+			_last_run_frame = -1
+			spr.play(&"run_stop")
+			_last_run_frame = spr.frame
+		elif _moving(spr.animation) and spr.animation != &"run_stop" or is_front != (want == &"front"):
 			spr.speed_scale = 1.0
 			_last_run_frame = -1
 			spr.play(want)
@@ -143,11 +156,15 @@ func _set_facing(f: int) -> void:
 	spr.offset = Vector2(-fx, -(foot.y + 1))
 
 
+func _moving(anim: StringName) -> bool:
+	return anim in [&"run", &"run_start", &"run_stop"]
+
+
 func _on_frame_changed() -> void:
-	if spr.animation != &"run":
+	if not _steps.has(spr.animation):
 		return
 	if _last_run_frame >= 0 and spr.frame != _last_run_frame:
-		position.x += facing * float(_steps[&"run"][_last_run_frame])
+		position.x += facing * float(_steps[spr.animation][_last_run_frame])
 		_snap()
 	_last_run_frame = spr.frame
 
@@ -155,7 +172,7 @@ func _on_frame_changed() -> void:
 func _on_looped() -> void:
 	# 待机：大多数时候是 idle；隔几秒眨一次眼，偶尔头环上的第三只眼也慢慢闭一下。几段呼吸一样，接得上。
 	var a := String(spr.animation)
-	if a == "run":
+	if _moving(spr.animation):
 		return
 	var front := a.begins_with("front")
 	var base := "front" if front else "idle"
@@ -173,8 +190,15 @@ func _on_looped() -> void:
 
 func _on_finished() -> void:
 	var a: Dictionary = ANIMS.get(String(spr.animation), {})
+	if a.has("step") and _last_run_frame >= 0:
+		# 不循环的走路段（run_start / run_stop）最后一帧的步长：播完那一下也要走
+		position.x += facing * float(a["step"][_last_run_frame])
+		_snap()
+	_last_run_frame = -1
 	if a.has("then"):
 		spr.play(StringName(a["then"]))
+		if _moving(spr.animation):
+			_last_run_frame = spr.frame
 
 
 func _snap() -> void:

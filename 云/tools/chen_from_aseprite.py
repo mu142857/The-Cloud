@@ -1,0 +1,122 @@
+"""奥斯卡画的晨（art/characters/chen/chen_oscar.aseprite）→ 游戏用的精灵表 art/characters/chen/chen_oscar.png。
+
+用 Aseprite 命令行把每一帧导出来，再做四件事：
+  1. 清杂点：半透明的像素（alpha < 255）一律去掉；和身体不连着的单个像素（右上角那几颗）去掉。
+  2. 去掉纯黑 #000：斗篷最下面两行是纯黑，贴在地上像描了一道黑边 → 换成同一列上面的斗篷色；
+     别处的纯黑（斗篷背后那条暗边）换成 DEEP，比斗篷暗、但不是死黑。原文件不动。
+  3. 每帧裁成同一块 CROP（所有帧的身体都在里面），一行横排，帧号和 aseprite 里一样 0..30。
+  4. 打印每段 tag 的帧号，对照 scripts/chen.gd 的 ANIMS。
+
+用法（工程根目录下）：
+  "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/chen_from_aseprite.py [源文件.aseprite]
+不给源文件就用 art/characters/chen/chen_oscar.aseprite。奥斯卡改了图以后，把新文件拷过去覆盖再跑一次。
+"""
+import json
+import subprocess
+import sys
+import tempfile
+from collections import deque
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "art/characters/chen/chen_oscar.aseprite"
+OUT = ROOT / "art/characters/chen/chen_oscar.png"
+ASEPRITE = "/Applications/Aseprite.app/Contents/MacOS/aseprite"
+
+# aseprite 画布 111×105 里裁出来的这一块（x0, y0, x1, y1）：站着时身体中线 x≈40、脚底 y=80，
+# 所以 chen.gd 里 FOOT = (40 - 12, 80 - 24) = (28, 56)
+CROP = (12, 24, 80, 84)
+MIN_PIECE = 3          # 和身体不连着、小于这么多像素的碎块算杂点
+DEEP = (34, 34, 40)    # 纯黑换成的颜色：斗篷最暗那档（37,37,37）再暗一点、带一点冷
+HEM_ROWS = 2           # 每一列最下面几格是纯黑就算「底边黑线」
+
+
+def export(src: Path, tmp: Path):
+    sheet, data = tmp / "sheet.png", tmp / "data.json"
+    subprocess.run([ASEPRITE, "-b", str(src), "--list-tags", "--sheet", str(sheet), "--sheet-type", "horizontal",
+                    "--data", str(data), "--format", "json-array"], check=True, capture_output=True)
+    return np.array(Image.open(sheet).convert("RGBA")), json.loads(data.read_text())
+
+
+def pieces(mask):
+    """8 连通的连通块，每块是 [(y, x), …]"""
+    h, w = mask.shape
+    seen = np.zeros_like(mask)
+    out = []
+    for y, x in zip(*np.nonzero(mask)):
+        if seen[y, x]:
+            continue
+        seen[y, x] = True
+        q, px = deque([(y, x)]), []
+        while q:
+            cy, cx = q.popleft()
+            px.append((cy, cx))
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    ny, nx = cy + dy, cx + dx
+                    if 0 <= ny < h and 0 <= nx < w and mask[ny, nx] and not seen[ny, nx]:
+                        seen[ny, nx] = True
+                        q.append((ny, nx))
+        out.append(px)
+    return out
+
+
+def clean(frame):
+    frame = frame.copy()
+    frame[frame[..., 3] < 255] = 0
+    ps = pieces(frame[..., 3] > 0)
+    biggest = max(len(p) for p in ps)
+    removed = 0
+    for p in ps:
+        if len(p) < biggest and len(p) < MIN_PIECE:
+            for y, x in p:
+                frame[y, x] = 0
+            removed += len(p)
+    return frame, removed
+
+
+def unblack(frame):
+    """斗篷底边的纯黑换成上面的斗篷色，其余纯黑换成 DEEP。返回换了几个像素。"""
+    rgb, op = frame[..., :3], frame[..., 3] == 255
+    black = op & (rgb.sum(-1) == 0)
+    n = int(black.sum())
+    for x in np.nonzero(black.any(0))[0]:
+        ys = np.nonzero(op[:, x])[0]
+        above = [y for y in ys if not black[y, x]]
+        for y in ys[-HEM_ROWS:]:
+            if black[y, x]:
+                up = [a for a in above if a < y and int(rgb[a, x].max()) < 80]   # 只借斗篷那种暗色，别借到手或头发
+                if up:
+                    rgb[y, x] = rgb[up[-1], x]
+                    black[y, x] = False
+    rgb[black] = DEEP
+    return n
+
+
+def main():
+    src = Path(sys.argv[1]) if len(sys.argv) > 1 else SRC
+    with tempfile.TemporaryDirectory() as t:
+        sheet, data = export(src, Path(t))
+    x0, y0, x1, y1 = CROP
+    frames = []
+    for i, f in enumerate(data["frames"]):
+        r = f["frame"]
+        fr, removed = clean(sheet[r["y"]:r["y"] + r["h"], r["x"]:r["x"] + r["w"]])
+        unblack(fr)
+        ys, xs = np.nonzero(fr[..., 3])
+        assert xs.min() >= x0 and xs.max() < x1 and ys.min() >= y0 and ys.max() < y1, f"第 {i} 帧超出 CROP"
+        frames.append(fr[y0:y1, x0:x1])
+        if removed:
+            print(f"帧 {i:2d}：去掉 {removed} 个杂点像素")
+    Image.fromarray(np.concatenate(frames, axis=1)).save(OUT)
+    print(f"→ {OUT.relative_to(ROOT)}：{len(frames)} 帧，每帧 {x1 - x0}×{y1 - y0}")
+    for tag in data["meta"]["frameTags"]:
+        ms = [data["frames"][i]["duration"] for i in range(tag["from"], tag["to"] + 1)]
+        print(f"  {tag['name']}: 帧 {tag['from']}..{tag['to']}，ms {ms}")
+
+
+if __name__ == "__main__":
+    main()

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3e3diyn2u2ju"
-path="res://.godot/imported/hood_34.png-74053517e107e9b1d73dd6653131148d.ctex"
+uid="uid://djbpfas4ppjvb"
+path="res://.godot/imported/chen_oscar.png-b3672bc64df8fc3aac0bea04ed1b6f5b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/city/hood_34.png"
-dest_files=["res://.godot/imported/hood_34.png-74053517e107e9b1d73dd6653131148d.ctex"]
+source_file="res://art/characters/chen/chen_oscar.png"
+dest_files=["res://.godot/imported/chen_oscar.png-b3672bc64df8fc3aac0bea04ed1b6f5b.ctex"]
 
 [params]
 

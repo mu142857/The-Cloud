@@ -21,6 +21,7 @@ const GROUND := 228.0
 @onready var cam: Camera2D = $Camera
 @onready var chen: Node2D = $Chen
 @onready var rays: Array[Node] = $Shafts.get_children()
+@onready var wet: CanvasItem = $Wet/Rect
 
 var _t := 0.0
 var _frame := 0
@@ -85,6 +86,10 @@ func _process(delta: float) -> void:
 			get_tree().quit()
 	cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
 	cam.position.y = 135.0
+	# 湿街面的倒影按世界列断成竖条、积水跟着地面走：告诉它镜头左边缘在哪
+	var wm := wet.material as ShaderMaterial
+	wm.set_shader_parameter("cam_left", cam.position.x - 240.0)
+	wm.set_shader_parameter("chen_x", chen.position.x - (cam.position.x - 240.0))
 	# 天缝里漏下来的几道斜光慢慢呼吸，几道错开（烟霾在动）
 	for i in rays.size():
 		var r := rays[i] as CanvasItem

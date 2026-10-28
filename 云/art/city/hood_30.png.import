@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://chkrst2f6tgj1"
-path="res://.godot/imported/hood_7.png-92023e6c6a371fb0add8408ff06fdf1c.ctex"
+uid="uid://ddv37i4ixm2kv"
+path="res://.godot/imported/hood_30.png-f3f2f9aa63fba5d450ad21ce9d78f2f1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/city/hood_7.png"
-dest_files=["res://.godot/imported/hood_7.png-92023e6c6a371fb0add8408ff06fdf1c.ctex"]
+source_file="res://art/city/hood_30.png"
+dest_files=["res://.godot/imported/hood_30.png-f3f2f9aa63fba5d450ad21ce9d78f2f1.ctex"]
 
 [params]
 

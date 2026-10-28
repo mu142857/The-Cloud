@@ -39,9 +39,9 @@ const CHEN_GD := preload("res://scripts/chen.gd")
 ## 晨的精灵配置里有没有「趴着 / 爬起来」两段（tools/level1_chen_getup.py）。没有就退回把站立帧转 90° 的老办法。
 var _has_getup: bool = CHEN_GD.ANIMS.has("lie") and CHEN_GD.ANIMS.has("getup")
 ## getup 一段多长（秒），和各帧什么时候换（跪坐、站直那两下扬一点土）
-const GETUP_KNEEL_AT := 1.18
-const GETUP_STAND_AT := 1.80
-const GETUP_TIME := 1.95
+const GETUP_KNEEL_AT := 0.90      # chen.gd 里 getup 的 ms：350 + 250 + 300 → 第 3 帧（跪坐）
+const GETUP_STAND_AT := 1.85      # … + 450 + 300 + 200 → 第 6 帧（站直）
+const GETUP_TIME := 2.05
 
 ## 调试场景浏览（只在 debug 构建、标题界面）：F1~F5
 const TEST_SCENES := {
@@ -1186,8 +1186,8 @@ func _thrown_step(k: float) -> void:
 	if _has_getup:
 		# 空中翻滚按 90° 一档一档转（像素一一对应，不出斜着的 mixel），绕身体中间转
 		r = snappedf(r, PI / 2.0)
-		var c := Vector2(0, -21)
-		chen.spr.position = (c - c.rotated(r) + Vector2(0, 15.0 * k)).round()
+		var c := Vector2(0, -26)      # 晨站着约 52 像素高，绕腰转
+		chen.spr.position = (c - c.rotated(r) + Vector2(0, 18.0 * k)).round()
 		chen.spr.rotation = r
 	else:
 		chen.spr.rotation = r
@@ -1221,7 +1221,7 @@ func _chen_get_up() -> void:
 	var spr: AnimatedSprite2D = chen.spr
 	var tw := _tw()
 	if _has_getup:
-		# 拼出来的几帧：抽一下 → 又趴回去 → 撑起上身 → 跪坐 → 半蹲 → 站直（chen.gd 的 getup，播完自己回 idle）
+		# 奥斯卡画的爬起来：趴着 → 撑起上身 → 跪坐 → 站直（chen.gd 的 getup，播完自己回 idle）
 		spr.play(&"getup")
 		tw.tween_interval(GETUP_KNEEL_AT)
 		tw.tween_callback(func(): puffs_front.burst(chen.position + Vector2(-3, 0), 4, puffs_front.PRESETS.dust_small))
@@ -1358,6 +1358,9 @@ func _pickup_at_wood() -> void:
 
 
 func _pk_crouch() -> void:
+	if CHEN_GD.ANIMS.has("pickup"):
+		chen.spr.play(&"pickup")      # 奥斯卡画的弯腰捡，播完自己回 idle
+		return
 	var tw := _tw()
 	tw.tween_property(chen.spr, "scale", Vector2(1.06, 0.9), 0.12)
 	tw.tween_property(chen.spr, "scale", Vector2.ONE, 0.2)
