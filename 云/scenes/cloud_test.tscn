@@ -73,16 +73,16 @@ repeat_times = 2
 [node name="Sprite" type="Sprite2D" parent="Spires"]
 texture = ExtResource("3_spires")
 centered = false
-position = Vector2(0, 40)
+position = Vector2(0, 43)
 region_enabled = true
-region_rect = Rect2(0, 40, 960, 141)
+region_rect = Rect2(0, 43, 960, 138)
 
 [node name="Flash" type="Sprite2D" parent="Spires"]
 texture = ExtResource("10_flash")
 centered = false
-position = Vector2(0, 84)
+position = Vector2(0, 78)
 region_enabled = true
-region_rect = Rect2(0, 84, 960, 73)
+region_rect = Rect2(0, 78, 960, 76)
 script = ExtResource("23_lightning")
 
 [node name="Far" type="Parallax2D" parent="."]
@@ -94,9 +94,9 @@ autoscroll = Vector2(-0.8, 0)
 [node name="Sprite" type="Sprite2D" parent="Far"]
 texture = ExtResource("4_far")
 centered = false
-position = Vector2(0, 138)
+position = Vector2(0, 136)
 region_enabled = true
-region_rect = Rect2(0, 138, 960, 132)
+region_rect = Rect2(0, 136, 960, 134)
 
 [node name="MidFar" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.18, 1)
@@ -107,9 +107,9 @@ autoscroll = Vector2(-1.6, 0)
 [node name="Sprite" type="Sprite2D" parent="MidFar"]
 texture = ExtResource("5_midfar")
 centered = false
-position = Vector2(0, 144)
+position = Vector2(0, 146)
 region_enabled = true
-region_rect = Rect2(0, 144, 960, 126)
+region_rect = Rect2(0, 146, 960, 124)
 
 [node name="Mid" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.36, 1)
@@ -120,9 +120,9 @@ autoscroll = Vector2(-2.6, 0)
 [node name="Sprite" type="Sprite2D" parent="Mid"]
 texture = ExtResource("6_mid")
 centered = false
-position = Vector2(0, 142)
+position = Vector2(0, 126)
 region_enabled = true
-region_rect = Rect2(0, 142, 960, 128)
+region_rect = Rect2(0, 126, 960, 144)
 
 [node name="Wash" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0, 0)

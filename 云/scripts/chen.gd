@@ -25,6 +25,11 @@ const ART_FACES := 1
 ## step = 只有 run 要：这一帧换到下一帧时往前走几像素（和 frames 一样长）。
 ## 必须有 run 和 idle；idle_blink / idle_eye（偶尔替换 idle 的一圈，帧数要和 idle 一样）、
 ## front / front_blink（正面站）可以没有。
+## 可选的几项（不写就用上面的默认）：sheet / size / foot = 这段用另一张精灵表、另一种帧尺寸和锚点；
+## loop = false 播一遍停在最后一帧；then = 播完换成哪段。
+## lie / getup（第一关开场：脸朝下趴着 → 爬起来，tools/level1_chen_getup.py 生成）也是可选的，
+## 删掉的话关卡退回「把站立帧转 90°」的老办法。
+const GETUP_SHEET := preload("res://art/characters/chen/chen_getup.png")
 const ANIMS := {
 	"run": {"frames": [0, 1, 2], "ms": [175, 100, 100], "step": [7, 4, 4]},
 	"idle": {"frames": [3, 4, 5, 6, 7, 8, 9, 10], "ms": 150},
@@ -32,6 +37,9 @@ const ANIMS := {
 	"idle_eye": {"frames": [19, 20, 21, 22, 23, 24, 25, 26], "ms": 150},
 	"front": {"frames": [27, 28, 29, 30, 31, 32], "ms": 150},
 	"front_blink": {"frames": [33, 34, 35, 36, 37, 38], "ms": 150},
+	"lie": {"sheet": GETUP_SHEET, "size": Vector2i(64, 42), "foot": Vector2i(20, 41), "frames": [0], "ms": 400, "loop": false},
+	"getup": {"sheet": GETUP_SHEET, "size": Vector2i(64, 42), "foot": Vector2i(20, 41),
+		"frames": [1, 0, 1, 2, 3, 4, 5], "ms": [140, 420, 160, 460, 420, 200, 150], "loop": false, "then": "idle"},
 }
 # =====================================================================
 
@@ -68,6 +76,8 @@ func _ready() -> void:
 	position.x = round(position.x)
 	spr.frame_changed.connect(_on_frame_changed)
 	spr.animation_looped.connect(_on_looped)
+	spr.animation_changed.connect(func(): _set_facing(facing))     # 不同段的帧尺寸 / 锚点可以不一样
+	spr.animation_finished.connect(_on_finished)
 	spr.play(&"idle")
 	_set_facing(facing)
 	_snap()
@@ -81,11 +91,12 @@ func _build_frames() -> SpriteFrames:
 		var frames: Array = a["frames"]
 		sf.add_animation(name)
 		sf.set_animation_speed(name, 1000.0)       # duration 的单位 = 1ms
-		sf.set_animation_loop(name, true)
+		sf.set_animation_loop(name, a.get("loop", true))
+		var size: Vector2i = a.get("size", FRAME_SIZE)
 		for i in frames.size():
 			var t := AtlasTexture.new()
-			t.atlas = SHEET
-			t.region = Rect2(frames[i] * FRAME_SIZE.x, 0, FRAME_SIZE.x, FRAME_SIZE.y)
+			t.atlas = a.get("sheet", SHEET)
+			t.region = Rect2(frames[i] * size.x, 0, size.x, size.y)
 			var ms: float = a["ms"][i] if a["ms"] is Array else a["ms"]
 			sf.add_frame(name, t, ms)
 		if a.has("step"):
@@ -125,8 +136,11 @@ func _set_facing(f: int) -> void:
 	facing = f
 	spr.flip_h = f != ART_FACES
 	# 翻转是在帧的矩形里左右镜像，所以锚点 x 也要跟着镜像，身体中线才不跳
-	var fx := FRAME_SIZE.x - FOOT.x if spr.flip_h else FOOT.x
-	spr.offset = Vector2(-fx, -(FOOT.y + 1))
+	var a: Dictionary = ANIMS.get(String(spr.animation), {})
+	var size: Vector2i = a.get("size", FRAME_SIZE)
+	var foot: Vector2i = a.get("foot", FOOT)
+	var fx := size.x - foot.x if spr.flip_h else foot.x
+	spr.offset = Vector2(-fx, -(foot.y + 1))
 
 
 func _on_frame_changed() -> void:
@@ -155,6 +169,12 @@ func _on_looped() -> void:
 			pick = "idle_eye"
 		if ANIMS.has(pick):
 			spr.play(pick)
+
+
+func _on_finished() -> void:
+	var a: Dictionary = ANIMS.get(String(spr.animation), {})
+	if a.has("then"):
+		spr.play(StringName(a["then"]))
 
 
 func _snap() -> void:

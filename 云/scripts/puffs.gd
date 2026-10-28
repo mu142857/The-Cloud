@@ -6,6 +6,7 @@ extends Node2D
 ##   add_source(key, pos, rate, preset)   持续冒（坠毁飞船的烟柱）；set_source_pos / remove_source
 ## preset 是一个字典（见 PRESETS），可以临时覆盖几项：burst(p, 20, PRESETS.dust.merged({"life": Vector2(1, 2)}))。
 ## 一共最多 MAX 颗，超了就丢最老的。
+## 烟和尘土的颜色压得比较暗（2026-10-28）：烟最亮的时候 L 也明显低于晨，不抢主角。
 
 const TEX := preload("res://art/level1/puffs.png")
 const MAX := 420
@@ -14,15 +15,15 @@ const PRESETS := {
 	# 烟：慢慢往上、被风往右吹一点、越来越大越来越淡
 	"smoke": {"vx": Vector2(-6, 6), "vy": Vector2(-16, -9), "wind": 5.0, "grav": 0.0, "drag": 0.4,
 		"r0": Vector2(1, 3), "r1": Vector2(4, 7), "life": Vector2(2.6, 4.2),
-		"c0": Color(0.5, 0.53, 0.51, 0.85), "c1": Color(0.26, 0.3, 0.28, 0.0), "spread": Vector2(3, 2)},
+		"c0": Color(0.3, 0.33, 0.32, 0.75), "c1": Color(0.16, 0.2, 0.19, 0.0), "spread": Vector2(3, 2)},
 	# 撞地时的大烟团
 	"smoke_burst": {"vx": Vector2(-40, 40), "vy": Vector2(-34, -8), "wind": 4.0, "grav": 0.0, "drag": 1.4,
 		"r0": Vector2(3, 5), "r1": Vector2(5, 7), "life": Vector2(1.6, 3.2),
-		"c0": Color(0.5, 0.52, 0.5, 0.8), "c1": Color(0.2, 0.24, 0.22, 0.0), "spread": Vector2(10, 4)},
+		"c0": Color(0.32, 0.34, 0.32, 0.75), "c1": Color(0.14, 0.17, 0.16, 0.0), "spread": Vector2(10, 4)},
 	# 尘土：往两边飞、有重力、很快落下
 	"dust": {"vx": Vector2(-90, 90), "vy": Vector2(-55, -12), "wind": 0.0, "grav": 140.0, "drag": 1.8,
 		"r0": Vector2(1, 2), "r1": Vector2(1, 3), "life": Vector2(0.5, 1.1),
-		"c0": Color(0.36, 0.33, 0.27, 0.95), "c1": Color(0.2, 0.2, 0.17, 0.0), "spread": Vector2(12, 1)},
+		"c0": Color(0.3, 0.28, 0.23, 0.9), "c1": Color(0.2, 0.2, 0.17, 0.0), "spread": Vector2(12, 1)},
 	# 小尘土（晨落地、爬起来）
 	"dust_small": {"vx": Vector2(-28, 28), "vy": Vector2(-16, -4), "wind": 0.0, "grav": 60.0, "drag": 2.0,
 		"r0": Vector2(1, 2), "r1": Vector2(1, 2), "life": Vector2(0.35, 0.7),
@@ -30,7 +31,7 @@ const PRESETS := {
 	# 飞船拖的烟
 	"trail": {"vx": Vector2(-5, 5), "vy": Vector2(-8, -2), "wind": 3.0, "grav": 0.0, "drag": 0.6,
 		"r0": Vector2(1, 2), "r1": Vector2(3, 5), "life": Vector2(0.9, 1.6),
-		"c0": Color(0.45, 0.47, 0.46, 0.8), "c1": Color(0.22, 0.25, 0.24, 0.0), "spread": Vector2(2, 2)},
+		"c0": Color(0.3, 0.32, 0.31, 0.7), "c1": Color(0.15, 0.18, 0.17, 0.0), "spread": Vector2(2, 2)},
 	# 火星 / 余烬：一像素，暖色，往上飘一点就灭
 	"ember": {"vx": Vector2(-6, 6), "vy": Vector2(-22, -8), "wind": 3.0, "grav": 0.0, "drag": 0.3,
 		"r0": Vector2(1, 1), "r1": Vector2(1, 1), "life": Vector2(0.6, 1.4),

@@ -21,7 +21,7 @@ const MOTE_TEX := preload("res://art/flight/mote.png")
 const MOTE_GLOW := preload("res://art/flight/glow_mote.png")
 
 const MOTE_R := 12.0           # 碰到光点的距离（宽容）
-const BIRD_R := 4.0
+const BIRD_R := 5.0
 
 var length := 3840.0
 var obstacles: Array = []      # Dictionary
@@ -60,6 +60,10 @@ func build(total: float, seed_v: int) -> void:
 	_wave(0.735 * D, 0.78 * D, 5, 182, 10, 1.5)                  # 第二片雷云底下
 	_arc(0.835 * D, 4, 176, 1)                                   # 最后一块岩石下面
 	_wave(0.89 * D, 0.975 * D, 8, 140, 28, 1.0)                  # 快到了：一串往水星去
+	# 斜着的光带：从高到低一整条，不管飞在哪个高度都会穿过它、顺手吃到一两个（乱按的人主要靠这些）
+	for f in [0.135, 0.18, 0.265, 0.35, 0.47, 0.545, 0.615, 0.69, 0.80, 0.865, 0.93]:
+		_ribbon(f * D, 58.0, 212.0, 1 if int(f * 1000) % 2 == 0 else -1)
+	_ribbon(0.42 * D, 130.0, 212.0, 1)                         # 雷云底下那条只铺下半截
 	for f in [0.17, 0.27, 0.45, 0.62, 0.70, 0.88]:               # 贴着底飞的人也能捡到几个
 		_mote(f * D, 228.0)
 
@@ -100,7 +104,7 @@ func _birds(wx: float, cy: float) -> void:
 	var n := 7
 	for i in n:
 		var k := i - n / 2
-		var o := Vector2(absf(k) * 9.0, k * 6.0)     # 人字形：头鸟在最前（左）
+		var o := Vector2(absf(k) * 14.0, k * 8.0)    # 人字形：头鸟在最前（左）
 		offs.append(o)
 		var b := Sprite2D.new()
 		b.texture = BIRD_TEX
@@ -133,6 +137,13 @@ func _wave(x0: float, x1: float, n: int, y: float, amp: float, cycles: float) ->
 	for i in n:
 		var u := float(i) / maxf(1, n - 1)
 		_mote(lerpf(x0, x1, u), y - amp * sin(u * TAU * cycles * 0.5))
+
+
+func _ribbon(x: float, y0: float, y1: float, dir: int) -> void:
+	var n := int((y1 - y0) / 24.0) + 1
+	for i in n:
+		var u := float(i) / maxf(1, n - 1)
+		_mote(x + (u - 0.5) * 70.0 * dir, lerpf(y0, y1, u) + sin(u * PI * 2.0) * 4.0)
 
 
 func _arc(x: float, n: int, y: float, dir: int) -> void:

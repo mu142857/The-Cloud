@@ -5,12 +5,14 @@ extends Node2D
 var crashed := false
 var burned: Array = []        # 物品数据
 var kept: Array = []          # 私人物品
+var fell: Array = []          # 使坏事件掉出飞船的
 var a := 0.0
 var _t := 0.0
 
 
-func show_result(is_crash: bool, burned_items: Array, kept_items: Array) -> void:
+func show_result(is_crash: bool, burned_items: Array, kept_items: Array, fell_items: Array = []) -> void:
 	crashed = is_crash
+	fell = fell_items
 	burned = burned_items
 	kept = kept_items
 	visible = true
@@ -62,5 +64,16 @@ func _draw() -> void:
 			y += 30
 		if list.is_empty():
 			_txt(FlightText.t("none"), Vector2(x, y + 12), Color(Color("59617a"), la))
+	if not fell.is_empty():
+		var fy := 224.0
+		var txt := FlightText.t("fell_out")
+		var tw := FlightText.font().get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, FlightText.SIZE).x
+		var total := tw + 8 + fell.size() * 14 + 10
+		var fx0 := roundf(240 - total / 2.0)
+		_txt(txt, Vector2(fx0, fy), Color(Color("6f7893"), la))
+		var ix := fx0 + tw + 8
+		for it in fell:
+			draw_texture(it.tex, Vector2(ix, fy - 17), Color(0.75, 0.75, 0.8, la * 0.8))
+			ix += 14
 	var fa := clampf((_t - 3.5) / 1.0, 0.0, 1.0) * (0.6 + 0.4 * sin(_t * 2.0))
 	_txt(FlightText.t("again"), Vector2(0, 256), Color(Color("59617a"), fa), HORIZONTAL_ALIGNMENT_CENTER, 480)

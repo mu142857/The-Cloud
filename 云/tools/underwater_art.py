@@ -7,8 +7,10 @@
 画面：同一个夜、同一个月亮（屏幕 x≈338，和河岸一样在右上），只是现在在水下往上看：
 最上面是水面的「天花板」，月亮在里面碎成一团晃动的亮斑（surface 层，Godot 里闪）；从它往左下斜着散开几道
 月光光柱（Godot 里的 shader 画，整像素、分档抖动）。越往下水越暗，河床几乎是黑的。
-远处是河岸那排石柱沉在水里的脚和一片片远的巨藻林（往水色里褪得很厉害，只剩剪影），一道塌了一半的天然石拱；
-最远处偶尔游过一条大鱼的影子。中景一颗巨大的石头头像竖着埋到脖子，脸朝右、微微仰着望向水面上的月亮，
+远处是河岸那排石柱沉在水里的脚和一片片远的巨藻林（往水色里褪得很厉害，只剩剪影，朝月亮那条边亮一档），
+一道塌了一半的天然石拱；再远（distant 层）是一片几乎看不见的巨藻林和第二座更小更淡的沉没雕像（一个仰头望月的胸像），
+一头很大的鲸慢慢从上面游过（whale.png 存的是「乘多少」，Godot 里乘法混合，只把水压暗一两成），
+左上那片空水里还有一群小鱼在兜圈（scripts/underwater_school.gd）。中景一颗巨大的石头头像竖着埋到脖子，脸朝右、微微仰着望向水面上的月亮，
 侧脸（额头、眉骨、闭着的眼、鼻梁、嘴唇、下巴）朝光那一圈亮、后脑沉进暗里；头上箍着一道和晨一样的头环，
 头环额前的凹槽里卡着一颗从岸上掉下来的发光果荚（全画面最显眼的那一点暖色，Godot 里呼吸）。
 光柱正好落在它额头上：这是第一眼的焦点，和晨（屏幕 x≈204）隔开八十多像素，晨面朝它。
@@ -46,7 +48,7 @@ CEIL = 22                # 水面「天花板」往下化进水里的那一行
 OUT = Path(__file__).resolve().parents[1] / "art" / "underwater"
 
 # 层名 -> 跟镜头的比例（Godot 场景里的 scroll_scale 照这个填）
-SCROLL = {"deep": 0.0, "surface": 0.0, "far": 0.08, "midfar": 0.17, "head": 0.3, "headweeds": 0.3,
+SCROLL = {"deep": 0.0, "surface": 0.0, "distant": 0.05, "far": 0.08, "midfar": 0.17, "head": 0.3, "headweeds": 0.3,
           "kelp": 0.52, "main": 1.0, "bedweeds": 1.0, "front": 1.4}
 # 会摆的贴图贴在层坐标的哪一行（贴图顶边）；贴图最下面一行 = 根
 SURF_H = 26
@@ -287,6 +289,97 @@ def drop_floating(lay, floor):
             lay.a[yy, xx] = 0
 
 
+def rim_light(lay, pm, shift, gain, over, y0, y1):
+    """月光从右上来：石头朝右、朝上的那条边（pm 里右边 / 上边挨着空的那一格）亮一档，
+    越往上越亮（y0 以上满强度，到 y1 没了，晨身后那条不动）。最亮不超过同一高度的水 + over。
+    右边再往里一格亮半档，让轮廓读得出来但不像描边。"""
+    a = lay.a
+    ww = a.shape[1]
+    xs = np.arange(ww)
+    vis = pm & (a[..., 3] > 0)
+    right = vis & ~np.roll(pm, -1, axis=1)
+    top = vis & ~np.roll(pm, 1, axis=0)
+    right2 = vis & np.roll(right, -1, axis=1) & ~right & ~top
+    for y in range(a.shape[0]):
+        s = float(np.clip((y1 - y) / max(1, y1 - y0), 0, 1))
+        if s <= 0:
+            continue
+        sx = (xs - shift) % ww
+        wL = np.where(sx < SW, bg_L(np.minimum(sx, SW - 1), y), base_L(y))
+        for mask, k in ((right, 1.0), (top, 0.8), (right2, 0.45)):
+            for x in np.nonzero(mask[y])[0]:
+                cur = float(to_lab(a[y, x, :3].astype(float)[None])[0, 0])
+                L = min(cur + gain * s * k, float(wL[x]) + over * s)
+                if L > cur + 0.004:
+                    a[y, x, :3] = L_color(float(quant_L(L)))
+
+
+def statue_mask():
+    """远处第二座雕像：一个站着的人像，只露出胸口以上，头往后仰望着月亮（侧脸就是大头像那张脸缩小，
+    头上也箍着那道头环的凸起）。肩膀往下斜，胸口往沙里收。整个人往左歪一点（沉下去的时候歪了），
+    左肩崩掉一块。返回 bool[ih, iw]，最底一行 = 埋进沙里。"""
+    sc = 0.3
+    hp = np.array(HEAD_PTS, float) * sc
+    ih, iw = 112, 76
+    m = np.zeros((ih, iw), bool)
+    ox, oy = 26, 4
+    c = hp.mean(0)
+    ca, sa = np.cos(HEAD_TILT - 0.12), np.sin(HEAD_TILT - 0.12)
+    rp = hp - c
+    rp = np.stack([rp[:, 0] * ca - rp[:, 1] * sa, rp[:, 0] * sa + rp[:, 1] * ca], -1) + c + (ox, oy)
+    m |= poly_mask(rp, ih, iw)
+    # 肩膀和胸口：从脖子往两边斜下去，右肩（朝月亮那边）略高；往下慢慢收进沙里
+    nb = oy + 46
+    body = [(ox - 16, nb + 12), (ox - 6, nb + 4), (ox + 6, nb), (ox + 22, nb), (ox + 34, nb + 5),
+            (ox + 42, nb + 13), (ox + 43, nb + 26), (ox + 39, nb + 40), (ox + 40, ih), (ox - 14, ih),
+            (ox - 16, nb + 40), (ox - 20, nb + 26)]
+    m |= poly_mask(body, ih, iw)
+    # 左肩崩掉一块
+    m &= ~poly_mask([(ox - 22, nb + 6), (ox - 9, nb + 6), (ox - 12, nb + 13), (ox - 6, nb + 19), (ox - 22, nb + 24)],
+                    ih, iw)
+    # 整个往左歪
+    out = np.zeros_like(m)
+    for y in range(ih):
+        dx = int(round((ih - 1 - y) * 0.08))
+        if dx:
+            out[y, :-dx] = m[y, dx:]
+        else:
+            out[y] = m[y]
+    return out
+
+
+def distant():
+    """最远的一层（scroll 0.05，和大鱼同一层，在所有石柱后面）：一片褪得几乎看不见的巨藻林（很高，顶快到水面），
+    和远处第二座更小更淡的沉没雕像。只比同一高度的水暗一两档，让深处有「还有更多」的感觉，又不抢头像。
+    东西集中在左边那半（开场镜头左上那片空水），右边月亮、头像那块留空。"""
+    lay = Layer()
+    pal = bramp(5, .07, .15, 264, 252)
+    rng = np.random.default_rng(141)
+    base = 206
+    img = np.zeros((H, W, 4), np.uint8)
+    for cx, k, hmax in ((12, 3, 176), (58, 2, 140), (150, 3, 186), (196, 2, 120), (246, 2, 150),
+                        (600, 2, 130), (690, 3, 170), (790, 2, 150), (890, 3, 180)):
+        for i in range(k):
+            giant_kelp(img, cx + rng.uniform(-10, 10), base, hmax * rng.uniform(0.6, 1.0), rng, pal)
+    lay.paste(img, 0, 0)
+    noise = smooth1d(W, rng, 120, 1.0)
+    for x in range(W):
+        top = int(round(199 + 3 * noise[x]))
+        for y in range(top, H):
+            lay.put(x, y, pal[1 if y == top else 0])
+    fade(lay, lambda y: 0.8 + 0.14 * np.clip((y - 90) / 110, 0, 1), steps=10, shift=12)
+    # 雕像比巨藻林近一点、褪得少一点（它是这一层里唯一要读得出形的东西）
+    sl = Layer()
+    m = statue_mask()
+    st = shade_rock(m, np.random.default_rng(142), pal, cracks=(1, 2), seams=False)
+    sl.paste(st, 108 - st.shape[1] // 2, base + 1 - st.shape[0])
+    fade(sl, lambda y: 0.66 + 0.24 * np.clip((y - 120) / 80, 0, 1), steps=10, shift=12)
+    pm = sl.a[..., 3] > 0
+    rim_light(sl, pm, shift=12, gain=0.03, over=0.0, y0=100, y1=170)
+    lay.paste(sl.a, 0, 0)
+    return lay
+
+
 # ---------------------------------------------------------------- 远处：沉在水里的石柱（河岸那排石柱的脚）
 
 def far():
@@ -304,6 +397,7 @@ def far():
         m, top = pillar_mask(w, h, np.random.default_rng(500 + i), kind, brk)
         img = shade_rock(m, np.random.default_rng(600 + i), pal, cracks=(1, 3))
         lay.paste(img, x - img.shape[1] // 2, base + 1 - img.shape[0])
+    pm = lay.a[..., 3] > 0
     for cx, k, hmax in ((90, 6, 120), (250, 4, 80), (430, 7, 140), (650, 5, 100), (760, 6, 150), (930, 4, 90)):
         img = np.zeros((H, W, 4), np.uint8)
         for i in range(k):
@@ -316,6 +410,7 @@ def far():
             lay.put(x, y, pal[1 if y == top else 0])
     drop_floating(lay, 200)
     fade(lay, lambda y: 0.56 + 0.32 * np.clip((y - 110) / 100, 0, 1), steps=8, shift=19)
+    rim_light(lay, pm, shift=19, gain=0.075, over=0.03, y0=70, y1=178)
     return lay
 
 
@@ -351,6 +446,7 @@ def midfar():
     sub = m[y0:base + 1, x0:xs_.max() + 1]
     img = shade_rock(sub, np.random.default_rng(9), pal, cracks=(3, 6))
     lay.paste(img, x0, y0)
+    pm = lay.a[..., 3] > 0
     for cx, k, hmax in ((10, 5, 140), (150, 4, 96), (330, 6, 120), (600, 6, 160), (820, 5, 130)):
         img = np.zeros((H, W, 4), np.uint8)
         for i in range(k):
@@ -363,6 +459,7 @@ def midfar():
             lay.put(x, y, pal[1 if y == top else 0])
     drop_floating(lay, 205)
     fade(lay, lambda y: 0.44 + 0.3 * np.clip((y - 130) / 80, 0, 1), steps=8, shift=40)
+    rim_light(lay, pm, shift=40, gain=0.058, over=0.014, y0=80, y1=172)
     return lay
 
 
@@ -603,8 +700,12 @@ def head_layer():
     m = a[..., 3] > 0
     Lm[m] = to_lab(a[m][:, :3].astype(float))[:, 0]
     hl = np.zeros_like(a)
-    sel = m & (Lm > 0.27)
-    hl[sel, 0] = np.clip((Lm[sel] - 0.2) / 0.2 * 255, 60, 255).astype(np.uint8)
+    sel = m & (Lm > 0.235)
+    # 朝上的那一圈（头顶、额头、肩、沙丘顶）吃得最多，往下（脸、耳朵）慢慢少，免得整张脸像罩了一张网
+    tops_ = np.where(m.any(0), m.argmax(0), H)
+    d = np.arange(H)[:, None] - tops_[None, :]
+    up = np.clip(1.0 - (d - 8) / 22.0, 0.3, 1.0)
+    hl[sel, 0] = np.clip((Lm[sel] - 0.17) / 0.2 * 255 * up[sel], 40, 255).astype(np.uint8)
     hl[sel, 3] = 255
     global HEADLIGHT
     HEADLIGHT = hl
@@ -664,9 +765,10 @@ def ribbon(img, x, base, h, rng, pal, w0=2.5, current=-1.0, bend=None, taper=0.5
         s += 0.4
 
 
-def blade(img, x0, y0, ang, ln, wmax, curl, pal, peak=0.35, rib=True):
+def blade(img, x0, y0, ang, ln, wmax, curl, pal, peak=0.35, rib=True, stem=0.0, stem_w=2.0):
     """一片叶子 / 一条宽叶带：从 (x0, y0) 出发，方向 ang（弧度，-pi/2 = 正上），一路按 curl 慢慢转弯；
     宽度从根部窄、到 peak 处最宽、再收成尖。上沿（朝光）亮一档、下沿暗一档、中间一条叶脉亮半档。
+    stem > 0：前 stem 那一截只是一根 stem_w 宽的细茎（巨藻的柄），叶片从那以后才展开（peak 按剩下那截算）。
     沿中线 0.4 格一步、横向 0.5 格一步地填，保证连着、没有洞。"""
     ih, iw = img.shape[:2]
     n = len(pal)
@@ -677,8 +779,12 @@ def blade(img, x0, y0, ang, ln, wmax, curl, pal, peak=0.35, rib=True):
         a = ang + curl * f
         px += np.cos(a) * 0.4
         py += np.sin(a) * 0.4
-        w = wmax * (np.sin(np.pi * min(1.0, f / (2 * peak))) if f < peak else (1 - (f - peak) / (1 - peak)) ** 0.8)
-        w = max(0.6, w)
+        if f < stem:
+            w = stem_w
+        else:
+            g = (f - stem) / (1 - stem)
+            w = wmax * (np.sin(np.pi * min(1.0, g / (2 * peak))) if g < peak else (1 - (g - peak) / (1 - peak)) ** 0.8)
+            w = max(stem_w if (stem > 0 and g < 0.15) else 0.6, w)
         nx, ny = -np.sin(a), np.cos(a)                 # 法线（指向叶片「下」侧，若叶子朝右上）
         up = -1 if ny > 0 else 1                       # 法线负方向朝上的那一边是受光边
         k = -w / 2
@@ -932,7 +1038,11 @@ def bed_weeds():
 
 def front_layer():
     """前景：几处近黑的大水草（宽叶，从画面底下长上来）和几块圆石，把画面框住。只有朝上的边亮一档。
-    晨开场那一段（前景层 ~150..400）空着。贴图在层坐标 y=FRONT_Y，底边 = 屏幕底。"""
+    晨开场那一段（前景层 ~150..400）空着。贴图在层坐标 y=FRONT_Y，底边 = 屏幕底。
+    前景 scroll 1.4，比晨快 0.4 倍地滑过去，所以每一处高叶子迟早都会从晨面前经过：
+    高的只有两丛（944 / 840），位置挑在镜头 x=0 / 300 / 620 / 1100 时都落在画面边上、朝外弯，
+    而且叶子窄（经过晨的时候只挡一条，不会整个盖住）；别的地方只有贴着画面底边的矮叶子和圆石（顶在 y≈236 以下，
+    比晨的脚还低）。晨脚下（前景层 x = 204 + 1.4·镜头）：镜头 0→204、300→624、620→112、1100→784。"""
     img = np.zeros((FRONT_H, W, 4), np.uint8)
     pal = bramp(4, .035, .1, 266, 256)
     rng = np.random.default_rng(37)
@@ -947,13 +1057,24 @@ def front_layer():
                 c = pal[2] if k == 0 and u > -0.4 else (pal[1] if k < 3 and u > -0.1 else pal[0])
                 img[y, x % W] = rgba(c)
     # 宽叶：几片很大的暗叶子从画面底下伸上来，往外弯（框住画面），上沿一条亮一档的边、中间一条叶脉
-    for cx, k, hmax, lean in ((4, 3, 210, 0.3), (66, 1, 70, -0.35), (470, 2, 110, -0.4), (650, 2, 96, 0.45),
-                              (780, 2, 120, -0.4), (912, 3, 170, 0.3)):
+    # 高的：细茎从底下上来，叶片在晨头顶（y≈185）以上才展开，所以从晨面前滑过时只挡一根细茎
+    for cx, k, hmax, lean, wmax, stem in ((944, 2, 220, 0.2, 12, 0.5), (840, 2, 180, 0.26, 9, 0.6)):
         for i in range(k):
-            x = cx + rng.uniform(-12, 12)
-            ang = -np.pi / 2 + lean + (i - (k - 1) / 2) * 0.35 + rng.uniform(-0.1, 0.1)
-            curl = (1 if lean > 0 else -1) * rng.uniform(0.15, 0.55)
-            blade(img, x, ih + 2, ang, hmax * rng.uniform(0.55, 1.0), rng.uniform(9, 15), curl, pal, peak=0.3)
+            x = cx + rng.uniform(-8, 8)
+            ang = -np.pi / 2 + lean + (i - (k - 1) / 2) * 0.3 + rng.uniform(-0.08, 0.08)
+            curl = (1 if lean > 0 else -1) * rng.uniform(0.15, 0.4)
+            blade(img, x, ih + 2, ang, hmax * rng.uniform(0.75, 1.0), rng.uniform(wmax - 3, wmax), curl, pal,
+                  peak=0.3, stem=stem, stem_w=2.5)
+    # 矮叶子：贴着底边，尖最高到 ~y236（层坐标 ih-34），比晨的脚低
+    # 开场镜头右下角那一丛（470）宽、低，往左弯
+    for i, (dx, ang, ln, wd) in enumerate(((-6, -0.95, 62, 13), (4, -0.55, 46, 11), (14, 0.7, 40, 10))):
+        blade(img, 470 + dx, ih + 2, -np.pi / 2 + ang, ln, wd, np.sign(ang) * 0.45, pal, peak=0.3)
+    for cx, k in ((60, 3), (150, 2), (300, 2), (560, 3), (650, 3), (720, 2), (780, 3), (900, 2)):
+        for i in range(k):
+            x = cx + rng.uniform(-14, 14)
+            lean = rng.choice([-1, 1]) * rng.uniform(0.6, 1.1)
+            blade(img, x, ih + 2, -np.pi / 2 + lean, rng.uniform(22, 40), rng.uniform(5, 9),
+                  np.sign(lean) * rng.uniform(0.3, 0.7), pal, peak=0.3)
     lay = Layer(W, FRONT_H)
     lay.a = img
     return lay
@@ -982,52 +1103,93 @@ def caustic_tile():
     return img
 
 
-WHALE_FW, WHALE_FH, WHALE_N = 132, 44, 8
+WHALE_FW, WHALE_FH, WHALE_N = 232, 78, 12
+
+# 鲸的贴图不是颜色，是「乘多少」：Godot 里用乘法混合（scripts/underwater_shadow.gdshader）盖在最远的水上，
+# 所以它永远是「同一片水再暗一点」，跟着背后的水色渐变、抖动和月光走，不会变成一块实心的剪影。
+WHALE_MUL = {"back": (240, 243, 247), "body": (224, 229, 235), "belly": (216, 222, 230), "fin": (219, 225, 232),
+             "groove": (230, 234, 240)}
 
 
 def whale():
-    """远处游过的大家伙（剪影）：像鲸又不全是——长身子、很长的胸鳍、尾巴后面拖两根长丝。
-    WHALE_N 帧（每帧 WHALE_FW×WHALE_FH），身体后半截按列整像素上下错开（一道慢慢往后传的波），胸鳍慢慢扇，长丝晚一拍跟着摆。
-    颜色已经褪进远处的水里：身体比同深度的水暗一点，背上一条亮一档的月光边。朝左游。"""
+    """远处游过的一头鲸（剪影，朝左游）：圆钝的大头、长长的身子往后收成细尾柄，背后三分之二处一个小背鳍，
+    一片很长的胸鳍（座头鲸那种，约身长三分之一）往后下方垂着、慢慢扇，尾巴是横着的宽尾鳍（从侧下方看，
+    两片往后上、后下张开，后缘中间一个缺口）。WHALE_N 帧：身子后半截按列整像素上下错（鲸的尾巴是上下摆的），
+    尾鳍跟着翘。颜色见 WHALE_MUL：背上一条暗得最少（月光），肚子最暗，喉咙下几道浅浅的腹褶。"""
     fw, fh, nfr = WHALE_FW, WHALE_FH, WHALE_N
-    body, back, belly = lch(.215, .03, 258), lch(.255, .03, 252), lch(.205, .03, 260)
     sheet = np.zeros((fh, fw * nfr, 4), np.uint8)
-    L = 100
-    cy = 18
+    L = 176                    # 吻尖到尾柄
+    T = 34.0                   # 最粗处
+    cy = 21
+    x0 = 3
+    # 背线、肚线（离中线多少个 T），按 u = 0 吻尖 .. 1 尾柄
+    U = [0.0, 0.012, 0.03, 0.07, 0.14, 0.25, 0.4, 0.52, 0.64, 0.76, 0.86, 0.94, 1.0]
+    TOP = [0.02, 0.1, 0.16, 0.23, 0.3, 0.36, 0.4, 0.38, 0.3, 0.19, 0.11, 0.07, 0.06]
+    BOT = [0.1, 0.2, 0.28, 0.38, 0.5, 0.58, 0.57, 0.5, 0.36, 0.21, 0.12, 0.07, 0.06]
+    FLUKE = [(0, -2.5), (5, -5), (11, -8.5), (18, -11.5), (26, -13.5), (33, -14), (35, -13), (31, -9.5),
+             (25, -5.5), (20, -2), (18, 0), (20, 2), (25, 5.5), (31, 9.5), (35, 13), (33, 14), (26, 13.5),
+             (18, 11.5), (11, 8.5), (5, 5), (0, 2.5)]
     for fi in range(nfr):
         ph = fi / nfr * 2 * np.pi
-        fr = np.zeros((fh, fw, 4), np.uint8)
-
-        def put(x, y, c):
-            if 0 <= y < fh and 0 <= x < fw:
-                fr[y, x] = rgba(c)
 
         def wave(u):
-            return 3.0 * np.sin(ph - u * 2.4) * max(0.0, u - 0.25) ** 1.6 * 1.8
+            return 4.5 * np.sin(ph - u * 2.2) * max(0.0, u - 0.38) ** 1.7
 
+        body = np.zeros((fh, fw), bool)
+        cen = {}
         for x in range(L):
-            u = (x + 0.5) / L                                # 0 = 头（左），1 = 尾柄
-            th = max(1.6, 18.5 * 2.2 * u ** 0.36 * (1 - u) ** 1.25)
+            u = (x + 0.5) / L
             off = wave(u)
-            t0 = int(round(cy - th * 0.5 + off))
-            b0 = int(round(cy + th * 0.5 + off - 0.06 * th))
-            for y in range(t0, b0 + 1):
-                c = back if y == t0 and u < 0.8 else (belly if y > cy + off + th * 0.15 else body)
-                put(x + 2, y, c)
-        # 尾鳍：竖着的月牙形，两片各往后上 / 后下斜出去，跟着尾柄摆
+            t0 = int(round(cy - T * np.interp(u, U, TOP) + off))
+            b0 = int(round(cy + T * np.interp(u, U, BOT) + off))
+            body[max(0, t0):b0 + 1, x0 + x] = True
+            cen[x] = (t0, b0, cy + off)
+        # 背鳍：三分之二处一个往后斜的小三角
+        dx0 = int(0.66 * L)
+        for k in range(10):
+            t0 = cen[dx0 + k][0]
+            hgt = int(round(3.4 * min(k / 7.0, (10 - k) / 3.0)))
+            body[max(0, t0 - hgt):t0, x0 + dx0 + k] = True
+        # 尾鳍：横着的宽尾，跟着尾柄翘
         ty = cy + wave(1.0)
-        for k in range(13):
-            for sgn in (-1, 1):
-                w = 3 if k < 4 else (2 if k < 9 else 1)
-                for j in range(w):
-                    put(L + 1 + int(round(k * 0.62)) + j * 0, int(round(ty + sgn * (k * 0.95 + j))), body if sgn > 0 else back)
-        # 胸鳍：很长的一片，从身子前三分之一往后下方伸，根部宽、往尖收，慢慢扇
-        fa = 0.72 + 0.16 * np.sin(ph)
-        for k in range(30):
-            x = int(round(30 + k * np.cos(fa)))
-            y = int(round(cy + 5 + k * np.sin(fa) * 0.7 + 1.5 * np.sin(ph - k * 0.12) * k / 30))
-            for t in range(max(1, int(round(6 * (1 - k / 30) ** 1.3)))):
-                put(x, y + t, belly)
+        tilt = 0.32 * np.cos(ph - 2.2)
+        ca, sa = np.cos(tilt), np.sin(tilt)
+        pts = [(x0 + L - 3 + px * ca - py * 0.72 * sa, ty + px * sa + py * 0.72 * ca) for px, py in FLUKE]
+        fluke = poly_mask(pts, fh, fw)
+        # 胸鳍：很长一片，从肚子前三分之一往后下方垂，根部宽、往尖收，前缘几个小疙瘩，慢慢扇
+        fa = 0.66 + 0.07 * np.sin(ph)
+        rx = int(L * 0.26)
+        ry = cen[rx][1] - 4
+        flen = 60
+        lead, trail = [], []
+        for k in range(0, flen + 1, 3):
+            f = k / flen
+            a_ = fa + 0.1 * f * np.sin(ph - 1.2)
+            px, py = rx + k * np.cos(a_), ry + k * np.sin(a_) * 0.78
+            wd = 5.2 * (1 - f) ** 0.75 + 0.6 + (0.8 if (k // 3) % 3 == 1 and f < 0.8 else 0)
+            nx, ny = -np.sin(a_), np.cos(a_)
+            lead.append((x0 + px - nx * wd, py - ny * wd))
+            trail.append((x0 + px + nx * wd * 0.8, py + ny * wd * 0.8))
+        fin = poly_mask(lead + trail[::-1], fh, fw)
+        fr = np.zeros((fh, fw, 4), np.uint8)
+        col = lambda k: np.array(WHALE_MUL[k] + (255,), np.uint8)
+        allm = body | fluke
+        fr[allm] = col("body")
+        for x in range(L):
+            t0, b0, c = cen[x]
+            u = (x + 0.5) / L
+            for y in range(max(0, t0), b0 + 1):
+                if y > c + T * np.interp(u, U, BOT) * 0.35:
+                    fr[y, x0 + x] = col("belly")
+            if 0.06 < u < 0.4:                                    # 腹褶：贴着肚线的两道浅线
+                for d in (3, 6):
+                    if b0 - d > c + 2:
+                        fr[b0 - d, x0 + x] = col("groove")
+        top_edge = allm & ~np.roll(allm, 1, axis=0)
+        top_edge[:, :x0 + 4] = False
+        fr[top_edge & body] = col("back")
+        fr[fluke & ~body & (np.arange(fh)[:, None] > ty)] = col("fin")
+        fr[fin] = col("fin")
         sheet[:, fi * fw:(fi + 1) * fw] = fr
     return sheet
 
@@ -1059,7 +1221,7 @@ def build():
     wh.a = whale()
     hl = Layer()
     hl.a = HEADLIGHT
-    layers = {"headlight": hl, "deep": deep(), "surface": sf, "far": far(), "midfar": midfar(), "head": hd, "headweeds": hw,
+    layers = {"headlight": hl, "deep": deep(), "surface": sf, "distant": distant(), "far": far(), "midfar": midfar(), "head": hd, "headweeds": hw,
               "kelp": kelp(), "main": mn, "bedweeds": bed_weeds(), "front": front_layer(),
               "bedlight": ml, "caustic": ca, "whale": wh}
     for k, v in layers.items():
@@ -1084,7 +1246,7 @@ def check_floating(layers, verbose=True):
     所以它和 head 合在一起查。"""
     bad = {}
     xs = np.arange(W)
-    for k in ("far", "midfar", "head", "main", "kelp", "bedweeds", "front", "headweeds"):
+    for k in ("distant", "far", "midfar", "head", "main", "kelp", "bedweeds", "front", "headweeds"):
         a = layers[k].a
         lab, n = components(a[..., 3] > 0, wrap=True)
         hh = a.shape[0]
@@ -1097,7 +1259,7 @@ def check_floating(layers, verbose=True):
         elif k == "bedweeds":
             floor = np.round(ground_y(xs)).astype(int) - BED_Y - 2
         else:
-            floor = np.full(W, {"far": 200, "midfar": 205, "head": 214}[k])
+            floor = np.full(W, {"distant": 200, "far": 200, "midfar": 205, "head": 214}[k])
         out = []
         for i in range(1, n + 1):
             yy, xx = np.nonzero(lab == i)

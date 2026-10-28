@@ -11,6 +11,7 @@ extends Node2D
 ##   CINE        走到木头旁边：黑边滑入、锁操作、晨自己走到木头前捡起来 → 木头飞进背包 → 对话「太好了……」
 ##               → 燃烧值从 10 滚到 60，「燃烧值到 200 就能起飞」→ 收进左上角 → 黑边滑出、恢复操作
 ## 任何时候：Esc / 右下角齿轮 = 设置；Tab / B / I / 右上角背包图标 = 背包（捡到第一件东西以后才出现）。
+## 只在 debug 构建：标题界面按 F1~F5 进 forest / river / underwater / cloud / flight 的测试场景，Esc 回标题（见 SceneBrowser）。
 ##
 ## 调试（命令行 -- 后面，建议加 --fixed-fps 60 让时间可重复）：
 ##   --stage=headphones|title|settings|crash|play|wood|bag   直接跳到某一段
@@ -19,6 +20,9 @@ extends Node2D
 ##   --shot=绝对路径.png --shot_at=秒   这一段开始后多少秒存一张图后退出（默认 1 秒）
 ##   --shots=目录 --start=帧 --every=帧 --count=张   连拍 shot_000.png …
 ##   --autoplay         标题界面自己点开始，能走的时候自己往右走（录 GIF 用）
+##   --title_hot        标题界面的「开始」显示成悬停的样子（截图看悬停反馈用）
+##   --browse=1..5 --browse_out=目录   标题界面 0.5 秒后自己按 F1..F5 进测试场景，2.5 秒后存 目录/scene.png、
+##                      自己按 Esc 回标题，再过 2 秒存 目录/back.png 后退出（测场景浏览用；别同时给 --shot，测试场景自己也认它）
 ## 例：Godot --path . --fixed-fps 60 -- --stage=crash --shot=/tmp/a.png --shot_at=3.6
 
 enum S { HEADPHONES, INTRO, TITLE, CRASH, PLAY, CINE }
@@ -30,7 +34,44 @@ const CHEN_X := 200.0         # 晨趴着的地方
 const WRECK_X := 150.0        # 坠毁飞船（锚点 = 机身中线和地面）
 const WOOD_X := 372.0         # 发光木头
 const PICK_DIST := 26.0       # 晨走到离木头这么近就进入拾取过场
-const LIE_LIFT := 9.0         # 趴着时精灵往上抬几像素（转 90° 以后身体的厚度一半在地下）
+const LIE_LIFT := 9.0         # 没有 lie / getup 动画时的老办法：趴着时精灵往上抬几像素（转 90° 以后身体的厚度一半在地下）
+const CHEN_GD := preload("res://scripts/chen.gd")
+## 晨的精灵配置里有没有「趴着 / 爬起来」两段（tools/level1_chen_getup.py）。没有就退回把站立帧转 90° 的老办法。
+var _has_getup: bool = CHEN_GD.ANIMS.has("lie") and CHEN_GD.ANIMS.has("getup")
+## getup 一段多长（秒），和各帧什么时候换（跪坐、站直那两下扬一点土）
+const GETUP_KNEEL_AT := 1.18
+const GETUP_STAND_AT := 1.80
+const GETUP_TIME := 1.95
+
+## 调试场景浏览（只在 debug 构建、标题界面）：F1~F5
+const TEST_SCENES := {
+	KEY_F1: "res://scenes/forest_test.tscn",
+	KEY_F2: "res://scenes/river_test.tscn",
+	KEY_F3: "res://scenes/underwater_test.tscn",
+	KEY_F4: "res://scenes/cloud_test.tscn",
+	KEY_F5: "res://scenes/flight_test.tscn",
+}
+const SELF_SCENE := "res://scenes/level_forest.tscn"
+
+## 标题界面
+const TITLE_Y := 54.0
+const TITLE_COLOR := Color("#b9cdc1")     # 偏暗的薄荷灰（比晨暗，比背景亮）
+const TITLE_SPACING := 3
+const SUB_COLOR := Color("#7f988b")
+const SUB_SPACING := 4
+const START_Y := 150.0
+const START_COLOR := Color("#a3b8ad")
+const START_HOT := Color("#e2ebe5")
+const START_SPACING := 2
+const GEAR_A := 0.45
+
+## 闪电：不再是整屏白闪，而是冷色的天光从林冠后面亮一下（远景几层被照亮，近处的树干、林冠成了剪影），
+## 再叠一层很淡的冷色。下面是每层被照亮多少（0 = 不动）和冷光的颜色（乘到图层上，>1 = 变亮）。
+const FLASH_LAYERS := {"Sky": 1.0, "Ridge": 0.9, "Far": 0.75, "MidFar": 0.45, "Mid": 0.18}
+const FLASH_GAIN := Color(0.35, 0.62, 0.9)      # 闪到最亮时远景乘 (1+0.35, 1+0.62, 1+0.9)：偏青蓝，不是白
+const FLASH_TINT := Color(0.55, 0.72, 0.86)      # 整屏那层薄薄的冷光
+const FLASH_TINT_A := 0.09                       # 它最多这么不透明
+const IMPACT_TINT := Color(1.0, 0.72, 0.45)      # 撞地那一下是暖的、很弱
 const BAR_H := 26             # 电影黑边高度
 const DLG_TIME := 10.0        # 对话框最多停多久
 const DLG_WALK := 56.0        # 晨离开说话的地方这么远，对话框就淡出
@@ -74,6 +115,11 @@ var _cine_target := NAN       # 拾取过场：自动走到这个 x
 var _moved_from := NAN        # 晨开始能动时的位置（用来藏「← →」提示）
 var _hint_wait := 0.0
 var _bag_seen := false
+var _flash_k := 0.0           # 闪电的亮度 0..1（tween 它，_apply_flash 每帧套到远景和那层冷光上）
+var _impact_k := 0.0          # 撞地那一下的暖光 0..1
+var _title_k := 0.0           # 标题淡入进度 0..1（字往上飘 3 像素，按整像素走）
+var _start_hot := 0.0         # 「开始」悬停 / 聚焦的高亮 0..1（两边的小横线跟着伸出来）
+var _start_hover := false
 
 # ---- 对话框
 var _dlg: PanelContainer
@@ -89,7 +135,10 @@ var _dlg_tw: Tween
 # ---- 界面
 var _title_root: Control
 var _title_label: Label
+var _title_sub: Label         # 标题下面另一种语言的名字（英文版写「云」，中文版写 THE CLOUD）
+var _title_lines: Array[ColorRect] = []   # 副标题两边的细线
 var _start_btn: Button
+var _start_marks: Array[ColorRect] = []   # 「开始」两边悬停时伸出来的小横线
 var _gear: TextureButton
 var _bag_btn: TextureButton
 var _hud_burn: HBoxContainer
@@ -129,6 +178,8 @@ var _shots_saved := 0
 var _frame := 0
 var _autoplay := false
 var _debug_stage := ""
+var _browse := 0
+var _browse_out := ""
 var _stage_t := 0.0
 
 
@@ -155,11 +206,17 @@ func _ready() -> void:
 			_shots_every = int(a.trim_prefix("--every="))
 		elif a.begins_with("--count="):
 			_shots_count = int(a.trim_prefix("--count="))
+		elif a == "--title_hot":
+			_start_hover = true
+		elif a.begins_with("--browse="):
+			_browse = int(a.trim_prefix("--browse="))
+		elif a.begins_with("--browse_out="):
+			_browse_out = a.trim_prefix("--browse_out=")
 		elif a == "--autoplay":
 			_autoplay = true
 	if _shots_dir != "":
 		DirAccess.make_dir_recursive_absolute(_shots_dir)
-	if _debug_stage != "" or _shot != "" or _shots_dir != "" or _autoplay:
+	if _debug_stage != "" or _shot != "" or _shots_dir != "" or _autoplay or _browse > 0:
 		GameSettings.no_save = true
 		AudioServer.set_bus_mute(0, true)    # 截图 / 录像时不出声，也不吃真的键盘鼠标（见 _input）
 
@@ -171,6 +228,9 @@ func _ready() -> void:
 	_build_ui()
 	_retext()
 	_enter_headphones()
+	if Engine.has_meta(BACK_META):          # 从测试场景按 Esc 回来：直接到标题（雨声照常）
+		Engine.remove_meta(BACK_META)
+		_skip_to_title()
 	if _debug_stage != "":
 		_jump(_debug_stage)
 
@@ -267,26 +327,54 @@ func _build_ui() -> void:
 	_skip_label.modulate.a = 0.0
 	root.add_child(_skip_label)
 
-	# ---- 标题
+	# ---- 标题（要能直接当封面截图）：游戏名拉开字距、偏暗的薄荷灰、底下压一格深色影子；
+	# 下面一行小字是另一种语言的名字，两边各一条细线；「开始」是不抢戏的小字，悬停 / 聚焦时变亮、两边伸出小横线。
 	_title_root = Control.new()
 	_title_root.size = Vector2(480, 270)
 	_title_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title_root.modulate.a = 0.0
 	_title_root.visible = false
 	root.add_child(_title_root)
-	_title_label = _label("", 42, Color("#e6eee8"))
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title_label.position = Vector2(0, 58)
-	_title_label.size = Vector2(480, 48)
+	_title_label = _label("", 42, TITLE_COLOR)
+	_title_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.35))
+	_title_label.add_theme_constant_override("shadow_offset_x", 0)
+	_title_label.add_theme_constant_override("shadow_offset_y", 3)
+	_title_label.position = Vector2(0, TITLE_Y)
 	_title_root.add_child(_title_label)
+	_title_sub = _label("", 14, SUB_COLOR)
+	_title_sub.position = Vector2(0, TITLE_Y + 50)
+	_title_root.add_child(_title_sub)
+	for i in 2:
+		var ln := ColorRect.new()
+		ln.color = SUB_COLOR * Color(1, 1, 1, 0.6)
+		ln.size = Vector2(18, 1)
+		ln.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_title_root.add_child(ln)
+		_title_lines.append(ln)
 	_start_btn = Button.new()
 	UITheme.flat_button(_start_btn)
-	_start_btn.add_theme_font_size_override("font_size", 28)
-	_start_btn.size = Vector2(160, 34)
-	_start_btn.position = Vector2(160, 120)
+	_start_btn.add_theme_font_override("font", UITheme.spaced_font(START_SPACING))
+	_start_btn.add_theme_font_size_override("font_size", 14)
+	_start_btn.add_theme_color_override("font_color", START_COLOR)
+	_start_btn.add_theme_color_override("font_hover_color", START_HOT)
+	_start_btn.add_theme_color_override("font_focus_color", START_HOT)
+	_start_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_start_btn.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.5))   # 雾最亮的地方也看得清
+	_start_btn.add_theme_constant_override("shadow_offset_x", 0)
+	_start_btn.add_theme_constant_override("shadow_offset_y", 1)
+	_start_btn.position = Vector2(0, START_Y)
 	_start_btn.pressed.connect(_on_start)
 	_start_btn.focus_entered.connect(func(): _sfx_soft())
+	_start_btn.mouse_entered.connect(_on_start_hover.bind(true))
+	_start_btn.mouse_exited.connect(_on_start_hover.bind(false))
 	_title_root.add_child(_start_btn)
+	for i in 2:
+		var m := ColorRect.new()
+		m.color = START_HOT
+		m.size = Vector2(0, 1)
+		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_title_root.add_child(m)
+		_start_marks.append(m)
 
 	# ---- 右下角设置齿轮（标题和自由走的时候都在）
 	_gear = TextureButton.new()
@@ -297,7 +385,7 @@ func _build_ui() -> void:
 	_gear.modulate = Color(1, 1, 1, 0.0)
 	_gear.visible = false
 	_gear.pressed.connect(_open_settings)
-	_gear.mouse_entered.connect(func(): _gear.self_modulate = Color(1.4, 1.4, 1.4))
+	_gear.mouse_entered.connect(func(): _gear.self_modulate = Color(1.6, 1.6, 1.6))
 	_gear.mouse_exited.connect(func(): _gear.self_modulate = Color.WHITE)
 	root.add_child(_gear)
 
@@ -446,6 +534,12 @@ func _build_ui() -> void:
 func _on_dim_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
 		_close_panels()
+
+
+func _on_start_hover(on: bool) -> void:
+	_start_hover = on
+	if on:
+		_sfx_soft()
 
 
 func _sfx_soft() -> void:
@@ -719,15 +813,15 @@ func _bag_select(i: int) -> void:
 # ---------------------------------------------------------------- 文字（换语言时整体刷新）
 func _retext() -> void:
 	_title_label.text = I18n.t("title")
+	_title_sub.text = I18n.t("title_sub")
 	_start_btn.text = I18n.t("start")
 	_hp_label.text = I18n.t("headphones")
 	_hp_any.text = I18n.t("press_any")
 	_skip_label.text = I18n.t("skip_again")
-	_even(_title_label, _title_label.text, 42)
+	_layout_title()
 	_even(_hp_label, _hp_label.text, 14)
 	_even(_hp_any, _hp_any.text, 14)
 	_even(_burn_pop_sub, _burn_pop_sub.text, 14)
-	_even(_start_btn, _start_btn.text, 28)
 	_burn_pop_sub.text = I18n.t("to_launch") % Inventory.get_launch_burn()
 	_update_hud()
 	var w := _settings_widgets
@@ -749,6 +843,35 @@ func _retext() -> void:
 	# 设置面板的大小跟着文字变：重新居中
 	_settings.reset_size()
 	_center_settings.call_deferred()
+
+
+## 标题界面三样东西水平居中（按整像素；拉开字距以后最后一个字后面那截字距不算）
+func _layout_title() -> void:
+	var f_title := UITheme.spaced_font(_title_spacing())
+	_title_label.add_theme_font_override("font", f_title)
+	_center_x(_title_label, f_title, _title_label.text, 42, _title_spacing())
+	var f_sub := UITheme.spaced_font(SUB_SPACING)
+	_title_sub.add_theme_font_override("font", f_sub)
+	var sw := _center_x(_title_sub, f_sub, _title_sub.text, 14, SUB_SPACING)
+	var mid := _title_sub.position.y + 7.0
+	_title_lines[0].position = Vector2(_title_sub.position.x - 10.0 - _title_lines[0].size.x, mid)
+	_title_lines[1].position = Vector2(_title_sub.position.x + sw + 10.0, mid)
+	var bw := _center_x(_start_btn, UITheme.spaced_font(START_SPACING), _start_btn.text, 14, START_SPACING)
+	_start_btn.size = Vector2(bw + START_SPACING, 20)
+	_start_btn.position.y = START_Y
+
+
+## 中文标题只有一个字，字距没用；英文拉开 3 像素（= 42 号字的 1 格）
+func _title_spacing() -> int:
+	return 0 if I18n.is_zh() else TITLE_SPACING
+
+
+## 让 l 的文字在 cx 处水平居中（整像素），返回字宽（不含最后那截字距）
+func _center_x(l: Control, f: Font, text: String, size: int, spacing: int, cx := 240.0) -> float:
+	var w := f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x - spacing
+	l.position.x = floor(cx - w / 2.0)
+	l.size.x = w + spacing + 2.0
+	return w
 
 
 ## 居中的单行字：让「框宽 - 字宽」是偶数，字的像素格才和画面的像素格对齐（否则差半格）
@@ -831,10 +954,22 @@ func _show_title() -> void:
 	_set_state(S.TITLE)
 	_title_root.visible = true
 	_gear.visible = true
+	_title_root.modulate.a = 1.0
+	_title_k = 0.0
+	_title_label.modulate.a = 0.0
+	_title_sub.modulate.a = 0.0
+	_start_btn.modulate.a = 0.0
+	for ln in _title_lines:
+		ln.modulate.a = 0.0
+	# 标题先慢慢浮出来（2.6 秒，同时往上飘 3 像素），副标题晚 0.8 秒，「开始」再晚一点
 	var tw := _tw()
-	tw.tween_property(_title_root, "modulate:a", 1.0, 1.4)
-	tw.parallel().tween_property(_gear, "modulate:a", 0.75, 1.4)
-	_start_btn.grab_focus()
+	tw.tween_property(self, "_title_k", 1.0, 2.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(_title_sub, "modulate:a", 1.0, 1.6).set_delay(0.8)
+	tw.parallel().tween_property(_title_lines[0], "modulate:a", 1.0, 1.6).set_delay(0.8)
+	tw.parallel().tween_property(_title_lines[1], "modulate:a", 1.0, 1.6).set_delay(0.8)
+	tw.parallel().tween_property(_start_btn, "modulate:a", 1.0, 1.2).set_delay(1.6)
+	tw.parallel().tween_property(_gear, "modulate:a", GEAR_A, 1.2).set_delay(1.6)
+	# 不抢焦点：不然「开始」一出来就是高亮的。Enter / 空格照样能开始（见 _input），按方向键才聚焦。
 
 
 func _skip_to_title() -> void:
@@ -844,13 +979,17 @@ func _skip_to_title() -> void:
 	_rain.play()
 	_rain.volume_db = -9.0
 	_show_title()
-	_title_root.modulate.a = 1.0
-	_gear.modulate.a = 0.75
 	_kill_cine()
+	_title_k = 1.0
+	_title_sub.modulate.a = 1.0
+	for ln in _title_lines:
+		ln.modulate.a = 1.0
+	_start_btn.modulate.a = 1.0
+	_gear.modulate.a = GEAR_A
 
 
 func _on_start() -> void:
-	if state != S.TITLE or _settings.visible:
+	if state != S.TITLE or _settings.visible or _state_t < 0.3:
 		return
 	_sfx("ui_click", -8.0)
 	_start_crash()
@@ -873,16 +1012,16 @@ func _start_crash() -> void:
 	tc.tween_property(cam, "position:x", TITLE_CAM_X, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_bars_in(0.8)
 	_run([
-		[0.7, func(): _flash(0.7)],
+		[0.7, func(): _flash(0.6)],
 		[0.78, func(): _sfx("thunder_near_1", -6.0)],
-		[1.3, func(): _flash(0.35)],
+		[1.3, func(): _flash(0.3)],
 		[1.36, func(): _sfx("thunder_near_2", -9.0, 1.05)],
-		[2.15, func(): _flash(0.8)],
+		[2.15, func(): _flash(1.0)],
 		[2.2, func(): _sfx("thunder_near_3", -4.0, 0.95)],
 		[2.75, _ship_in],
 		[2.75 + SHIP_TIME, _impact],
 		[8.4, _chen_get_up],
-		[10.1, _crash_done],
+		[8.4 + (GETUP_TIME + 0.2 if _has_getup else 1.7), _crash_done],
 	])
 
 
@@ -890,11 +1029,23 @@ const SHIP_TIME := 2.4
 
 
 func _flash(peak: float) -> void:
+	# 天光从林冠后面亮一下：很快亮起、闪一下、再慢慢退（退得比原来慢，更柔）
 	var tw := _tw()
-	tw.tween_property(flash, "color:a", peak, 0.04)
-	tw.tween_property(flash, "color:a", peak * 0.25, 0.06)
-	tw.tween_property(flash, "color:a", peak * 0.75, 0.04)
-	tw.tween_property(flash, "color:a", 0.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "_flash_k", peak, 0.05).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(self, "_flash_k", peak * 0.35, 0.08)
+	tw.tween_property(self, "_flash_k", peak * 0.8, 0.06)
+	tw.tween_property(self, "_flash_k", 0.0, 0.9).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+func _apply_flash() -> void:
+	var k := _flash_k
+	for n in FLASH_LAYERS:
+		var g: float = FLASH_LAYERS[n] * k
+		(get_node(n) as CanvasItem).modulate = Color(1.0 + FLASH_GAIN.r * g, 1.0 + FLASH_GAIN.g * g, 1.0 + FLASH_GAIN.b * g)
+	if _impact_k > 0.0:
+		flash.color = Color(IMPACT_TINT, _impact_k * 0.16)
+	else:
+		flash.color = Color(FLASH_TINT, k * FLASH_TINT_A)
 
 
 # 飞船飞行图的中心到机头 / 喷口（tools/level1_art.py：斜 18°）
@@ -945,13 +1096,14 @@ func _impact() -> void:
 	_sfx("ship_impact", -1.0)
 	_shake = 0.8
 	_shake_amp = 5.0
+	_flash_k = 0.0
 	puffs_front.burst(nose, 44, puffs_front.PRESETS.dust)
 	puffs_back.burst(nose + Vector2(8, -6), 26, puffs_back.PRESETS.smoke_burst)
 	puffs_front.burst(nose + Vector2(6, -4), 12, puffs_front.PRESETS.ember)
 	var tw := _tw()
-	flash.color.a = 0.0
-	tw.tween_property(flash, "color:a", 0.35, 0.03)
-	tw.tween_property(flash, "color:a", 0.0, 0.3)
+	_impact_k = 0.0
+	tw.tween_property(self, "_impact_k", 1.0, 0.03)
+	tw.tween_property(self, "_impact_k", 0.0, 0.4)
 	_chen_thrown()
 
 
@@ -984,20 +1136,37 @@ func _thrown_step(k: float) -> void:
 	var p := _path_a.lerp(_path_b, k)
 	p.y -= sin(k * PI) * 26.0
 	chen.position = p.round()
-	chen.spr.rotation = lerpf(-0.6, PI / 2.0 + TAU, k)
-	chen.spr.position.y = -round(LIE_LIFT * k)
+	var r := lerpf(-0.6, PI / 2.0 + TAU, k)
+	if _has_getup:
+		# 空中翻滚按 90° 一档一档转（像素一一对应，不出斜着的 mixel），绕身体中间转
+		r = snappedf(r, PI / 2.0)
+		var c := Vector2(0, -21)
+		chen.spr.position = (c - c.rotated(r) + Vector2(0, 15.0 * k)).round()
+		chen.spr.rotation = r
+	else:
+		chen.spr.rotation = r
+		chen.spr.position.y = -round(LIE_LIFT * k)
 
 
 func _chen_landed() -> void:
-	chen.spr.rotation = PI / 2.0
+	if _has_getup:
+		_chen_lying()
+	else:
+		chen.spr.rotation = PI / 2.0
 	puffs_front.burst(chen.position + Vector2(18, 0), 10, puffs_front.PRESETS.dust_small)
 	_sfx("ship_impact", -22.0, 1.8)
 
 
 func _chen_lying() -> void:
 	chen.visible = true
-	chen._set_facing(1)
 	chen.position = Vector2(CHEN_X, _ground(CHEN_X) + 1)
+	if _has_getup:
+		chen.spr.rotation = 0.0
+		chen.spr.position = Vector2.ZERO
+		chen.spr.play(&"lie")
+		chen._set_facing(1)
+		return
+	chen._set_facing(1)
 	chen.spr.rotation = PI / 2.0
 	chen.spr.position.y = -LIE_LIFT
 
@@ -1005,6 +1174,14 @@ func _chen_lying() -> void:
 func _chen_get_up() -> void:
 	var spr: AnimatedSprite2D = chen.spr
 	var tw := _tw()
+	if _has_getup:
+		# 拼出来的几帧：抽一下 → 又趴回去 → 撑起上身 → 跪坐 → 半蹲 → 站直（chen.gd 的 getup，播完自己回 idle）
+		spr.play(&"getup")
+		tw.tween_interval(GETUP_KNEEL_AT)
+		tw.tween_callback(func(): puffs_front.burst(chen.position + Vector2(-3, 0), 4, puffs_front.PRESETS.dust_small))
+		tw.tween_interval(GETUP_STAND_AT - GETUP_KNEEL_AT)
+		tw.tween_callback(func(): puffs_front.burst(chen.position, 5, puffs_front.PRESETS.dust_small))
+		return
 	# 先动一下（抽一下），停一会儿，撑起来一半，再站直，落地压扁一下
 	tw.tween_property(spr, "rotation", PI / 2.0 - 0.12, 0.12)
 	tw.tween_property(spr, "rotation", PI / 2.0, 0.15)
@@ -1027,6 +1204,8 @@ func _lean(r: float) -> void:
 
 
 func _chen_stand() -> void:
+	if String(chen.spr.animation) in ["lie", "getup"]:
+		chen.spr.play(&"idle")
 	chen.spr.rotation = 0.0
 	chen.spr.position = Vector2.ZERO
 	chen.spr.scale = Vector2.ONE
@@ -1047,7 +1226,8 @@ func _skip_crash() -> void:
 	_title_root.visible = false
 	_title_root.modulate.a = 0.0
 	_gear.visible = false
-	flash.color.a = 0.0
+	_flash_k = 0.0
+	_impact_k = 0.0
 	ship.visible = false
 	puffs_back.remove_source("trail")
 	puffs_back.remove_source("trail_sparks")
@@ -1330,7 +1510,8 @@ func _close_panels() -> void:
 	if state == S.PLAY:
 		chen.input_enabled = true
 	if state == S.TITLE:
-		_start_btn.grab_focus()
+		if _panel_prev_focus == _start_btn:
+			_start_btn.grab_focus()
 	elif _panel_prev_focus != null and is_instance_valid(_panel_prev_focus) and _panel_prev_focus.is_visible_in_tree():
 		_panel_prev_focus.grab_focus()
 	else:
@@ -1353,6 +1534,10 @@ func _input(event: InputEvent) -> void:
 				_open_settings()
 			get_viewport().set_input_as_handled()
 			return
+		if k in TEST_SCENES and state == S.TITLE and OS.is_debug_build() and not (_settings.visible or _bag.visible):
+			get_viewport().set_input_as_handled()
+			_open_test_scene(TEST_SCENES[k])
+			return
 		if k in [KEY_TAB, KEY_B, KEY_I]:
 			if not _settings.visible:
 				_toggle_bag()
@@ -1367,6 +1552,15 @@ func _input(event: InputEvent) -> void:
 			if anykey and _state_t > 0.4:
 				_leave_headphones()
 				get_viewport().set_input_as_handled()
+		S.TITLE:
+			# 「开始」平时不拿焦点（不然一出来就是高亮的）：Enter / 空格直接开始，方向键才把焦点给它
+			if event.is_action_pressed("ui_accept"):
+				get_viewport().set_input_as_handled()
+				_on_start()
+			elif get_viewport().gui_get_focus_owner() == null and (event.is_action_pressed("ui_up") \
+					or event.is_action_pressed("ui_down") or event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right")):
+				get_viewport().set_input_as_handled()
+				_start_btn.grab_focus()
 		S.INTRO:
 			if confirm and _state_t > 0.5:
 				_skip_to_title()
@@ -1414,6 +1608,7 @@ func _process(delta: float) -> void:
 			create_tween().tween_property(_skip_label, "modulate:a", 0.0, 0.4)
 
 	_update_camera(delta)
+	_apply_flash()
 	_update_world(delta)
 	_update_dialogue(delta)
 	_update_hints(delta)
@@ -1421,11 +1616,33 @@ func _process(delta: float) -> void:
 	# 耳机提示的「按任意键」慢慢呼吸
 	if state == S.HEADPHONES:
 		_hp_any.modulate.a = 0.45 + 0.35 * sin(_t * 2.4)
-	# 标题「开始游戏」聚焦时轻轻呼吸
-	if state == S.TITLE:
-		_start_btn.modulate.a = 0.8 + 0.2 * sin(_t * 2.0)
+	if state == S.TITLE or _title_root.visible:
+		_update_title(delta)
 
 	_debug_tick()
+
+
+func _update_title(delta: float) -> void:
+	# 标题：淡入时往上飘 3 像素（整像素）；之后很慢地呼吸（7 秒一次，亮度只差一点）
+	var breath := 0.9 + 0.1 * sin(_t * TAU / 7.0)
+	_title_label.modulate.a = _title_k * breath
+	_title_label.position.y = TITLE_Y + roundf(3.0 * (1.0 - _title_k))
+	# 「开始」：悬停 / 聚焦时变亮，两边的小横线从 0 伸到 8 像素
+	var hot := _start_hover or _start_btn.has_focus()
+	_start_hot = move_toward(_start_hot, 1.0 if hot else 0.0, delta * 6.0)
+	var w := roundf(8.0 * _start_hot)
+	var y := _start_btn.position.y + 10.0
+	_start_marks[0].size.x = w
+	_start_marks[1].size.x = w
+	_start_marks[0].position = Vector2(_start_btn.position.x - 6.0 - w, y)
+	_start_marks[1].position = Vector2(_start_btn.position.x + _start_btn.size.x - START_SPACING + 7.0, y)
+	var a := _start_btn.modulate.a
+	for m in _start_marks:
+		m.modulate.a = a * _start_hot * 0.8
+	if not hot:
+		_start_btn.self_modulate.a = 0.78 + 0.12 * sin(_t * 1.6)    # 没碰它的时候很轻地呼吸
+	else:
+		_start_btn.self_modulate.a = 1.0
 
 
 func _update_camera(delta: float) -> void:
@@ -1546,6 +1763,13 @@ func _jump(stage: String) -> void:
 
 
 func _debug_tick() -> void:
+	if _browse > 0 and state == S.TITLE and _state_t > 0.5 and not Engine.has_meta("level_forest_browsed"):
+		Engine.set_meta("level_forest_browsed", true)
+		_open_test_scene(TEST_SCENES[KEY_F1 + _browse - 1], 2.5)
+		_browse = 0
+	elif _browse_out != "" and Engine.has_meta("level_forest_browsed") and state == S.TITLE and _state_t > 2.0:
+		_save(_browse_out.path_join("back.png"))
+		get_tree().quit()
 	if _autoplay:
 		if state == S.TITLE and _state_t > 1.2:
 			_on_start()
@@ -1565,3 +1789,66 @@ func _debug_tick() -> void:
 func _save(path: String) -> void:
 	RenderingServer.force_draw(false)
 	get_viewport().get_texture().get_image().save_png(path)
+
+
+# ======================================================================= 调试：场景浏览（只在 debug 构建）
+const BACK_META := "level_forest_back_to_title"
+
+
+func _open_test_scene(path: String, auto_back := 0.0) -> void:
+	if not ResourceLoader.exists(path):
+		push_warning("没有这个测试场景：" + path)
+		return
+	var b := SceneBrowser.new()
+	b.name = "SceneBrowser"
+	b.scene_name = path.get_file().get_basename()
+	b.auto_back = auto_back
+	if auto_back > 0.0 and _browse_out != "":
+		b.shot = _browse_out.path_join("scene.png")
+	get_tree().root.add_child(b)
+	get_tree().change_scene_to_file(path)
+
+
+## 挂在 root 下（换场景不会被删），一直排在 root 的最后一个，所以 Esc 比测试场景自己先收到。
+## Esc：回第一关的标题界面，然后把自己删掉。左上角一行很淡的小字提示。
+class SceneBrowser extends Node:
+	var scene_name := ""
+	var auto_back := 0.0      # 调试（--browse）：过几秒自己回去，回去前存一张图到 shot
+	var shot := ""
+	var _t := 0.0
+
+	func _ready() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		var layer := CanvasLayer.new()
+		layer.layer = 120
+		add_child(layer)
+		var l := Label.new()
+		l.theme = UITheme.get_theme()
+		l.text = scene_name + "   Esc: back to title"
+		l.add_theme_color_override("font_color", Color(0.75, 0.85, 0.8, 0.45))
+		l.position = Vector2(6, 4)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(l)
+
+	func _process(delta: float) -> void:
+		var p := get_parent()
+		if p != null and get_index() != p.get_child_count() - 1:
+			p.move_child(self, -1)
+		if auto_back > 0.0:
+			_t += delta
+			if _t >= auto_back:
+				if shot != "":
+					RenderingServer.force_draw(false)
+					get_viewport().get_texture().get_image().save_png(shot)
+				_back()
+
+	func _input(e: InputEvent) -> void:
+		if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_ESCAPE:
+			get_viewport().set_input_as_handled()
+			_back()
+
+	func _back() -> void:
+		get_tree().paused = false
+		Engine.set_meta(BACK_META, true)
+		get_tree().change_scene_to_file(SELF_SCENE)
+		queue_free()

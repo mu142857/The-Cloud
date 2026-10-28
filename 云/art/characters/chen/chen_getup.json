@@ -1,0 +1,85 @@
+{
+ "frames": [
+  {
+   "filename": "chen_getup 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 64,
+    "h": 42
+   },
+   "duration": 400
+  },
+  {
+   "filename": "chen_getup 1",
+   "frame": {
+    "x": 64,
+    "y": 0,
+    "w": 64,
+    "h": 42
+   },
+   "duration": 150
+  },
+  {
+   "filename": "chen_getup 2",
+   "frame": {
+    "x": 128,
+    "y": 0,
+    "w": 64,
+    "h": 42
+   },
+   "duration": 460
+  },
+  {
+   "filename": "chen_getup 3",
+   "frame": {
+    "x": 192,
+    "y": 0,
+    "w": 64,
+    "h": 42
+   },
+   "duration": 420
+  },
+  {
+   "filename": "chen_getup 4",
+   "frame": {
+    "x": 256,
+    "y": 0,
+    "w": 64,
+    "h": 42
+   },
+   "duration": 200
+  },
+  {
+   "filename": "chen_getup 5",
+   "frame": {
+    "x": 320,
+    "y": 0,
+    "w": 64,
+    "h": 42
+   },
+   "duration": 150
+  }
+ ],
+ "meta": {
+  "image": "chen_getup.png",
+  "size": {
+   "w": 384,
+   "h": 42
+  },
+  "frameTags": [
+   {
+    "name": "lie",
+    "from": 0,
+    "to": 0,
+    "direction": "forward"
+   },
+   {
+    "name": "getup",
+    "from": 1,
+    "to": 5,
+    "direction": "forward"
+   }
+  ]
+ }
+}

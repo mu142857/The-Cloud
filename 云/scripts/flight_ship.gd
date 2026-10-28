@@ -85,6 +85,9 @@ func _process(delta: float) -> void:
 	var want := int(roundf(clampf(vy / 64.0, -1.0, 1.0) * 2.0)) + 2
 	if crashed:
 		want = 4
+	var straining := emergency > 0.0 and pressed and position.y <= ceiling + 5.0 and not crashed
+	if straining:
+		want = 1
 	if want != _frame and absf(vy / 64.0 * 2.0 + 2.0 - _frame) > 0.7:
 		_frame = want
 	_body.frame = _frame
@@ -97,7 +100,7 @@ func _process(delta: float) -> void:
 	if emergency > 0.0:
 		cough = 1.0 if fmod(_t, 1.7) < 0.25 or fmod(_t + 0.4, 2.3) < 0.15 else 0.0
 	var on := lit * (1.0 - cough)
-	_flame.visible = on > 0.15
+	_flame.visible = on > 0.15 or (straining and int(_t * 11.0) % 3 == 0)
 	_flame.frame = int(_t * 14.0) % 3
 	_flame.position = (tail + Vector2(-4, 0).rotated(ang)).round()
 	_flame.scale = Vector2.ONE * (1.0 if flare < 0.3 else 2.0)
@@ -112,6 +115,8 @@ func _process(delta: float) -> void:
 	_body.modulate = Color(2.2, 2.2, 2.2) if blink else Color(1, 1, 1)
 	shake = maxf(0.0, shake - delta * 2.5)
 	var off := Vector2(sin(_t * 47.0), cos(_t * 39.0)) * shake * 3.0
+	if straining:
+		off.y += roundf(sin(_t * 31.0) * 0.6)
 	_body.position = off.round()
 	_flame.position += off.round()
 

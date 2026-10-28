@@ -5,6 +5,9 @@ class_name UITheme
 ## 颜色：森林的青绿灰 + 半透明深底（界面允许半透明），不用纯黑纯白。
 
 const FONT_PATH := "res://fonts/PixelFont.ttf"
+## 界面实际用的是它的派生版（tools/level1_font.py）：英文标点贴紧前一个字母、上下沿改成整格（字的像素格和画面对齐）。
+## 字形一点没动。没有这个文件就退回原字体。
+const UI_FONT_PATH := "res://fonts/PixelFont_ui.ttf"
 const TEXT := Color("#dfe8e2")
 const TEXT_DIM := Color("#8fa69a")
 const ACCENT := Color("#c48fb4")      # 晨的紫红：说话人名字、选中
@@ -12,16 +15,29 @@ const WARM := Color("#e8b860")        # 燃烧值
 
 static var _font: FontFile
 static var _theme: Theme
+static var _spaced := {}
 
 
 static func font() -> FontFile:
 	if _font == null:
-		_font = load(FONT_PATH)
+		_font = load(UI_FONT_PATH if ResourceLoader.exists(UI_FONT_PATH) else FONT_PATH)
 		_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
 		_font.hinting = TextServer.HINTING_NONE
 		_font.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
 		_font.generate_mipmaps = false
 	return _font
+
+
+## 拉开字距的同一款字（标题、「开始」用）。spacing = 每个字后面多空几像素（14 号字一格 = 1 像素）。
+static func spaced_font(spacing: int) -> Font:
+	if spacing == 0:
+		return font()
+	if not _spaced.has(spacing):
+		var v := FontVariation.new()
+		v.base_font = font()
+		v.spacing_glyph = spacing
+		_spaced[spacing] = v
+	return _spaced[spacing]
 
 
 static func box(bg: Color, border: Color = Color(0, 0, 0, 0), bw := 0, pad := Vector4(4, 2, 4, 2)) -> StyleBoxFlat:

@@ -18,6 +18,7 @@ const STR := {
 	"headphones": ["Best played with headphones", "建议佩戴耳机游玩"],
 	"press_any": ["Click or press any key", "点击或按任意键继续"],
 	"title": ["The Cloud", "云"],
+	"title_sub": ["云", "THE CLOUD"],      # 标题下面那行小字：另一种语言的名字
 	"start": ["Start", "开始游戏"],
 	"skip_again": ["Press again to skip", "再按一次跳过"],
 	# ---- 设置

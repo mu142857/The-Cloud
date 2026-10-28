@@ -167,14 +167,33 @@ def stars(seed=7):
 # ---------------------------------------------------------------- 云（中性冷灰，Godot 里染色）
 
 def puff_row(rng, w, base_y, r_lo, r_hi, n, jitter):
-    """一排云团：返回每列的天际线高度（越小越高）和各团的圆。"""
+    """一排云团：返回各团的圆。第二版：天际线随 x 起伏（周期整除 960，左右无缝），
+    两处高高堆起的云山、一处沉下去的低平留白，团的大小也随位置变（不再一排一样大的馒头）。"""
     circles = []
+    ph = rng.uniform(0, 2 * np.pi, 3)
+    towers = rng.uniform(0, w, 2)
+    flat = rng.uniform(0, w)
+
+    def wrapd(x, c):
+        d = abs(x - c) % w
+        return min(d, w - d)
+
     x = 0.0
     while x < w:
-        r = rng.uniform(r_lo, r_hi)
-        cy = base_y + rng.uniform(-jitter, jitter) + r * 0.35
+        u = 2 * np.pi * x / w
+        lift = 7 * np.sin(u + ph[0]) + 4 * np.sin(3 * u + ph[1]) + 2.5 * np.sin(5 * u + ph[2])
+        scale = 1.0
+        for t in towers:
+            k = max(0.0, 1 - wrapd(x, t) / 70)
+            lift += 18 * k * k
+            scale += 0.7 * k * k
+        fk = max(0.0, 1 - wrapd(x, flat) / 60)
+        lift -= 10 * fk
+        scale -= 0.45 * fk
+        r = rng.uniform(r_lo, r_hi) * scale
+        cy = base_y - lift + rng.uniform(-jitter, jitter) + r * 0.35
         circles.append((x, cy, r))
-        x += r * rng.uniform(0.9, 1.5)
+        x += max(4.0, r * rng.uniform(0.7, 1.4))
     return circles
 
 
@@ -549,17 +568,21 @@ def storm(seed=5, w=230, h=112):
 
 
 def bird_frames():
-    """迁徙的鸟 4 帧（11×7），被月光照着的浅灰蓝。"""
-    pal = {"a": from_hex("#aebdcc"), "b": from_hex("#7d8ca0"), "c": from_hex("#d6e2ec")}
+    """迁徙的鸟 4 帧（17×9），被月光照着的浅灰蓝：身体一小截，两翼长，扇一下往下压。"""
+    pal = {"a": from_hex("#aebdcc"), "b": from_hex("#7d8ca0"), "c": from_hex("#d6e2ec"), "d": from_hex("#5d6b80")}
     frames = [
-        ["a.........a", ".a.......a.", "..a.....a..", "...bcccb...", "....bbb....", "...........", "..........."],
-        ["...........", "aa.......aa", "..a.....a..", "...bcccb...", "....bbb....", "...........", "..........."],
-        ["...........", "...........", "...........", "..abcccba..", ".a..bbb..a.", "a.........a", "..........."],
-        ["...........", "...........", ".aa.....aa.", "...bcccb...", "....bbb....", "...........", "..........."],
+        ["a...............a", ".aa...........aa.", "...aa.......aa...", ".....acccccb.....", "......bbbbb......",
+         ".......d.d.......", ".................", ".................", "................."],
+        [".................", "aaa...........aaa", "...aaa.....aaa...", ".....acccccb.....", "......bbbbb......",
+         ".......d.d.......", ".................", ".................", "................."],
+        [".................", ".................", ".................", "....aacccccbaa...", "..aa..bbbbb..aa..",
+         ".a.....d.d.....a.", "a...............a", ".................", "................."],
+        [".................", ".................", ".aaa.........aaa.", "....aacccccbaa...", "......bbbbb......",
+         ".......d.d.......", ".................", ".................", "................."],
     ]
-    sheet = Canvas(44, 7)
+    sheet = Canvas(68, 9)
     for i, r in enumerate(frames):
-        sheet.paste(Canvas.from_rows(r, pal), i * 11, 0)
+        sheet.paste(Canvas.from_rows(r, pal), i * 17, 0)
     return sheet
 
 
@@ -606,19 +629,11 @@ def ui_icons():
 
 
 def card_bg(w=220, h=178):
-    """决定卡的底：很深的夜蓝，图标后面一团暖光（灯下读信的感觉），一圈细边，四个角一颗小星。"""
+    """决定卡的底：很深的夜蓝，一圈细边，四个角一颗小星。图标后面的暖光是另一张半透明的 card_glow（特效）。"""
     c = Canvas(w, h)
     base = from_hex("#0f1320")
     m = c.rect(1, 0, w - 2, h - 1) | c.rect(0, 1, w - 1, h - 2)
     c.fill_mask(m, base)
-    Y, X = np.mgrid[0:h, 0:w]
-    gx, gy = w / 2, 48
-    d = np.hypot((X + 0.5 - gx) / 1.25, Y + 0.5 - gy)
-    warm = from_hex("#3a2a2a")
-    for k, (r, t) in enumerate([(58, 0.2), (44, 0.4), (31, 0.62), (21, 0.85)]):
-        ring = m & (d <= r)
-        edge = ring & (d > r - 1.5) & ((X + Y) % 2 == 0)
-        c.fill_mask(ring & ~edge, mix(base, warm, t))
     # 细边：内缩 3 像素一圈更亮一点的线，四角留缺口放小星
     edge_c = from_hex("#2a3146")
     for x in range(8, w - 8):
@@ -633,6 +648,22 @@ def card_bg(w=220, h=178):
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             c.put(sx + dx, sy + dy, edge_c)
     return c
+
+
+def soft_glow(w, h, cx, cy, rx, ry, col, alpha, seed, wobble=0.18):
+    """柔的光晕（特效，半透明）：alpha 从中心往外平滑落下去，轮廓被低频噪声推得不规则（不是一圈圈的靶子）。"""
+    rng = np.random.default_rng(seed)
+    Y, X = np.mgrid[0:h, 0:w]
+    ang = np.arctan2(Y + 0.5 - cy, X + 0.5 - cx)
+    k = np.ones_like(ang)
+    for f in (2, 3, 5):
+        k += wobble / f * 2 * np.sin(f * ang + rng.uniform(0, 6.28))
+    d = np.hypot((X + 0.5 - cx) / rx, (Y + 0.5 - cy) / ry) / k
+    a = np.clip(1 - d, 0, 1) ** 1.8
+    out = np.zeros((h, w, 4), np.uint8)
+    out[..., :3] = col
+    out[..., 3] = np.round(a * alpha * 255).astype(np.uint8)
+    return out
 
 
 # ---------------------------------------------------------------- 物品图标（24×24，色块派小物件）
@@ -819,6 +850,9 @@ def main():
     for k, v in ui_icons().items():
         save(v, k)
     save(card_bg(), "card")
+    save(soft_glow(220, 120, 110, 48, 82, 56, (214, 150, 104), 0.30, 3), "card_glow")
+    save(soft_glow(64, 64, 32, 32, 30, 30, (240, 190, 120), 0.45, 4, 0.1), "sel_glow")
+    save(soft_glow(420, 420, 210, 210, 205, 205, (120, 200, 235), 0.22, 5, 0.05), "mercury_glow")
     for k, fn in ICONS.items():
         save(fn(), f"item_{k}")
 

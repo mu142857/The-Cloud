@@ -7,7 +7,9 @@
 
 画法：飞船在「自己的坐标系」里用几个形状定义（船身、驾驶舱、尾翼、喷口、条纹），每个像素反算回自己的坐标
 再上色，所以飞行时斜 18° 和坠毁时斜 34° 都是一笔一笔硬边像素，不是把图旋转出来的（不会有 mixel）。
-光从上面来：船身按「离自己顶边多远」分 5 档。颜色：灰蓝金属（比晨暗很多）+ 晨围巾的那种紫红条纹，
+光从上面来：船身按「离自己顶边多远」分 5 档。颜色：暗的灰蓝金属 + 晨围巾的那种紫红条纹（都压得很暗）。
+2026-10-28 夜：飞船整体压暗（船身 OKLab L 约 0.24~0.36，晨的米白是 0.72~0.8），只在机头上沿留一条
+冷色受光边（L 约 0.5，像被天光擦到）和喷口火焰 / 坠毁后焦痕里的几颗余火，烟也压暗，不和晨抢。
 发光木头是画面里唯一的暖色（琥珀），只比晨暗一点。
 """
 from __future__ import annotations
@@ -26,9 +28,11 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "art" / "level1"
 OUT.mkdir(parents=True, exist_ok=True)
 
-HULL = ramp((0x52, 0x60, 0x68), 6, L_span=0.30, hue_shift=10)          # 灰蓝金属，暗 → 亮
-STRIPE = ["#3d2440", "#573450", "#7e4772"]                    # 晨围巾的紫红
-GLASS = ["#0d1a1c", "#1d3a3c", "#5f9e96"]                     # 驾驶舱玻璃，最后一档是一颗高光
+HULL = ramp((0x2a, 0x33, 0x38), 5, L_span=0.14, hue_shift=8)            # 暗的灰蓝金属，暗 → 亮（L 0.24..0.36）
+RIM = "#587077"                                               # 机头上沿那条冷色受光边（L≈0.51），只有一小段
+STRIPE = ["#26182a", "#33203a", "#45293f"]                    # 晨围巾的紫红，压暗
+GLASS = ["#0a1416", "#142a2c", "#3f6f69"]                     # 驾驶舱玻璃，最后一档是一颗小高光
+EMBER = ["#7a3420", "#c06a2c"]                                # 坠毁后焦痕里的余火
 SCORCH = ["#15161a", "#24242a"]
 FLAME = ["#8a3a22", "#d0782e", "#f0c070"]
 SOIL = ["#141b15", "#1e1c18", "#24221e", "#2f4335", "#3f5041"]
@@ -95,17 +99,24 @@ def ship_color(lx, ly, damaged=False, broken_fin=False, flame_phase=-1, rng=None
     # 焦痕、破洞（坠毁）
     if damaged:
         if ((lx - 6) / 4.5) ** 2 + ((ly + 1.5) / 2.6) ** 2 <= 1:
+            # 破洞里两颗余火（关卡里还会从这里冒火星）
+            if abs(lx - 6) < 1.0 and abs(ly + 1.5) < 0.7:
+                return EMBER[1]
+            if abs(lx - 7.5) < 0.8 and abs(ly + 0.6) < 0.6:
+                return EMBER[0]
             return SCORCH[0] if ((lx - 6) / 2.4) ** 2 + ((ly + 1.5) / 1.4) ** 2 <= 1 else SCORCH[1]
         if ((lx + 17) / 3.0) ** 2 + ((ly - 1) / 2.4) ** 2 <= 1:
             return SCORCH[1]
     # 光从上面来：按离顶边多远分档
     v = (ly + top) / (top + bot)            # 0 顶边 .. 1 底边
-    k = 5 if v < 0.12 else 4 if v < 0.35 else 3 if v < 0.62 else 2 if v < 0.85 else 1
-    if lx > 12 and k > 2:
+    if v < 0.12 and -16 < lx < 2:
+        return RIM                           # 机头上沿一小段受光边
+    k = 4 if v < 0.3 else 3 if v < 0.55 else 2 if v < 0.8 else 1
+    if lx > 12 and k > 1:
         k -= 1                               # 尾部稍暗
     # 一条面板缝
     if abs(lx - 3) < 0.5 and v < 0.55:
-        k = max(1, k - 2)
+        k = max(0, k - 2)
     return HULL[k]
 
 

@@ -8,6 +8,8 @@ extends ColorRect
 @export var focus := Vector2(390, -300)
 ## 每道：Vector4(中线斜率 dx/dy, 半宽, 强度, 相位)。斜率负 = 往左下斜
 @export var shafts: Array[Vector4] = [
+	Vector4(-0.86, 0.040, 0.075, 2.2),      # 最左边两道：很远、很淡，斜进开场镜头左上那片空水（shader 最多 8 道）
+	Vector4(-0.64, 0.026, 0.065, 3.6),
 	Vector4(-0.42, 0.030, 0.08, 0.3),
 	Vector4(-0.30, 0.045, 0.16, 1.7),
 	Vector4(-0.20, 0.022, 0.11, 4.1),

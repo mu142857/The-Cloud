@@ -94,9 +94,9 @@ centered = false
 
 [node name="Pods" type="Node2D" parent="Shore"]
 script = ExtResource("33_lights")
-lights = Array[Vector3]([Vector3(253, 130, 2), Vector3(257, 128, 1), Vector3(266, 133, 1)])
+lights = Array[Vector3]([Vector3(253, 130, 3), Vector3(258, 127, 2), Vector3(266, 133, 2)])
 waterline = 154.0
-reflect_len = 6
+reflect_len = 4
 period = 5.5
 
 [node name="Ripples" type="Parallax2D" parent="."]

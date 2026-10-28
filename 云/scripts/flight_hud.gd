@@ -1,14 +1,17 @@
 extends Node2D
 ## 飞行段的 HUD（屏幕坐标，画在最上层）：
-##   上方：到水星的进度条（左端木星、右端水星的小图标，一颗小亮点是飞船）
-##   左上：燃料表。条的整宽 = 起飞时要的燃料。亮琥珀 = 引擎里正在烧的，暗琥珀 = 排队等着自动烧的材料，
-##         白色小竖线 = 到终点还要多少；够不着那条线的那一段画成暗玫瑰色的虚线 = 还差多少（私人物品不算在里面）。
+##   上方：到水星的进度条（左端木星、右端水星，白点是飞船），同一条上从飞船往前画一段琥珀色 = 现在的燃料能飞到哪：
+##         碰到水星 = 够了（水星周围亮一圈）；碰不到，剩下的是玫瑰色的点 = 还差。下面一行字只说结论（「够飞到水星」/「还差 75」），
+##         后面暗暗地跟一个「有/要」。整条的长度 = 起飞时要的燃料，所以燃料和距离是同一把尺子。
 ##   右下：接下来要烧的两三件（小图标，最左边那件是下一件）。左下留给飞船贴底飞。
 ##   下方中间：晨的旁白（一行字幕）；物品自动烧掉时的小提示（+40 发光木头）往上飘。
 
 const JUP := preload("res://art/flight/icon_jupiter.png")
 const MER := preload("res://art/flight/icon_mercury.png")
 const DROP := preload("res://art/flight/ui_drop.png")
+const MER_GLOW := preload("res://art/flight/sel_glow.png")
+const BAR_X0 := 130.0
+const BAR_X1 := 350.0
 const FLAME := preload("res://art/flight/ui_flame.png")
 
 const QX := 391.0               # 「接下来」那排小图标的左边（右下角）
@@ -62,59 +65,60 @@ func _draw() -> void:
 	var a := alpha
 	if a <= 0.0:
 		return
-	# ---- 紧急模式：天花板压下来（上面一片暗，边上一行稀疏的点）
+	# ---- 紧急模式「飞不高了」：飞船上方的天从上往下一点点暗下去（柔的渐变，特效可以半透明），
+	# 暗的下沿就是现在飞得到的最高处；飞船往上够、够不着（飞船自己会抖，见 flight_ship.gd）。
 	if ceil_a > 0.0 and ceiling_y > 2.0:
 		var cy := roundf(ceiling_y)
-		var dark := Color(0.01, 0.02, 0.06, 0.55 * ceil_a)
-		var frost := Color(0.62, 0.72, 0.9, 0.4 * ceil_a)
-		draw_rect(Rect2(0, 0, 480, cy - 4), dark)
-		for row in 4:
-			var yy := cy - 4 + row
-			var step := 2 if row < 2 else 4
-			var xx := float(row % 2) + float(int(_t * 8.0) % 2) * (2.0 if row >= 2 else 0.0)
-			while xx < 480:
-				draw_rect(Rect2(xx, yy, 1, 1), frost if row == 1 or row == 3 else dark)
-				xx += step
-	# ---- 进度条
-	var x0 := 150.0
-	var x1 := 330.0
-	var y := 12.0
-	draw_texture(JUP, Vector2(x0 - 13, y - 4), Color(1, 1, 1, a))
-	draw_texture(MER, Vector2(x1 + 4, y - 4), Color(1, 1, 1, a))
-	draw_rect(Rect2(x0, y, x1 - x0, 1), Color(C_DIM, a))
-	var px := roundf(lerpf(x0, x1, clampf(progress, 0, 1)))
-	draw_rect(Rect2(x0, y, px - x0, 1), Color(Color("7d8aa8"), a))
-	draw_rect(Rect2(px - 1, y - 1, 3, 3), Color(C_WHITE, a))
-	# ---- 燃料表
-	var gx := 12.0
-	var gy := 10.0
+		var soft := 46.0
+		var yy := 0.0
+		while yy < cy:
+			var k := clampf((cy - yy) / soft, 0.0, 1.0)
+			draw_rect(Rect2(0, yy, 480, 1), Color(0.01, 0.02, 0.06, 0.62 * ceil_a * k * k))
+			yy += 1.0
+	# ---- 进度条 + 燃料投影：从飞船（白点）往前画一段琥珀色 = 现在的燃料能飞到哪。
+	# 碰到水星 = 够了（水星亮起来）；碰不到，剩下那段是玫瑰色的点 = 还差。不用看数字。
+	# 亮琥珀 = 引擎里正在烧的，暗琥珀 = 排队等着自动烧的材料（私人物品不算在里面）。
 	var shake := Vector2(roundf(sin(_t * 60.0) * 2.0 * gauge_pop), 0)
-	var gw := 96.0
-	var k := gw / need0
-	draw_texture(DROP, Vector2(gx, gy - 3) + shake, Color(1, 1, 1, a))
-	var bx := gx + 9
-	var by := gy
-	draw_rect(Rect2(Vector2(bx, by) + shake, Vector2(gw, 3)), Color(Color("161b28"), a))
-	var wt := minf(tank * k, gw)
-	var wq := minf(queued * k, gw - wt)
+	var x0 := BAR_X0
+	var x1 := BAR_X1
+	var y := 12.0
+	var bw := x1 - x0
+	var pr := clampf(progress, 0, 1)
+	var px := roundf(x0 + bw * pr)
+	var t_end := roundf(x0 + bw * clampf(pr + tank / need0, 0, 1))
+	var q_end := roundf(x0 + bw * clampf(pr + (tank + queued) / need0, 0, 1))
+	var enough := short_shown < 1.0
+	draw_rect(Rect2(Vector2(x0 - 16, y - 6) + shake, Vector2(bw + 32, 13)), Color(0.01, 0.02, 0.05, 0.45 * a))
+	draw_texture(JUP, Vector2(x0 - 13, y - 4) + shake, Color(1, 1, 1, a))
+	if enough:
+		var pulse := 0.55 + 0.25 * sin(_t * 3.0)
+		draw_texture(MER_GLOW, Vector2(x1 + 8.5, y + 0.5) - Vector2(32, 32) + shake, Color(1, 1, 1, pulse * a))
+	draw_texture(MER, Vector2(x1 + 4, y - 4) + shake, Color(1, 1, 1, a))
+	draw_rect(Rect2(Vector2(x0, y) + shake, Vector2(bw, 1)), Color(C_DIM, a))
+	draw_rect(Rect2(Vector2(x0, y) + shake, Vector2(px - x0, 1)), Color(Color("7d8aa8"), a))
 	var tank_col := C_AMBER
 	if leaking and int(_t * 6.0) % 2 == 0:
 		tank_col = Color("ffdca0")
-	draw_rect(Rect2(Vector2(bx, by) + shake, Vector2(roundf(wt), 3)), Color(tank_col, a))
-	draw_rect(Rect2(Vector2(bx + roundf(wt), by) + shake, Vector2(roundf(wq), 3)), Color(C_AMBER_D, a))
-	var have_x := bx + roundf(wt) + roundf(wq)
-	var need_x := bx + roundf(minf(need_left * k, gw))
-	if need_x > have_x:
-		var xx := have_x
-		while xx < need_x:
-			draw_rect(Rect2(Vector2(xx, by + 1) + shake, Vector2(1, 1)), Color(C_SHORT, a))
-			xx += 2
-	draw_rect(Rect2(Vector2(need_x, by - 2) + shake, Vector2(1, 7)), Color(C_WHITE, a))
-	var have := int(roundf(tank + queued))
-	_text("%d / %d" % [have, int(roundf(need_left))], Vector2(bx, by + 16) + shake, Color(C_TXT, a))
-	if short_shown >= 1.0:
-		var sx := bx + 4 + FlightText.font().get_string_size("%d / %d" % [have, int(roundf(need_left))], 0, -1, FlightText.SIZE).x + 4
-		_text(FlightText.t("short") % int(roundf(short_shown)), Vector2(sx, by + 16) + shake, Color(C_SHORT, a))
+	draw_rect(Rect2(Vector2(px, y - 1) + shake, Vector2(t_end - px, 3)), Color(tank_col, a))
+	draw_rect(Rect2(Vector2(t_end, y - 1) + shake, Vector2(q_end - t_end, 3)), Color(C_AMBER_D, a))
+	if not enough:
+		var xx := q_end + 1.0
+		while xx < x1:
+			draw_rect(Rect2(Vector2(xx, y) + shake, Vector2(1, 1)), Color(C_SHORT, a))
+			xx += 2.0
+		draw_rect(Rect2(Vector2(q_end, y - 3) + shake, Vector2(1, 7)), Color(Color("ea8aa0"), a))
+	draw_rect(Rect2(Vector2(px - 1, y - 2) + shake, Vector2(3, 5)), Color(C_WHITE, a))
+	# 一行结论（字号只能 14）：够 / 还差多少，后面暗暗地跟「有 / 要」
+	var status := FlightText.t("enough") if enough else FlightText.t("short") % int(roundf(short_shown))
+	var scol := Color("a8e0c8") if enough else Color("ea8aa0")
+	var nums := "%d/%d" % [int(roundf(tank + queued)), int(roundf(need_left))]
+	var fnt := FlightText.font()
+	var sw := fnt.get_string_size(status, HORIZONTAL_ALIGNMENT_LEFT, -1, FlightText.SIZE).x
+	var nw := fnt.get_string_size(nums, HORIZONTAL_ALIGNMENT_LEFT, -1, FlightText.SIZE).x
+	var tx := roundf(240.0 - (sw + 8 + nw) / 2.0)
+	draw_rect(Rect2(Vector2(tx - 5, 19) + shake, Vector2(sw + nw + 18, 15)), Color(0.01, 0.02, 0.05, 0.45 * a))
+	_text(status, Vector2(tx, 31) + shake, Color(scol, a))
+	_text(nums, Vector2(tx + sw + 8, 31) + shake, Color(Color("7b84a0"), a))
 	# ---- 接下来要烧的
 	var qx := QX
 	var qy := 240.0

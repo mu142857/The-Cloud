@@ -25,9 +25,15 @@
 [ext_resource type="Script" path="res://scripts/underwater_whale.gd" id="34_whale"]
 [ext_resource type="Script" path="res://scripts/underwater_glow.gd" id="35_glow"]
 [ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
+[ext_resource type="Texture2D" path="res://art/underwater/distant.png" id="14_distant"]
+[ext_resource type="Shader" path="res://scripts/underwater_shadow.gdshader" id="26_shadow"]
+[ext_resource type="Script" path="res://scripts/underwater_school.gd" id="36_school"]
 
 [sub_resource type="CanvasItemMaterial" id="add"]
 blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="shadow_mat"]
+shader = ExtResource("26_shadow")
 
 [sub_resource type="ShaderMaterial" id="vig"]
 shader = ExtResource("21_vig")
@@ -85,17 +91,17 @@ shader_parameter/step_a = 0.018
 shader = ExtResource("25_caustics")
 shader_parameter/pattern = ExtResource("12_caustic")
 shader_parameter/color = Color(0.5, 0.7, 0.86, 1)
-shader_parameter/strength = 0.45
+shader_parameter/strength = 0.52
 shader_parameter/speed = 1.0
 shader_parameter/squash = 3.0
-shader_parameter/lit = Vector2(300, 150)
+shader_parameter/lit = Vector2(320, 130)
 shader_parameter/step_a = 0.05
 
 [sub_resource type="ShaderMaterial" id="headlight_mat"]
 shader = ExtResource("25_caustics")
 shader_parameter/pattern = ExtResource("12_caustic")
 shader_parameter/color = Color(0.5, 0.7, 0.86, 1)
-shader_parameter/strength = 0.2
+shader_parameter/strength = 0.24
 shader_parameter/speed = 0.8
 shader_parameter/squash = 1.4
 shader_parameter/lit = Vector2(360, 120)
@@ -124,7 +130,12 @@ scroll_scale = Vector2(0.05, 1)
 repeat_size = Vector2(960, 0)
 repeat_times = 2
 
+[node name="Sprite" type="Sprite2D" parent="Deeper"]
+texture = ExtResource("14_distant")
+centered = false
+
 [node name="Whale" type="Node2D" parent="Deeper"]
+material = SubResource("shadow_mat")
 script = ExtResource("34_whale")
 
 [node name="Far" type="Parallax2D" parent="."]
@@ -135,6 +146,15 @@ repeat_times = 2
 [node name="Sprite" type="Sprite2D" parent="Far"]
 texture = ExtResource("3_far")
 centered = false
+
+[node name="School" type="Node2D" parent="Far"]
+material = SubResource("shadow_mat")
+script = ExtResource("36_school")
+
+[node name="SchoolGlint" type="Node2D" parent="Far"]
+material = SubResource("add")
+script = ExtResource("36_school")
+mode = 1
 
 [node name="MidFar" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.17, 1)

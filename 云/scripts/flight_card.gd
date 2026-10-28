@@ -14,6 +14,8 @@ const FLAME_TEX := preload("res://art/flight/ui_flame.png")
 const KEEP_TEX := preload("res://art/flight/ui_keep.png")
 const DROP_TEX := preload("res://art/flight/ui_drop.png")
 const SHADER := preload("res://scripts/flight_burn.gdshader")
+const GLOW_TEX := preload("res://art/flight/card_glow.png")
+const SEL_GLOW := preload("res://art/flight/sel_glow.png")
 const W := 220
 const H := 178
 const CENTER := Vector2(240, 130)
@@ -43,6 +45,9 @@ var _dim: ColorRect
 var _labels := {}
 var _icons: Array = []
 var _sel_marks: Array = []
+var _sel_glows: Array = []
+var _icon_base: Array = []
+var _fliers: Array = []      # 「留下」时飞回队尾的图标（屏幕上，不在卡里）
 var _burn_index := -1
 var _ember_acc := 0.0
 
@@ -94,6 +99,8 @@ func _clear() -> void:
 	_labels.clear()
 	_icons.clear()
 	_sel_marks.clear()
+	_sel_glows.clear()
+	_icon_base.clear()
 
 
 func open_single(item: Dictionary) -> void:
@@ -105,6 +112,10 @@ func open_single(item: Dictionary) -> void:
 	bg.texture = CARD_TEX
 	bg.centered = false
 	_root.add_child(bg)
+	var glow := Sprite2D.new()
+	glow.texture = GLOW_TEX
+	glow.centered = false
+	_root.add_child(glow)
 	_label(FlightText.t("card_head"), C_HEAD, Vector2(0, 7), W)
 	var ic := Sprite2D.new()
 	ic.texture = item.tex
@@ -134,20 +145,31 @@ func open_pick(list: Array) -> void:
 	bg.texture = CARD_TEX
 	bg.centered = false
 	_root.add_child(bg)
+	var glow := Sprite2D.new()
+	glow.texture = GLOW_TEX
+	glow.centered = false
+	_root.add_child(glow)
 	_label(FlightText.t("pick_head"), C_HEAD, Vector2(0, 7), W)
 	var n := list.size()
 	var gap := 56.0 if n <= 3 else 52.0
 	for i in n:
+		var base := Vector2(roundf(W / 2.0 + (i - (n - 1) / 2.0) * gap), 50)
+		var sg := Sprite2D.new()
+		sg.texture = SEL_GLOW
+		sg.position = base
+		_root.add_child(sg)
+		_sel_glows.append(sg)
 		var ic := Sprite2D.new()
 		ic.texture = list[i].tex
 		ic.scale = Vector2(2, 2)
-		ic.position = Vector2(W / 2.0 + (i - (n - 1) / 2.0) * gap, 48)
+		ic.position = base
 		_root.add_child(ic)
 		_icons.append(ic)
+		_icon_base.append(base)
 		var mark := ColorRect.new()
 		mark.color = C_ON
-		mark.size = Vector2(16, 1)
-		mark.position = ic.position + Vector2(-8, 26)
+		mark.size = Vector2(20, 1)
+		mark.position = base + Vector2(-10, 27)
 		_root.add_child(mark)
 		_sel_marks.append(mark)
 	_labels["name"] = _label("", C_NAME, Vector2(0, 78), W)
@@ -193,9 +215,12 @@ func _refresh() -> void:
 	else:
 		on_burn = sel < items.size()
 		for i in _sel_marks.size():
-			(_sel_marks[i] as ColorRect).visible = i == sel
+			var on := i == sel
 			var none_sel := sel >= items.size()
-			(_icons[i] as Sprite2D).modulate = Color(1, 1, 1) if i == sel else (Color(0.8, 0.8, 0.88) if none_sel else Color(0.42, 0.42, 0.52))
+			(_sel_marks[i] as ColorRect).visible = on
+			(_sel_glows[i] as Sprite2D).visible = on
+			(_icons[i] as Sprite2D).position = _icon_base[i] - Vector2(0, 3 if on else 0)
+			(_icons[i] as Sprite2D).modulate = Color(1, 1, 1) if on else (Color(0.82, 0.82, 0.9) if none_sel else Color(0.36, 0.36, 0.46))
 		if sel < items.size():
 			_labels.name.text = FlightText.pick(items[sel].name) + "   +%d" % int(items[sel].fuel)
 			_labels.desc.text = FlightText.pick(items[sel].desc)
@@ -303,6 +328,7 @@ func _confirm() -> void:
 		chosen.emit("burn", _burn_index)
 	else:
 		state = "keep"
+		_launch_fliers()
 		chosen.emit("keep", -1)
 
 
@@ -334,14 +360,41 @@ func _process(delta: float) -> void:
 			if anim >= 1.9:
 				_close()
 		"keep":
-			var u2 := clampf(anim / 0.7, 0.0, 1.0)
-			var e := u2 * u2
-			_sprite.position = CENTER.lerp(keep_target, e).round()
-			_sprite.scale = Vector2.ONE * lerpf(1.0, 0.12, e)
-			_mat.set_shader_parameter("fade", 1.0 - u2 * 0.5)
-			_dim.color.a = 0.5 * (1.0 - u2)
-			if anim >= 0.7:
+			var u2 := clampf(anim / 0.45, 0.0, 1.0)
+			_sprite.position = (CENTER + Vector2(0, 6.0 * u2)).round()
+			_mat.set_shader_parameter("fade", 1.0 - u2)
+			_dim.color.a = 0.5 * (1.0 - clampf(anim / 0.9, 0.0, 1.0))
+			var all_done := true
+			for f in _fliers:
+				var u3 := clampf((anim - f.delay) / 0.75, 0.0, 1.0)
+				if u3 < 1.0:
+					all_done = false
+				var e := u3 * u3 * (3.0 - 2.0 * u3)
+				var a: Vector2 = f.a
+				var b: Vector2 = f.b
+				var m := a.lerp(b, 0.5) + Vector2(0, -50)
+				var s2: Sprite2D = f.node
+				s2.position = a.lerp(m, e).lerp(m.lerp(b, e), e).round()
+				s2.scale = Vector2.ONE * (2.0 if e < 0.55 else 1.0)
+				s2.modulate.a = 1.0 if u3 < 0.85 else (1.0 - u3) / 0.15 + 0.0
+			if anim >= 0.9 and all_done:
+				for f in _fliers:
+					(f.node as Node).queue_free()
+				_fliers.clear()
 				_close()
+
+
+func _launch_fliers() -> void:
+	var origin := CENTER - Vector2(W, H) / 2.0
+	for i in _icons.size():
+		var ic: Sprite2D = _icons[i]
+		var s2 := Sprite2D.new()
+		s2.texture = ic.texture
+		s2.scale = Vector2(2, 2)
+		s2.position = origin + ic.position
+		add_child(s2)
+		_fliers.append({"node": s2, "a": origin + ic.position, "b": keep_target + Vector2(27 * i, 0) * (0.0 if mode == "single" else 1.0),
+			"delay": 0.08 * i})
 
 
 func _frontier_point(b: float) -> Vector2:

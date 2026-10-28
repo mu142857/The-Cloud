@@ -5,7 +5,8 @@ extends Node2D
 ## 图层是 tools/underwater_art.py 画的，各层 scroll_scale 和脚本里的 SCROLL 一样。
 ## 会动的：Surface（水面里碎掉的月亮，underwater_surface.gdshader 闪、晃）；Shafts（月光光柱，underwater_shafts.gd/.gdshader）；
 ## Kelp / BedWeeds / HeadWeeds / Front（水草按行摆，underwater_sway.gdshader）；Main/Caustics（河床上的焦散）；
-## Kelp/Motes、Main/Motes（海雪，飘进光柱会亮）；Main/Bubbles、ChenBubbles（气泡）；Far/Whale（远处游过的大家伙）；
+## Kelp/Motes、Main/Motes（海雪，飘进光柱会亮）；Main/Bubbles、ChenBubbles（气泡）；Deeper/Whale（最远处游过的鲸，乘法混合的影子）；
+## Far/School + Far/SchoolGlint（左上一群小鱼，影子 + 偶尔一闪）；
 ## Head/Glow、Main/Glow（发光的果荚，全画面唯一的暖色）。
 ##
 ## 命令行（-- 后面）：

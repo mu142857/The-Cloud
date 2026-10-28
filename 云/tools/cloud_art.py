@@ -31,6 +31,14 @@
 - 中景构图：mid 两座云山、midfar 一座（cloud_mountain，单独一张 Field、自己的色阶，暗端偏玫瑰紫吃余晖反光，
   内部鼓包也有受光边，下半截往暗里沉），mid / midfar 各有几处留白（flats：云沉下去、变平、不长积云堆）。
 - 积雨云柱：鼓包随机撒、大小差很多，不再一层层对齐。
+第四版（2026-10-28 夜里）改了：
+- 云山（cloud_mountain + render_mountain）：轮廓照 TOWER_LOBES 一层层往上收的大鼓包（积云塔，左右错开、不对齐成一圈圈），
+  受光面按鼓包碎成几块，鼓包之间有阴影缝，塔顶最亮、往下吃进暗紫。主云山整体放高（底 189、顶 131），
+  dark_y 以下压暗：漂到哪里，受光面都不会落进晨身后那条（自检 assert）。
+- 积雨云柱：鼓包高度分层抽样、左右轮流贴边（中段不再细成一道腰），贴边的球再错开一点（右边不再对齐成一条竖线），
+  柱顶往两边摊开接上砧。
+- 远云 far / midfar：起伏（wave）加大、积云堆多一些，右半边也是云丘云谷，不再是一条条横纹；
+  far 最远那排压低（big 0.1），地平线那条暖线不被盖住。mid 前排 wave 4 → 5.5。
 除了天，每层宽 960、左右无缝。所有随机都固定 seed。
 """
 from __future__ import annotations
@@ -651,17 +659,26 @@ def tower(lay, cx, seed):
     rng = np.random.default_rng(seed)
     pf = Puffs(bands=(1.3, 2.8, 5.5))
     items = []
-    # 第三版：鼓包不再按一层层（每层左右三颗、同一高度）排，那样读起来像一摞台阶；
-    # 改成在柱身里随机撒二十几颗大小差很多的球，高度、左右都错开，边上的鼓出去、里面的被盖住
-    for i in range(30):
-        f = rng.uniform(0, 1) if i > 1 else (0.0, 1.0)[i]
+    # 第三版：鼓包不再按一层层（每层左右三颗、同一高度）排，随机撒二十几颗大小差很多的球。
+    # 第四版：高度改成分层抽样（每一小段高度都有球）、左右轮流贴着柱身两边，中段不会再缺一块、细成一道「腰」；
+    # 柱身往上收得慢一点，顶上往两边（右边多）摊开成砧，砧和柱身连在一起。
+    n = 30
+    for i in range(n):
+        f = (i + rng.uniform(0.15, 0.85)) / n if i > 1 else (0.0, 1.0)[i]
         y = 168 - 102 * f
-        half = 40 - 14 * f                     # 柱身半宽
+        half = 40 - 10 * f                     # 柱身半宽
         sh = 22 * f ** 1.4                     # 往右偏
-        rx = half * rng.uniform(0.3, 0.75)
+        rx = half * rng.uniform(0.38, 0.72)
         ry = rx * rng.uniform(0.62, 0.85)
-        u = rng.uniform(-1, 1)
-        items.append((y - ry, cx + sh + u * (half - rx * 0.5), rx, ry))
+        side = (1 if i % 2 else -1) if i % 3 else rng.uniform(-0.4, 0.4)
+        u = side * rng.uniform(0.55, 1.0) if i % 3 else side
+        # 贴边的球再往外 / 往里错开一点（不然右边一串球的外沿对齐成一条竖直的线）
+        items.append((y - ry, cx + sh + u * (half - rx * 0.55) + side * rng.uniform(-0.35, 0.3) * rx, rx, ry))
+    # 砧下面那截往外摊：柱顶两边各几颗扁一点的球，把柱身和砧接起来
+    for k in range(4):
+        f = rng.uniform(0.9, 1.02)
+        rx = rng.uniform(11, 16)
+        items.append((168 - 102 * f - rx * 0.4, cx + 22 + (-14 + k * 15) + rng.uniform(-3, 3), rx, rx * rng.uniform(0.45, 0.6)))
     # 砧：又宽又扁，往右伸得远，左边短
     for k in range(6):
         rx = rng.uniform(26, 40)
@@ -1066,31 +1083,176 @@ def sea_layer2(rows, pal, fog_c, seed, bigs=(), big_pal=None, big_kw=None, **kw)
     lay = Layer()
     lay.a = F.render(pal, fog_c=fog_c, fog_steps=FOG_STEPS, **kw)
     if bigs:
-        FB = Field()
         for b in bigs:
-            cloud_mountain(FB, rng, **b)
-        img = FB.render(big_pal, fog_c=fog_c, fog_steps=FOG_STEPS, **big_kw)
-        m = (FB.sid >= 0) & (FB.z > F.z)
-        lay.a[m] = img[m]
+            FB = Field()
+            top = cloud_mountain(FB, rng, **b)
+            img = render_mountain(FB, big_pal, top, fog_c, b.get("fog", 0.0), cx=b["x"] + b.get("lean", 0) * 0.5, w=b["w"], **big_kw)
+            m = (FB.sid >= 0) & (FB.z > F.z)
+            lay.a[m] = img[m]
+            F.z = np.where(m, FB.z, F.z)
     return lay
 
 
-def cloud_mountain(F, rng, x, base, h, w, z, sq=0.62, fog=0.0, lean=6.0, n=13):
-    """云海里冒出来的一座云山：十几颗大小不一的球，越往上越窄、越小，位置和高度都错开（不一层层对齐），
-    低的离观众近、盖住上面那颗的下半截；每颗再长一圈菜花。最高那颗顶在 base - h。"""
-    F.new_group()
+# 积云塔的鼓包：（顶的高度 / h，横向位置 / 半宽，半径 / 半宽），从下往上。底层宽、三颗并排；越往上越少、越窄；
+# 最上面一颗冠。朝光（左）那边的鼓包大一点、高一点：左边受光的那一面是一级级往上的台阶状鼓包。
+TOWER_LOBES = ((0.16, 0.50, 0.48), (0.32, -0.50, 0.50),
+               (0.46, 0.36, 0.38), (0.62, -0.26, 0.44),
+               (0.76, 0.30, 0.30), (0.90, -0.08, 0.38),
+               (1.00, 0.02, 0.34))
+
+
+def cloud_mountain(F, rng, x, base, h, w, z, sq=0.62, fog=0.0, lean=6.0, tiers=4, dark_y=None):
+    """云海里冒出来的一座积云塔（第四版）：从下往上几层大鼓包（底层两三颗并排、越往上越少越窄、往 lean 那边歪），
+    每颗鼓包是一团自己的云（group），上半圈长菜花；低的离观众近、盖住上面那颗的下半截。
+    返回塔顶的 y。明暗交给 render_mountain（按鼓包算受光面和鼓包之间的阴影缝）。"""
     F.row += 1
-    items = []
-    for i in range(n):
-        f = 1.0 if i == 0 else rng.uniform(0, 1) ** 0.85          # 0 底 .. 1 顶
-        hw = w / 2 * (1 - 0.42 * f)
-        r = hw * rng.uniform(0.45, 0.8) if i else hw * 0.7
-        cx = x + lean * f + (rng.uniform(-1, 1) * (hw - r * 0.6) if i else 0)
-        top = base - h * f + (rng.uniform(0, 4) if i else 0)
-        items.append((top + r * sq, cx, r))
-    for cy, cx, r in sorted(items):
-        F.cauli(cx, cy, r, z + (cy - base) * 0.5 + rng.uniform(-1, 1), rng, sq, depth=2, kids=(2, 5), ks=(0.28, 0.55),
-                body=True, fog=fog, rmin=2.5, spread=(-170, -10), ref=base - h, unit=h * 0.5)
+    top_y = base - h
+    lobes = []
+    for f, u, r in TOWER_LOBES[:len(TOWER_LOBES) if tiers >= 4 else -2]:
+        r = r * w / 2 * rng.uniform(0.92, 1.08)
+        f = f * (1 if tiers >= 4 else 1.0) + rng.uniform(-0.03, 0.03)
+        top = base - h * f
+        lobes.append((top + r * sq, x + lean * f + u * w / 2 + rng.uniform(-1.5, 1.5), r, f))
+    # 再在朝光那边（左上）的轮廓上贴几颗中等的鼓包：轮廓不是一摞对齐的蛋
+    for _ in range(2):
+        f = rng.uniform(0.35, 0.8)
+        r = w / 2 * rng.uniform(0.18, 0.26)
+        u = -(1 - 0.55 * f) + r / (w / 2) * rng.uniform(0.4, 0.8)
+        lobes.append((base - h * f + r * sq, x + lean * f + u * w / 2, r, f))
+    F.lobe_r = getattr(F, "lobe_r", {})
+    F.lobe = getattr(F, "lobe", {})
+    for cy, cx, r, t in sorted(lobes):
+        g = F.new_group()
+        F.lobe_r[g] = r
+        F.lobe[g] = (cx, cy, r, r * sq)
+        F.cauli(cx, cy, r, z + (cy - base) * 0.6 + rng.uniform(-0.5, 0.5), rng, sq, depth=2, kids=(4, 6),
+                ks=(0.3, 0.52), body=r > 6, fog=fog, rmin=2.2, spread=(-170, -10), ref=top_y, unit=h * 0.5)
+    return top_y
+
+
+def render_mountain(F, pal, top_y, fog_c, fog, rim=(2.0, 5.0), gap=3.0, shadow=4.0, kid_rim=1.5, dark_y=176,
+                    hi_frac=0.55, top_lv=2.0, light=(-0.9, -0.44), kid_crease=1.0, cx=None, w=None,
+                    w_lit=(0.45, 0.95), detail=True):
+    """积云塔的明暗（第四版；第三版是整座塔一块玫瑰色、像一坨）：
+    - 每颗鼓包（group）一个核心椭圆。从像素沿光（左上）走多远出核心椭圆 = te：< w_lit[0]·R 亮面、< w_lit[1]·R 半亮，
+      其余背光（亮面宽度跟着鼓包大小走；按带菜花的轮廓算的话亮面内边是轮廓平移一份，像挤出来的石块）；
+      半路先撞上更近的鼓包就在影子里。
+    - 每颗鼓包按自己的高度定亮度：亮面 3..6、半亮 2..4、背光 1..2，塔顶最亮、往下吃进暗紫（按鼓包算，不按行算，不切横纹）；
+      中心在塔中线右边的鼓包整颗暗一档（左边受光、右边进夜里）。
+    - 阴影缝：正下方 gap 像素内是更近的鼓包（下面那颗盖住它的下半截）→ 暗 1 档，贴着的 2 像素再暗 1 档。
+    - detail：叠一层第三版那种蓬松的细节（每颗菜花小球自己的受光边 / 小缝，±1 档）。
+    - dark_y 以下最多 2 档、每 5 像素再暗一档：受光面永远落不进晨身后那条（GROUND-45..GROUND，有自检）。
+    - 塔顶那一截至少 3 档（不出深色的洞）；最暗一档只留给 dark_y 以下。"""
+
+    n = len(pal)
+    # 菜花小球之间漏出来的一两个像素的透明洞：四邻里至少三个有云，就照左 / 右 / 上邻居补上
+    for _ in range(2):
+        e = F.sid < 0
+        cnt = sum((shift(F.sid, ox, oy, -1) >= 0).astype(int) for ox, oy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        hole = e & (cnt >= 3)
+        for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            src = hole & (shift(F.sid, ox, oy, -1) >= 0)
+            for arr, fill in ((F.sid, -1), (F.z, -1e9), (F.grp, -1), (F.vin, 0.0), (F.core, False), (F.rowid, -1),
+                              (F.dark, 0.0), (F.dep, 0.0), (F.fog, 0.0)):
+                arr[src] = shift(arr, ox, oy, fill)[src]
+            F.n[src] = np.roll(F.n, -ox, axis=1)[src] if oy == 0 else F.n[src]
+            hole &= ~src
+    f = F.sid >= 0
+    ys = np.arange(F.h)[:, None] + np.zeros((1, F.w))
+    s = np.hypot(*light)
+    dx, dy = light[0] / s, light[1] / s
+    INF = 99.0
+    tl = np.full(F.z.shape, INF)
+    tc = np.full(F.z.shape, INF)
+    tk = np.full(F.z.shape, INF)
+    tq = np.full(F.z.shape, INF)
+    for i in range(1, int(max(rim[1], shadow, max(F.lobe_r.values()) * 1.2) * 2) + 3):
+        t = i * 0.5
+        ox, oy = int(round(dx * t)), int(round(dy * t))
+        if ox == 0 and oy == 0:
+            continue
+        qg = shift(F.grp, ox, oy, -1)
+        qs = shift(F.sid, ox, oy, -1)
+        qz = shift(F.z, ox, oy, -1e9)
+        out = (qg != F.grp) & (tl == INF) & (tc == INF)
+        tl = np.where(out & (qz < F.z), t, tl)
+        tc = np.where(out & (qz >= F.z), t, tc)
+        kid = (qg == F.grp) & (qs != F.sid) & (qz < F.z - 0.5) & (tk == INF)
+        tk = np.where(kid, t, tk)
+        kq = (qg == F.grp) & (qs != F.sid) & (qz > F.z + 0.5) & (tq == INF) & (tk == INF)
+        tq = np.where(kq, t, tq)
+    # 受光面：按每颗鼓包的「核心椭圆」算（不按带菜花的轮廓算：那样亮面的内边是轮廓平移一份，像挤出来的石块）。
+    # 从像素沿光走多远出核心椭圆 = te；te < 0.6 R 亮面、< 1.15 R 半亮。核心椭圆外面的像素（菜花小球鼓出去的那截）
+    # 用它自己走出整团的距离 tl。半路先撞上更近的鼓包（tc 更小）就在影子里，不亮。
+    R = np.zeros(F.z.shape)
+    hf = np.zeros(F.z.shape)
+    rside = np.zeros(F.z.shape, bool)
+    te = np.full(F.z.shape, INF)
+    Y, X = np.mgrid[0:F.h, 0:F.w]
+    for g, (ex, ey, erx, ery) in F.lobe.items():
+        sel = F.grp == g
+        if not sel.any():
+            continue
+        R[sel] = erx
+        rside[sel] = cx is not None and ex > cx + w * 0.1
+        hf[sel] = np.clip((dark_y - (ey - ery * 0.3)) / max(6.0, dark_y - top_y), 0, 1)   # 每颗鼓包一个高度：不切横纹
+        px = (X[sel] + 0.5 - ex + F.w / 2) % F.w - F.w / 2
+        nx, ny = px / erx, (Y[sel] + 0.5 - ey) / ery
+        r2 = nx * nx + ny * ny
+        a = (dx / erx) ** 2 + (dy / ery) ** 2
+        b = 2 * (nx * dx / erx + ny * dy / ery)
+        disc = np.clip(b * b - 4 * a * (r2 - 1), 0, None)
+        t_in = (-b + np.sqrt(disc)) / (2 * a)
+        te[sel] = np.where(r2 <= 1, t_in, tl[sel])
+    te = np.where(tc < te, INF, te)
+    lit2 = te < np.maximum(rim[0], R * w_lit[0])
+    lit1 = (te < np.maximum(rim[1], R * w_lit[1])) & ~lit2
+    # 三种面：亮面 3..6、半亮 2..4、背光 1..2（越高越亮：塔顶最亮，往下吃进暗紫）
+    lv = np.where(lit2, 3 + np.round(3 * hf), np.where(lit1, 2 + np.round(2 * hf), 1 + np.round(1.2 * hf)))
+    if detail:
+        # 第三版那层蓬松的细节（每颗菜花小球自己的受光边、小缝）：按第三版的参数先画一遍，取它比自己平均亮多少
+        img3 = F.render([(i, 0, 0) for i in range(n)], body=3, rim=(2.0, 4.5), rim_lv=(3, 1), crease=2.0, cz_rim=1.0,
+                        light=light, cleanup=False)
+        v3 = img3[..., 0].astype(float)
+        lv += np.clip(v3 - 4, -1, 1) * (lv >= 3) + np.clip(v3 - 3, -1, 1) * (lv < 3)
+    else:
+        lv += (tk < kid_rim) & lit1 & (F.vin < 0.3)            # 菜花小球的受光边：半亮面里一圈圈
+    lv -= (tq < kid_crease) & ~lit2 & ~lit1
+    # 背光那半边（中心在塔中线右边的鼓包，整颗算）：亮面降成半亮，其余再暗一档
+    lv -= rside & (lit2 | ~lit1)
+    lv -= (tc < shadow)
+    # 阴影缝：正下方 gap 像素内有更近的鼓包
+    g1 = np.zeros(F.z.shape, bool)
+    gg = np.zeros(F.z.shape, bool)
+    for d in range(1, int(gap) + 1):
+        qg = shift(F.grp, 0, d, -1)
+        qz = shift(F.z, 0, d, -1e9)
+        hit = (qg >= 0) & (qg != F.grp) & (qz > F.z)
+        gg |= hit
+        if d <= 2:
+            g1 |= hit
+    lv -= gg.astype(int) + g1.astype(int)
+    lv -= F.core & (F.vin > 0.6) & ~lit2
+    # dark_y 以下：最多到 2 档，每 5 像素再暗一档（受光面落不进晨身后那条）
+    below = ys >= dark_y
+    lv = np.where(below, np.minimum(lv, 2) - np.floor((ys - dark_y) / 5.0), np.maximum(lv, 1))   # 最暗一档留给 dark_y 以下
+    lv = np.where(ys < top_y + (dark_y - top_y) * 0.3, np.maximum(lv, 3), lv)    # 塔顶那一截不出深色的洞
+    idx = np.clip(lv, 0, n - 1).astype(int)
+    idx = np.where(f, idx, -1)
+    # 亮面中间一两个像素的暗洞（阴影缝碰上很小的一截菜花）：四邻里至少三个比它亮 2 档以上，就填成四邻的中位数
+    for _ in range(2):
+        nb = np.stack([shift(idx, 1, 0, -1), shift(idx, -1, 0, -1), shift(idx, 0, 1, -1), shift(idx, 0, -1, -1)])
+        hole = (idx >= 0) & ((nb >= idx[None] + 2).sum(0) >= 3)
+        idx = np.where(hole, np.median(np.where(nb >= 0, nb, idx[None]), 0).astype(int), idx)
+    idx = despeckle(idx)
+    # 自检：晨身后那条（GROUND-45 以下）不许有云山的受光面（2 档以上）
+    lit_low = (idx > 2) & (ys >= GROUND - 45)
+    assert not lit_low.any(), f"云山受光面落进晨身后那条：{int(lit_low.sum())} 像素"
+    pal_f = pal if fog_c is None or fog <= 0 else [mix(c, fog_c, fog) for c in pal]
+    out = np.zeros((F.h, F.w, 4), np.uint8)
+    pal_a = np.array([tuple(c) + (255,) for c in pal_f], np.uint8)
+    out[f] = pal_a[idx[f]]
+    return unsliver(out)
 
 
 def build_far():
@@ -1098,11 +1260,11 @@ def build_far():
     排和排交叉，不是平行线；偶尔一堆远处的积云鼓得很高。"""
     pal = cloud_pal(0.25, 0.60, 6, C_lo=0.055, C_hi=0.095, h_lo=294, h_hi=356)
     rows = [
-        dict(base=146, z=0, scale=4, sq=0.36, fog=0.36, n=12, h=(1, 5), w=(14, 36), deck=1.0, wave=2.0, big=0.3,
+        dict(base=146, z=0, scale=4, sq=0.36, fog=0.36, n=14, h=(1, 5), w=(14, 36), deck=1.0, wave=2.0, big=0.1,
              rmin=1.2, depth=1),
-        dict(base=153, z=20, scale=5.5, sq=0.4, fog=0.24, n=10, h=(2, 6), w=(20, 46), deck=1.5, wave=3.0, big=0.3,
+        dict(base=153, z=20, scale=5.5, sq=0.4, fog=0.24, n=14, h=(2, 8), w=(20, 46), deck=1.5, wave=4.5, big=0.35,
              rmin=1.4, depth=1),
-        dict(base=162, z=40, scale=7, sq=0.44, fog=0.12, n=8, h=(2, 8), w=(26, 56), deck=2.0, wave=3.5, big=0.3,
+        dict(base=162, z=40, scale=7, sq=0.44, fog=0.12, n=11, h=(3, 10), w=(26, 56), deck=2.0, wave=5.5, big=0.35,
              rmin=1.6, depth=2),
     ]
     return sea_layer2(rows, pal, band_color(147), 21, body=2, rim=(1.0, 2.0), crease=1.0, bands=(1.3,), run_bands=(3,),
@@ -1113,14 +1275,14 @@ def build_midfar():
     pal = cloud_pal(0.19, 0.52, 6, C_lo=0.055, C_hi=0.09, h_lo=290, h_hi=350)
     flats = ((250, 45, 5), (700, 40, 4))
     rows = [
-        dict(base=166, z=0, scale=8, sq=0.5, fog=0.24, n=8, h=(3, 11), w=(26, 70), deck=2, wave=4, big=0.2, rmin=1.6,
+        dict(base=166, z=0, scale=8, sq=0.5, fog=0.24, n=10, h=(3, 11), w=(26, 70), deck=2, wave=6, big=0.2, rmin=1.6,
              flats=flats),
-        dict(base=177, z=30, scale=11, sq=0.54, fog=0.12, n=6, h=(4, 13), w=(36, 80), deck=2.5, wave=4, big=0.15,
+        dict(base=177, z=30, scale=11, sq=0.54, fog=0.12, n=8, h=(4, 13), w=(36, 80), deck=2.5, wave=6, big=0.15,
              rmin=1.8, flats=flats),
     ]
-    bigs = (dict(x=560, base=170, h=24, w=74, z=4, sq=0.55, fog=0.18, lean=4, n=10),)
+    bigs = (dict(x=560, base=170, h=24, w=70, z=4, sq=0.55, fog=0.18, lean=4, tiers=3),)
     big_pal = cloud_pal(0.22, 0.56, 6, C_lo=0.06, C_hi=0.095, h_lo=312, h_hi=356)
-    big_kw = dict(body=2, rim=(1.0, 2.5), rim_lv=(3, 2), crease=1.5, cz_rim=1.0, run_bands=(8, 16), env_smooth=15)
+    big_kw = dict(rim=(1.5, 3.5), gap=2.0, shadow=3.0, dark_y=178)
     return sea_layer2(rows, pal, band_color(160), 31, bigs=bigs, big_pal=big_pal, big_kw=big_kw, body=2, rim=(1.0, 2.5), crease=1.5, bands=(1.0, 2.2), run_bands=(3, 8),
                       rim_lv=(3, 2))
 
@@ -1130,16 +1292,15 @@ def build_mid():
     # 构图：两座云山（主体，受光面朝余晖）+ 三处留白（云沉下去、变平，露出更远的云海）；其余小团当陪衬
     flats = ((120, 70, 9), (560, 55, 8), (905, 45, 7))
     rows = [
-        dict(base=190, z=0, scale=15, sq=0.62, fog=0.12, n=6, h=(4, 12), w=(50, 100), deck=3, wave=4, big=0.0,
+        dict(base=190, z=0, scale=15, sq=0.62, fog=0.12, n=6, h=(4, 12), w=(50, 100), deck=3, wave=5.5, big=0.0,
              kids=(2, 4), ks=(0.35, 0.6), flats=flats),
         dict(base=203, z=40, scale=19, sq=0.66, fog=0.0, n=5, h=(4, 11), w=(60, 120), deck=3, wave=4, big=0.0,
              kids=(2, 4), ks=(0.35, 0.6), dark=0.12, flats=flats),
     ]
-    bigs = (dict(x=335, base=194, h=48, w=84, z=6, fog=0.06, lean=6, n=15),
-            dict(x=760, base=194, h=36, w=70, z=6, fog=0.06, lean=4, n=12))
-    big_pal = cloud_pal(0.15, 0.50, 7, C_lo=0.055, C_hi=0.09, h_lo=306, h_hi=352)   # 暗端偏玫瑰紫：吃一点余晖反光
-    big_kw = dict(body=3, rim=(2.0, 4.5), rim_lv=(3, 1), crease=2.0, cz_rim=1.5, run_bands=(10, 20, 30),
-                  env_smooth=15)
+    bigs = (dict(x=335, base=189, h=58, w=100, z=6, sq=0.72, fog=0.06, lean=8, tiers=4),
+            dict(x=760, base=192, h=41, w=70, z=6, sq=0.7, fog=0.06, lean=4, tiers=4))
+    big_pal = cloud_pal(0.14, 0.54, 7, C_lo=0.055, C_hi=0.11, h_lo=304, h_hi=354)   # 暗端偏玫瑰紫：吃一点余晖反光
+    big_kw = dict(rim=(2.5, 5.0), gap=4.0, shadow=4.0, dark_y=177, w_lit=(0.55, 1.05))
     return sea_layer2(rows, pal, band_color(190), 41, bigs=bigs, big_pal=big_pal, big_kw=big_kw, body=2,
                       rim=(1.5, 3.0), crease=2.0, bands=(0.7, 1.5, 2.6), run_bands=(5, 12, 22), rim_lv=(2, 1))
 

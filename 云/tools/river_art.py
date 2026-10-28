@@ -271,12 +271,152 @@ def cloud_mask():
     return m
 
 
+# 云带外段被风扯断的地方：(屏幕 x, 断口半宽)。靠月亮那段别放：断口受光的那头会是一道斜的亮线，像划痕
+GAPS = [(196, 2.5)]
+# 云底下面飘着的碎云：(屏幕 x, 离云底几格, 长, 最厚, 最厚处偏左 / 右 -1..1, 斜率)
+WISPS = [(244, 3, 16, 2.2, 0.3, -0.08), (296, 3, 22, 2.6, -0.2, -0.1), (326, 4, 18, 2.2, 0.2, -0.08),
+         (372, 3, 26, 2.8, -0.3, -0.07), (418, 3, 30, 2.6, 0.2, -0.05), (462, 4, 18, 2.2, -0.2, -0.04),
+         (446, 3, 14, 1.8, 0.0, 0.03)]
+
+
+def _cloud_parts():
+    """和旧的 cloud_mask 一样的算法、一样的随机，只是每条云单独返回一张 mask（上沿和原来一模一样）。"""
+    yy, xx = np.mgrid[0:HORIZON, 0:SW].astype(float)
+    rough = vnoise(HORIZON, SW, 2.0, 3.0, np.random.default_rng(66))
+    parts = []
+    for cx, cy, hl, th, sl, sd in CLOUDS:
+        rng = np.random.default_rng(sd)
+        x = cx - hl
+        f = np.zeros((HORIZON, SW))
+        while x < cx + hl:
+            u = (x - cx) / hl
+            env = max(0.0, 1 - u * u) ** 0.7
+            rx = (5 + 9 * env) * rng.uniform(0.7, 1.3)
+            ry = th * (0.45 + 0.75 * env) * rng.uniform(0.75, 1.25)
+            if rng.random() < 0.85 or abs(u) < 0.5:
+                yc = cy + sl * (x - cx)
+                e = ((xx - x) / rx) ** 2 + ((yy - (yc - ry * 0.35)) / ry) ** 2
+                boff = rng.uniform(-1.5, 2.5) * env - (2.5 if abs(u) > 0.6 else 0)
+                bottom = yy > yc + th * 0.3 * env + boff + 1.3 * np.sin(xx * 0.11 + sd)
+                f = np.maximum(f, np.where(bottom, 0, 1 - e))
+            x += rx * rng.uniform(0.6, 1.1)
+        parts.append((f > 0) & (f + 0.28 * (rough - 0.5) > 0.06))
+    return parts
+
+
+def cloud_mask_v2():
+    """云带：上沿（月光照亮的那条边）和旧版一样；云底重画成自然的样子——一个个垂下来的圆肚子和被风咬出的湾、
+    外段撕开一两处，底下飘着几缕扯散的碎云（细长、中间厚两头尖，顺着云带的斜度，上沿被月光擦亮）。"""
+    parts = _cloud_parts()
+    m = np.zeros((HORIZON, SW), bool)
+    rng = np.random.default_rng(68)
+    ys = np.arange(HORIZON)
+    for (cx, cy, hl, th, sl, sd), pm in zip(CLOUDS, parts):
+        cols = np.nonzero(pm.any(0))[0]
+        if len(cols) == 0:
+            continue
+        has = pm.any(0)
+        top = np.where(has, np.argmax(pm, 0), -1)
+        bot = np.where(has, HORIZON - 1 - np.argmax(pm[::-1], 0), -1)
+        x0, x1 = cols.min(), cols.max()
+        s = th / 11
+        # 云底：旧的底线上叠一串大小不一的圆肚子（往下垂）和湾（往上咬）
+        dl = np.zeros(SW)
+        x = x0 + rng.uniform(0, 4)
+        while x < x1:
+            u = (x - cx) / hl
+            env = max(0.0, 1 - u * u) ** 0.5
+            belly = rng.random() < 0.8
+            if belly:                                           # 垂下来的圆肚子
+                w = rng.uniform(4, 11) * (0.6 + 0.5 * s)
+                d = rng.uniform(2.5, 3.5 + 6.5 * env) * s + 1.0
+                p = 0.5
+            else:                                               # 被风咬出的湾：窄一点、深一点
+                w = rng.uniform(3, 7)
+                d = -(rng.uniform(1.5, 2.0 + 2.5 * env) * s + 0.5)
+                p = 1.2
+            xs_ = np.arange(int(np.floor(x - w)), int(np.ceil(x + w)) + 1)
+            k = np.clip(1 - ((xs_ - x) / w) ** 2, 0, 1) ** p
+            ok = (xs_ >= 0) & (xs_ < SW)
+            if belly:
+                dl[xs_[ok]] = np.maximum(dl[xs_[ok]], d * k[ok])
+            else:
+                dl[xs_[ok]] += d * k[ok]
+            x += w * rng.uniform(0.9, 1.5)
+        nb = np.round(bot + dl).astype(int)
+        nb = np.maximum(nb, top + 2)
+        mm = np.zeros_like(pm)
+        for x in cols:
+            mm[top[x]:nb[x] + 1, x] = True
+        mm &= pm | (ys[:, None] > bot[None, :])            # 上沿 / 内部照旧；只往下长
+        m |= mm
+    # 撕口：云带外段被风扯断两处，断开的两头收圆（上下都往里缩）。(x, 半宽)
+    for c, gw in GAPS:
+        yl = None
+        for x in range(int(c - gw - 15), int(c + gw + 16)):
+            col = np.nonzero(m[:, x])[0]
+            if len(col) == 0:
+                continue
+            if yl is None:
+                yl = col.mean()
+            run = col[np.abs(col - yl) < 9]
+            if len(run) == 0:
+                continue
+            t, b = run.min(), run.max()
+            a_ = gw + 7 - abs(x - c)
+            f = 1.0 if abs(x - c) <= gw else max(0.0, 1 - (abs(x - c) - gw) / 15) ** 0.9
+            T = b - t + 1
+            m[t:t + int(round(0.3 * T * f + 0.2)), x] = False
+            m[b + 1 - int(round(0.72 * T * f + 0.2)):b + 1, x] = False
+    for _ in range(2):                                          # 补掉云带里一像素的缝 / 洞（和旧版一样）
+        h_ = np.zeros_like(m)
+        h_[:, 1:-1] = m[:, :-2] & m[:, 2:]
+        v_ = np.zeros_like(m)
+        v_[1:-1] = m[:-2] & m[2:]
+        m |= h_ | v_
+    lab, n = components(~m)                                     # 云带里被几条云叠出来的小洞（几格大）也补上
+    if n:
+        sizes = np.bincount(lab.ravel(), minlength=n + 1)
+        for i in np.nonzero((sizes <= 8) & (np.arange(n + 1) > 0))[0]:
+            m[lab == i] = True
+    # 碎云：云底下面几缕被扯散的，扁梭子形（中间 2~4 格厚、两头尖），顺着云带的斜度，和云底隔开 2~4 格；
+    # 靠月亮的那几缕在月光最亮处，上沿被擦亮
+    before = m.copy()
+    strands = []
+    for wx, gap, ln, thick, sk, sl in WISPS:                  # 每缕是一长一短两股，错开一点（被风拉开的云丝）
+        strands.append((wx, gap, ln, thick, sk, sl))
+        strands.append((wx + ln * (0.3 if sk < 0 else -0.3), gap + 2, ln * 0.5, max(1.2, thick * 0.55), -sk, sl))
+    for wx, gap, ln, thick, sk, sl in strands:
+        span = before[:, int(wx - ln / 2):int(wx + ln / 2) + 1]
+        wy = max(int(np.nonzero(span[:, j])[0].max()) if span[:, j].any() else 0 for j in range(span.shape[1])) + gap
+        for k in range(int(-ln / 2), int(ln / 2) + 1):
+            xi = int(round(wx + k))
+            if not (0 <= xi < SW):
+                continue
+            u = k / (ln / 2)
+            v = (u - sk) / ((1 + sk) if u > sk else (1 - sk))     # 最厚处在 sk，两头各自收尖
+            prof = max(0.0, 1 - v * v)
+            yc_ = wy + sl * k + 0.7 * np.sin(k * 0.3 + wx)
+            up, dn = thick * 0.45 * prof ** 1.1, thick * 0.55 * prof ** 1.6
+            for yi in range(int(round(yc_ - up)), int(round(yc_ + dn)) + 1):
+                if 0 <= yi < HORIZON and not before[max(0, yi - 2):yi + 1, xi].any():
+                    m[yi, xi] = True
+    for x in range(MX - MR - 3, MX + MR + 4):                   # 月亮下半边：云的上沿是一条干净的弧
+        u = (x - MX) / (MR + 3)
+        y0 = int(round(MY + 5 + 2.5 * u * u + 0.8 * np.sin(x * 0.9)))
+        m[y0:78, x] = True
+    h_ = np.zeros_like(m)                                       # 补掉一像素宽的横缝
+    h_[:, 1:-1] = m[:, :-2] & m[:, 2:]
+    m |= h_
+    return m
+
+
 def sky():
     """背景：天（月亮、光晕、一道淡星河、月光照边的云带、星）+ 水的底色。亮度场按 L_STEP 一档一档地 Bayer 抖动。"""
     lay = Layer(SW, H)
     xs = np.arange(SW)
     mw, mw_w = milky_way_field()
-    cm = cloud_mask()
+    cm = cloud_mask_v2()
     cache = {}
 
     def paint_row(y, L):
@@ -1060,48 +1200,100 @@ def driftwood(lay, x, gy_of, pal, seed):
             py -= 0.85
             lay.put(px, py, pal[1])
             lay.put(px + 1, py, pal[n - 2 if k < sl - 1 else n - 1])
-    # 根盘：左端一大团竖起来的根盘（比树干粗一圈、边缘参差，右上沿受光），根从盘边往外张开，
-    # 很多、弯着缠着，根部粗、越往外越细；往下的扎进地里就停
+    # 根盘：左端一大团被连根拔起、竖起来的根盘（见 root_plate）
     th, bot = cols[0]
-    cy = bot - th / 2 - 1
-    R = th * 0.85
-    rim = smooth1d(64, rng, 7, 1.0)
-    for dy in range(-int(R) - 2, int(R) + 3):
-        for dx in range(-int(R * 0.55) - 2, 3):
-            a = np.arctan2(dy, dx * 1.8)
-            rr = R * (1 + 0.22 * rim[int((a + np.pi) / (2 * np.pi) * 63)])
-            if np.hypot(dx * 1.8, dy) < rr and cy + dy <= gy_of(x + dx) + 1:
-                edge = np.hypot(dx * 1.8, dy) > rr - 1.6
-                v = 1 if not edge else (n - 2 if (dy < 0 and dx > -R * 0.3) else 0)
-                if (dx * 3 + dy * 5) % 7 == 0 and not edge:
-                    v = 0                                               # 盘里缠着的根缝
-                lay.put(x + dx, cy + dy, pal[v])
-    for j, a0 in enumerate(np.linspace(-3.6, -0.7, 17)):
-        px, py = x - R * 0.3 + rng.uniform(-1, 1), cy + rng.uniform(-R * 0.8, R * 0.8)
-        ang = a0 + rng.uniform(-0.15, 0.15)
-        L = rng.uniform(9, 24) * (0.55 if j % 3 == 1 else 1.0)
-        w0 = 3.0 if j % 2 == 0 else 2.0
-        curl = rng.uniform(-0.09, 0.09)
-        for s in range(int(L * 2)):
-            t = s / (L * 2)
-            ang += curl + rng.normal(0, 0.07)
+    root_plate(lay, x, bot - th / 2 - 2, th, gy_of, pal, rng)
+
+
+def root_plate(lay, x, cy, th, gy_of, pal, rng):
+    """浮木左端竖起来的根盘：被连根拔起的一整盘根和土，侧着看是一面比树干高一倍多的扁圆盾（盘高 ~2.4 倍树干粗）。
+    盘面朝左、背着月亮，所以大半是近乎剪影的暗（压在月亮的亮纹上也是一块干净的黑），体积靠受光的上沿 / 右上沿一圈亮边、盘面上一道道缠着的粗根（朝上那面擦亮）
+    和几个黑的土洞撑出来；盘和树干接的地方一道暗缝，看得出是两样东西。盘边往外张开十根粗根：根部 3~4 格粗、
+    越往外越细、弯着，朝上的一面被月光擦亮，朝下的扎进卵石里就停。最亮只到 pal[-1]（和树干断口一样）。"""
+    n = len(pal)
+    ry = th * 1.2                        # 竖半径（树干 12 → 盘高 ~29）
+    rx = th * 0.62                       # 横半径（侧着看的圆盘，扁）
+    ccx = x - 3
+    rim = smooth1d(64, rng, 9, 1.0)
+
+    def inside(dx, dy, shrink=0.0):
+        a = np.arctan2(dy / ry, dx / rx)
+        rr = 1 + 0.14 * rim[int((a + np.pi) / (2 * np.pi) * 63) % 64] - shrink
+        return (dx / (rx * rr)) ** 2 + (dy / (ry * rr)) ** 2 < 1.0
+
+    pts = []
+    for dy in range(-int(ry) - 4, int(ry) + 4):
+        for dx in range(-int(rx) - 4, int(rx) + 4):
+            if inside(dx, dy) and cy + dy <= gy_of(ccx + dx) + 1:
+                pts.append((dx, dy))
+    S = set(pts)
+    for dx, dy in pts:
+        px, py = ccx + dx, cy + dy
+        a = np.arctan2(dy / ry, dx / rx)
+        nx, ny = dx / rx, dy / ry
+        rn = min(1.0, np.hypot(nx, ny))
+        up = -ny                                            # 越往上越受光
+        v = 0.2 + 0.8 * max(0.0, up) + 0.5 * max(0.0, nx)        # 盘面背光：近乎剪影
+        # 盘面上缠着的粗根：从盘心往外旋的几道，沟暗、沟上沿（朝上）擦亮
+        g = (a / (2 * np.pi) * 6 + 0.5 * rn + 0.06 * np.sin(rn * 11)) % 1.0
+        if rn > 0.2 and g < 0.14:
+            v = 0
+        elif rn > 0.2 and g < 0.26 and up > -0.3:
+            v += 1.0
+        # 受光的边：往右上方向 1 格就出了盘 → 亮边（上沿最亮）
+        if (dx + 1, dy - 1) not in S or (dx, dy - 1) not in S:
+            if up > -0.35:
+                v = n - 1 if up > 0.35 else n - 2
+        # 土洞
+        for hx, hy, hr in ((-0.32, -0.28, 0.2), (0.02, 0.32, 0.18), (-0.45, 0.42, 0.13)):
+            if np.hypot(nx - hx, (ny - hy) * 1.2) < hr:
+                v = 0
+        lay.put(px, py, pal[int(np.clip(round(v), 0, n - 1))])
+    # 盘和树干接的那道暗缝（盘的右边沿，树干那几行）
+    for dy in range(-int(th * 0.45), int(th * 0.6)):
+        for dx in range(int(rx) - 2, int(rx) + 3):
+            if (dx, dy) in S and (dx + 1, dy) not in S:
+                lay.put(ccx + dx + 1, cy + dy, pal[0])
+                break
+    # 粗根：从盘边往外张开十根，大多朝左、朝上（被拔起来翻过来了），几根往下扎进地里
+    angs = [-1.62, -2.0, -1.25, -2.4, -2.85, -0.95, 2.95, 2.55, -2.2, 2.2]
+    for j, a0 in enumerate(angs):
+        a0 += rng.uniform(-0.08, 0.08)
+        px = ccx + np.cos(a0) * rx * 0.8
+        py = cy + np.sin(a0) * ry * 0.8
+        ang = a0
+        L = rng.uniform(9, 17) * (0.6 if j >= 8 else 1.0)
+        w0 = 4.4 if j < 5 else (3.4 if j < 8 else 2.4)
+        curl = rng.uniform(-0.06, 0.06) + (0.035 if np.cos(a0) < 0 else -0.035)
+        for s_ in range(int(L * 2)):
+            t = s_ / (L * 2)
+            ang += curl + rng.normal(0, 0.05)
             px += np.cos(ang) * 0.5
             py += np.sin(ang) * 0.5
             if py > gy_of(px) + 1:
                 break
-            wd = max(1, int(round(w0 * (1 - t))))
-            lit = np.sin(ang) < -0.2 and np.cos(ang) > -0.6
+            wd = max(1, int(round(w0 * (1 - t) ** 0.65)))
+            vert = abs(np.sin(ang)) > 0.7
             for d in range(wd):
-                lay.put(px, py + d, pal[(n - 2 if lit else 2) if d == 0 else 1])
-        if rng.random() < 0.5:                                          # 根梢分一根细须
-            qx, qy = px, py
-            a2 = ang + rng.choice([-1, 1]) * 0.8
-            for s in range(int(rng.integers(3, 8))):
-                qx += np.cos(a2) * 0.7
-                qy += np.sin(a2) * 0.7
-                if qy > gy_of(qx) + 1:
-                    break
-                lay.put(qx, qy, pal[0])
+                if wd == 1:
+                    c = pal[2] if np.sin(ang) < 0.2 else pal[0]
+                elif vert:                                   # 竖着长的根：右边那格朝月亮，亮；其余是剪影
+                    c = pal[n - 2] if d == wd - 1 else pal[0]
+                else:                                        # 横着长的根：上面那格亮
+                    c = pal[n - 2] if d == 0 else pal[0]
+                ox, oy = ((d - wd // 2), 0.0) if vert else (0.0, (d - wd // 2))
+                lay.put(px + ox, py + oy, c)
+        if rng.random() < 0.4:                                 # 根梢分一根细须
+            for _ in range(1):
+                qx, qy = px, py
+                a2 = ang + rng.choice([-1, 1]) * rng.uniform(0.5, 1.0)
+                for s_ in range(int(rng.integers(3, 8))):
+                    a2 += rng.normal(0, 0.15)
+                    qx += np.cos(a2) * 0.7
+                    qy += np.sin(a2) * 0.7
+                    if qy > gy_of(qx) + 1:
+                        break
+                    lay.put(qx, qy, pal[2])
 
 
 def reeds(lay, x, gy, h, seed, pal, k=7, cattail=None):
@@ -1131,6 +1323,12 @@ def reeds(lay, x, gy, h, seed, pal, k=7, cattail=None):
             for s in range(2, 10):                           # 棒头：两像素宽，右边亮一档
                 lay.put(hx + 1, top - s, cattail[1] if s < 8 else cattail[0])
                 lay.put(hx, top - s, cattail[0])
+
+
+# 浮木（根盘那头）在主层的 x。前景 scroll 1.4、主层 1.0，两层相对着滑：浮木放在 560 时镜头 240~620 一大段
+# 都被前景那丛高的（x=772）挡住；放在 860，镜头 520 / 820 时它整根都在画面里（屏幕 340 / 40，不在晨身后），
+# 别的镜头位置也几乎不被前景挡（tools 里算过：在画面里时平均被挡 <1%），镜头 0 / 240 时它在画外。
+DRIFT_X = 860
 
 
 def main_layer():
@@ -1234,8 +1432,8 @@ def main_layer():
     for a0, ln, w0 in ((2.6, 46, 3), (2.2, 30, 2), (1.3, 22, 2), (0.5, 40, 3), (0.9, 26, 2), (2.9, 24, 2)):
         root(128 + rng.uniform(-3, 3), gys[128] + 2, a0, ln, w0)          # 枯树的根
     for a0, ln, w0 in ((2.4, 22, 2), (1.9, 16, 1), (2.9, 18, 1)):
-        root(560, gys[560] + 2, a0, ln, w0)                               # 浮木根扎进泥里的那几根
-    for rx in (44, 352, 760, 836, 220, 470, 640, 905):                     # 水草根：一束细须往下垂
+        root(DRIFT_X, gys[DRIFT_X] + 2, a0, ln, w0)                       # 浮木根扎进泥里的那几根
+    for rx in (44, 352, 760, 560, 220, 470, 640, 905):                     # 水草根：一束细须往下垂
         for _ in range(int(rng.integers(5, 11))):
             px, py = rx + rng.uniform(-5, 5), gys[rx % W] + 3
             for s_ in range(int(rng.uniform(4, 15))):
@@ -1253,8 +1451,8 @@ def main_layer():
         return gys[int(x) % W]
 
     dead_tree(lay, 128, gy_at(128), bark, 3)
-    driftwood(lay, 560, lambda xx: gy_at(xx) - 1, wood, 4)
-    for x, h, sd, ct in ((44, 26, 1, True), (352, 18, 2, False), (760, 30, 3, True), (836, 16, 4, False)):
+    driftwood(lay, DRIFT_X, lambda xx: gy_at(xx) - 1, wood, 4)
+    for x, h, sd, ct in ((44, 26, 1, True), (352, 18, 2, False), (760, 30, 3, True), (560, 16, 4, False)):
         reeds(lay, x, gy_at(x) + 1, h, sd, reed, k=int(rng.integers(5, 9)), cattail=cat if ct else None)
     return lay
 

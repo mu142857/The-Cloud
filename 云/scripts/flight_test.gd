@@ -28,16 +28,18 @@ const FLIGHT_TIME := 60.0        # 一次飞行（按主题曲长度调）
 const SPEED := 64.0              # 画面滚动（主层像素 / 秒）
 const START_TANK := 100.0        # 起飞时引擎里已经有的
 const FEED_AT := 6.0             # 油箱低于这个就烧下一件
-const MOTE_FUEL := 6.0           # 一个光点
+const MOTE_FUEL := 3.0           # 一个光点
 const EMERG_MOTE_MULT := 2.0     # 紧急模式时光点给的倍数
 const LEAK_TIME := 4.0           # 撞一下漏几秒油
 const LEAK_RATE := 3.0           # 漏油时每秒多掉多少
 const HIT_COOLDOWN := 1.8        # 撞完这么久里不会再撞
 const SABOTAGE_AT := 0.15
 const SABOTAGE_WOOD := 3
-const EMERG_GLIDE := 8.0         # 紧急模式：天花板从顶压到底要几秒
-const GLIDE_RECOVER := 5.0       # 有油了：天花板几秒回到顶
+const EMERG_GLIDE := 5.0         # 紧急模式：天花板从顶压到底要几秒
+const GLIDE_RECOVER := 12.0      # 有油了：天花板几秒回到顶
 const LAST_CHANCE_AT := 0.5      # 天花板压到一半：最后一次机会
+const CATCH_AT := 0.85           # 过了这里还没油：水星的引力把飞船接过去，滑着也能到（不会在终点前一秒坠毁）
+const CATCH_GLIDE := 0.3
 const CARD_SLOW := 0.07          # 决定卡时世界的速度
 const SHIP_X := 120.0
 const STEP := 1.0 / 120.0
@@ -87,6 +89,8 @@ var _acc := 0.0
 var _cough_t := 0.0
 var _drip_t := 0.0
 var _said_emerg := false
+var _said_catch := false
+var _merc_glow: Sprite2D
 var _sub_t := 0.0
 var _sub_dur := 1.0
 var _said_need := false
@@ -98,7 +102,8 @@ var _speed_mul := 1.0
 var _arrive_v := Vector2.ZERO
 
 # 统计
-var stats := {"hits": 0, "motes": 0, "burned_personal": 0, "cards": 0, "emergency_s": 0.0, "min_glide": 1.0}
+var stats := {"hits": 0, "motes": 0, "burned_personal": 0, "cards": 0, "emergency_s": 0.0, "min_glide": 1.0,
+	"emerg_p": -1.0, "crash_p": -1.0}
 
 # 调试 / 机器人
 var bot := ""
@@ -154,6 +159,15 @@ func _ready() -> void:
 	course.build(length, seed_v)
 	ship.position = Vector2(SHIP_X, 196)
 	fx.ship = ship
+	_merc_glow = Sprite2D.new()
+	_merc_glow.texture = load("res://art/flight/mercury_glow.png")
+	_merc_glow.position = Vector2(124, 124)
+	_merc_glow.show_behind_parent = true
+	var addm := CanvasItemMaterial.new()
+	addm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_merc_glow.material = addm
+	_merc_glow.modulate.a = 0.0
+	mercury.add_child(_merc_glow)
 	fx.on_ember_arrive = func(): ship.flare = minf(1.0, ship.flare + 0.08)
 	card.fx = fx
 	card.sfx_cb = sfx
@@ -266,12 +280,20 @@ func _sim(dt: float) -> void:
 		stats.emergency_s += dt
 		if not was:
 			_on_emergency()
+			if stats.emerg_p < 0.0:
+				stats.emerg_p = progress
 	else:
 		glide = minf(1.0, glide + dt / GLIDE_RECOVER)
 	stats.min_glide = minf(stats.min_glide, glide)
 	if glide > 0.9:
 		pick_armed = true
-	if emergency and glide < LAST_CHANCE_AT and pick_armed and not card.is_open() and phase == "fly":
+	if emergency and progress >= CATCH_AT:
+		glide = maxf(glide, CATCH_GLIDE)
+		if not _said_catch:
+			_said_catch = true
+			_say(FlightText.t("catch"), 5.0)
+	if emergency and glide < LAST_CHANCE_AT and pick_armed and not card.is_open() and phase == "fly" \
+			and progress < CATCH_AT:
 		var personal: Array = queue.filter(func(e): return e.kind == "personal")
 		pick_armed = false
 		if not personal.is_empty():
@@ -343,7 +365,7 @@ func _open_card(e: Dictionary) -> void:
 
 
 func _open_pick(list: Array) -> void:
-	card.keep_target = Vector2(Hud.QX + 40, 252)
+	card.keep_target = Vector2(Hud.QX + 12, 252)
 	card.open_pick(list)
 	_card_open_t = real_t
 	stats.cards += 1
@@ -422,6 +444,7 @@ func _on_emergency() -> void:
 
 
 func _crash() -> void:
+	stats.crash_p = travel / length
 	phase = "crash"
 	ship.crashed = true
 	sfx("cough", 0.8)
@@ -439,7 +462,7 @@ func _show_end() -> void:
 	phase = "end"
 	var crashed: bool = ship.crashed
 	var kept: Array = queue.filter(func(e): return e.kind == "personal")
-	end_screen.show_result(crashed, burned.filter(func(e): return true), kept)
+	end_screen.show_result(crashed, burned.filter(func(e): return true), kept, lost)
 	if not crashed:
 		pass
 	else:
@@ -449,7 +472,8 @@ func _show_end() -> void:
 		var r := {"bot": bot, "card": card_policy, "seed": seed_v, "result": "crash" if crashed else "arrive",
 			"hits": stats.hits, "motes": stats.motes, "burned_personal": stats.burned_personal,
 			"kept_personal": kept.size(), "cards": stats.cards, "emergency_s": snappedf(stats.emergency_s, 0.1),
-			"min_glide": snappedf(stats.min_glide, 0.01), "T": snappedf(T, 0.1), "tank_end": snappedf(tank, 0.1)}
+			"min_glide": snappedf(stats.min_glide, 0.01), "T": snappedf(T, 0.1), "tank_end": snappedf(tank, 0.1),
+			"emerg_p": snappedf(stats.emerg_p, 0.01), "crash_p": snappedf(stats.crash_p, 0.01)}
 		print("FLIGHT_RESULT ", JSON.stringify(r))
 		if _snap == "" and _frames == "":
 			get_tree().quit()
@@ -474,11 +498,13 @@ func _visuals(delta: float, wdt: float) -> void:
 	var cloud_tint := Color(0.78, 1.0, 0.88).lerp(Color(0.8, 0.92, 1.18), b)
 	for n in [$Far, $Mid, $Shake/Near, $Wisps]:
 		n.modulate = cloud_tint
-	var s := clampf((p - 0.72) / 0.28, 0.0, 1.0)
+	# 水星：先在右边地平线后面看到它的光（45% 起），再从云海后面慢慢升起来
+	var s := clampf((p - 0.5) / 0.5, 0.0, 1.0)
 	s = s * s * (3.0 - 2.0 * s)
 	if phase == "arrive" or phase == "end":
-		s += clampf((real_t - end_t) / 6.0, 0.0, 0.4)
-	mercury.position = Vector2(560, 250).lerp(Vector2(300, 118), s).round()
+		s += clampf((real_t - end_t) / 6.0, 0.0, 0.25)
+	mercury.position = Vector2(330, 268).lerp(Vector2(292, 120), s).round()
+	_merc_glow.modulate.a = smoothstep(0.42, 0.7, p) * (0.75 + 0.1 * sin(real_t * 0.8))
 	course.refresh(T, travel, delta, wdt)
 	fx.update(wdt, delta)
 	# 紧急模式：画面变冷，引擎咳嗽
