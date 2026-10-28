@@ -1,0 +1,103 @@
+{
+ "frames": [
+  {
+   "filename": "deer_walk 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 1",
+   "frame": {
+    "x": 34,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 2",
+   "frame": {
+    "x": 68,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 3",
+   "frame": {
+    "x": 102,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 4",
+   "frame": {
+    "x": 136,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 5",
+   "frame": {
+    "x": 170,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 6",
+   "frame": {
+    "x": 204,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  },
+  {
+   "filename": "deer_walk 7",
+   "frame": {
+    "x": 238,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 100
+  }
+ ],
+ "meta": {
+  "image": "deer_walk.png",
+  "size": {
+   "w": 272,
+   "h": 26
+  },
+  "frameTags": [
+   {
+    "name": "deer_walk",
+    "from": 0,
+    "to": 7,
+    "direction": "forward"
+   }
+  ],
+  "shadow": {
+   "px_per_frame": 1.21,
+   "foot_y": 25
+  }
+ }
+}

@@ -1,0 +1,92 @@
+{
+ "frames": [
+  {
+   "filename": "deer_turn 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  },
+  {
+   "filename": "deer_turn 1",
+   "frame": {
+    "x": 34,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  },
+  {
+   "filename": "deer_turn 2",
+   "frame": {
+    "x": 68,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  },
+  {
+   "filename": "deer_turn 3",
+   "frame": {
+    "x": 102,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  },
+  {
+   "filename": "deer_turn 4",
+   "frame": {
+    "x": 136,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  },
+  {
+   "filename": "deer_turn 5",
+   "frame": {
+    "x": 170,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  },
+  {
+   "filename": "deer_turn 6",
+   "frame": {
+    "x": 204,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 75
+  }
+ ],
+ "meta": {
+  "image": "deer_turn.png",
+  "size": {
+   "w": 238,
+   "h": 26
+  },
+  "frameTags": [
+   {
+    "name": "deer_turn",
+    "from": 0,
+    "to": 6,
+    "direction": "forward"
+   }
+  ],
+  "shadow": {
+   "foot_y": 25
+  }
+ }
+}

@@ -1,0 +1,103 @@
+{
+ "frames": [
+  {
+   "filename": "moose_walk 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 1",
+   "frame": {
+    "x": 66,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 2",
+   "frame": {
+    "x": 132,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 3",
+   "frame": {
+    "x": 198,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 4",
+   "frame": {
+    "x": 264,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 5",
+   "frame": {
+    "x": 330,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 6",
+   "frame": {
+    "x": 396,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  },
+  {
+   "filename": "moose_walk 7",
+   "frame": {
+    "x": 462,
+    "y": 0,
+    "w": 66,
+    "h": 52
+   },
+   "duration": 150
+  }
+ ],
+ "meta": {
+  "image": "moose_walk.png",
+  "size": {
+   "w": 528,
+   "h": 52
+  },
+  "frameTags": [
+   {
+    "name": "moose_walk",
+    "from": 0,
+    "to": 7,
+    "direction": "forward"
+   }
+  ],
+  "shadow": {
+   "px_per_frame": 2.539,
+   "foot_y": 51
+  }
+ }
+}

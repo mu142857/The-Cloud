@@ -1,0 +1,49 @@
+{
+ "frames": [
+  {
+   "filename": "bird_perch 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "duration": 200
+  },
+  {
+   "filename": "bird_perch 1",
+   "frame": {
+    "x": 4,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "duration": 200
+  },
+  {
+   "filename": "bird_perch 2",
+   "frame": {
+    "x": 8,
+    "y": 0,
+    "w": 4,
+    "h": 4
+   },
+   "duration": 200
+  }
+ ],
+ "meta": {
+  "image": "bird_perch.png",
+  "size": {
+   "w": 12,
+   "h": 4
+  },
+  "frameTags": [
+   {
+    "name": "bird_perch",
+    "from": 0,
+    "to": 2,
+    "direction": "forward"
+   }
+  ]
+ }
+}

@@ -1,0 +1,62 @@
+{
+ "frames": [
+  {
+   "filename": "deer_graze 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_graze 1",
+   "frame": {
+    "x": 34,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_graze 2",
+   "frame": {
+    "x": 68,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_graze 3",
+   "frame": {
+    "x": 102,
+    "y": 0,
+    "w": 34,
+    "h": 26
+   },
+   "duration": 200
+  }
+ ],
+ "meta": {
+  "image": "deer_graze.png",
+  "size": {
+   "w": 136,
+   "h": 26
+  },
+  "frameTags": [
+   {
+    "name": "deer_graze",
+    "from": 0,
+    "to": 3,
+    "direction": "forward"
+   }
+  ],
+  "shadow": {
+   "foot_y": 25
+  }
+ }
+}

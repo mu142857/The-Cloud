@@ -1,0 +1,59 @@
+{
+ "frames": [
+  {
+   "filename": "bird_flap 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 5,
+    "h": 4
+   },
+   "duration": 90
+  },
+  {
+   "filename": "bird_flap 1",
+   "frame": {
+    "x": 5,
+    "y": 0,
+    "w": 5,
+    "h": 4
+   },
+   "duration": 90
+  },
+  {
+   "filename": "bird_flap 2",
+   "frame": {
+    "x": 10,
+    "y": 0,
+    "w": 5,
+    "h": 4
+   },
+   "duration": 90
+  },
+  {
+   "filename": "bird_flap 3",
+   "frame": {
+    "x": 15,
+    "y": 0,
+    "w": 5,
+    "h": 4
+   },
+   "duration": 90
+  }
+ ],
+ "meta": {
+  "image": "bird_flap.png",
+  "size": {
+   "w": 20,
+   "h": 4
+  },
+  "frameTags": [
+   {
+    "name": "bird_flap",
+    "from": 0,
+    "to": 3,
+    "direction": "forward"
+   }
+  ]
+ }
+}

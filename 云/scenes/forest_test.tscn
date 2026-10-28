@@ -1,0 +1,137 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Texture2D" path="res://art/forest/sky.png" id="1_sky"]
+[ext_resource type="Texture2D" path="res://art/forest/ridge.png" id="2_ridge"]
+[ext_resource type="Texture2D" path="res://art/forest/far.png" id="3_far"]
+[ext_resource type="Texture2D" path="res://art/forest/midfar.png" id="4_midfar"]
+[ext_resource type="Texture2D" path="res://art/forest/mid.png" id="5_mid"]
+[ext_resource type="Texture2D" path="res://art/forest/main.png" id="6_main"]
+[ext_resource type="Texture2D" path="res://art/forest/front.png" id="7_front"]
+[ext_resource type="Script" path="res://scripts/forest_test.gd" id="20_script"]
+[ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
+[ext_resource type="PackedScene" path="res://scenes/forest_shadows.tscn" id="30_shadows"]
+
+[sub_resource type="CanvasItemMaterial" id="add"]
+blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="vig"]
+shader = ExtResource("21_vig")
+
+[sub_resource type="Gradient" id="dust_alpha"]
+offsets = PackedFloat32Array(0, 0.2, 0.8, 1)
+colors = PackedColorArray(0.72, 0.84, 0.76, 0, 0.72, 0.84, 0.76, 0.33, 0.72, 0.84, 0.76, 0.33, 0.72, 0.84, 0.76, 0)
+
+[node name="ForestTest" type="Node2D"]
+script = ExtResource("20_script")
+
+[node name="Sky" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Sky"]
+texture = ExtResource("1_sky")
+centered = false
+
+[node name="Ridge" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.06, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Ridge"]
+texture = ExtResource("2_ridge")
+centered = false
+
+[node name="Far" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.18, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Far"]
+texture = ExtResource("3_far")
+centered = false
+
+[node name="ForestShadows" parent="." instance=ExtResource("30_shadows")]
+
+[node name="MidFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.38, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="MidFar"]
+texture = ExtResource("4_midfar")
+centered = false
+
+[node name="Mid" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.62, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Mid"]
+texture = ExtResource("5_mid")
+centered = false
+
+[node name="Main" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.0, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Main"]
+texture = ExtResource("6_main")
+centered = false
+
+[node name="Shafts" type="Node2D" parent="Main"]
+
+[node name="Shaft00" type="Polygon2D" parent="Main/Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(110.8404, 98, 157.1832, 98, 173.4412, 130, 198.063, 180, 208.8891, 203, 150.5463, 203, 141.3488, 180, 122.4412, 130)
+vertex_colors = PackedColorArray(0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.065, 0.8, 0.92, 0.83, 0.05, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.05, 0.8, 0.92, 0.83, 0.065)
+
+[node name="Shaft01" type="Polygon2D" parent="Main/Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(136.8404, 98, 155.9227, 98, 170.0294, 130, 191.29, 180, 200.5698, 203, 176.5463, 203, 167.3488, 180, 148.4412, 130)
+vertex_colors = PackedColorArray(0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.0488, 0.8, 0.92, 0.83, 0.0375, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.0375, 0.8, 0.92, 0.83, 0.0488)
+
+[node name="Shaft10" type="Polygon2D" parent="Main/Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(560.8404, 98, 607.1832, 98, 623.4412, 130, 648.063, 180, 658.8891, 203, 600.5463, 203, 591.3488, 180, 572.4412, 130)
+vertex_colors = PackedColorArray(0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.065, 0.8, 0.92, 0.83, 0.05, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.05, 0.8, 0.92, 0.83, 0.065)
+
+[node name="Shaft11" type="Polygon2D" parent="Main/Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(586.8404, 98, 605.9227, 98, 620.0294, 130, 641.29, 180, 650.5698, 203, 626.5463, 203, 617.3488, 180, 598.4412, 130)
+vertex_colors = PackedColorArray(0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.0488, 0.8, 0.92, 0.83, 0.0375, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0.0375, 0.8, 0.92, 0.83, 0.0488)
+
+[node name="Dust" type="CPUParticles2D" parent="Main"]
+material = SubResource("add")
+position = Vector2(480, 147.5)
+amount = 45
+lifetime = 9.0
+preprocess = 9.0
+emission_shape = 3
+emission_rect_extents = Vector2(480, 47.5)
+direction = Vector2(1, -0.3)
+spread = 180.0
+gravity = Vector2(0, 0.6)
+initial_velocity_min = 1.0
+initial_velocity_max = 4.0
+color_ramp = SubResource("dust_alpha")
+
+[node name="Front" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.4, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Front"]
+texture = ExtResource("7_front")
+centered = false
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(240, 135)
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="Vignette" type="ColorRect" parent="Overlay"]
+material = SubResource("vig")
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2

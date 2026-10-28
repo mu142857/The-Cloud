@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/forest_shadows.gd" id="1_script"]
+
+[node name="ForestShadows" type="Node2D"]
+script = ExtResource("1_script")
+deep_before = NodePath("../Far")
+
+[node name="Deep" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.06, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Far" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.18, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="MidFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.38, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2

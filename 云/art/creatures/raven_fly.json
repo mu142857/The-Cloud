@@ -1,0 +1,89 @@
+{
+ "frames": [
+  {
+   "filename": "raven_fly 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  },
+  {
+   "filename": "raven_fly 1",
+   "frame": {
+    "x": 14,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  },
+  {
+   "filename": "raven_fly 2",
+   "frame": {
+    "x": 28,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  },
+  {
+   "filename": "raven_fly 3",
+   "frame": {
+    "x": 42,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  },
+  {
+   "filename": "raven_fly 4",
+   "frame": {
+    "x": 56,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  },
+  {
+   "filename": "raven_fly 5",
+   "frame": {
+    "x": 70,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  },
+  {
+   "filename": "raven_fly 6",
+   "frame": {
+    "x": 84,
+    "y": 0,
+    "w": 14,
+    "h": 12
+   },
+   "duration": 85
+  }
+ ],
+ "meta": {
+  "image": "raven_fly.png",
+  "size": {
+   "w": 98,
+   "h": 12
+  },
+  "frameTags": [
+   {
+    "name": "raven_fly",
+    "from": 0,
+    "to": 6,
+    "direction": "forward"
+   }
+  ]
+ }
+}

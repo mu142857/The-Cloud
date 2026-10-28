@@ -1,0 +1,93 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Texture2D" path="res://art/forest/sky.png" id="1_sky"]
+[ext_resource type="Texture2D" path="res://art/forest/ridge.png" id="2_ridge"]
+[ext_resource type="Texture2D" path="res://art/forest/far.png" id="3_far"]
+[ext_resource type="Texture2D" path="res://art/forest/midfar.png" id="4_midfar"]
+[ext_resource type="Texture2D" path="res://art/forest/mid.png" id="5_mid"]
+[ext_resource type="Texture2D" path="res://art/forest/main.png" id="6_main"]
+[ext_resource type="Texture2D" path="res://art/forest/front.png" id="7_front"]
+[ext_resource type="Script" path="res://scripts/forest_shadows_test.gd" id="20_script"]
+[ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
+[ext_resource type="PackedScene" path="res://scenes/forest_shadows.tscn" id="22_shadows"]
+
+[sub_resource type="ShaderMaterial" id="vig"]
+shader = ExtResource("21_vig")
+
+[node name="ForestShadowsTest" type="Node2D"]
+script = ExtResource("20_script")
+
+[node name="Sky" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Sky"]
+texture = ExtResource("1_sky")
+centered = false
+
+[node name="Ridge" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.06, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Ridge"]
+texture = ExtResource("2_ridge")
+centered = false
+
+[node name="Far" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.18, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Far"]
+texture = ExtResource("3_far")
+centered = false
+
+[node name="ForestShadows" parent="." instance=ExtResource("22_shadows")]
+
+[node name="MidFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.38, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="MidFar"]
+texture = ExtResource("4_midfar")
+centered = false
+
+[node name="Mid" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.62, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Mid"]
+texture = ExtResource("5_mid")
+centered = false
+
+[node name="Main" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.0, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Main"]
+texture = ExtResource("6_main")
+centered = false
+
+[node name="Front" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.4, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Front"]
+texture = ExtResource("7_front")
+centered = false
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(240, 135)
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="Vignette" type="ColorRect" parent="Overlay"]
+material = SubResource("vig")
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2
