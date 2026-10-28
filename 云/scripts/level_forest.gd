@@ -41,9 +41,9 @@ const CHEN_GD := preload("res://scripts/chen.gd")
 ## 晨的精灵配置里有没有「趴着 / 爬起来」两段（tools/level1_chen_getup.py）。没有就退回把站立帧转 90° 的老办法。
 var _has_getup: bool = CHEN_GD.ANIMS.has("lie") and CHEN_GD.ANIMS.has("getup")
 ## getup 一段多长（秒），和各帧什么时候换（跪坐、站直那两下扬一点土）
-const GETUP_KNEEL_AT := 0.90      # chen.gd 里 getup 的 ms：350 + 250 + 300 → 第 3 帧（跪坐）
-const GETUP_STAND_AT := 1.85      # … + 450 + 300 + 200 → 第 6 帧（站直）
-const GETUP_TIME := 2.05
+const GETUP_KNEEL_AT := 0.3       # chen.gd 里 getup 每帧 100ms：第 3 帧（跪坐）
+const GETUP_STAND_AT := 0.6       # 第 6 帧（站直）
+const GETUP_TIME := 0.7
 
 ## 调试场景浏览（只在 debug 构建、标题界面）：F1~F5
 const TEST_SCENES := {
@@ -230,6 +230,7 @@ func _ready() -> void:
 
 	chen.input_enabled = false
 	cam.position = Vector2(TITLE_CAM_X, 135.0)
+	chen.set_env("forest", func(c): return preload("res://scripts/env_light.gd").polygon_shafts(c, shafts))     # 光柱照到晨身上（lite 档光柱关了就是 0）
 	_place_world()
 	_apply_quality()
 	_build_audio()
@@ -1412,7 +1413,7 @@ func _pickup_at_wood() -> void:
 	chen._set_facing(1 if WOOD_X > chen.position.x else -1)
 	create_tween().tween_property(wood_hint, "modulate:a", 0.0, 0.2)
 	_run([
-		[0.25, _pk_crouch],
+		[0.15, _pk_crouch],           # 捡东西最低那帧在动画第 0.2 秒 → 正好 0.35 木头飞起来
 		[0.35, _pk_lift],
 		[1.0, _pk_show_bag],
 		[1.35, _wood_fly_to_bag],
@@ -1808,7 +1809,7 @@ func _update_world(delta: float) -> void:
 		if not is_nan(_walk_target):
 			var d := _walk_target - chen.position.x
 			var keys := Input.get_axis("ui_left", "ui_right") != 0.0 or Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_D)
-			if keys or absf(d) <= 4.0:
+			if keys or absf(d) <= 4.0 + chen.stop_distance():     # 有惯性：提前松手，滑过去正好停住
 				_walk_target = NAN
 				chen.auto_dir = 0.0
 			else:
@@ -1818,7 +1819,7 @@ func _update_world(delta: float) -> void:
 			_start_pickup()
 	elif state == S.CINE and not is_nan(_cine_target):
 		var d := _cine_target - chen.position.x
-		if absf(d) <= 3.0 or signf(d) != chen.auto_dir:
+		if absf(d) <= 3.0 + chen.stop_distance() or signf(d) != chen.auto_dir:
 			_cine_target = NAN
 			_pickup_at_wood()
 

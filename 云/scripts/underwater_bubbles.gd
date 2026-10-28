@@ -42,6 +42,12 @@ func _spawn(p: Vector2, big: float) -> void:
 	})
 
 
+## 外面叫的：在 p（这一层的坐标）吐 n 颗（晨在水底踩一步，chen.gd 调）
+func emit(p: Vector2, n := 1, big := 0.8) -> void:
+	for k in n:
+		_spawn(p + Vector2(_rng.randi_range(-2, 2), k * 3), big)
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	if _shafts == null:

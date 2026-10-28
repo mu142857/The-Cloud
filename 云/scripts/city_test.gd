@@ -38,6 +38,7 @@ var _saved := 0
 
 func _ready() -> void:
 	chen.ground_fn = ground_y
+	chen.set_env("city", func(c): return preload("res://scripts/env_light.gd").polygon_shafts(c, $Shafts))     # 楼缝漏下来的光照到晨身上
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.trim_prefix("--shot=")

@@ -38,6 +38,7 @@ var _pin := -1.0
 func _ready() -> void:
 	_read_ground()
 	chen.ground_fn = ground_y
+	chen.set_env("cloud")      # 左边的余晖落到晨身上
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.trim_prefix("--shot=")

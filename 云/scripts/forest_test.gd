@@ -32,6 +32,7 @@ var _saved := 0
 
 
 func _ready() -> void:
+	chen.set_env("forest", func(c): return preload("res://scripts/env_light.gd").polygon_shafts(c, $Main/Shafts))     # 光柱照到晨身上
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.trim_prefix("--shot=")

@@ -49,6 +49,8 @@ static func ground_y(x: float) -> float:
 
 func _ready() -> void:
 	chen.ground_fn = ground_y
+	chen.set_env("underwater", func(c): return preload("res://scripts/env_light.gd").group_light(c, "underwater_shafts", 14.0, 140.0))   # 月光光柱照到晨身上
+	chen.step_bubbles = $ChenBubbles
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.trim_prefix("--shot=")

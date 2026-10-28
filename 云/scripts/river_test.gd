@@ -45,6 +45,7 @@ static func ground_y(x: float) -> float:
 
 func _ready() -> void:
 	chen.ground_fn = ground_y
+	chen.set_env("river")      # 月光从右上落到晨身上（河岸没有光柱）
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.trim_prefix("--shot=")
