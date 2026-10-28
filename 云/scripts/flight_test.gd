@@ -142,6 +142,8 @@ var _sfx_pool: Array = []
 
 
 func _ready() -> void:
+	if not GameSettings.loaded:
+		GameSettings.load_and_apply()      # 直接 F6 跑这个场景时：语言等设置照样读进来
 	for a in OS.get_cmdline_user_args():
 		var kv := a.trim_prefix("--").split("=", true, 1)
 		var k: String = kv[0]
@@ -152,7 +154,7 @@ func _ready() -> void:
 			"card_delay": card_delay = float(v)
 			"seed": seed_v = int(v)
 			"speed": Engine.time_scale = float(v)
-			"lang": FlightText.lang = v
+			"lang": GameSettings.set_lang(v)
 			"shot": _shot = v
 			"at": _shot_at = float(v)
 			"snap": _snap = v
@@ -635,7 +637,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_touch = event.pressed
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_L:
-			FlightText.lang = "zh" if FlightText.lang == "en" else "en"
+			GameSettings.set_lang("zh" if I18n.lang == "en" else "en")
 			return
 		if event.keycode == KEY_ESCAPE:
 			get_tree().quit()

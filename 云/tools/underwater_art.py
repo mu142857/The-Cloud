@@ -381,12 +381,14 @@ def elephant_mask(sc=1.15):
         m &= ~(((xx - cx * sc) ** 2 + (yy - cy * sc) ** 2) < (r * sc) ** 2)
     return m
 
-ELEPHANT_X, ELEPHANT_SC, ELEPHANT_FADE = 270, 1.7, (0.78, 0.12)
+# 大象放在 midfar（scroll 0.17）左边：原来在 distant 里又淡又被头像、石柱挡住，玩家根本看不到（作者 2026-10-28）。
+# x=70 是算出来的空处：镜头 0..1100 一路上大约一半时间 80% 以上不被挡，而且一直在晨左边，不进晨身后那一列。
+ELEPHANT_X, ELEPHANT_SC = 70, 1.0
 
 
 def distant():
     """最远的一层（scroll 0.05，和大鱼同一层，在所有石柱后面）：一片褪得几乎看不见的巨藻林（很高，顶快到水面），
-    和远处第二座更小更淡的沉没雕像，再往右一头几乎看不出的大象（elephant_mask）。只比同一高度的水暗一两档，让深处有「还有更多」的感觉，又不抢头像。
+    和远处第二座更小更淡的沉没雕像。只比同一高度的水暗一两档，让深处有「还有更多」的感觉，又不抢头像。
     东西集中在左边那半（开场镜头左上那片空水），右边月亮、头像那块留空。"""
     lay = Layer()
     pal = bramp(5, .07, .15, 264, 252)
@@ -413,15 +415,6 @@ def distant():
     pm = sl.a[..., 3] > 0
     rim_light(sl, pm, shift=12, gain=0.03, over=0.0, y0=100, y1=170)
     lay.paste(sl.a, 0, 0)
-    # 再往右一点、几乎和水一个颜色的大象（像一块圆顶的大石头）：比雕像褪得多，只在走过去的时候隐约认得出来。
-    # 位置避开晨身后那一列（这一层 x ≈ 204 + 0.05·镜头，镜头 0..1100 时 = 204..259）
-    el = Layer()
-    m = elephant_mask(ELEPHANT_SC)
-    st = shade_rock(m, np.random.default_rng(143), pal, cracks=(1, 2), seams=False)
-    el.paste(st, ELEPHANT_X, base + 2 - st.shape[0])
-    fade(el, lambda y: ELEPHANT_FADE[0] + ELEPHANT_FADE[1] * np.clip((y - 90) / 110, 0, 1), steps=10, shift=12)
-    rim_light(el, el.a[..., 3] > 0, shift=12, gain=0.02, over=0.0, y0=60, y1=140)
-    lay.paste(el.a, 0, 0)
     return lay
 
 
@@ -460,7 +453,7 @@ def far():
 
 
 def midfar():
-    """近一点的一排：粗一些的石柱、一道塌了一半的天然石拱（光柱从拱里穿过去），褪得少一点。"""
+    """近一点的一排：粗一些的石柱、一道塌了一半的天然石拱（光柱从拱里穿过去）、左边一头像圆顶大石头的大象，褪得少一点。"""
     lay = Layer()
     pal = bramp(5, .075, .19, 262, 250)
     rng = np.random.default_rng(81)
@@ -505,6 +498,14 @@ def midfar():
     drop_floating(lay, 205)
     fade(lay, lambda y: 0.44 + 0.3 * np.clip((y - 130) / 80, 0, 1), steps=8, shift=40)
     rim_light(lay, pm, shift=40, gain=0.07, over=0.024, y0=80, y1=174)
+    # 大象（elephant_mask，梦里那头的暗示）：站在 x=70 那根石柱前面。它整个在下半截，按这一层的褪法会被水吃掉，
+    # 所以单独少褪一点（暗一点的剪影）、背和鼻子补一道月光边，第二眼能认出来
+    el = Layer()
+    m = elephant_mask(ELEPHANT_SC)
+    el.paste(shade_rock(m, np.random.default_rng(143), pal, cracks=(1, 2), seams=False), ELEPHANT_X, base + 2 - m.shape[0])
+    fade(el, lambda y: 0.3 + 0.25 * np.clip((y - 130) / 80, 0, 1), steps=8, shift=40)
+    rim_light(el, el.a[..., 3] > 0, shift=40, gain=0.09, over=0.05, y0=140, y1=214)
+    lay.paste(el.a, 0, 0)
     return lay
 
 

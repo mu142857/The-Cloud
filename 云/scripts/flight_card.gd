@@ -13,7 +13,6 @@ signal landed(uid: int)                     # 「留下」时飞回队尾的图�
 const CARD_TEX := preload("res://art/flight/card.png")
 const FLAME_TEX := preload("res://art/flight/ui_flame.png")
 const KEEP_TEX := preload("res://art/flight/ui_keep.png")
-const DROP_TEX := preload("res://art/flight/ui_drop.png")
 const SHADER := preload("res://scripts/flight_burn.gdshader")
 const GLOW_TEX := preload("res://art/flight/card_glow.png")
 const SEL_GLOW := preload("res://art/flight/sel_glow.png")
@@ -26,7 +25,6 @@ const C_NAME := Color("f1e6d0")
 const C_DESC := Color("b7b3c4")
 const C_ON := Color("f6d9a0")
 const C_OFF := Color("59617a")
-const C_FUEL := Color("d9a35e")
 
 var fx: Node2D
 var sfx_cb: Callable        # sfx_cb.call("select")
@@ -132,12 +130,7 @@ func open_single(item: Dictionary) -> void:
 	ic.position = Vector2(W / 2.0, 48)
 	_root.add_child(ic)
 	_icons.append(ic)
-	var fuel_ic := Sprite2D.new()
-	fuel_ic.texture = DROP_TEX
-	fuel_ic.centered = false
-	fuel_ic.position = Vector2(148, 63)
-	_root.add_child(fuel_ic)
-	_label("+%d" % int(item.fuel), C_FUEL, Vector2(155, 59), 50, HORIZONTAL_ALIGNMENT_LEFT)
+	# 卡上不标燃料值（作者定的）：选的是回忆，不是算数；烧完顶上的燃料表会说还差多少
 	_label(FlightText.pick(item.name), C_NAME, Vector2(0, 76), W)
 	var d := _label(FlightText.pick(item.desc), C_DESC, Vector2(14, 93), W - 28, HORIZONTAL_ALIGNMENT_CENTER, true)
 	d.size = Vector2(W - 28, 46)
@@ -238,7 +231,7 @@ func _refresh() -> void:
 			_bracket.position = _icon_base[sel] - Vector2(0, 3)
 			_bracket.queue_redraw()
 		if sel < items.size():
-			_labels.name.text = FlightText.pick(items[sel].name) + "   +%d" % int(items[sel].fuel)
+			_labels.name.text = FlightText.pick(items[sel].name)
 			_labels.desc.text = FlightText.pick(items[sel].desc)
 		else:
 			_labels.name.text = ""

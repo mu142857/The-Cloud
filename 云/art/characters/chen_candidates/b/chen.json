@@ -1,0 +1,145 @@
+{
+ "frames": [
+  {
+   "filename": "chen 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 1",
+   "frame": {
+    "x": 40,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 2",
+   "frame": {
+    "x": 80,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 3",
+   "frame": {
+    "x": 120,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 4",
+   "frame": {
+    "x": 160,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 5",
+   "frame": {
+    "x": 200,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 6",
+   "frame": {
+    "x": 240,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 7",
+   "frame": {
+    "x": 280,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 80
+  },
+  {
+   "filename": "chen 8",
+   "frame": {
+    "x": 320,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 220
+  },
+  {
+   "filename": "chen 9",
+   "frame": {
+    "x": 360,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 220
+  },
+  {
+   "filename": "chen 10",
+   "frame": {
+    "x": 400,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 220
+  },
+  {
+   "filename": "chen 11",
+   "frame": {
+    "x": 440,
+    "y": 0,
+    "w": 40,
+    "h": 42
+   },
+   "duration": 220
+  }
+ ],
+ "meta": {
+  "image": "chen.png",
+  "size": {
+   "w": 480,
+   "h": 42
+  },
+  "frameTags": [
+   {
+    "name": "run",
+    "from": 0,
+    "to": 7,
+    "direction": "forward"
+   },
+   {
+    "name": "idle",
+    "from": 8,
+    "to": 11,
+    "direction": "forward"
+   }
+  ]
+ }
+}

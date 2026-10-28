@@ -1,0 +1,207 @@
+[gd_scene load_steps=20 format=3]
+
+[ext_resource type="Texture2D" path="res://art/city/sky.png" id="1_sky"]
+[ext_resource type="Texture2D" path="res://art/city/ridge.png" id="2_ridge"]
+[ext_resource type="Texture2D" path="res://art/city/far.png" id="3_far"]
+[ext_resource type="Texture2D" path="res://art/city/midfar.png" id="4_midfar"]
+[ext_resource type="Texture2D" path="res://art/city/mid.png" id="5_mid"]
+[ext_resource type="Texture2D" path="res://art/city/main.png" id="6_main"]
+[ext_resource type="Texture2D" path="res://art/city/front.png" id="7_front"]
+[ext_resource type="Script" path="res://scripts/city_test.gd" id="20_script"]
+[ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
+[ext_resource type="Script" path="res://scripts/city_crowd.gd" id="22_crowd"]
+[ext_resource type="Script" path="res://scripts/city_motes.gd" id="25_motes"]
+[ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
+[ext_resource type="Texture2D" path="res://art/city/hood_7.png" id="50_hood7"]
+[ext_resource type="Texture2D" path="res://art/city/hood_11.png" id="50_hood11"]
+[ext_resource type="Texture2D" path="res://art/city/hood_18.png" id="50_hood18"]
+[ext_resource type="Texture2D" path="res://art/city/hood_34.png" id="50_hood34"]
+[ext_resource type="Texture2D" path="res://art/city/hood_50.png" id="50_hood50"]
+
+[sub_resource type="CanvasItemMaterial" id="add"]
+blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="vig"]
+shader = ExtResource("21_vig")
+shader_parameter/strength = 0.55
+shader_parameter/tint = Color(0.92, 0.93, 0.95, 1)
+
+[node name="CityTest" type="Node2D"]
+script = ExtResource("20_script")
+
+[node name="Sky" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Sky"]
+texture = ExtResource("1_sky")
+centered = false
+position = Vector2(0, 0)
+region_enabled = true
+region_rect = Rect2(0, 0, 480, 270)
+
+[node name="Ridge" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.06, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Ridge"]
+texture = ExtResource("2_ridge")
+centered = false
+position = Vector2(0, 0)
+region_enabled = true
+region_rect = Rect2(0, 0, 960, 270)
+
+[node name="Far" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.18, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Far"]
+texture = ExtResource("3_far")
+centered = false
+position = Vector2(0, 0)
+region_enabled = true
+region_rect = Rect2(0, 0, 960, 270)
+
+[node name="Crowd" type="Node2D" parent="Far"]
+script = ExtResource("22_crowd")
+texture = ExtResource("50_hood7")
+frame_size = Vector2i(9, 7)
+count = 12
+feet_y = 133
+speed = Vector2(7, 12)
+tint = Color(0.471, 0.478, 0.494, 1)
+seed = 3
+
+[node name="Shafts" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.18, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Shaft0" type="Polygon2D" parent="Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(70.0, 0.0, 80.0, 0.0, 131.5, 140.0, 150.4, 176.0, 126.3, 176.0, 114.8, 140.0)
+vertex_colors = PackedColorArray(0.82, 0.82, 0.8, 0.025, 0.82, 0.82, 0.8, 0.025, 0.82, 0.82, 0.8, 0.070, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.070)
+
+[node name="Shaft1" type="Polygon2D" parent="Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(300.0, 0.0, 306.0, 0.0, 357.5, 140.0, 376.4, 176.0, 356.3, 176.0, 344.8, 140.0)
+vertex_colors = PackedColorArray(0.82, 0.82, 0.8, 0.032, 0.82, 0.82, 0.8, 0.032, 0.82, 0.82, 0.8, 0.090, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.090)
+
+[node name="Shaft2" type="Polygon2D" parent="Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(520.0, 0.0, 534.0, 0.0, 585.5, 140.0, 604.4, 176.0, 576.3, 176.0, 564.8, 140.0)
+vertex_colors = PackedColorArray(0.82, 0.82, 0.8, 0.021, 0.82, 0.82, 0.8, 0.021, 0.82, 0.82, 0.8, 0.060, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.060)
+
+[node name="Shaft3" type="Polygon2D" parent="Shafts"]
+material = SubResource("add")
+polygon = PackedVector2Array(760.0, 0.0, 768.0, 0.0, 819.5, 140.0, 838.4, 176.0, 816.3, 176.0, 804.8, 140.0)
+vertex_colors = PackedColorArray(0.82, 0.82, 0.8, 0.028, 0.82, 0.82, 0.8, 0.028, 0.82, 0.82, 0.8, 0.080, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.000, 0.82, 0.82, 0.8, 0.080)
+
+[node name="MidFar" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.38, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="MidFar"]
+texture = ExtResource("4_midfar")
+centered = false
+position = Vector2(0, 0)
+region_enabled = true
+region_rect = Rect2(0, 0, 960, 270)
+
+[node name="Crowd" type="Node2D" parent="MidFar"]
+script = ExtResource("22_crowd")
+texture = ExtResource("50_hood11")
+frame_size = Vector2i(11, 11)
+count = 10
+feet_y = 155
+speed = Vector2(12, 20)
+tint = Color(0.404, 0.412, 0.424, 1)
+seed = 5
+
+[node name="Mid" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.62, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Mid"]
+texture = ExtResource("5_mid")
+centered = false
+position = Vector2(0, 0)
+region_enabled = true
+region_rect = Rect2(0, 0, 960, 270)
+
+[node name="Crowd" type="Node2D" parent="Mid"]
+script = ExtResource("22_crowd")
+texture = ExtResource("50_hood18")
+frame_size = Vector2i(16, 18)
+count = 8
+feet_y = 177
+speed = Vector2(20, 32)
+tint = Color(0.314, 0.325, 0.337, 1)
+seed = 7
+
+[node name="Main" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.0, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Main"]
+texture = ExtResource("6_main")
+centered = false
+position = Vector2(0, 158)
+region_enabled = true
+region_rect = Rect2(0, 158, 960, 112)
+
+[node name="Crowd" type="Node2D" parent="Main"]
+script = ExtResource("22_crowd")
+texture = ExtResource("50_hood34")
+frame_size = Vector2i(26, 34)
+count = 4
+feet_y = 227
+speed = Vector2(46, 64)
+tint = Color(0.212, 0.220, 0.231, 1)
+seed = 11
+
+[node name="Motes" type="Node2D" parent="Main"]
+script = ExtResource("25_motes")
+color = Color(0.45, 0.45, 0.46, 1)
+count = 16
+
+[node name="Chen" parent="." instance=ExtResource("40_chen")]
+position = Vector2(204, 229)
+
+[node name="Front" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.4, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Front"]
+texture = ExtResource("7_front")
+centered = false
+position = Vector2(0, 0)
+region_enabled = true
+region_rect = Rect2(0, 0, 960, 270)
+
+[node name="Crowd" type="Node2D" parent="Front"]
+script = ExtResource("22_crowd")
+texture = ExtResource("50_hood50")
+frame_size = Vector2i(35, 50)
+count = 2
+feet_y = 276
+speed = Vector2(70, 90)
+tint = Color(0.078, 0.086, 0.098, 1)
+seed = 13
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(240, 135)
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="Vignette" type="ColorRect" parent="Overlay"]
+material = SubResource("vig")
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2

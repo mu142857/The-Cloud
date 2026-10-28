@@ -1,9 +1,8 @@
 class_name FlightText
 ## 飞行段原型自己的文字（占位）。正式的本地化（i18n）做好以后换掉：这里的 key 可以直接搬过去。
-## 默认英文（jam 规则），--lang=zh 或游戏里按 L 切中文。
+## 语言跟着设置走（I18n.lang，默认英文）；--lang=zh 或游戏里按 L 临时切换。
 
 const SIZE := 14            # 天王星像素 11Px 的设计网格是 14 单位 / em：14 号字 = 1 个设计像素对 1 个屏幕像素
-static var lang := "en"
 static var _font: FontFile
 
 const S := {
@@ -43,12 +42,12 @@ const S := {
 
 static func t(key: String) -> String:
 	var d: Dictionary = S.get(key, {})
-	return d.get(lang, d.get("en", key))
+	return d.get(I18n.lang, d.get("en", key))
 
 
 static func pick(d: Dictionary) -> String:
 	## 物品数据里的 {en, zh}
-	return d.get(lang, d.get("en", ""))
+	return d.get(I18n.lang, d.get("en", ""))
 
 
 static func font() -> FontFile:

@@ -64,6 +64,8 @@ const START_COLOR := Color("#a3b8ad")
 const START_HOT := Color("#e2ebe5")
 const START_SPACING := 2
 const GEAR_A := 0.45
+const LANG_ON := Color("#a3b8ad")      # 左下角语言切换：当前语言
+const LANG_OFF := Color("#56695f")     # 另一种语言（悬停时亮成 START_HOT）
 
 ## 闪电：不再是整屏白闪，而是冷色的天光从林冠后面亮一下（远景几层被照亮，近处的树干、林冠成了剪影），
 ## 再叠一层很淡的冷色。下面是每层被照亮多少（0 = 不动）和冷光的颜色（乘到图层上，>1 = 变亮）。
@@ -141,6 +143,8 @@ var _title_lines: Array[ColorRect] = []   # 副标题两边的细线
 var _start_btn: Button
 var _start_marks: Array[ColorRect] = []   # 「开始」两边悬停时伸出来的小横线
 var _gear: TextureButton
+var _lang_corner: HBoxContainer   # 标题界面左下角的「EN / 中文」，跟着标题一起出现、消失
+var _lang_btns := {}
 var _bag_btn: TextureButton
 var _hud_burn: HBoxContainer
 var _hud_burn_label: Label
@@ -389,6 +393,26 @@ func _build_ui() -> void:
 	_gear.mouse_entered.connect(func(): _gear.self_modulate = Color(1.6, 1.6, 1.6))
 	_gear.mouse_exited.connect(func(): _gear.self_modulate = Color.WHITE)
 	root.add_child(_gear)
+
+	# ---- 左下角语言切换（只在标题界面；设置里也能换）
+	_lang_corner = HBoxContainer.new()
+	_lang_corner.add_theme_constant_override("separation", 5)
+	_lang_corner.position = Vector2(8, 270 - 8 - 14)
+	_title_root.add_child(_lang_corner)
+	for l in ["en", "zh"]:
+		if l == "zh":
+			_lang_corner.add_child(_label("/", 14, LANG_OFF))
+		var b := Button.new()
+		UITheme.flat_button(b)
+		b.add_theme_font_size_override("font_size", 14)
+		b.add_theme_color_override("font_hover_color", START_HOT)
+		b.add_theme_color_override("font_hover_pressed_color", START_HOT)
+		b.focus_mode = Control.FOCUS_NONE
+		b.text = "EN" if l == "en" else "中文"
+		b.pressed.connect(_on_lang_corner.bind(l))
+		b.mouse_entered.connect(_sfx_soft)
+		_lang_corner.add_child(b)
+		_lang_btns[l] = b
 
 	# ---- HUD：左上燃烧值、右上背包
 	_hud_burn = HBoxContainer.new()
@@ -641,6 +665,14 @@ func _set_lang(l: String) -> void:
 	_retext()
 
 
+func _on_lang_corner(l: String) -> void:
+	if l == GameSettings.lang:
+		return
+	_sfx("ui_click", -10.0)
+	_set_lang(l)
+	_sync_settings()
+
+
 func _set_quality(q: String) -> void:
 	GameSettings.quality = q
 	GameSettings.save()
@@ -826,6 +858,10 @@ func _retext() -> void:
 	_hp_any.text = I18n.t("press_any")
 	_skip_label.text = I18n.t("skip_again")
 	_layout_title()
+	for l in _lang_btns:
+		var on: bool = l == GameSettings.lang
+		(_lang_btns[l] as Button).add_theme_color_override("font_color", LANG_ON if on else LANG_OFF)
+		(_lang_btns[l] as Button).mouse_default_cursor_shape = Control.CURSOR_ARROW if on else Control.CURSOR_POINTING_HAND
 	_even(_hp_label, _hp_label.text, 14)
 	_even(_hp_any, _hp_any.text, 14)
 	_even(_burn_pop_sub, _burn_pop_sub.text, 14)
@@ -966,6 +1002,7 @@ func _show_title() -> void:
 	_title_label.modulate.a = 0.0
 	_title_sub.modulate.a = 0.0
 	_start_btn.modulate.a = 0.0
+	_lang_corner.modulate.a = 0.0
 	for ln in _title_lines:
 		ln.modulate.a = 0.0
 	# 标题先慢慢浮出来（2.6 秒，同时往上飘 3 像素），副标题晚 0.8 秒，「开始」再晚一点
@@ -976,6 +1013,7 @@ func _show_title() -> void:
 	tw.parallel().tween_property(_title_lines[1], "modulate:a", 1.0, 1.6).set_delay(0.8)
 	tw.parallel().tween_property(_start_btn, "modulate:a", 1.0, 1.2).set_delay(1.6)
 	tw.parallel().tween_property(_gear, "modulate:a", GEAR_A, 1.2).set_delay(1.6)
+	tw.parallel().tween_property(_lang_corner, "modulate:a", 1.0, 1.2).set_delay(1.6)
 	# 不抢焦点：不然「开始」一出来就是高亮的。Enter / 空格照样能开始（见 _input），按方向键才聚焦。
 
 
@@ -992,6 +1030,7 @@ func _skip_to_title() -> void:
 	for ln in _title_lines:
 		ln.modulate.a = 1.0
 	_start_btn.modulate.a = 1.0
+	_lang_corner.modulate.a = 1.0
 	_gear.modulate.a = GEAR_A
 
 
