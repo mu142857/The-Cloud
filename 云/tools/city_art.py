@@ -49,6 +49,12 @@
   高瘦 / 宽肩 / 驼背 / 矮壮 / 撑伞几种体型，各有标志物（看手腕、手提袋、公文包、拐杖、纸箱、背包、黑伞），
   外套的下摆、开衩、腰带、口袋盖、袖口，兜帽的帽檐和暗脸里的下巴，裤腿和鞋，肩上一道湿的受光边；8 帧走路。
   people_chart() 画「人物表」（每种人站姿 + 8 帧，旁边站着晨比身高）。
+第七版（同一天）：
+- 鸽子改成小色块（2~4 像素的实心身体 + 一两格翅膀，远处是一两个点），群读出来是一片点云；翻面按群里沿飞行方向的位置
+  排先后，像一道波 0.3 秒扫过整群（scripts/city_pigeons.gd）。
+- 人有体积：光从上方偏右来，外套和兜帽每一行右边亮一档、左边暗一档，胯以下整体暗一档，腿、远侧的胳膊腿更暗；
+  腰带是暗横条加亮扣，公文包、纸箱、背包有受光面和背光面，伞面亮暗两半。街面那层染色提亮到受光边 L≈0.5，
+  外套大面积 0.2~0.33。people_chart(game_bg=…) 再画一版「游戏里真实亮度」的人物表。
 除了天，每层宽 960、左右无缝。所有随机都固定 seed。
 """
 from __future__ import annotations
@@ -879,54 +885,114 @@ def person_frame(hh, tp, ph, stand=False, f=0):
                 if 0 <= yi < hh and 0 <= xi < fw:
                     sp[yi, xi] = True
             add("rimx", sp)
-    # ---- 衣服细节
+    # ---- 衣服细节：靠成块的明暗读，不靠 1 像素的线
+    belt_m = np.zeros((hh, fw), bool)
+    buckle_m = np.zeros((hh, fw), bool)
+    pocket_m = np.zeros((hh, fw), bool)
+    slit_m = np.zeros((hh, fw), bool)
     if big:
-        add("fold", seg((-0.04 - sway * 0.5, hem - 0.08), (-0.045 - sway, hem + 0.015), 0.004) & torso)       # 开衩
-        add("fold", seg((0.035, 0.36), (0.04 + fu * 0.5, hem - 0.01), 0.004) & torso)                           # 前襟
-        add("fold", seg((0.0, 0.36), (-0.01 + sway * 0.3, hem - 0.02), 0.0035) & torso)                         # 褶
-        add("fold", seg((0.045, 0.49), (0.085, 0.49), 0.005) & torso)                                          # 口袋盖
+        slit_m = seg((-0.045 - sway * 0.5, hem - 0.07), (-0.05 - sway, hem + 0.015), 0.006) & torso          # 开衩
+        pocket_m = poly([(0.03, 0.485), (0.08, 0.485), (0.08, 0.505), (0.03, 0.505)]) & torso                # 口袋盖
         if tp["belt"]:
-            add("fold", seg((-0.08, 0.4), (0.075, 0.4), 0.007) & torso)
-            add("edge", seg((0.02, 0.4), (0.03, 0.4), 0.007) & torso)
-        add("fold", seg((0.0, 0.18), (w0 * 0.75, 0.2), 0.004) & torso)                                        # 肩线
+            belt_m = poly([(-0.09, 0.39), (0.08, 0.39), (0.08, 0.41), (-0.09, 0.41)]) & torso                # 腰带
+            buckle_m = poly([(0.03, 0.385), (0.05, 0.385), (0.05, 0.415), (0.03, 0.415)]) & torso            # 扣
     if tp["collar"]:
         add("collar", poly([(-0.02, 0.12), (0.055, 0.115), (0.07, 0.17), (0.0, 0.18)]) & ~face)
     if tp["scarf"]:
         add("scarf", poly([(-0.03, 0.14), (0.06, 0.14), (0.065, 0.175), (-0.03, 0.175)]))
-        tail = poly([(0.03, 0.17), (0.06, 0.17), (0.07 - 0.02 * s, 0.32), (0.045 - 0.02 * s, 0.32)])          # 垂下的一截
-        add("scarf", tail)
+        add("scarf", poly([(0.03, 0.17), (0.06, 0.17), (0.07 - 0.02 * s, 0.32), (0.045 - 0.02 * s, 0.32)]))   # 垂下的一截
     if hh >= 18:
         add("opening", opening)
         add("brim", brim)
         add("face", face)
         if big:
             add("chin", chin)
-    tone = dict(pants=G["pants"], shoe=G["shoe"], far=G["far"], body=G["body"], arm=G["body"], cuff=G["edge"],
-                hand=G["hand"], hand_far=G["far"] + 20, bag=G["bag"], box=G["box"], fold=G["fold"], edge=G["edge"],
-                strap=G["edge"], collar=G["edge"] - 10, scarf=G["scarf"], opening=G["edge"], brim=G["fold"] - 8,
-                face=G["face"], chin=G["chin"], rimx=G["rim"])
-    # 画的先后：远侧 → 裤鞋 → 身子 → 包 → 胳膊 → 细节 → 脸 → 受光边
-    pri = ["far", "hand_far", "pants", "shoe", "body", "bag", "box", "arm", "cuff", "hand", "fold", "strap", "collar",
-           "scarf", "edge", "opening", "brim", "face", "chin", "rimx"]
-    for name in pri:
-        if name in lay:
-            img[lay[name]] = (tone[name],) * 3 + (255,)
-    if big and "arm" in lay:
-        # 近侧的胳膊压在外套上：沿着胳膊描一道暗缝，和身子分开（只描在外套上，不往外描）
-        a = lay["arm"]
-        dil = a.copy()
-        dil[1:] |= a[:-1]
-        dil[:-1] |= a[1:]
-        dil[:, 1:] |= a[:, :-1]
-        dil[:, :-1] |= a[:, 1:]
-        edge = dil & ~a & ~lay.get("hand", np.zeros_like(a)) & lay["body"]
-        img[edge] = (G["fold"] - 10,) * 3 + (255,)
+    # ---- 上色：光从上方偏右来（楼缝里的霾光）。外套和兜帽按每一行里的左右位置分三档：朝光的右边亮一档、
+    # 中间、背光的左边暗一档；胯以下整体再暗一档（下摆在阴影里）。腿、远侧的胳膊腿更暗。
+    T = dict(lit=138, mid=106, dark=80, low=66, low_lit=88, legs=60, shoe=44, far=44, hand=150, arm=96, arm_lit=118,
+             face=30, chin=54, brim=58, opening=122, collar=130, scarf=118, scarf_lit=146, belt=48, buckle=176,
+             pocket=70, slit=56, edge=150, rim=255)
+    yy_, xx_ = np.mgrid[0:hh, 0:fw]
+    vv = 1 - (hh - (yy_ + 0.5)) / H_
+
+    def shade_rows(m):
+        """每一行里的左右位置 0..1（只在 m 里有意义）。"""
+        r = np.zeros((hh, fw))
+        for y in range(hh):
+            xs_ = np.nonzero(m[y])[0]
+            if len(xs_):
+                r[y, xs_] = (xs_ - xs_.min()) / max(1, xs_.max() - xs_.min())
+        return r
+
+    def put(m, g):
+        img[m] = (g, g, g, 255)
+
+    put(lay.get("far", np.zeros((hh, fw), bool)), T["far"])
+    put(lay.get("hand_far", np.zeros((hh, fw), bool)), T["far"] + 16)
+    put(lay.get("pants", np.zeros((hh, fw), bool)), T["legs"])
+    put(lay.get("shoe", np.zeros((hh, fw), bool)), T["shoe"])
+    bm = lay.get("body", np.zeros((hh, fw), bool))
+    r = shade_rows(bm)
+    upper = vv < hipv + 0.03
+    put(bm & upper, T["mid"])
+    put(bm & upper & (r > 0.62), T["lit"])
+    put(bm & upper & (r < 0.3), T["dark"])
+    put(bm & ~upper, T["low"])
+    put(bm & ~upper & (r > 0.68), T["low_lit"])
+    put(slit_m, T["slit"])
+    put(pocket_m, T["pocket"])
+    put(belt_m, T["belt"])
+    put(buckle_m, T["buckle"])
+    # 包、伞、纸箱：成块的受光面和背光面
+    for name in ("bag", "box"):
+        m = lay.get(name)
+        if m is None or not m.any():
+            continue
+        ys_, xs_ = np.nonzero(m)
+        x0, x1, y0, y1 = xs_.min(), xs_.max(), ys_.min(), ys_.max()
+        base = 112 if name == "box" else 96
+        put(m, base)
+        if items == "umbrella" and name == "bag":
+            cxp = (x0 + x1) / 2
+            put(m & (xx_ >= cxp), 112)            # 伞面朝光的半边
+            put(m & (xx_ < cxp), 70)              # 背光的半边
+        else:
+            put(m & ((yy_ <= y0 + max(1, (y1 - y0) // 4)) | (xx_ >= x1 - max(0, (x1 - x0) // 5))), base + 40)   # 顶面、朝光的侧面
+            put(m & ((xx_ <= x0) | (yy_ >= y1)), base - 28)                                                     # 背光的边、底
+    arm = lay.get("arm", np.zeros((hh, fw), bool))
+    put(arm, T["arm"])
+    if big:
+        up1 = np.zeros_like(arm)
+        up1[1:] = arm[:-1]
+        put(arm & ~up1, T["arm_lit"])             # 胳膊上沿受光
+        dil = arm.copy()
+        dil[1:] |= arm[:-1]
+        dil[:-1] |= arm[1:]
+        dil[:, 1:] |= arm[:, :-1]
+        dil[:, :-1] |= arm[:, 1:]
+        put(dil & ~arm & bm, T["dark"] - 14)      # 胳膊压在外套上：一道暗缝把它和身子分开
+        put(lay.get("cuff", np.zeros_like(arm)), T["edge"] - 20)
+    put(lay.get("hand", np.zeros((hh, fw), bool)), T["hand"])
+    put(lay.get("strap", np.zeros((hh, fw), bool)), T["edge"] - 10)
+    put(lay.get("collar", np.zeros((hh, fw), bool)), T["collar"])
+    sc = lay.get("scarf")
+    if sc is not None:
+        put(sc, T["scarf"])
+        r2 = shade_rows(sc)
+        put(sc & (r2 > 0.55), T["scarf_lit"])
+    put(lay.get("edge", np.zeros((hh, fw), bool)), T["edge"])
+    put(lay.get("opening", np.zeros((hh, fw), bool)), T["opening"])
+    put(lay.get("brim", np.zeros((hh, fw), bool)), T["brim"])
+    put(lay.get("face", np.zeros((hh, fw), bool)), T["face"])
+    put(lay.get("chin", np.zeros((hh, fw), bool)), T["chin"])
+    put(lay.get("rimx", np.zeros((hh, fw), bool)), T["rim"])
+    # 雨水打湿的受光边：肩、兜帽顶（上面是空的那一圈），偏向朝光的右边
     allm = img[..., 3] > 0
     up = np.zeros_like(allm)
     up[1:] = allm[:-1]
-    shoulder_rows = np.arange(hh)[:, None] < (hh - H_ * (1 - 0.24))
+    shoulder_rows = vv < 0.24
     rim = allm & ~up & shoulder_rows & ~lay.get("face", np.zeros_like(allm))
-    img[rim] = (G["rim"],) * 3 + (255,)
+    put(rim, T["rim"])
     return img, fw
 
 
@@ -953,19 +1019,29 @@ def write_hoods():
     return info
 
 
-def people_chart(path, hh=100):
+def people_chart(path, hh=100, game_bg=None, tint_L=None):
     """人物表：每种人一行 —— 站姿 + 8 帧走路，最左边是晨（奥斯卡版，站着）比身高，放大 4 倍。
-    为了看清细节，这里把灰度档整体提亮（×1.7，受光边保持白）放在中灰底上；游戏里是乘上各层的暗染色，比这暗得多。"""
+    game_bg = None：调亮版（灰度档 ×1.35，放在中灰底上，看细节）；
+    game_bg = 一张游戏截图（480×270）：游戏里的真实亮度 —— 人乘上街面那层的染色（tint_L），放在截图里街面那一截上。"""
     chen = np.array(Image.open(ROOT / "art" / "characters" / "chen" / "chen_oscar.png").convert("RGBA"))[:, 7 * 68:8 * 68]
-    tint = np.array([1.7, 1.72, 1.8])
-    bg = np.array(lab_col(0.36, _ab(0.006, H_COOL)) + (255,), np.uint8)
+    if game_bg is None:
+        tint = np.array([1.35, 1.37, 1.42])
+    else:
+        tint = np.array(lab_col(tint_L, _ab(0.006, H_COOL)), float) / 255
+    bgc = np.array(lab_col(0.36, _ab(0.006, H_COOL)) + (255,), np.uint8)
     rows = []
     for tp in HOOD_TYPES:
         st, fw = person_frame(hh, tp, 0.0, stand=True)
         frs = [st] + hood_frames(hh, tp)[0]
-        row = np.zeros((hh + 4, 68 + 10 + (fw + 4) * len(frs), 4), np.uint8)
-        row[:] = bg
-        # 晨：脚底对齐
+        wrow = 68 + 10 + (fw + 4) * len(frs)
+        row = np.zeros((hh + 4, wrow, 4), np.uint8)
+        if game_bg is None:
+            row[:] = bgc
+        else:   # 截图里街面上方那一截（脚底对齐地面），横向铺满
+            src = np.array(game_bg.convert("RGBA"))
+            strip = src[GROUND - hh - 2:GROUND + 2]
+            reps = int(np.ceil(wrow / strip.shape[1]))
+            row[:] = np.concatenate([strip] * reps, 1)[:, :wrow]
         ch = chen.copy()
         y0 = hh + 1 - 57
         m = ch[..., 3] > 0
@@ -977,8 +1053,7 @@ def people_chart(path, hh=100):
             sub[m, :3] = col[m]
         rows.append(row)
     wmax = max(r.shape[1] for r in rows)
-    sheet = np.concatenate([np.pad(r, ((0, 0), (0, wmax - r.shape[1]), (0, 0)), constant_values=0) for r in rows], 0)
-    sheet[sheet[..., 3] == 0] = bg
+    sheet = np.concatenate([np.pad(r, ((0, 0), (0, wmax - r.shape[1]), (0, 0)), mode="edge") for r in rows], 0)
     Image.fromarray(sheet).resize((sheet.shape[1] * 4, sheet.shape[0] * 4), Image.NEAREST).save(path)
 
 
@@ -1110,10 +1185,10 @@ SHAFT_SLANT = 0.32        # 光从左上来：每往下 1 像素往右 0.32
 # 每条人行道上的人群：层、脚底 y、个子（像素）、人数、速度（像素/秒，这一层的坐标）、染色（受光边的颜色；身子是它的 70/255）
 CROWD = [
     ("Far", DECKS["far"] - 1, 11, 40, (9, 17), 0.58),
-    ("MidFar", DECKS["midfar"] - 1, 18, 30, (16, 30), 0.52),
-    ("Mid", DECKS["mid"] - 1, 30, 20, (28, 50), 0.44),
-    ("Main", GROUND - 1, 100, 9, (55, 95), 0.34),     # 晨身后一排高大的人（约 100 像素，晨只到他们腰、胸口）
-    ("Front", H - 6, 128, 2, (150, 190), 0.17),       # 比晨近一点、从她面前快速划过的大个子（一闪而过，挡她不到半秒）
+    ("MidFar", DECKS["midfar"] - 1, 18, 30, (16, 30), 0.54),
+    ("Mid", DECKS["mid"] - 1, 30, 20, (28, 50), 0.5),
+    ("Main", GROUND - 1, 100, 9, (55, 95), 0.5),      # 晨身后一排高大的人（约 100 像素）；受光边 L≈0.5，外套大面积 0.15~0.3
+    ("Front", H - 6, 128, 2, (150, 190), 0.3),        # 比晨近一点、从她面前快速划过的大个子（更暗，一闪而过）
 ]
 # 高架列车：层、轨道 y、车厢数、车厢长、车高、速度（像素/秒）、间隔（秒）、方向
 TRAINS = [
@@ -1237,14 +1312,14 @@ def write_scene(layers, hood_w):
     s += crowd("Far", feet, hh, n, sp, Lt, 3)
     s += train("Far")
     s += sig("Far", "far", 2)
-    s += pigeons("Far", "Pigeons", 34, 0, (330, 70), (150, 20), 0.16, 31, light=0.5)
+    s += pigeons("Far", "Pigeons", 34, 0, (330, 70), (130, 20), 0.3, 31, light=0.5)
     s += rain("Far", 240, 3, 110, (0.33, 0.34, 0.36), 41, ground=(150, 236), dim=(0.2, 0.205, 0.22))
     s += shafts()
     s += para("MidFar", "midfar", "4_midfar")
     _, feet, hh, n, sp, Lt = cr["MidFar"]
     s += crowd("MidFar", feet, hh, n, sp, Lt, 5)
     s += flicker("MidFar", "midfar", 8, 0.35)
-    s += pigeons("MidFar", "Pigeons", 36, 1, (420, 94), (150, 24), 0.2, 32, light=0.49)
+    s += pigeons("MidFar", "Pigeons", 36, 1, (420, 94), (130, 24), 0.36, 32, light=0.49)
     s += sig("MidFar", "midfar", 4)
     s += para("Mid", "mid", "5_mid")
     _, feet, hh, n, sp, Lt = cr["Mid"]
@@ -1252,7 +1327,7 @@ def write_scene(layers, hood_w):
     s += sig("Mid", "mid", 6)
     s += flicker("Mid", "mid", 9, 0.3)
     s += train("Mid")
-    s += pigeons("Mid", "Pigeons", 30, 3, (330, 108), (200, 30), 0.17, 33)
+    s += pigeons("Mid", "Pigeons", 30, 3, (330, 108), (150, 30), 0.35, 33)
     s += pigeons("Mid", "Perched", 18, 3, (0, 0), (110, 26), 0.6, 34, perch=TRACKS["mid"] - 1)
     s += rain("Mid", 150, 5, 220, (0.34, 0.35, 0.37), 42, ground=(170, 236))
     s += para("Main", "main", "6_main")

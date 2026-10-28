@@ -6,7 +6,8 @@ extends Node2D
 ##   INTRO       雨声淡入 → 两声远雷 → 黑屏淡入森林
 ##   TITLE       标题界面：游戏名、正中「开始游戏」、右下角设置齿轮；镜头慢慢左右漂
 ##   CRASH       开场动画（上下黑边）：三次闪电 + 近雷 → 冒烟的飞船从右上斜着坠下 → 撞地（震屏、尘土、浓烟）
-##               → 晨被甩出来脸朝下趴着 → 爬起来 → 对话「啊……糟糕……」。确认键 / 点击按两次可以跳过。
+##               → 晨和另一个外星人（梧桐画的旧主角，npc_alien.gd）先后被甩出来、脸朝下趴着 → 她先爬起来，晨再爬起来
+##               → 对话「啊……糟糕……」。确认键 / 点击按两次可以跳过。她之后一直站在残骸尾巴旁边待机（不说话）。
 ##   PLAY        自由走（←/→、A/D，或者鼠标点地面走过去）。发光木头上方有一个很轻的小箭头。
 ##   CINE        走到木头旁边：黑边滑入、锁操作、晨自己走到木头前捡起来 → 木头飞进背包 → 对话「太好了……」
 ##               → 燃烧值从 10 滚到 60，「燃烧值到 200 就能起飞」→ 收进左上角 → 黑边滑出、恢复操作
@@ -30,8 +31,9 @@ enum S { HEADPHONES, INTRO, TITLE, CRASH, PLAY, CINE }
 const LOOK := 36.0            # 镜头往晨面朝的方向多看多少像素（和 forest_test 一样）
 const FOLLOW := 3.0
 const TITLE_CAM_X := 236.0    # 标题界面镜头中心；晨爬起来时镜头也在这
-const CHEN_X := 200.0         # 晨趴着的地方
-const WRECK_X := 150.0        # 坠毁飞船（锚点 = 机身中线和地面）
+const CHEN_X := 250.0         # 晨趴着的地方
+const WRECK_X := 120.0        # 坠毁飞船（锚点 = 船身中心的 x 和地面）
+const ALIEN_X := 204.0        # 另一个外星人（梧桐画的旧主角）趴着、站着的地方：残骸尾巴旁边，在晨左边，不挡去木头的路
 const WOOD_X := 372.0         # 发光木头
 const PICK_DIST := 26.0       # 晨走到离木头这么近就进入拾取过场
 const LIE_LIFT := 9.0         # 没有 lie / getup 动画时的老办法：趴着时精灵往上抬几像素（转 90° 以后身体的厚度一半在地下）
@@ -93,6 +95,7 @@ const TEX_HEADPHONES := preload("res://art/level1/icon_headphones.png")
 @onready var puffs_front: Node2D = $PuffsFront
 @onready var wreck: Sprite2D = $Wreck
 @onready var ship: Sprite2D = $Ship
+@onready var alien: Node2D = $Alien
 @onready var wood: Node2D = $Wood
 @onready var wood_glow: Sprite2D = $Wood/Glow
 @onready var wood_hint: Sprite2D = $Wood/Hint
@@ -249,6 +252,8 @@ func _place_world() -> void:
 	wreck.position = Vector2(WRECK_X, _ground(WRECK_X) + 1)
 	wood.position = Vector2(WOOD_X, _ground(WOOD_X))
 	chen.position = Vector2(CHEN_X, _ground(CHEN_X) + 1)
+	alien.position = Vector2(ALIEN_X, _ground(ALIEN_X) + 1)
+	alien.watch(chen)
 
 
 func _apply_quality() -> void:
@@ -1066,6 +1071,8 @@ func _start_crash() -> void:
 		[2.2, func(): _sfx("thunder_near_3", -4.0, 0.95)],
 		[2.75, _ship_in],
 		[2.75 + SHIP_TIME, _impact],
+		[2.75 + SHIP_TIME + ALIEN_THROW_DELAY, _alien_thrown],
+		[ALIEN_GETUP_AT, _alien_get_up],
 		[8.4, _chen_get_up],
 		[8.4 + (GETUP_TIME + 0.2 if _has_getup else 1.7), _crash_done],
 	])
@@ -1094,18 +1101,29 @@ func _apply_flash() -> void:
 		flash.color = Color(FLASH_TINT, k * FLASH_TINT_A)
 
 
-# 飞船飞行图的中心到机头 / 喷口（tools/level1_art.py：斜 18°）
-const SHIP_NOSE := Vector2(-21, 7)
-const SHIP_ENGINE := Vector2(24, -8)
+# 飞船飞行图的中心到机头 / 喷口（tools/level1_art.py 跑完会打印这些数：斜 16°，船长 140）
+const SHIP_NOSE := Vector2(-66, 23)
+const SHIP_ENGINE := Vector2(71, -22)
+# 坠毁图（斜 17°）里几个点，相对 wreck 锚点（船身中心的 x、地面）
+const WRECK_NOSE := Vector2(-59, 0)       # 机头扎进土里的地方
+const WRECK_HATCH := Vector2(20, -25)     # 舱门（没了），两个人从这里被甩出来
+const WRECK_HOLE := Vector2(-1, -5)       # 船腹的破洞（余火）
+const WRECK_ENGINE := Vector2(69, -36)    # 喷口（翘起来的那头，冒主烟柱）
+const WRECK_FIN := Vector2(43, -52)       # 尾翼断口
+const WRECK_CENTER := Vector2(0, -14)     # 船身中心（飞行图最后对齐到这，换成坠毁图时不跳）
+# 另一个外星人：比晨晚一点被甩出来（弧线低、落得近），比晨早一点爬起来
+const ALIEN_THROW_DELAY := 0.16
+const ALIEN_THROW_TIME := 0.5
+const ALIEN_GETUP_AT := 6.9               # 晨是 8.4
 
 
 func _ship_end() -> Vector2:
-	# 机头扎进坠毁图里机头的位置（wreck 锚点左边 16 像素、地面）
-	return Vector2(WRECK_X - 16, _ground(WRECK_X - 16)) - SHIP_NOSE
+	# 最后一帧：飞行图的船身中心对上坠毁图的船身中心（稍微高一点，机头刚碰到地面）
+	return Vector2(WRECK_X, _ground(WRECK_X)) + WRECK_CENTER + Vector2(0, -4)
 
 
 func _ship_start() -> Vector2:
-	return Vector2(cam.position.x + 240 + 40, 18)
+	return Vector2(cam.position.x + 240 + 110, -6)
 
 
 func _ship_in() -> void:
@@ -1138,14 +1156,17 @@ func _impact() -> void:
 	puffs_back.remove_source("trail")
 	puffs_back.remove_source("trail_sparks")
 	_show_wreck()
-	var nose := Vector2(WRECK_X - 16, _ground(WRECK_X - 16))
+	var nose := wreck.position + WRECK_NOSE
 	_sfx("ship_impact", -1.0)
-	_shake = 0.8
-	_shake_amp = 5.0
+	_shake = 0.9
+	_shake_amp = 6.0
 	_flash_k = 0.0
-	puffs_front.burst(nose, 44, puffs_front.PRESETS.dust)
-	puffs_back.burst(nose + Vector2(8, -6), 26, puffs_back.PRESETS.smoke_burst)
-	puffs_front.burst(nose + Vector2(6, -4), 12, puffs_front.PRESETS.ember)
+	# 船大了，尘土和烟团也铺得开一点：机头那一大团，船腹擦地那一线
+	puffs_front.burst(nose, 40, puffs_front.PRESETS.dust.merged({"spread": Vector2(16, 1)}))
+	puffs_front.burst(nose + Vector2(46, 0), 22, puffs_front.PRESETS.dust.merged({"spread": Vector2(30, 1)}))
+	puffs_back.burst(nose + Vector2(14, -10), 22, puffs_back.PRESETS.smoke_burst.merged({"spread": Vector2(16, 6)}))
+	puffs_back.burst(wreck.position + WRECK_HOLE + Vector2(0, -8), 14, puffs_back.PRESETS.smoke_burst)
+	puffs_front.burst(nose + Vector2(10, -6), 12, puffs_front.PRESETS.ember)
 	var tw := _tw()
 	_impact_k = 0.0
 	tw.tween_property(self, "_impact_k", 1.0, 0.03)
@@ -1155,11 +1176,13 @@ func _impact() -> void:
 
 func _show_wreck() -> void:
 	wreck.visible = true
-	# 烟柱从机尾（翘起来的那头）冒；火星很少
-	var tail := wreck.position + Vector2(18, -26)
-	puffs_back.add_source("wreck", tail, 11.0, puffs_back.PRESETS.smoke)
-	puffs_back.add_source("wreck2", wreck.position + Vector2(2, -12), 4.0, puffs_back.PRESETS.smoke)
-	puffs_front.add_source("embers", tail + Vector2(0, 2), 2.0, puffs_front.PRESETS.ember)
+	# 主烟柱从喷口（翘起来的那头）冒，船腹破洞和舱门口各冒一点；火星很少，从破洞和喷口出来
+	var tail := wreck.position + WRECK_ENGINE
+	puffs_back.add_source("wreck", tail, 11.0, puffs_back.PRESETS.smoke.merged({"spread": Vector2(5, 3)}))
+	puffs_back.add_source("wreck2", wreck.position + WRECK_HOLE, 4.0, puffs_back.PRESETS.smoke)
+	puffs_back.add_source("wreck3", wreck.position + WRECK_HATCH + Vector2(0, -8), 2.5, puffs_back.PRESETS.smoke)
+	puffs_front.add_source("embers", wreck.position + WRECK_HOLE + Vector2(0, -2), 1.5, puffs_front.PRESETS.ember)
+	puffs_front.add_source("embers2", tail + Vector2(-2, 2), 1.0, puffs_front.PRESETS.ember)
 	if not _crackle.playing:
 		_crackle.play()
 		_fade_db(_crackle, -16.0, 2.0)
@@ -1168,19 +1191,20 @@ func _show_wreck() -> void:
 func _chen_thrown() -> void:
 	chen.visible = true
 	chen._set_facing(1)
-	_path_a = Vector2(WRECK_X + 6, _ground(WRECK_X) - 22)
+	# 从舱门口（没了）甩出来，越过另一个外星人，落得远
+	_path_a = wreck.position + WRECK_HATCH + Vector2(0, 20)
 	_path_b = Vector2(CHEN_X, _ground(CHEN_X) + 1)
 	chen.position = _path_a
 	chen.spr.rotation = -0.6
 	var tw := _tw()
-	tw.tween_method(_thrown_step, 0.0, 1.0, 0.62).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_method(_thrown_step, 0.0, 1.0, 0.72).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.tween_callback(_chen_landed)
 
 
 func _thrown_step(k: float) -> void:
 	# 被甩出来：一道小弧线，转一圈多一点，最后脸朝下
 	var p := _path_a.lerp(_path_b, k)
-	p.y -= sin(k * PI) * 26.0
+	p.y -= sin(k * PI) * 34.0
 	chen.position = p.round()
 	var r := lerpf(-0.6, PI / 2.0 + TAU, k)
 	if _has_getup:
@@ -1215,6 +1239,45 @@ func _chen_lying() -> void:
 	chen._set_facing(1)
 	chen.spr.rotation = PI / 2.0
 	chen.spr.position.y = -LIE_LIFT
+
+
+# ----------------------------------------------------------------------- 另一个外星人（npc_alien.gd）
+var _alien_a := Vector2.ZERO
+var _alien_b := Vector2.ZERO
+
+
+func _alien_thrown() -> void:
+	# 比晨晚 0.16 秒、弧线低、落得近（残骸尾巴旁边），转一圈多一点，脸朝下趴着，头朝右（朝晨那边）
+	_alien_a = wreck.position + WRECK_HATCH + Vector2(2, 16)
+	_alien_b = Vector2(ALIEN_X, _ground(ALIEN_X) + 1)
+	alien.visible = true
+	alien.throw_step(_alien_a, _alien_b, 0.0, 18.0, 0.0, PI / 2.0 + TAU)
+	var tw := _tw()
+	tw.tween_method(func(k: float): alien.throw_step(_alien_a, _alien_b, k, 18.0, 0.0, PI / 2.0 + TAU),
+		0.0, 1.0, ALIEN_THROW_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_alien_landed)
+
+
+func _alien_landed() -> void:
+	alien.lie(1)
+	puffs_front.burst(alien.position + Vector2(12, 0), 8, puffs_front.PRESETS.dust_small)
+	_sfx("ship_impact", -25.0, 2.0)
+
+
+func _alien_get_up() -> void:
+	if alien.spr.animation != &"lie":
+		return
+	var t: float = alien.get_up()
+	var tw := _tw()
+	# 梧桐版的 getup：第 4 帧（460ms 那张）跪起来，最后一帧站直
+	tw.tween_interval(0.72)
+	tw.tween_callback(func(): puffs_front.burst(alien.position + Vector2(-2, 0), 3, puffs_front.PRESETS.dust_small))
+	tw.tween_interval(t - 0.72 - 0.15)
+	tw.tween_callback(func(): puffs_front.burst(alien.position, 4, puffs_front.PRESETS.dust_small))
+
+
+func _alien_stand() -> void:
+	alien.stand(ALIEN_X, _ground(ALIEN_X) + 1)
 
 
 func _chen_get_up() -> void:
@@ -1261,6 +1324,8 @@ func _chen_stand() -> void:
 func _crash_done() -> void:
 	_kill_cine()
 	_chen_stand()
+	if not alien.is_up():
+		_alien_stand()
 	_bars_out(0.7)
 	_say("who_chen", "line_crash")
 	_enter_play()
@@ -1284,6 +1349,7 @@ func _skip_crash() -> void:
 	chen.visible = true
 	chen._set_facing(1)
 	chen.position = Vector2(CHEN_X, _ground(CHEN_X) + 1)
+	_alien_stand()
 	_skip_label.modulate.a = 0.0
 	_bars_out(0.01)
 	_crash_done()

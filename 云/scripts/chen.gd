@@ -4,9 +4,11 @@ extends Node2D
 ## 换一套晨的精灵：只改下面「精灵配置」这一段（图、帧尺寸、脚底锚点、美术朝向、每段动画的帧 / 时长 / 步长），
 ## 别的代码不用动。SpriteFrames 是 _ready 里按配置现搭的，场景里不存帧。
 ##
-## 不打滑：跑 / 走每换一帧身体跳一步（run 的 step），着地的脚在世界里一像素不动。
-## step[i] = 第 i 帧换到下一帧时往前走几像素，量法：看两帧里同一只着地的脚，在画布里往后退了几像素。
-## 平均速度 = sum(step) / sum(ms)。Shift 把动画放快 FAST 倍，步长不变，所以还是不打滑。
+## 走路的速度和动画分开：动画一律按奥斯卡给的 10 帧 / 秒（100ms 一帧）播，移动是一个有惯性的速度 _vel，
+## 每帧平滑地走（不是每换一张图跳一步）。按下方向键：先播「前摇」run_start（3 帧），这 0.3 秒里速度从 0 加到 RUN_SPEED；
+## 接着循环 run（「走路：真」那 6 帧）；松手：播「后摇」run_stop（2 帧），这 0.2 秒里速度减到 0。
+## 有了这点惯性，镜头和整片视差背景也跟着慢慢起、慢慢停，不会一下动一下停。
+## step 不用了（以前每换一帧跳 step 像素，一秒只动 10 下，看起来一顿一顿）。
 ##
 ## 地面：主层（Main，scroll 1.0）的地面高度 ground_y(x)，和 tools/forest_art.py 里的公式一样（960 宽、左右无缝）。
 ## x 可以一直往一边涨，取 fposmod。脚底那行压在苔藓最上面一行（和 forest_art.py 里 on_ground 的 sink=1 一样）。
@@ -34,19 +36,17 @@ const ART_FACES := 1
 ## loop = false 播一遍停在最后一帧；then = 播完换成哪段。
 ## lie / getup（第一关开场：脸朝下趴着 → 爬起来）也是可选的，删掉的话关卡退回「把站立帧转 90°」的老办法。
 const ANIMS := {
-	# 跑：一步 3 帧（着地 → 腾空 → 前脚落地），一圈两步。着地那只脚每帧往后退 6~7 像素 → 约 67 像素 / 秒。
-	# 着地帧的脚比站着低 1~2 像素、腾空帧高一点，所以脚底按 57 算（站着是 56）。
-	"run": {"frames": [18, 19, 20, 21, 22, 23], "ms": 100, "step": [7, 6, 7, 7, 6, 7], "foot": Vector2i(28, 57)},
-	"run_start": {"frames": [15, 16, 17], "ms": 100, "step": [4, 6, 7], "loop": false, "then": "run"},
-	"run_stop": {"frames": [24, 25], "ms": 100, "step": [3, 0], "foot": Vector2i(28, 57), "loop": false, "then": "idle"},
+	# 全部按奥斯卡在 aseprite 里给的时长：每帧 100ms（10 帧 / 秒），只有「看」中间那帧他设了 700ms。
+	# 走路（aseprite 的「走路」15~25）= 前摇 15~17 + 循环（「走路：真」18~23）+ 后摇 24~25。
+	# 着地帧的脚比站着低 1~2 像素、腾空帧高一点，所以跑的脚底按 57 算（站着是 56）。
+	"run": {"frames": [18, 19, 20, 21, 22, 23], "ms": 100, "foot": Vector2i(28, 57)},
+	"run_start": {"frames": [15, 16, 17], "ms": 100, "loop": false, "then": "run"},
+	"run_stop": {"frames": [24, 25], "ms": 100, "foot": Vector2i(28, 57), "loop": false, "then": "idle"},
 	"idle": {"frames": [7, 8, 9, 10], "ms": 100},
-	# 「看」：偶尔替换一圈待机，中间那帧停 0.7 秒
-	"idle_eye": {"frames": [11, 12, 13, 14], "ms": [100, 100, 700, 100]},
-	# 奥斯卡的「爬起来」每帧都是 100ms，开场坠毁以后太快，这里放慢（level_forest.gd 的 GETUP_* 跟着这串数）
-	"lie": {"frames": [0], "ms": 400, "loop": false},
-	"getup": {"frames": [0, 1, 2, 3, 4, 5, 6], "ms": [350, 250, 300, 450, 300, 200, 200], "loop": false, "then": "idle"},
-	# 捡东西：最低那帧（28）在第 0.14 秒，和 level_forest.gd 里木头飞起来的时间对上
-	"pickup": {"frames": [26, 27, 28, 29, 30], "ms": [60, 80, 300, 150, 150], "loop": false, "then": "idle"},
+	"idle_eye": {"frames": [11, 12, 13, 14], "ms": [100, 100, 700, 100]},       # 「看」：偶尔替换一圈待机
+	"lie": {"frames": [0], "ms": 100, "loop": false},
+	"getup": {"frames": [0, 1, 2, 3, 4, 5, 6], "ms": 100, "loop": false, "then": "idle"},   # level_forest.gd 的 GETUP_* 跟着它
+	"pickup": {"frames": [26, 27, 28, 29, 30], "ms": 100, "loop": false, "then": "idle"},    # 最低那帧（28）在第 0.2 秒
 }
 # =====================================================================
 
@@ -54,6 +54,9 @@ const W := 960.0
 const GROUND := 228.0
 const SINK := 1                    # 脚底那行盖住地面最上面一行
 const FAST := 1.5                  # Shift
+const RUN_SPEED := 110.0           # 跑的速度（像素 / 秒）：动画不变，只改这个
+const ACCEL_TIME := 0.3            # 从 0 加到 RUN_SPEED 用多久（= 前摇 run_start 3 帧）
+const DECEL_TIME := 0.2            # 从 RUN_SPEED 减到 0 用多久（= 后摇 run_stop 2 帧）
 const BLINK_EVERY := Vector2(2.5, 5.0)   # 隔几秒眨一次眼
 const EYE_CHANCE := 0.25           # 该眨眼时有多大可能换成 idle_eye（奥斯卡版是「看」一眼）
 
@@ -62,11 +65,11 @@ const EYE_CHANCE := 0.25           # 该眨眼时有多大可能换成 idle_eye�
 var facing := 1                    # 1 朝右，-1 朝左
 var auto_dir := 0.0                # 非 0 时自己走（--walk、空格展示模式）
 var input_enabled := true          # false = 不听键盘（过场、打开面板时）；auto_dir 照样能让她走
-var _steps := {}                   # 动画名 → 每帧步长
-var _last_run_frame := -1          # 上一个显示的 run 帧，换帧时按它的步长前进
 var _idle_t := 0.0
 var _next_blink := 2.5
 var _rng := RandomNumberGenerator.new()
+var _x := NAN                      # 小数位置（position.x 是取整后的，免得画在两个像素之间）
+var _vel := 0.0                    # 现在的速度（像素 / 秒，沿 facing）
 ## 地面高度函数（x → 脚底所在行）。默认是针叶林主层的地面；别的场景在 _ready 里换成自己的，
 ## 例如 chen.ground_fn = func(x: float) -> float: return 230.0
 var ground_fn: Callable = ground_y
@@ -108,6 +111,13 @@ func _build_frames() -> SpriteFrames:
 			sf.add_frame(name, t, ms)
 		if a.has("step"):
 			_steps[name] = a["step"]
+			var total_ms := 0.0
+			for i in frames.size():
+				total_ms += float(a["ms"][i] if a["ms"] is Array else a["ms"])
+			var total_px := 0.0
+			for v in a["step"]:
+				total_px += float(v)
+			_speeds[name] = total_px / total_ms * 1000.0
 	return sf
 
 
@@ -142,6 +152,15 @@ func _process(delta: float) -> void:
 			spr.speed_scale = 1.0
 			_last_run_frame = -1
 			spr.play(want)
+	if SMOOTH and _speeds.has(spr.animation):
+		# 别人（过场、调试参数）直接挪过她，就从那里接着走
+		if is_nan(_x) or absf(position.x - roundf(_x)) > 0.5:
+			_x = position.x
+		_x += facing * _speeds[spr.animation] * spr.speed_scale * delta
+		position.x = roundf(_x)
+		_snap()
+	else:
+		_x = NAN
 	_idle_t += delta
 
 
@@ -161,7 +180,7 @@ func _moving(anim: StringName) -> bool:
 
 
 func _on_frame_changed() -> void:
-	if not _steps.has(spr.animation):
+	if SMOOTH or not _steps.has(spr.animation):
 		return
 	if _last_run_frame >= 0 and spr.frame != _last_run_frame:
 		position.x += facing * float(_steps[spr.animation][_last_run_frame])
@@ -190,7 +209,7 @@ func _on_looped() -> void:
 
 func _on_finished() -> void:
 	var a: Dictionary = ANIMS.get(String(spr.animation), {})
-	if a.has("step") and _last_run_frame >= 0:
+	if not SMOOTH and a.has("step") and _last_run_frame >= 0:
 		# 不循环的走路段（run_start / run_stop）最后一帧的步长：播完那一下也要走
 		position.x += facing * float(a["step"][_last_run_frame])
 		_snap()

@@ -3,8 +3,10 @@ extends Node2D
 ## - 群集（boids）：每只鸽子看身边的邻居 —— 和它们对齐方向、往它们中间靠、离太近就让开 —— 再被一个看不见的
 ##   「领头点」（沿一条慢慢变形的 8 字绕圈）往前带。所以是密的一整群、有一个整体的轮廓，像一张膜：
 ##   领头点一转弯，整群一起转过去。
-## - 明暗跟着整群的方向走：往右（迎着光）飞的露出亮的背，往左飞的是暗的一面，竖着飞的是中间一档 ——
-##   整群转向时一大片一起亮起来、又一起暗下去。翅膀几帧扇动（上、平、下、平），偶尔一起滑翔。
+## - 每只鸽子是一个小色块：身体是 2~4 像素的实心小菱形，翅膀是身体两边短短的一两格（不画线）；远处的只是一两个像素的点。
+##   群一密，读出来是一片有轮廓的「点云」。翅膀几帧扇动（上、平、下、平）：整片有细碎的闪烁，身体不动、轮廓稳定。
+## - 整片一起翻：整群往右飞时露出亮的背、往左飞时是暗的一面。领头的方向一换，翻面像一道波从群的一头扫到另一头
+##   （flip_sweep 秒扫完：每只按它在群里沿飞行方向的位置排先后），不是每只各自按自己的方向随机变色。
 ## - perch = true：这群平时歇在一条楼前的高架轨道梁上（perch_y 是梁的上沿），train 指的那列车开过来时被惊起，
 ##   整群翻飞，在「镜头现在看着的地方」的楼缝间绕圈（跟着镜头走，晨一直往右走也看得到），
 ##   等车过去再落回当前画面里看得见的那段梁上。
@@ -13,7 +15,7 @@ extends Node2D
 ## 开销：每群几十只，邻居是两两比一遍（N² 次距离），几十只没问题。
 
 @export var count := 24
-## 0 = 远处（3 像素宽）、1 = 中远（5 像素）、2 = 中景（7 像素）、3 = 近（9 像素）
+## 0 = 远处（1~2 像素的点）、1 = 中远（身体 2 像素）、2 = 中景（身体 3 像素）、3 = 近（身体 4 像素）
 @export var size := 2
 @export var center := Vector2(400, 100)
 @export var radius := Vector2(140, 28)
@@ -26,20 +28,20 @@ extends Node2D
 @export var perch_y := 61.0
 @export var train: NodePath
 @export var seed := 1
+## 翻面那一道波从群的一头扫到另一头要几秒
+@export var flip_sweep := 0.3
 
-# 帧图：# = 一个像素。依次是翅膀往上、平、往下（飞），最后一个是歇着
+# 帧图：B = 身体（实心，颜色稳定），W = 翅膀（短短的一两格，扇动时闪）。依次是翅膀往上、平、往下（飞），最后一个是歇着
 const FR := {
-	0: [["#.#", ".#."], ["###"], [".#.", "#.#"], ["##"]],
-	1: [["#...#", ".#.#.", "..#.."], ["##.##", "..#.."], ["..#..", ".#.#.", "#...#"], [".#.", "###"]],
-	2: [["#.....#", ".#...#.", "..###..", "...#..."], ["##.#.##", "..###..", "...#..."],
-		["..###..", ".#.#.#.", "#.....#"], [".##.", "####", ".#.."]],
-	3: [["#.......#", ".#.....#.", "..#.#.#..", "...###...", "....#...."],
-		["###.#.###", "...###...", "....#...."],
-		["...###...", "..#.#.#..", ".#.....#.", "#.......#"], [".##..", "####.", ".####", "..#.."]],
+	0: [["W.W", ".B."], [".B."], [".B.", "W.W"], ["B"]],
+	1: [["W..W", ".BB."], ["WBBW"], [".BB.", "W..W"], ["BB"]],
+	2: [["W...W", ".BBB.", "..B.."], [".BBB.", "WWBWW"], [".BBB.", "W.B.W"], [".BB", "BBB"]],
+	3: [["W....W", ".W..W.", "..BB..", ".BBBB.", "..BB.."], ["..BB..", "WWBBWW", "..BB.."],
+		["..BB..", ".BBBB.", ".WBBW.", "W....W"], ["..BB", "BBBB", ".BB."]],
 }
 # 每种大小的群：分离距离、邻居距离、最快、最慢（像素 / 秒，这一层的坐标）
-const SCALE := {0: [3.2, 10.0, 26.0, 12.0], 1: [5.0, 15.0, 38.0, 18.0], 2: [7.0, 20.0, 55.0, 26.0],
-	3: [9.0, 25.0, 66.0, 30.0]}
+const SCALE := {0: [2.6, 9.0, 26.0, 12.0], 1: [3.6, 13.0, 38.0, 18.0], 2: [5.0, 17.0, 55.0, 26.0],
+	3: [6.5, 21.0, 66.0, 30.0]}
 
 var _b: Array[Dictionary] = []
 var _t := 0.0
@@ -49,6 +51,9 @@ var _state_t := 0.0
 var _px := 0.0               # 歇着的位置（梁上的 x，这一层「不绕回」的坐标）
 var _train: Node = null
 var _init := false
+var _face := 1.0             # 整群现在亮面朝外（1）还是暗面（-1）
+var _flip_t := -10.0         # 上一次翻面的时刻
+var _lead_v := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -141,6 +146,17 @@ func _step(delta: float) -> void:
 	var vmax: float = sc[2]
 	var vmin: float = sc[3]
 	var lead := _leader(_t)
+	var lv := (lead - _leader(_t - 0.1)) / 0.1
+	_lead_v = lv
+	# 领头往右飞 → 亮面；往左 → 暗面（有一点滞后，免得来回抖）
+	var want := _face
+	if lv.x > 4.0:
+		want = 1.0
+	elif lv.x < -4.0:
+		want = -1.0
+	if want != _face:
+		_face = want
+		_flip_t = _t
 	var n := _b.size()
 	for i in n:
 		var b: Dictionary = _b[i]
@@ -199,30 +215,41 @@ func _draw() -> void:
 	# 「不绕回」的坐标画出来要减掉整圈，好落在 Parallax2D 重复的那几份里
 	var shift: float = floor(_view_left() / 960.0) * 960.0 if perch else 0.0
 	var gliding := sin(_t * 0.45) > 0.6           # 整群偶尔一起滑翔
+	# 翻面的那道波：沿领头的方向，从群的前头扫到后头
+	var dirv := _lead_v.normalized() if _lead_v.length() > 0.1 else Vector2.RIGHT
+	var lo := INF
+	var hi := -INF
+	for b in _b:
+		var q: float = (b.p as Vector2).dot(dirv)
+		lo = minf(lo, q)
+		hi = maxf(hi, q)
+	var since := _t - _flip_t
 	for b in _b:
 		var g: Array
-		var col := light
+		var body := light
+		var wing := mid_c
 		if _state == "sit":
 			g = fr[3]
-			col = dark if int(b.peck * 0.7) % 4 == 0 else mid_c
+			body = mid_c if int(b.peck * 0.7) % 4 == 0 else dark.lerp(light, 0.35)
+			wing = body
 		else:
 			var f: int = 1 if gliding else [0, 1, 2, 1][int(b.ph) % 4]
 			g = fr[f]
-			var v: Vector2 = b.v
-			if absf(v.y) > absf(v.x) * 0.9:
-				col = mid_c
-			else:
-				col = light if v.x >= 0.0 else dark
+			# 这只鸽子在波里排第几：前头的先翻
+			var q: float = (b.p as Vector2).dot(dirv)
+			var order := 1.0 - (q - lo) / maxf(1.0, hi - lo)
+			var face := _face if since >= order * flip_sweep else -_face
+			body = light if face > 0.0 else dark
+			wing = mid_c if f != 1 else body
+			if f == 2:
+				wing = dark if face > 0.0 else dark.darkened(0.15)
 		var w: int = g[0].length()
 		var o: Vector2 = (b.p - Vector2(shift + w / 2, g.size() - 1)).round()
 		for y in g.size():
 			var row: String = g[y]
-			var x := 0
-			while x < row.length():
-				if row[x] == "#":
-					var x0 := x
-					while x < row.length() and row[x] == "#":
-						x += 1
-					draw_rect(Rect2(o.x + x0, o.y + y, x - x0, 1), col)
-				else:
-					x += 1
+			for x in row.length():
+				var ch := row[x]
+				if ch == "B":
+					draw_rect(Rect2(o.x + x, o.y + y, 1, 1), body)
+				elif ch == "W":
+					draw_rect(Rect2(o.x + x, o.y + y, 1, 1), wing)

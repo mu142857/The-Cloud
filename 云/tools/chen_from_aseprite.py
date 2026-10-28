@@ -6,10 +6,12 @@
      别处的纯黑（斗篷背后那条暗边）换成 DEEP，比斗篷暗、但不是死黑。原文件不动。
   3. 每帧裁成同一块 CROP（所有帧的身体都在里面），一行横排，帧号和 aseprite 里一样 0..30。
   4. 打印每段 tag 的帧号，对照 scripts/chen.gd 的 ANIMS。
+  5. 算每帧「头」的中心（白发那团最亮像素的重心），存 data/chen_heads.json，给 chen.gd 画头发后面那圈淡光晕。
 
 用法（工程根目录下）：
   "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/chen_from_aseprite.py [源文件.aseprite]
 不给源文件就用 art/characters/chen/chen_oscar.aseprite。奥斯卡改了图以后，把新文件拷过去覆盖再跑一次。
+只重算头的位置（不用 Aseprite，读现成的 chen_oscar.png）：tools/chen_from_aseprite.py --heads
 """
 import json
 import subprocess
@@ -32,6 +34,8 @@ CROP = (12, 24, 80, 84)
 MIN_PIECE = 3          # 和身体不连着、小于这么多像素的碎块算杂点
 DEEP = (34, 34, 40)    # 纯黑换成的颜色：斗篷最暗那档（37,37,37）再暗一点、带一点冷
 HEM_ROWS = 2           # 每一列最下面几格是纯黑就算「底边黑线」
+HEADS = ROOT / "data/chen_heads.json"
+HAIR_L = 0.75          # 亮度高过这个的算白发（白发 L≈0.85~0.95，斗篷 0.13~0.25，手和腿 0.4 左右）
 
 
 def export(src: Path, tmp: Path):
@@ -96,7 +100,24 @@ def unblack(frame):
     return n
 
 
+def write_heads(png: Path = OUT, out: Path = HEADS, fw: int = 0):
+    """每帧白发那团（最亮像素）的重心，帧里的像素坐标（左上角原点、美术朝右）。chen.gd 用它摆头发后面的光晕。"""
+    a = np.array(Image.open(png).convert("RGBA")).astype(float)
+    fw = fw or (CROP[2] - CROP[0])
+    heads = []
+    for i in range(a.shape[1] // fw):
+        f = a[:, i * fw:(i + 1) * fw]
+        lum = (0.3 * f[..., 0] + 0.59 * f[..., 1] + 0.11 * f[..., 2]) / 255.0
+        ys, xs = np.nonzero((f[..., 3] > 0) & (lum > HAIR_L))
+        heads.append([round(float(xs.mean()), 1), round(float(ys.mean()), 1)] if len(xs) else None)
+    out.write_text(json.dumps({"frame_w": fw, "heads": heads}, ensure_ascii=False) + "\n")
+    print(f"→ {out.relative_to(ROOT)}：{len(heads)} 帧的头中心")
+
+
 def main():
+    if "--heads" in sys.argv[1:]:
+        write_heads()
+        return
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else SRC
     with tempfile.TemporaryDirectory() as t:
         sheet, data = export(src, Path(t))
@@ -116,6 +137,7 @@ def main():
     for tag in data["meta"]["frameTags"]:
         ms = [data["frames"][i]["duration"] for i in range(tag["from"], tag["to"] + 1)]
         print(f"  {tag['name']}: 帧 {tag['from']}..{tag['to']}，ms {ms}")
+    write_heads()
 
 
 if __name__ == "__main__":
