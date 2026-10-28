@@ -242,7 +242,7 @@ func refresh(T: float, travel: float, real_dt: float, world_dt: float) -> void:
 		if g.visible:
 			g.position = p.round()
 			var pulse: float = 0.75 + 0.25 * sin(_t * 3.0 + m.phase)
-			g.modulate = Color(1, 1, 1, pulse)
+			g.modulate = Color(1, 1, 1, pulse * (0.8 if glow_boost > 0.5 else 1.0))
 			g.scale = Vector2.ONE * (2.0 if glow_boost > 0.5 else 1.0)
 			(g.get_child(0) as Sprite2D).scale = Vector2.ONE * (0.5 if glow_boost > 0.5 else 1.0)
 

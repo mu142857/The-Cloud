@@ -13,12 +13,12 @@ extends Node2D
 ##
 ## 命令行（-- 后面）：
 ##   --bot=none|random|okay|good   自动玩（不按 / 随机按 / 反应慢的「还行的人」/ 尽量躲障碍吃光点）；不给 = 人玩
-##   --card=keep|burn         机器人在决定卡上一律选什么（默认 burn）
+##   --card=keep|burn|mix     机器人在决定卡上一律选什么（默认 burn；mix = 第一张烧、之后都留下）
 ##   --seed=N                 光点抖动、障碍相位、随机机器人
 ##   --speed=倍数             Engine.time_scale
 ##   --lang=zh                中文（默认英文；游戏里按 L 切换）
 ##   --shot=绝对路径 --at=秒   在第几秒（真实时间）存一张图后退出
-##   --snap=目录              遇到关键事件自动各存一张（takeoff / sabotage / card / burn / leak / emergency / pick / end）
+##   --snap=目录              遇到关键事件自动各存一张（takeoff / sabotage / card / burn / leak / emergency / pick / elephant / mercury / end）
 ##   --frames=目录 --every=N --from=秒 --to=秒   连拍（缩到 960×540），拍完退出
 ##   --quit                   结束画面出来后打印一行 FLIGHT_RESULT {...} 并退出（批量统计用）
 ##   --card_delay=秒          机器人在卡上停多久再选（默认 1.6）
@@ -44,6 +44,12 @@ const CARD_SLOW := 0.07          # 决定卡时世界的速度
 const SHIP_X := 120.0
 const STEP := 1.0 / 120.0
 const ITEMS_PATH := "res://data/flight_test_items.json"
+# 水星从远处慢慢变大：同一颗星球按这些直径各画了一格（tools/flight_art.py 的 MERC_SIZES，改了要一起改）
+const MERC_SIZES := [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 23, 25, 26, 28, 30, 33, 35, 38, 41, 44,
+	47, 51, 54, 58, 63, 68, 73, 78, 84, 90, 97, 104, 112, 120, 130, 139, 150, 161, 173, 186, 200, 215, 231, 240]
+const MERC_GLOW_FROM := 0.28     # 先看到水星的光（地平线右边一小团蓝光）
+const MERC_FROM := 0.36          # 再看到星球本身（一个小点），之后一路变大
+const ELEPHANT_AT := Vector2(0.40, 0.80)   # 远处那团大象形状的星云出现 / 消失的进度（极淡，第二眼才看得出）
 
 const Course := preload("res://scripts/flight_course.gd")
 const Ship := preload("res://scripts/flight_ship.gd")
@@ -91,6 +97,9 @@ var _drip_t := 0.0
 var _said_emerg := false
 var _said_catch := false
 var _merc_glow: Sprite2D
+var _merc_atlas: AtlasTexture
+var _merc_xs: Array = []
+var _elephant: Sprite2D
 var _sub_t := 0.0
 var _sub_dur := 1.0
 var _said_need := false
@@ -126,6 +135,8 @@ var _f_to := 1e9
 var _f_n := 0
 var _frame_i := 0
 var _quit := false
+var batch := false           # tools/flight_batch.gd 一个进程里连跑很多局：结束时发 finished，不退出
+signal finished(result: Dictionary)
 var _engine: AudioStreamPlayer
 var _sfx_pool: Array = []
 
@@ -159,19 +170,12 @@ func _ready() -> void:
 	course.build(length, seed_v)
 	ship.position = Vector2(SHIP_X, 196)
 	fx.ship = ship
-	_merc_glow = Sprite2D.new()
-	_merc_glow.texture = load("res://art/flight/mercury_glow.png")
-	_merc_glow.position = Vector2(124, 124)
-	_merc_glow.show_behind_parent = true
-	var addm := CanvasItemMaterial.new()
-	addm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	_merc_glow.material = addm
-	_merc_glow.modulate.a = 0.0
-	mercury.add_child(_merc_glow)
+	_setup_far_sky()
 	fx.on_ember_arrive = func(): ship.flare = minf(1.0, ship.flare + 0.08)
 	card.fx = fx
 	card.sfx_cb = sfx
 	card.chosen.connect(_on_card_chosen)
+	card.landed.connect(_on_keep_landed)
 	card.closed.connect(_on_card_closed)
 	end_screen.visible = false
 	hud.need0 = need
@@ -189,6 +193,59 @@ func _ready() -> void:
 		add_child(p)
 		_sfx_pool.append(p)
 	_snap_later("takeoff", 3.0)
+
+
+func _setup_far_sky() -> void:
+	# 水星：一条不同尺寸的星球（每格都是 1 倍像素），按进度挑一格；光是另一张半透明的，放在星球后面、云的后面。
+	var x := 0
+	for d in MERC_SIZES:
+		_merc_xs.append(x)
+		x += int(d) + 10
+	_merc_atlas = AtlasTexture.new()
+	_merc_atlas.atlas = load("res://art/flight/mercury_strip.png")
+	mercury.texture = _merc_atlas
+	mercury.centered = true
+	mercury.visible = false
+	_merc_glow = Sprite2D.new()
+	_merc_glow.texture = load("res://art/flight/mercury_glow.png")
+	var addm := CanvasItemMaterial.new()
+	addm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	_merc_glow.material = addm
+	_merc_glow.modulate.a = 0.0
+	add_child(_merc_glow)
+	move_child(_merc_glow, mercury.get_index())
+	# 「梦里的大象」：星星后面、薄云前面一团极淡的星云
+	_elephant = Sprite2D.new()
+	_elephant.texture = load("res://art/flight/nebula_elephant.png")
+	_elephant.centered = false
+	_elephant.modulate.a = 0.0
+	add_child(_elephant)
+	move_child(_elephant, $Stars.get_index() + 1)
+
+
+func _place_far_sky(p: float) -> void:
+	var u := clampf((p - MERC_FROM) / (1.0 - MERC_FROM), 0.0, 1.0)
+	var rise := 0.0
+	if phase == "arrive" or phase == "end":
+		rise = clampf((real_t - end_t) / 6.0, 0.0, 1.0)
+	var d := 5.0 * pow(48.0, pow(u, 1.3))
+	var k := 0
+	while k < MERC_SIZES.size() - 1 and float(MERC_SIZES[k + 1]) <= d:
+		k += 1
+	var dk: int = MERC_SIZES[k]
+	_merc_atlas.region = Rect2(_merc_xs[k], 0, dk + 8, dk + 8)
+	var c := Vector2(392, 150).lerp(Vector2(412, 248), pow(u, 3.0)) + Vector2(0, -26.0 * rise * rise * (3.0 - 2.0 * rise))
+	mercury.position = c.round()
+	mercury.visible = p > MERC_FROM
+	mercury.modulate.a = clampf((p - MERC_FROM) / 0.03, 0.0, 1.0)
+	_merc_glow.position = c.round()
+	_merc_glow.scale = Vector2.ONE * maxf(0.16, (dk + 8) / 248.0 * 1.15)
+	_merc_glow.modulate.a = smoothstep(MERC_GLOW_FROM, MERC_GLOW_FROM + 0.14, p) * (0.8 + 0.12 * sin(real_t * 0.8))
+	# 大象星云：比星星稍快一点点地往左漂
+	_elephant.position = Vector2(roundf(150.0 - travel * 0.035), 34)
+	var ea := smoothstep(ELEPHANT_AT.x, ELEPHANT_AT.x + 0.1, p) * (1.0 - smoothstep(ELEPHANT_AT.y - 0.1, ELEPHANT_AT.y, p))
+	_elephant.modulate.a = ea * lerpf(0.4, 1.0, glide)
+	_elephant.visible = ea > 0.0
 
 
 func _load_items() -> void:
@@ -356,7 +413,7 @@ func _burn(e: Dictionary, personal: bool) -> void:
 
 func _open_card(e: Dictionary) -> void:
 	_card_item = e
-	card.keep_target = Vector2(Hud.QX + 12 + 27 * mini(2, queue.size() - 1), 252)
+	card.keep_target = Vector2(Hud.QX + 12 + 27 * mini(3, queue.size() - 1), 252)
 	card.open_single(e)
 	_card_open_t = real_t
 	stats.cards += 1
@@ -383,6 +440,7 @@ func _on_card_chosen(action: String, index: int) -> void:
 			queue.erase(e)
 			e.skipped = true
 			queue.append(e)
+			hud.hold[e.uid] = true
 			sfx("select", 0.8)
 	else:
 		if action == "burn":
@@ -390,11 +448,20 @@ func _on_card_chosen(action: String, index: int) -> void:
 			_burn(e2, true)
 			_snap_later("burn", 0.7)
 		else:
+			for e3 in card.items:
+				hud.hold[e3.uid] = true
 			sfx("select", 0.8)
 
 
+func _on_keep_landed(uid: int) -> void:
+	## 「留下」的东西飞回右下角那一排：落下的那一下，那一格亮一下、往上弹一点
+	hud.hold.erase(uid)
+	hud.pulse[uid] = 0.6
+	sfx("mote", 0.75, -12.0)
+
+
 func _on_card_closed() -> void:
-	pass
+	hud.hold.clear()
 
 
 # ---------------------------------------------------------------- 事件
@@ -440,7 +507,7 @@ func _on_emergency() -> void:
 	if not _said_emerg:
 		_said_emerg = true
 		_say(FlightText.t("emergency"), 4.0)
-		_snap_later("emergency", 3.0)
+		_snap_later("emergency", 2.1)
 
 
 func _crash() -> void:
@@ -475,7 +542,9 @@ func _show_end() -> void:
 			"min_glide": snappedf(stats.min_glide, 0.01), "T": snappedf(T, 0.1), "tank_end": snappedf(tank, 0.1),
 			"emerg_p": snappedf(stats.emerg_p, 0.01), "crash_p": snappedf(stats.crash_p, 0.01)}
 		print("FLIGHT_RESULT ", JSON.stringify(r))
-		if _snap == "" and _frames == "":
+		if batch:
+			finished.emit(r)
+		elif _snap == "" and _frames == "":
 			get_tree().quit()
 
 
@@ -498,13 +567,16 @@ func _visuals(delta: float, wdt: float) -> void:
 	var cloud_tint := Color(0.78, 1.0, 0.88).lerp(Color(0.8, 0.92, 1.18), b)
 	for n in [$Far, $Mid, $Shake/Near, $Wisps]:
 		n.modulate = cloud_tint
-	# 水星：先在右边地平线后面看到它的光（45% 起），再从云海后面慢慢升起来
-	var s := clampf((p - 0.5) / 0.5, 0.0, 1.0)
-	s = s * s * (3.0 - 2.0 * s)
-	if phase == "arrive" or phase == "end":
-		s += clampf((real_t - end_t) / 6.0, 0.0, 0.25)
-	mercury.position = Vector2(330, 268).lerp(Vector2(292, 120), s).round()
-	_merc_glow.modulate.a = smoothstep(0.42, 0.7, p) * (0.75 + 0.1 * sin(real_t * 0.8))
+	# 水星：28% 起先在右边地平线上看到它的光，36% 起星球是远处一个小点，越飞越近、越来越大（一格一格换尺寸，不缩放）
+	_place_far_sky(p)
+	if p > 0.6:
+		_snap_later("elephant", 0.0)
+	if p > 0.93:
+		_snap_later("mercury", 0.0)
+	# 紧急模式：飞得越低，上面的星星越暗（「上面的天够不着了」）
+	var sky_a := lerpf(0.25, 1.0, glide) if (emergency or phase == "crash") else minf(1.0, $Stars.modulate.a + delta)
+	$Stars.modulate.a = sky_a
+	$Wisps.modulate.a = lerpf(0.5, 1.0, sky_a)
 	course.refresh(T, travel, delta, wdt)
 	fx.update(wdt, delta)
 	# 紧急模式：画面变冷，引擎咳嗽
@@ -535,7 +607,7 @@ func _visuals(delta: float, wdt: float) -> void:
 	for e in queue:
 		if e.kind == "material":
 			q += float(e.fuel)
-		icons.append({"tex": e.tex, "personal": e.kind == "personal", "skipped": e.skipped})
+		icons.append({"tex": e.tex, "personal": e.kind == "personal", "skipped": e.skipped, "uid": e.uid})
 	hud.queued = q
 	hud.queue_icons = icons
 	hud.round_over = round_over and not queue.is_empty() and queue[0].skipped
@@ -577,12 +649,23 @@ func _unhandled_input(event: InputEvent) -> void:
 func _bot_cards() -> void:
 	if bot == "" or not card.is_open() or card.state != "wait":
 		return
-	if real_t - _card_open_t < card_delay:
+	var el := real_t - _card_open_t
+	if card.mode == "pick":
+		# 像人一样先把东西一件件看一遍（截图 / GIF 里看得到「选中」是什么样子），再按策略选
+		var look := int((el - 0.6) / 0.45)
+		if look >= 0 and look < card.items.size() and card.sel != look and el < card_delay:
+			card.sel = look
+			card._refresh()
+	if el < card_delay:
 		return
+	var pol := card_policy
+	if pol == "mix":
+		# 演示用：第一张卡烧掉，之后都留下
+		pol = "burn" if stats.burned_personal == 0 and card.mode == "single" else "keep"
 	if card.mode == "single":
-		card.choose(card_policy)
+		card.choose(pol)
 	else:
-		card.choose(card_policy, 0)
+		card.choose(pol, 0)
 
 
 func _bot_step(dt: float) -> void:

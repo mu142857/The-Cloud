@@ -39,6 +39,13 @@
   柱顶往两边摊开接上砧。
 - 远云 far / midfar：起伏（wave）加大、积云堆多一些，右半边也是云丘云谷，不再是一条条横纹；
   far 最远那排压低（big 0.1），地平线那条暖线不被盖住。mid 前排 wave 4 → 5.5。
+第五版（同一夜，接着第四版）改了：
+- 云山：每座自己一个 seed（主云山 4、右边那座 8，从 16 个里挑的：顶是一圈圆鼓包、一层层往上收），不再和云海共用随机数；
+  塔顶两颗多长菜花（第四版的顶是平的 + 一条斜边，像石块）；只有底层鼓包有身体；dark_y 上面 12 像素里亮度上限
+  一档档往下收（ramp），不在 dark_y 切一道平的暗台子；更近的鼓包只在贴着它的一截投影（cast），长投影的边是顺光的直线，像石头。
+- 积雨云柱：两边下半截各贴几颗鼓包（自己一串随机数，不改原来的形状），背光那边不再是一条竖直的边。
+- midfar 的留白（x≈250）里加了一头面朝余晖的云象（cloud_elephant）：头最高、耳朵贴在头后面、鼻子垂下来末端往外卷，
+  身子埋在前面一排云里。要含蓄：第二眼才看出来。
 除了天，每层宽 960、左右无缝。所有随机都固定 seed。
 """
 from __future__ import annotations
@@ -674,6 +681,25 @@ def tower(lay, cx, seed):
         u = side * rng.uniform(0.55, 1.0) if i % 3 else side
         # 贴边的球再往外 / 往里错开一点（不然右边一串球的外沿对齐成一条竖直的线）
         items.append((y - ry, cx + sh + u * (half - rx * 0.55) + side * rng.uniform(-0.35, 0.3) * rx, rx, ry))
+    # 第五版：右边下半截（背光那边）的外沿是一条竖直的边、像一块台子：贴几颗鼓出去的鼓包，高度、外凸都错开。
+    # 用自己的一串随机数（不打乱上面那些球）
+    r2 = np.random.default_rng(seed + 500)
+    bumps = []
+    for f in (0.08, 0.2, 0.31, 0.45, 0.57):
+        f += r2.uniform(-0.03, 0.03)
+        y = 168 - 102 * f
+        half = 40 - 10 * f
+        rx = half * r2.uniform(0.22, 0.32)
+        ry = rx * r2.uniform(0.7, 0.85)
+        bumps.append((y - ry, cx + 22 * f ** 1.4 + half - rx * r2.uniform(0.3, 0.75), rx, ry))
+    # 左边（朝光）最下面那截也是一条竖边：贴三颗，鼓出去一点，各自有一道受光边
+    for f in (0.06, 0.17, 0.28):
+        f += r2.uniform(-0.03, 0.03)
+        y = 168 - 102 * f
+        half = 40 - 10 * f
+        rx = half * r2.uniform(0.2, 0.3)
+        ry = rx * r2.uniform(0.7, 0.85)
+        bumps.append((y - ry, cx + 22 * f ** 1.4 - half + rx * r2.uniform(0.2, 0.6), rx, ry))
     # 砧下面那截往外摊：柱顶两边各几颗扁一点的球，把柱身和砧接起来
     for k in range(4):
         f = rng.uniform(0.9, 1.02)
@@ -692,6 +718,9 @@ def tower(lay, cx, seed):
         F.cauli(x, top + ry, rx, (0 if anvil else (top + ry) * 0.5) + rng.uniform(0, 3), rng, sq=ry / rx,
                 depth=1 if anvil else 2, kids=(2, 4) if anvil else (3, 5), ks=(0.3, 0.5), body=top + ry > 150,
                 rmin=2.5, spread=(-170, -10), core=not anvil)
+    for top, x, rx, ry in bumps:     # 放在最后画（z-buffer 不看先后）：上面那些球的随机数一个不变
+        F.cauli(x, top + ry, rx, (top + ry) * 0.5 + r2.uniform(0, 3), r2, sq=ry / rx, depth=2, kids=(3, 5),
+                ks=(0.3, 0.5), body=top + ry > 150, rmin=2.5, spread=(-170, -10), core=True)
     # 闪电那张图要用的：每个像素属于哪一团、大概多亮
     F.pid, F.n = F.sid, F.k
     F.tone = np.where(F.sid >= 0, 0.5 - 0.5 * np.clip(F.vin, -1, 2), 0.0)
@@ -1083,9 +1112,16 @@ def sea_layer2(rows, pal, fog_c, seed, bigs=(), big_pal=None, big_kw=None, **kw)
     lay = Layer()
     lay.a = F.render(pal, fog_c=fog_c, fog_steps=FOG_STEPS, **kw)
     if bigs:
-        for b in bigs:
+        for i, b in enumerate(bigs):
             FB = Field()
-            top = cloud_mountain(FB, rng, **b)
+            b = dict(b)
+            # 第五版：每座云山自己一个 seed（不再和云海共用一串随机数：改云海不会把云山的形状也改掉）
+            rb = np.random.default_rng(b.pop("seed", seed * 10 + i))
+            if b.pop("kind", "") == "elephant":
+                top = cloud_elephant(FB, rb, **b)
+                b.setdefault("w", 40); b.setdefault("lean", 10)   # 明暗的中线在 x + 5
+            else:
+                top = cloud_mountain(FB, rb, **b)
             img = render_mountain(FB, big_pal, top, fog_c, b.get("fog", 0.0), cx=b["x"] + b.get("lean", 0) * 0.5, w=b["w"], **big_kw)
             m = (FB.sid >= 0) & (FB.z > F.z)
             lay.a[m] = img[m]
@@ -1097,8 +1133,8 @@ def sea_layer2(rows, pal, fog_c, seed, bigs=(), big_pal=None, big_kw=None, **kw)
 # 最上面一颗冠。朝光（左）那边的鼓包大一点、高一点：左边受光的那一面是一级级往上的台阶状鼓包。
 TOWER_LOBES = ((0.16, 0.50, 0.48), (0.32, -0.50, 0.50),
                (0.46, 0.36, 0.38), (0.62, -0.26, 0.44),
-               (0.76, 0.30, 0.30), (0.90, -0.08, 0.38),
-               (1.00, 0.02, 0.34))
+               (0.76, 0.30, 0.30), (0.88, -0.14, 0.36),
+               (1.00, 0.06, 0.29))
 
 
 def cloud_mountain(F, rng, x, base, h, w, z, sq=0.62, fog=0.0, lean=6.0, tiers=4, dark_y=None):
@@ -1125,14 +1161,49 @@ def cloud_mountain(F, rng, x, base, h, w, z, sq=0.62, fog=0.0, lean=6.0, tiers=4
         g = F.new_group()
         F.lobe_r[g] = r
         F.lobe[g] = (cx, cy, r, r * sq)
-        F.cauli(cx, cy, r, z + (cy - base) * 0.6 + rng.uniform(-0.5, 0.5), rng, sq, depth=2, kids=(4, 6),
-                ks=(0.3, 0.52), body=r > 6, fog=fog, rmin=2.2, spread=(-170, -10), ref=top_y, unit=h * 0.5)
+        crown = t >= 0.85
+        # 第五版：塔顶那两颗多长几颗大一点的菜花（顶上是一圈圆鼓包，不是平顶 + 一条斜边的石块）；
+        # 只有底层的鼓包有身体（上面几层的身体会在半腰切出一块平顶的暗台子）
+        F.cauli(cx, cy, r, z + (cy - base) * 0.6 + rng.uniform(-0.5, 0.5), rng, sq, depth=2,
+                kids=(6, 8) if crown else (4, 6), ks=(0.32, 0.56) if crown else (0.3, 0.52), body=r > 6 and t < 0.4,
+                fog=fog, rmin=2.2, spread=(-175, -5) if crown else (-170, -10), ref=top_y, unit=h * 0.5)
+    return top_y
+
+
+def cloud_elephant(F, rng, x, base, s, z, sq=0.6, fog=0.0):
+    """第五版：面朝左（朝余晖）走的一头云象（剧情：寻找梦里的大象）——要很含蓄，第二眼才看得出来：
+    背、头（最高）、贴在头后面的耳朵、从额头垂下来末端往外卷的鼻子；腿和肚子埋在前面一排云里。
+    s 没用上（就一种大小），留着以后缩放。返回最高点的 y。"""
+    F.row += 1
+    L = [  # (cx, cy, rx, ry, dz, kids, ks)
+        (x + 11, base - 9, 16, 10, 0, (4, 6), (0.28, 0.42)),    # 身体
+        (x + 23, base - 9, 10, 8, 1, (3, 5), (0.3, 0.42)),       # 屁股
+        (x + 5, base - 14, 11, 7, -1, (3, 5), (0.25, 0.4)),      # 背
+        (x - 8, base - 17, 7, 6.5, 3, (2, 3), (0.25, 0.35)),     # 头（最高）
+        (x - 11, base - 18, 4, 3.5, 3.5, (1, 2), (0.3, 0.4)),    # 额头
+        (x - 2, base - 13, 6, 7, 4.5, (2, 3), (0.3, 0.4)),       # 耳朵（贴在头后面、比头近）
+    ]
+    # 鼻子：从额头前面往下垂，越往下越细，末端往外（左）卷一下
+    pts = [(-13.5, 12.5), (-15, 10), (-15.8, 7.5), (-16, 5), (-15.6, 2.8), (-16.8, 1.2), (-18.4, 1.4)]
+    for i, (dx, dy) in enumerate(pts):
+        r = 3.2 - 0.25 * i
+        L.append((x + dx, base - dy, r, r * 0.85, 5, (0, 0), (0.3, 0.4)))
+    top_y = min(cy - ry for cx, cy, rx, ry, *_ in L)
+    F.lobe_r = getattr(F, "lobe_r", {}); F.lobe = getattr(F, "lobe", {})
+    for cx, cy, rx, ry, dz, kids, ks in L:
+        g = F.new_group()
+        F.lobe_r[g] = rx; F.lobe[g] = (cx, cy, rx, ry)
+        if kids[1] == 0:
+            F.ball(cx, cy, rx, ry, z + dz, fog=fog, body=False, ref=top_y, unit=10)
+        else:
+            F.cauli(cx, cy, rx, z + dz, rng, ry / rx, depth=1, kids=kids, ks=ks, body=False, fog=fog, rmin=1.6,
+                    spread=(-170, -10), ref=top_y, unit=10)
     return top_y
 
 
 def render_mountain(F, pal, top_y, fog_c, fog, rim=(2.0, 5.0), gap=3.0, shadow=4.0, kid_rim=1.5, dark_y=176,
                     hi_frac=0.55, top_lv=2.0, light=(-0.9, -0.44), kid_crease=1.0, cx=None, w=None,
-                    w_lit=(0.45, 0.95), detail=True):
+                    w_lit=(0.45, 0.95), detail=True, cast=0.35, ramp=0.0):
     """积云塔的明暗（第四版；第三版是整座塔一块玫瑰色、像一坨）：
     - 每颗鼓包（group）一个核心椭圆。从像素沿光（左上）走多远出核心椭圆 = te：< w_lit[0]·R 亮面、< w_lit[1]·R 半亮，
       其余背光（亮面宽度跟着鼓包大小走；按带菜花的轮廓算的话亮面内边是轮廓平移一份，像挤出来的石块）；
@@ -1204,7 +1275,7 @@ def render_mountain(F, pal, top_y, fog_c, fog, rim=(2.0, 5.0), gap=3.0, shadow=4
         disc = np.clip(b * b - 4 * a * (r2 - 1), 0, None)
         t_in = (-b + np.sqrt(disc)) / (2 * a)
         te[sel] = np.where(r2 <= 1, t_in, tl[sel])
-    te = np.where(tc < te, INF, te)
+    te = np.where(tc < np.minimum(te, R * cast), INF, te)   # 只算贴着更近那颗鼓包的一截影子（长投影的边是顺光的直线，像石头）
     lit2 = te < np.maximum(rim[0], R * w_lit[0])
     lit1 = (te < np.maximum(rim[1], R * w_lit[1])) & ~lit2
     # 三种面：亮面 3..6、半亮 2..4、背光 1..2（越高越亮：塔顶最亮，往下吃进暗紫）
@@ -1234,8 +1305,10 @@ def render_mountain(F, pal, top_y, fog_c, fog, rim=(2.0, 5.0), gap=3.0, shadow=4
     lv -= gg.astype(int) + g1.astype(int)
     lv -= F.core & (F.vin > 0.6) & ~lit2
     # dark_y 以下：最多到 2 档，每 5 像素再暗一档（受光面落不进晨身后那条）
+    # 第五版：dark_y 上面 ramp 像素里上限一档档往下收（2 + 离 dark_y 几个 ramp/4），不在 dark_y 切一道平的暗台子
     below = ys >= dark_y
-    lv = np.where(below, np.minimum(lv, 2) - np.floor((ys - dark_y) / 5.0), np.maximum(lv, 1))   # 最暗一档留给 dark_y 以下
+    cap = np.where(below, 2 - np.floor((ys - dark_y) / 5.0), 2 + np.floor((dark_y - ys) / max(ramp / 4.0, 1e-3)))
+    lv = np.where(below, np.minimum(lv, cap), np.minimum(np.maximum(lv, 1), np.maximum(cap, 1)))   # 最暗一档留给 dark_y 以下
     lv = np.where(ys < top_y + (dark_y - top_y) * 0.3, np.maximum(lv, 3), lv)    # 塔顶那一截不出深色的洞
     idx = np.clip(lv, 0, n - 1).astype(int)
     idx = np.where(f, idx, -1)
@@ -1280,7 +1353,8 @@ def build_midfar():
         dict(base=177, z=30, scale=11, sq=0.54, fog=0.12, n=8, h=(4, 13), w=(36, 80), deck=2.5, wave=6, big=0.15,
              rmin=1.8, flats=flats),
     ]
-    bigs = (dict(x=560, base=170, h=24, w=70, z=4, sq=0.55, fog=0.18, lean=4, tiers=3),)
+    bigs = (dict(x=560, base=170, h=24, w=70, z=4, sq=0.55, fog=0.18, lean=4, tiers=3),
+            dict(kind="elephant", x=255, base=171, s=1, z=4, fog=0.18, seed=1))
     big_pal = cloud_pal(0.22, 0.56, 6, C_lo=0.06, C_hi=0.095, h_lo=312, h_hi=356)
     big_kw = dict(rim=(1.5, 3.5), gap=2.0, shadow=3.0, dark_y=178)
     return sea_layer2(rows, pal, band_color(160), 31, bigs=bigs, big_pal=big_pal, big_kw=big_kw, body=2, rim=(1.0, 2.5), crease=1.5, bands=(1.0, 2.2), run_bands=(3, 8),
@@ -1297,10 +1371,10 @@ def build_mid():
         dict(base=203, z=40, scale=19, sq=0.66, fog=0.0, n=5, h=(4, 11), w=(60, 120), deck=3, wave=4, big=0.0,
              kids=(2, 4), ks=(0.35, 0.6), dark=0.12, flats=flats),
     ]
-    bigs = (dict(x=335, base=189, h=58, w=100, z=6, sq=0.72, fog=0.06, lean=8, tiers=4),
-            dict(x=760, base=192, h=41, w=70, z=6, sq=0.7, fog=0.06, lean=4, tiers=4))
+    bigs = (dict(x=335, base=189, h=58, w=100, z=6, sq=0.72, fog=0.06, lean=8, tiers=4, seed=4),
+            dict(x=760, base=192, h=41, w=70, z=6, sq=0.7, fog=0.06, lean=4, tiers=4, seed=8))
     big_pal = cloud_pal(0.14, 0.54, 7, C_lo=0.055, C_hi=0.11, h_lo=304, h_hi=354)   # 暗端偏玫瑰紫：吃一点余晖反光
-    big_kw = dict(rim=(2.5, 5.0), gap=4.0, shadow=4.0, dark_y=177, w_lit=(0.55, 1.05))
+    big_kw = dict(rim=(2.5, 5.0), gap=4.0, shadow=4.0, dark_y=177, ramp=12, w_lit=(0.55, 1.05))
     return sea_layer2(rows, pal, band_color(190), 41, bigs=bigs, big_pal=big_pal, big_kw=big_kw, body=2,
                       rim=(1.5, 3.0), crease=2.0, bands=(0.7, 1.5, 2.6), run_bands=(5, 12, 22), rim_lv=(2, 1))
 

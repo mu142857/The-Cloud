@@ -8,6 +8,7 @@ extends Node2D
 
 signal chosen(action: String, index: int)   # action: "burn" / "keep"；index：pick 模式里第几件
 signal closed
+signal landed(uid: int)                     # 「留下」时飞回队尾的图标落到位了
 
 const CARD_TEX := preload("res://art/flight/card.png")
 const FLAME_TEX := preload("res://art/flight/ui_flame.png")
@@ -48,6 +49,9 @@ var _sel_marks: Array = []
 var _sel_glows: Array = []
 var _icon_base: Array = []
 var _fliers: Array = []      # 「留下」时飞回队尾的图标（屏幕上，不在卡里）
+var _trail: Array = []       # 飞回去时身后留的一串小光点 {p, age}
+var _trail_node: Node2D
+var _bracket: Node2D         # pick 模式：选中那件四角的小括号
 var _burn_index := -1
 var _ember_acc := 0.0
 
@@ -73,6 +77,9 @@ func _ready() -> void:
 	_mat.set_shader_parameter("size", Vector2(W, H))
 	_sprite.material = _mat
 	add_child(_sprite)
+	_trail_node = Node2D.new()
+	_trail_node.draw.connect(_draw_trail)
+	add_child(_trail_node)
 	visible = false
 
 
@@ -101,6 +108,8 @@ func _clear() -> void:
 	_sel_marks.clear()
 	_sel_glows.clear()
 	_icon_base.clear()
+	_bracket = null
+	_trail.clear()
 
 
 func open_single(item: Dictionary) -> void:
@@ -172,6 +181,9 @@ func open_pick(list: Array) -> void:
 		mark.position = base + Vector2(-10, 27)
 		_root.add_child(mark)
 		_sel_marks.append(mark)
+	_bracket = Node2D.new()
+	_bracket.draw.connect(_draw_bracket)
+	_root.add_child(_bracket)
 	_labels["name"] = _label("", C_NAME, Vector2(0, 78), W)
 	var d := _label("", C_DESC, Vector2(14, 95), W - 28, HORIZONTAL_ALIGNMENT_CENTER, true)
 	d.size = Vector2(W - 28, 46)
@@ -217,10 +229,14 @@ func _refresh() -> void:
 		for i in _sel_marks.size():
 			var on := i == sel
 			var none_sel := sel >= items.size()
-			(_sel_marks[i] as ColorRect).visible = on
+			(_sel_marks[i] as ColorRect).visible = false     # 选中改用四角的小括号（_bracket），这条线不要了
 			(_sel_glows[i] as Sprite2D).visible = on
 			(_icons[i] as Sprite2D).position = _icon_base[i] - Vector2(0, 3 if on else 0)
 			(_icons[i] as Sprite2D).modulate = Color(1, 1, 1) if on else (Color(0.82, 0.82, 0.9) if none_sel else Color(0.36, 0.36, 0.46))
+		_bracket.visible = sel < items.size()
+		if sel < items.size():
+			_bracket.position = _icon_base[sel] - Vector2(0, 3)
+			_bracket.queue_redraw()
 		if sel < items.size():
 			_labels.name.text = FlightText.pick(items[sel].name) + "   +%d" % int(items[sel].fuel)
 			_labels.desc.text = FlightText.pick(items[sel].desc)
@@ -360,24 +376,44 @@ func _process(delta: float) -> void:
 			if anim >= 1.9:
 				_close()
 		"keep":
-			var u2 := clampf(anim / 0.45, 0.0, 1.0)
+			# 卡淡掉；东西从卡上先轻轻往上浮一下（舍不得放下），再沿一道弧飞回右下角那一排，身后留一串淡紫的小光点，
+			# 落下那一下 HUD 那一格亮一下（landed 信号 → flight_test 告诉 HUD）。
+			var u2 := clampf(anim / 0.5, 0.0, 1.0)
 			_sprite.position = (CENTER + Vector2(0, 6.0 * u2)).round()
 			_mat.set_shader_parameter("fade", 1.0 - u2)
-			_dim.color.a = 0.5 * (1.0 - clampf(anim / 0.9, 0.0, 1.0))
+			_dim.color.a = 0.5 * (1.0 - clampf(anim / 1.0, 0.0, 1.0))
 			var all_done := true
 			for f in _fliers:
-				var u3 := clampf((anim - f.delay) / 0.75, 0.0, 1.0)
-				if u3 < 1.0:
-					all_done = false
-				var e := u3 * u3 * (3.0 - 2.0 * u3)
-				var a: Vector2 = f.a
-				var b: Vector2 = f.b
-				var m := a.lerp(b, 0.5) + Vector2(0, -50)
+				var t: float = anim - f.delay
 				var s2: Sprite2D = f.node
-				s2.position = a.lerp(m, e).lerp(m.lerp(b, e), e).round()
-				s2.scale = Vector2.ONE * (2.0 if e < 0.55 else 1.0)
-				s2.modulate.a = 1.0 if u3 < 0.85 else (1.0 - u3) / 0.15 + 0.0
-			if anim >= 0.9 and all_done:
+				if f.done:
+					continue
+				all_done = false
+				if t < 0.22:
+					# 先往上浮 5 像素
+					var k := clampf(t / 0.22, 0.0, 1.0)
+					s2.position = (f.a + Vector2(0, -5.0 * (1.0 - (1.0 - k) * (1.0 - k)))).round()
+					continue
+				var u3 := clampf((t - 0.22) / 0.8, 0.0, 1.0)
+				var e := u3 * u3 * (3.0 - 2.0 * u3)
+				var a0: Vector2 = f.a + Vector2(0, -5)
+				var b0: Vector2 = f.b
+				var m := Vector2(lerpf(a0.x, b0.x, 0.35), minf(a0.y, b0.y) - 36.0)
+				s2.position = a0.lerp(m, e).lerp(m.lerp(b0, e), e).round()
+				s2.scale = Vector2.ONE * (2.0 if e < 0.45 else 1.0)
+				f.trail_acc += delta
+				if f.trail_acc > 0.03 and u3 < 0.97:
+					f.trail_acc = 0.0
+					_trail.append({"p": s2.position + Vector2(randf_range(-3, 3), randf_range(-3, 3)).round(), "age": 0.0})
+				if u3 >= 1.0:
+					f.done = true
+					s2.visible = false
+					landed.emit(int(f.uid))
+			for q in _trail:
+				q.age += delta
+			_trail = _trail.filter(func(q): return q.age < 0.5)
+			_trail_node.queue_redraw()
+			if anim >= 1.0 and all_done and _trail.is_empty():
 				for f in _fliers:
 					(f.node as Node).queue_free()
 				_fliers.clear()
@@ -393,8 +429,35 @@ func _launch_fliers() -> void:
 		s2.scale = Vector2(2, 2)
 		s2.position = origin + ic.position
 		add_child(s2)
-		_fliers.append({"node": s2, "a": origin + ic.position, "b": keep_target + Vector2(27 * i, 0) * (0.0 if mode == "single" else 1.0),
-			"delay": 0.08 * i})
+		var slot := 0 if mode == "single" else mini(i, 3)
+		_fliers.append({"node": s2, "a": origin + ic.position, "b": keep_target + Vector2(27 * slot, 0),
+			"delay": 0.1 * i, "uid": items[i].uid, "done": false, "trail_acc": 0.0})
+	# 卡上的图标藏起来（飞出去的是它们的替身）
+	for ic in _icons:
+		(ic as Sprite2D).visible = false
+	if _bracket:
+		_bracket.visible = false
+	for sg in _sel_glows:
+		(sg as Sprite2D).visible = false
+
+
+func _draw_trail() -> void:
+	for q in _trail:
+		var k: float = 1.0 - q.age / 0.5
+		var col := Color("e6d6ee") if q.age < 0.15 else Color("b9a8c8")
+		col.a = k * 0.9
+		_trail_node.draw_rect(Rect2(q.p, Vector2(1, 1)), col)
+
+
+func _draw_bracket() -> void:
+	## 选中那件四角各一个 4 像素的小直角（硬边，C_ON 暖白）
+	var r := 27.0
+	for sx in [-1, 1]:
+		for sy in [-1, 1]:
+			var cx: float = sx * r - (1.0 if sx > 0 else 0.0)
+			var cy: float = sy * r - (1.0 if sy > 0 else 0.0)
+			_bracket.draw_rect(Rect2(cx - (3.0 if sx > 0 else 0.0), cy, 4, 1), C_ON)
+			_bracket.draw_rect(Rect2(cx, cy - (3.0 if sy > 0 else 0.0), 1, 4), C_ON)
 
 
 func _frontier_point(b: float) -> Vector2:

@@ -64,7 +64,7 @@ texture = ExtResource("7_far")
 centered = false
 
 [node name="Mid" type="Parallax2D" parent="."]
-repeat_size = Vector2(960, 0)
+repeat_size = Vector2(1920, 0)
 repeat_times = 2
 ignore_camera_scroll = true
 
@@ -90,7 +90,7 @@ script = ExtResource("12_ship")
 script = ExtResource("13_fx")
 
 [node name="Near" type="Parallax2D" parent="Shake"]
-repeat_size = Vector2(960, 0)
+repeat_size = Vector2(1920, 0)
 repeat_times = 2
 ignore_camera_scroll = true
 

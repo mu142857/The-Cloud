@@ -33,6 +33,7 @@ OUT = ROOT / "art" / "flight"
 OUT.mkdir(parents=True, exist_ok=True)
 SW, SH = 480, 270
 LW = 960                           # 会横向重复的图层宽度
+LW2 = 1920                         # 视差快的近云层更宽，减少重复
 LIGHT = np.array([0.7, -0.7])      # 指向光源（右上，月亮那边）；屏幕 y 朝下
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 
@@ -50,8 +51,9 @@ def save(arr_or_canvas, name):
 
 # ---------------------------------------------------------------- 分档上色（色块派）
 
-def walk_out(mask, d, maxn=12):
-    """每个像素沿方向 d 走几步出 mask（整像素步进）。"""
+def walk_out(mask, d, maxn=12, wrap=False):
+    """每个像素沿方向 d 走几步出 mask（整像素步进）。wrap：左右无缝的图层，走出右边从左边接着算
+    （不然最右一列会被当成受光边，游戏里每转一圈就看到一道竖亮线）。"""
     h, w = mask.shape
     ys, xs = np.nonzero(mask)
     out = np.zeros((h, w), float)
@@ -60,6 +62,8 @@ def walk_out(mask, d, maxn=12):
     for k in range(1, maxn + 1):
         px = np.round(xs + d[0] * k).astype(int)
         py = np.round(ys + d[1] * k).astype(int)
+        if wrap:
+            px = px % w
         inside = (px >= 0) & (px < w) & (py >= 0) & (py < h)
         m = np.zeros(len(ys), bool)
         m[inside] = mask[py[inside], px[inside]]
@@ -222,7 +226,7 @@ def cloud_layer(seed, rows, palette, h=SH, w=LW, fill_below=True):
             m = Y >= top[None, :]
         body = palette[i]
         # 受光：沿光的方向出团的步数（右上亮），左下背光边暗一档
-        to_l = walk_out(m, LIGHT, 6)
+        to_l = walk_out(m, LIGHT, 6, wrap=True)
         lv = np.zeros(m.shape, int)
         lv[to_l <= 3.5] = 1
         lv[to_l <= 1.5] = 2
@@ -304,7 +308,8 @@ def mercury(d=240):
     dx, dy = (X + 0.5 - cx) / r, (Y + 0.5 - cy) / r
     rr = np.hypot(dx, dy)
     disc = rr <= 1
-    atm = (rr <= 1 + 3 / r) & ~disc
+    atm_px = 3 if d >= 120 else (2 if d >= 40 else 1)
+    atm = (rr <= 1 + atm_px / r) & ~disc
     c.fill_mask(atm, from_hex("#3d7fa8"))
     # 球面法线点乘光
     nz = np.sqrt(np.clip(1 - rr ** 2, 0, 1))
@@ -323,9 +328,151 @@ def mercury(d=240):
         c.fill_mask(m & ~band, step_color(base, (k - 1.5) * 1.1, dL=0.045))
         c.fill_mask(m & band, step_color(base, (k - 1.5) * 1.1 + 1.2, dL=0.045))
     # 受光一侧的大气亮边
-    rim = disc & (rr > 1 - 2.2 / r) & (lam > 0.55)
+    rim = disc & (rr > 1 - min(2.2, max(1.0, d / 60)) / r) & (lam > 0.55)
     c.fill_mask(rim, from_hex("#6fb0cc"))
     return c
+
+
+MERC_SIZES = []
+_d = 5.0
+while _d < 240:
+    MERC_SIZES.append(int(round(_d)))
+    _d *= 1.075
+MERC_SIZES = sorted(set(MERC_SIZES)) + [240]
+
+
+def mercury_strip():
+    """水星从远处慢慢变大用：同一颗星球按很多个尺寸各画一遍（每个都是 1 倍硬边像素，不靠缩放），
+    横着排成一条 mercury_strip.png，每格 (d+8)×(d+8) 顶端对齐，格与格之间空 2 像素。
+    flight_test.gd 里的 MERC_SIZES 要和这里的一样（改了这里记得抄过去）。"""
+    xs, x = [], 0
+    for d in MERC_SIZES:
+        xs.append(x)
+        x += d + 8 + 2
+    strip = np.zeros((248, x, 4), np.uint8)
+    for d, x0 in zip(MERC_SIZES, xs):
+        strip[:d + 8, x0:x0 + d + 8] = mercury(d).a
+    save(strip, "mercury_strip")
+    print("MERC_SIZES =", MERC_SIZES)
+
+
+def elephant_nebula(w=300, h=170):
+    """「梦里的大象」的暗示：远处一团极淡的星云，轮廓是一头往右走的大象（象鼻垂下、末端往前卷，一只大耳朵）。
+    特效层：半透明，alpha 只有 3 档（硬边分档，不模糊）；背上一排云团鼓包、身体里几块淡的，像云不像贴纸。眼睛是一颗星。"""
+    rng = np.random.default_rng(77)
+    Y, X = np.mgrid[0:h, 0:w]
+    Xf, Yf = X + 0.5, Y + 0.5
+
+    def ell(cx, cy, rx, ry, rot=0.0):
+        c, s_ = math.cos(rot), math.sin(rot)
+        u = ((Xf - cx) * c + (Yf - cy) * s_) / rx
+        v = (-(Xf - cx) * s_ + (Yf - cy) * c) / ry
+        return u * u + v * v <= 1
+
+    def tube(pts, r0, r1):
+        out = np.zeros((h, w), bool)
+        n = 60
+        P = np.array(pts, float)
+        seg = np.hypot(*np.diff(P, axis=0).T)
+        cum = np.concatenate([[0], np.cumsum(seg)])
+        for k in range(n):
+            t = k / (n - 1)
+            L = t * cum[-1]
+            i = min(len(seg) - 1, np.searchsorted(cum, L, side="right") - 1)
+            u = (L - cum[i]) / seg[i]
+            cx, cy = P[i] + (P[i + 1] - P[i]) * u
+            r = r0 + (r1 - r0) * t
+            out |= (Xf - cx) ** 2 + (Yf - cy) ** 2 <= r * r
+        return out
+
+    body = ell(122, 88, 78, 40) | ell(158, 74, 46, 36) | ell(72, 84, 44, 40)
+    head = ell(213, 70, 32, 32) | ell(204, 56, 24, 19)
+    trunk = tube([(232, 80), (241, 102), (243, 124), (241, 141), (246, 151), (255, 151), (259, 143)], 10, 2.6)
+    ear = ell(194, 80, 19, 27, -0.12)
+    near_legs = np.zeros((h, w), bool)
+    far_legs = np.zeros((h, w), bool)
+    for lx, top, far in ((58, 100, False), (86, 104, True), (156, 104, False), (184, 98, True)):
+        leg = np.zeros((h, w), bool)
+        for yy in range(top, 157):
+            t = (yy - top) / (157 - top)
+            half = (11.5 if not far else 10.0) - 2.0 * t
+            leg[yy] = np.abs(Xf[yy] - lx) <= half
+        leg |= ell(lx, 156, 11, 3.5)
+        if far:
+            far_legs |= leg
+        else:
+            near_legs |= leg
+    tail = tube([(32, 78), (24, 92), (22, 108), (20, 114)], 2.4, 1.2) | ell(20, 116, 2.5, 3.5)
+    m = body | head | trunk | near_legs | tail
+    # 背上、头顶一排云团鼓包：轮廓上沿一串小圆
+    top_edge = m & ~np.roll(m, 1, axis=0)
+    ys, xs = np.nonzero(top_edge & (Yf < 110))
+    order = np.argsort(xs)
+    lastx = -99
+    for i in order:
+        if xs[i] - lastx >= rng.uniform(9, 15):
+            lastx = xs[i]
+            r = rng.uniform(4, 8)
+            m |= (Xf - xs[i]) ** 2 + ((Yf - ys[i] - r * 0.45) * 1.2) ** 2 <= r * r
+    m_all = m | far_legs
+    # 大块的低频噪声：里面几块淡的
+    n = np.zeros((h, w))
+    for f, amp in ((0.012, 1.0), (0.026, 0.5)):
+        for _ in range(3):
+            ph = rng.uniform(0, 6.28)
+            ang = rng.uniform(0, 3.14)
+            n += amp * np.sin((Xf * math.cos(ang) + Yf * math.sin(ang)) * f * 6.28 + ph)
+    n /= 3
+    to_edge = np.minimum(walk_out_all(m), 12)
+    lv = np.zeros((h, w), int)
+    lv[far_legs] = 1
+    lv[m] = 1
+    lv[m & (to_edge > 3) & (n > -0.3)] = 2
+    lv[m & (to_edge > 8) & (n > 0.2)] = 3
+    # 耳朵：亮一档，耳朵边上留一道暗缝（看得出是一只耳朵贴在头侧）
+    ear_edge = ear & (walk_out_all(ear, 3) <= 1.5)
+    lv[ear] = 3
+    lv[ear_edge & ((X + Y) % 2 == 0)] = 1
+    lv[m & (to_edge <= 1.5) & (n < -0.25) & ((X + Y) % 2 == 0)] = 0      # 边被吹散：稀疏掉一些像素
+    out = np.zeros((h, w, 4), np.uint8)
+    col = np.array(from_hex("#9fb4e6"))
+    for k, al in {1: 8, 2: 13, 3: 19}.items():
+        out[lv == k, :3] = col
+        out[lv == k, 3] = al
+    # 眼睛：一颗小星（亮一点的硬边十字）
+    ex, ey = 220, 62
+    out[ey, ex] = (*from_hex("#e8f0ff"), 190)
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        out[ey + dy, ex + dx] = (*from_hex("#b8c8f0"), 80)
+    # 轮廓上零星几颗暗星（像星座连线的点）
+    edge = m & (to_edge <= 1)
+    ys, xs = np.nonzero(edge)
+    for i in rng.choice(len(ys), 12, replace=False):
+        out[ys[i], xs[i]] = (*from_hex("#c8d6f4"), 60)
+    return out
+
+
+def walk_out_all(mask, maxn=12):
+    """到 mask 外面最近的步数（8 个方向取最小，整像素）。"""
+    best = np.full(mask.shape, float(maxn))
+    for ang in range(0, 360, 45):
+        d = np.array([math.cos(math.radians(ang)), math.sin(math.radians(ang))])
+        best = np.minimum(best, walk_out(mask, d, maxn))
+    return np.where(mask, best, 0)
+
+
+def flame_small_frames():
+    """紧急模式的尾焰：缩成一小簇（3 帧 6×4），颜色也偏暗偏红。"""
+    pal = {"a": from_hex("#f0c890"), "b": from_hex("#c9783a"), "c": from_hex("#8a4a34")}
+    rows = [
+        ["..cc..", ".cbbc.", "cbaab.", ".cbc.."],
+        ["...c..", ".cbbc.", ".cbab.", "..cc.."],
+        ["..c...", "cbbc..", ".cbab.", "..cb.."],
+    ]
+    sheet = Canvas(18, 4)
+    for i, r in enumerate(rows):
+        sheet.paste(Canvas.from_rows([row[::-1] for row in r], pal), i * 6, 0)
+    return sheet
 
 
 def planet_icon(base, band_c, seed):
@@ -827,16 +974,20 @@ def main():
     save(stars(), "stars")
     save(wisps(), "wisps")
     save(cloud_layer(11, [(196, 14, 26, 6)], [from_hex("#2a3a3e")]), "clouds_far")
-    save(cloud_layer(12, [(222, 16, 30, 6)], [from_hex("#1c2829")]), "clouds_mid")
-    save(cloud_layer(13, [(250, 18, 34, 5)], [from_hex("#101718")]), "clouds_near")
+    # 近的两层 1920 宽（视差快，960 宽一趟会转好几圈，看得出重复）
+    save(cloud_layer(12, [(222, 16, 30, 6)], [from_hex("#1c2829")], w=LW2), "clouds_mid")
+    save(cloud_layer(13, [(250, 18, 34, 5)], [from_hex("#101718")], w=LW2), "clouds_near")
     save(launch_forest(), "launch_forest")
     save(mercury(), "mercury")
+    mercury_strip()
+    save(flame_small_frames(), "flame_small")
+    save(elephant_nebula(), "nebula_elephant")
     save(planet_icon("#5f7a52", "#3f5640", 1), "icon_jupiter")
     save(planet_icon("#3f7fb0", "#9ad0e8", 2), "icon_mercury")
     save(ship_sheet(), "ship")
     save(flame_frames(), "flame")
     save(glow(12, (255, 190, 110), 210), "glow_warm")
-    save(glow(7, (255, 230, 170), 230, 3), "glow_mote")
+    save(soft_glow(15, 15, 7.5, 7.5, 7.6, 7.6, (255, 230, 170), 0.6, 6, 0.0), "glow_mote")   # 柔的，不是一圈圈的靶子
     save(glow(20, (255, 255, 255), 255, 5), "glow_white")
     for i, (w, h) in enumerate([(34, 30), (46, 38), (28, 26)]):
         save(rock(40 + i, w, h), f"rock_{'abc'[i]}")
@@ -852,7 +1003,7 @@ def main():
     save(card_bg(), "card")
     save(soft_glow(220, 120, 110, 48, 82, 56, (214, 150, 104), 0.30, 3), "card_glow")
     save(soft_glow(64, 64, 32, 32, 30, 30, (240, 190, 120), 0.45, 4, 0.1), "sel_glow")
-    save(soft_glow(420, 420, 210, 210, 205, 205, (120, 200, 235), 0.22, 5, 0.05), "mercury_glow")
+    save(soft_glow(420, 420, 210, 210, 190, 190, (120, 200, 235), 0.22, 5, 0.05), "mercury_glow")   # 半径留 20 像素余量，边上不切出一条线
     for k, fn in ICONS.items():
         save(fn(), f"item_{k}")
 

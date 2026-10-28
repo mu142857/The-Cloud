@@ -14,7 +14,7 @@ const BAR_X0 := 130.0
 const BAR_X1 := 350.0
 const FLAME := preload("res://art/flight/ui_flame.png")
 
-const QX := 391.0               # 「接下来」那排小图标的左边（右下角）
+const QX := 364.0               # 「接下来」那排小图标的左边（右下角，最多 4 个）
 const C_DIM := Color("3a4158")
 const C_TXT := Color("aeb4c8")
 const C_AMBER := Color("f0b860")
@@ -39,6 +39,8 @@ var alpha := 1.0
 var short_shown := 0.0
 var ceiling_y := 0.0           # 紧急模式压下来的天花板（屏幕 y），0 = 没有
 var ceil_a := 0.0
+var hold := {}                 # uid → true：「留下」的东西还在飞回来的路上，这一格先空着
+var pulse := {}                # uid → 剩余秒数：刚落回来，亮一下、弹一下
 var _t := 0.0
 
 
@@ -52,6 +54,10 @@ func update(delta: float) -> void:
 		q.age += delta
 	toasts = toasts.filter(func(q): return q.age < 2.2)
 	gauge_pop = maxf(0.0, gauge_pop - delta)
+	for k in pulse.keys():
+		pulse[k] -= delta
+		if pulse[k] <= 0.0:
+			pulse.erase(k)
 	var short := maxf(0.0, need_left - tank - queued)
 	short_shown = move_toward(short_shown, short, maxf(40.0, absf(short - short_shown) * 3.0) * delta)
 	queue_redraw()
@@ -69,11 +75,11 @@ func _draw() -> void:
 	# 暗的下沿就是现在飞得到的最高处；飞船往上够、够不着（飞船自己会抖，见 flight_ship.gd）。
 	if ceil_a > 0.0 and ceiling_y > 2.0:
 		var cy := roundf(ceiling_y)
-		var soft := 46.0
+		var soft := 56.0
 		var yy := 0.0
 		while yy < cy:
 			var k := clampf((cy - yy) / soft, 0.0, 1.0)
-			draw_rect(Rect2(0, yy, 480, 1), Color(0.01, 0.02, 0.06, 0.62 * ceil_a * k * k))
+			draw_rect(Rect2(0, yy, 480, 1), Color(0.01, 0.02, 0.06, 0.8 * ceil_a * k * k))
 			yy += 1.0
 	# ---- 进度条 + 燃料投影：从飞船（白点）往前画一段琥珀色 = 现在的燃料能飞到哪。
 	# 碰到水星 = 够了（水星亮起来）；碰不到，剩下那段是玫瑰色的点 = 还差。不用看数字。
@@ -128,7 +134,7 @@ func _draw() -> void:
 	_text(label, Vector2(lx, qy - 4), Color(Color("59617a") if not round_over else C_SHORT, a * 0.9))
 	var i := 0
 	for q in queue_icons:
-		if i >= 3:
+		if i >= 4:
 			break
 		var p := Vector2(qx + i * 27, qy)
 		var c := Color(1, 1, 1, a)
@@ -136,6 +142,14 @@ func _draw() -> void:
 			c = Color(0.62, 0.62, 0.72, a)
 		if q.skipped:
 			c = Color(0.4, 0.4, 0.5, a * 0.8)
+		if hold.has(q.uid):
+			i += 1
+			continue
+		var pu: float = pulse.get(q.uid, 0.0) / 0.6
+		if pu > 0.0:
+			draw_texture(MER_GLOW, p + Vector2(12, 12) - Vector2(32, 32), Color(0.85, 0.75, 1.0, a * pu))
+			p.y -= roundf(3.0 * pu * pu)
+			c = c.lerp(Color(1, 1, 1, a), pu)
 		draw_texture(q.tex, p, c)
 		if q.personal:
 			draw_rect(Rect2(p + Vector2(10, 25), Vector2(4, 1)), Color(Color("b9a8c8"), a * (1.0 if i == 0 else 0.5)))
@@ -154,8 +168,10 @@ func _draw() -> void:
 	if subtitle != "" and subtitle_a > 0.0:
 		var f := FlightText.font()
 		var w := f.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, FlightText.SIZE).x
-		var r := Rect2(roundf(240 - w / 2 - 6), 247, roundf(w + 12), 18)
+		# 放得下就居中在右下角那排图标左边的空地里，免得压住「接下来」的图标；太长才整屏居中
+		var cx := 240.0 if w + 12.0 > QX - 8.0 else (QX - 8.0) / 2.0
+		var r := Rect2(roundf(cx - w / 2 - 6), 247, roundf(w + 12), 18)
 		draw_rect(r, Color(0.02, 0.03, 0.06, 0.6 * subtitle_a * a))
-		_text(subtitle, Vector2(roundf(240 - w / 2), 260), Color(Color("e6dcc8"), subtitle_a * a))
+		_text(subtitle, Vector2(roundf(cx - w / 2), 260), Color(Color("e6dcc8"), subtitle_a * a))
 	if hint_a > 0.0:
 		_text(FlightText.t("hint"), Vector2(0, 232), Color(C_TXT, hint_a * a * 0.8), HORIZONTAL_ALIGNMENT_CENTER, 480)

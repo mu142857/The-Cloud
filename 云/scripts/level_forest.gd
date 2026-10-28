@@ -19,7 +19,7 @@ extends Node2D
 ##   --quality=lite     临时换画质（不存）
 ##   --shot=绝对路径.png --shot_at=秒   这一段开始后多少秒存一张图后退出（默认 1 秒）
 ##   --shots=目录 --start=帧 --every=帧 --count=张   连拍 shot_000.png …
-##   --autoplay         标题界面自己点开始，能走的时候自己往右走（录 GIF 用）
+##   --autoplay         耳机提示自己跳过、标题界面自己点开始，能走的时候自己往右走（录 GIF / 完整跑一遍用）
 ##   --title_hot        标题界面的「开始」显示成悬停的样子（截图看悬停反馈用）
 ##   --browse=1..5 --browse_out=目录   标题界面 0.5 秒后自己按 F1..F5 进测试场景，2.5 秒后存 目录/scene.png、
 ##                      自己按 Esc 回标题，再过 2 秒存 目录/back.png 后退出（测场景浏览用；别同时给 --shot，测试场景自己也认它）
@@ -120,6 +120,7 @@ var _impact_k := 0.0          # 撞地那一下的暖光 0..1
 var _title_k := 0.0           # 标题淡入进度 0..1（字往上飘 3 像素，按整像素走）
 var _start_hot := 0.0         # 「开始」悬停 / 聚焦的高亮 0..1（两边的小横线跟着伸出来）
 var _start_hover := false
+var _start_fc := Color(0, 0, 0, 0)   # 「开始」现在的字色（变了才重设，免得每帧发主题变更）
 
 # ---- 对话框
 var _dlg: PanelContainer
@@ -691,11 +692,17 @@ func _build_bag(root: Control) -> void:
 	tot.add_child(tl)
 	_bag_w["total"] = tl
 	_bag.add_child(tot)
-	var x := Button.new()
-	x.text = "×"
-	x.position = Vector2(332, 3)
-	x.size = Vector2(16, 18)
-	x.add_theme_stylebox_override("normal", UITheme.box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 0, Vector4(2, 0, 2, 0)))
+	# 关闭：不用字体里的「×」（按钮里的字会被排到半格上，糊成「)(」），画一个 7×7 的像素叉，
+	# 按钮 15×15、叉居中正好落在整像素上（和「60 / 200」的数字同高）
+	var x := TextureButton.new()
+	x.texture_normal = _pixel_cross(7, UITheme.TEXT)
+	x.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
+	x.ignore_texture_size = true
+	x.position = Vector2(330, 4)
+	x.size = Vector2(15, 15)
+	x.self_modulate = Color(1, 1, 1, 0.7)
+	x.mouse_entered.connect(func(): x.self_modulate = Color(1.25, 1.25, 1.25, 1.0))
+	x.mouse_exited.connect(func(): x.self_modulate = Color(1, 1, 1, 0.7))
 	x.focus_mode = Control.FOCUS_NONE
 	x.pressed.connect(_close_panels)
 	_bag.add_child(x)
@@ -1636,6 +1643,12 @@ func _update_title(delta: float) -> void:
 	_start_marks[1].size.x = w
 	_start_marks[0].position = Vector2(_start_btn.position.x - 6.0 - w, y)
 	_start_marks[1].position = Vector2(_start_btn.position.x + _start_btn.size.x - START_SPACING + 7.0, y)
+	# 字色跟着 _start_hot 渐变（悬停 / 聚焦 / 方向键选中都一样，不是一下子跳亮）
+	var fc := START_COLOR.lerp(START_HOT, _start_hot)
+	if fc != _start_fc:
+		_start_fc = fc
+		for k in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
+			_start_btn.add_theme_color_override(k, fc)
 	var a := _start_btn.modulate.a
 	for m in _start_marks:
 		m.modulate.a = a * _start_hot * 0.8
@@ -1771,7 +1784,9 @@ func _debug_tick() -> void:
 		_save(_browse_out.path_join("back.png"))
 		get_tree().quit()
 	if _autoplay:
-		if state == S.TITLE and _state_t > 1.2:
+		if state == S.HEADPHONES and _state_t > 1.0:
+			_leave_headphones()
+		elif state == S.TITLE and _state_t > 1.2:
 			_on_start()
 		elif state == S.PLAY and _state_t > 2.0 and wood.visible and is_nan(_walk_target):
 			_walk_target = WOOD_X
@@ -1784,6 +1799,15 @@ func _debug_tick() -> void:
 		_shots_saved += 1
 		if _shots_saved >= _shots_count:
 			get_tree().quit()
+
+
+## n×n 的像素叉（两条 1 像素宽的对角线），当关闭按钮的图标
+static func _pixel_cross(n: int, c: Color) -> ImageTexture:
+	var img := Image.create_empty(n, n, false, Image.FORMAT_RGBA8)
+	for i in n:
+		img.set_pixel(i, i, c)
+		img.set_pixel(n - 1 - i, i, c)
+	return ImageTexture.create_from_image(img)
 
 
 func _save(path: String) -> void:
@@ -1829,6 +1853,8 @@ class SceneBrowser extends Node:
 		l.position = Vector2(6, 4)
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		layer.add_child(l)
+		# 几秒后淡掉，免得一直压在测试场景自己的界面上（飞行的进度条就在左上角）
+		create_tween().tween_property(l, "modulate:a", 0.0, 1.0).set_delay(3.0)
 
 	func _process(delta: float) -> void:
 		var p := get_parent()

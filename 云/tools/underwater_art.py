@@ -348,9 +348,45 @@ def statue_mask():
     return out
 
 
+def elephant_mask(sc=1.15):
+    """最远处一个巨大的、像大象又像一块岩石的东西（剧情里「梦里的大象」的暗示，只是暗示）：侧面朝右（和石像一样朝着月亮），
+    额头是最高的那个圆顶，长鼻子从脸前面垂到沙里、尖往前卷一点，一只大耳朵贴在脸后面往下垂，一根短象牙。
+    四条腿陷进沙里只剩一截，肚子下面被沙堆半填上，背上被水蚀出几个缺口，所以第一眼更像一块圆顶的大石头。
+    返回 bool[ih, iw]，最底一行 = 埋进沙里。"""
+    ih, iw = int(round(92 * sc)), int(round(132 * sc))
+    P = lambda pts: [(x * sc, y * sc) for x, y in pts]
+    yy, xx = np.mgrid[0:ih, 0:iw]
+    m = np.zeros((ih, iw), bool)
+    # 身子 + 头：背从屁股圆上来，肩后最高、脖子那里微微凹下去，再鼓起额头的圆顶；脸往下收到嘴
+    outline = [(10, 56), (11, 42), (16, 31), (26, 23), (40, 19), (56, 18), (70, 20), (80, 24), (86, 24), (90, 16),
+               (98, 10), (106, 10), (112, 14), (116, 22), (117, 32), (116, 42), (110, 50), (100, 54), (94, 62),
+               (84, 68), (60, 71), (36, 71), (20, 67), (13, 62)]
+    m |= poly_mask(P(outline), ih, iw)
+    # 鼻子：从脸前面垂下来，根上粗、往下细，尖往前卷
+    for k in range(60):
+        f = k / 59
+        cx = 112.5 + 2.2 * np.sin(f * 2.6) + (4.0 * (f - 0.85) / 0.15 if f > 0.85 else 0)
+        cy = 38 + f * 52 - (2.0 * (f - 0.85) / 0.15 if f > 0.85 else 0)
+        r = 5.0 * (1 - f) + 2.0 * f
+        m |= ((xx - cx * sc) ** 2 + (yy - cy * sc) ** 2) < (r * sc) ** 2
+    # 象牙：一根短的，从嘴角往前下弯
+    m |= poly_mask(P([(106, 48), (113, 53), (120, 56), (124, 55), (121, 59), (113, 58), (105, 52)]), ih, iw)
+    # 腿：四根粗柱子陷进沙里（前腿在耳朵下面，后腿在屁股下面）
+    for x0, x1 in ((15, 29), (33, 44), (70, 81), (84, 96)):
+        m |= poly_mask(P([(x0, 60), (x1, 60), (x1 + 0.6, 92), (x0 - 0.6, 92)]), ih, iw)
+    # 肚子下面的沙堆（把腿之间的空半填上，看上去又像一块石头）
+    m |= poly_mask(P([(28, 92), (38, 85), (54, 82), (68, 85), (78, 92)]), ih, iw)
+    # 背上水蚀的几个小缺口
+    for cx, cy, r in ((47, 18.5, 2.6), (62, 18.5, 2.0), (28, 22.5, 2.2)):
+        m &= ~(((xx - cx * sc) ** 2 + (yy - cy * sc) ** 2) < (r * sc) ** 2)
+    return m
+
+ELEPHANT_X, ELEPHANT_SC, ELEPHANT_FADE = 270, 1.7, (0.78, 0.12)
+
+
 def distant():
     """最远的一层（scroll 0.05，和大鱼同一层，在所有石柱后面）：一片褪得几乎看不见的巨藻林（很高，顶快到水面），
-    和远处第二座更小更淡的沉没雕像。只比同一高度的水暗一两档，让深处有「还有更多」的感觉，又不抢头像。
+    和远处第二座更小更淡的沉没雕像，再往右一头几乎看不出的大象（elephant_mask）。只比同一高度的水暗一两档，让深处有「还有更多」的感觉，又不抢头像。
     东西集中在左边那半（开场镜头左上那片空水），右边月亮、头像那块留空。"""
     lay = Layer()
     pal = bramp(5, .07, .15, 264, 252)
@@ -377,6 +413,15 @@ def distant():
     pm = sl.a[..., 3] > 0
     rim_light(sl, pm, shift=12, gain=0.03, over=0.0, y0=100, y1=170)
     lay.paste(sl.a, 0, 0)
+    # 再往右一点、几乎和水一个颜色的大象（像一块圆顶的大石头）：比雕像褪得多，只在走过去的时候隐约认得出来。
+    # 位置避开晨身后那一列（这一层 x ≈ 204 + 0.05·镜头，镜头 0..1100 时 = 204..259）
+    el = Layer()
+    m = elephant_mask(ELEPHANT_SC)
+    st = shade_rock(m, np.random.default_rng(143), pal, cracks=(1, 2), seams=False)
+    el.paste(st, ELEPHANT_X, base + 2 - st.shape[0])
+    fade(el, lambda y: ELEPHANT_FADE[0] + ELEPHANT_FADE[1] * np.clip((y - 90) / 110, 0, 1), steps=10, shift=12)
+    rim_light(el, el.a[..., 3] > 0, shift=12, gain=0.02, over=0.0, y0=60, y1=140)
+    lay.paste(el.a, 0, 0)
     return lay
 
 
@@ -410,7 +455,7 @@ def far():
             lay.put(x, y, pal[1 if y == top else 0])
     drop_floating(lay, 200)
     fade(lay, lambda y: 0.56 + 0.32 * np.clip((y - 110) / 100, 0, 1), steps=8, shift=19)
-    rim_light(lay, pm, shift=19, gain=0.075, over=0.03, y0=70, y1=178)
+    rim_light(lay, pm, shift=19, gain=0.095, over=0.045, y0=70, y1=180)
     return lay
 
 
@@ -459,7 +504,7 @@ def midfar():
             lay.put(x, y, pal[1 if y == top else 0])
     drop_floating(lay, 205)
     fade(lay, lambda y: 0.44 + 0.3 * np.clip((y - 130) / 80, 0, 1), steps=8, shift=40)
-    rim_light(lay, pm, shift=40, gain=0.058, over=0.014, y0=80, y1=172)
+    rim_light(lay, pm, shift=40, gain=0.07, over=0.024, y0=80, y1=174)
     return lay
 
 
@@ -1058,7 +1103,7 @@ def front_layer():
                 img[y, x % W] = rgba(c)
     # 宽叶：几片很大的暗叶子从画面底下伸上来，往外弯（框住画面），上沿一条亮一档的边、中间一条叶脉
     # 高的：细茎从底下上来，叶片在晨头顶（y≈185）以上才展开，所以从晨面前滑过时只挡一根细茎
-    for cx, k, hmax, lean, wmax, stem in ((944, 2, 220, 0.2, 12, 0.5), (840, 2, 180, 0.26, 9, 0.6)):
+    for cx, k, hmax, lean, wmax, stem in ((944, 2, 220, 0.06, 12, 0.5), (840, 2, 180, 0.26, 9, 0.6)):
         for i in range(k):
             x = cx + rng.uniform(-8, 8)
             ang = -np.pi / 2 + lean + (i - (k - 1) / 2) * 0.3 + rng.uniform(-0.08, 0.08)

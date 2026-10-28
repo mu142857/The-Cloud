@@ -13,6 +13,7 @@ const EMERG_UP := 0.42    # 紧急模式：上升只剩这么多
 
 const SHIP_TEX := preload("res://art/flight/ship.png")
 const FLAME_TEX := preload("res://art/flight/flame.png")
+const FLAME_SMALL := preload("res://art/flight/flame_small.png")   # 紧急模式：火缩成一小簇
 const GLOW_TEX := preload("res://art/flight/glow_warm.png")
 
 var vy := 0.0
@@ -100,14 +101,20 @@ func _process(delta: float) -> void:
 	if emergency > 0.0:
 		cough = 1.0 if fmod(_t, 1.7) < 0.25 or fmod(_t + 0.4, 2.3) < 0.15 else 0.0
 	var on := lit * (1.0 - cough)
-	_flame.visible = on > 0.15 or (straining and int(_t * 11.0) % 3 == 0)
+	# 紧急模式：火变小（换成小的那簇），咳嗽时灭一下；往上够的时候偶尔「噗」地蹿回大火一下，又缩回去
+	var small := emergency > 0.3 and flare < 0.3 and not (straining and int(_t * 7.0) % 5 == 0)
+	_flame.texture = FLAME_SMALL if small else FLAME_TEX
+	if small:
+		_flame.visible = not crashed and cough < 0.5
+	else:
+		_flame.visible = on > 0.15 or (straining and emergency > 0.0)
 	_flame.frame = int(_t * 14.0) % 3
-	_flame.position = (tail + Vector2(-4, 0).rotated(ang)).round()
+	_flame.position = (tail + Vector2(-2 if small else -4, 0).rotated(ang)).round()
 	_flame.scale = Vector2.ONE * (1.0 if flare < 0.3 else 2.0)
 	_glow.position = tail.round()
-	var g := (0.55 + 0.1 * sin(_t * 9.0)) * on + flare * 0.9
+	var g := (0.55 + 0.1 * sin(_t * 9.0)) * maxf(on, 0.35 * (1.0 - cough) if emergency > 0.0 and not crashed else 0.0) + flare * 0.9
 	_glow.modulate = Color(1, 1, 1, clampf(g, 0.0, 1.0))
-	_glow.scale = Vector2.ONE * (1.0 + flare * 1.2)
+	_glow.scale = Vector2.ONE * ((1.0 - 0.4 * emergency) + flare * 1.2)
 	flare = maxf(0.0, flare - delta * 1.2)
 	# 撞到：闪白 + 晃
 	hit_flash = maxf(0.0, hit_flash - delta)
