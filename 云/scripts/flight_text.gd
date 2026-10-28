@@ -22,7 +22,7 @@ const S := {
 	"fuel": {"en": "fuel", "zh": "燃料"},
 	"short": {"en": "short %d", "zh": "还差 %d"},
 	"next": {"en": "next", "zh": "接下来"},
-	"no_more": {"en": "nothing left I want to burn", "zh": "没有想烧的了"},
+	"no_more": {"en": "keeping the rest", "zh": "剩下的都留着"},
 	"arrive_title": {"en": "Mercury.", "zh": "水星。"},
 	"arrive_sub": {"en": "We made it.", "zh": "到了。"},
 	"crash_title": {"en": "Mercury, anyway.", "zh": "还是落到了水星。"},

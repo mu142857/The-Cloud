@@ -58,7 +58,7 @@ func _draw() -> void:
 			var mx := x
 			for it in mats:
 				draw_texture(it.tex, Vector2(mx, y + 2), Color(0.8, 0.8, 0.85, la * 0.75))
-				mx += 14
+				mx += 20
 			y += 30
 		if list.is_empty():
 			_txt(FlightText.t("none"), Vector2(x, y + 12), Color(Color("59617a"), la))

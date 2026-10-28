@@ -12,7 +12,7 @@ extends Node2D
 ##   使坏：飞到 SABOTAGE_AT 时一阵颠簸，队列里的 SABOTAGE_WOOD 块木头掉出飞船。
 ##
 ## 命令行（-- 后面）：
-##   --bot=none|random|good   自动玩（不按 / 随机按 / 尽量躲障碍吃光点）；不给 = 人玩
+##   --bot=none|random|okay|good   自动玩（不按 / 随机按 / 反应慢的「还行的人」/ 尽量躲障碍吃光点）；不给 = 人玩
 ##   --card=keep|burn         机器人在决定卡上一律选什么（默认 burn）
 ##   --seed=N                 光点抖动、障碍相位、随机机器人
 ##   --speed=倍数             Engine.time_scale
@@ -29,13 +29,13 @@ const SPEED := 64.0              # 画面滚动（主层像素 / 秒）
 const START_TANK := 100.0        # 起飞时引擎里已经有的
 const FEED_AT := 6.0             # 油箱低于这个就烧下一件
 const MOTE_FUEL := 6.0           # 一个光点
-const EMERG_MOTE_MULT := 3.0     # 紧急模式时光点给的倍数
+const EMERG_MOTE_MULT := 2.0     # 紧急模式时光点给的倍数
 const LEAK_TIME := 4.0           # 撞一下漏几秒油
 const LEAK_RATE := 3.0           # 漏油时每秒多掉多少
 const HIT_COOLDOWN := 1.8        # 撞完这么久里不会再撞
 const SABOTAGE_AT := 0.15
 const SABOTAGE_WOOD := 3
-const EMERG_GLIDE := 12.0        # 紧急模式：天花板从顶压到底要几秒
+const EMERG_GLIDE := 8.0         # 紧急模式：天花板从顶压到底要几秒
 const GLIDE_RECOVER := 5.0       # 有油了：天花板几秒回到顶
 const LAST_CHANCE_AT := 0.5      # 天花板压到一半：最后一次机会
 const CARD_SLOW := 0.07          # 决定卡时世界的速度
@@ -45,6 +45,7 @@ const ITEMS_PATH := "res://data/flight_test_items.json"
 
 const Course := preload("res://scripts/flight_course.gd")
 const Ship := preload("res://scripts/flight_ship.gd")
+const Hud := preload("res://scripts/flight_hud.gd")
 
 @onready var world: Node2D = $Shake
 @onready var ship: Node2D = $Shake/Ship
@@ -316,7 +317,7 @@ func _feed() -> void:
 		_burn(e, false)
 		hud.toast("+%d %s" % [int(e.fuel), FlightText.pick(e.name)], e.tex)
 		for k in 10:
-			fx.ember(Vector2(22, 250) + Vector2(randf_range(-6, 6), randf_range(-6, 6)), k * 0.04)
+			fx.ember(Vector2(Hud.QX + 12, 250) + Vector2(randf_range(-6, 6), randf_range(-6, 6)), k * 0.04)
 	else:
 		_open_card(e)
 
@@ -333,7 +334,7 @@ func _burn(e: Dictionary, personal: bool) -> void:
 
 func _open_card(e: Dictionary) -> void:
 	_card_item = e
-	card.keep_target = Vector2(22 + 27 * mini(2, queue.size() - 1), 252)
+	card.keep_target = Vector2(Hud.QX + 12 + 27 * mini(2, queue.size() - 1), 252)
 	card.open_single(e)
 	_card_open_t = real_t
 	stats.cards += 1
@@ -342,7 +343,7 @@ func _open_card(e: Dictionary) -> void:
 
 
 func _open_pick(list: Array) -> void:
-	card.keep_target = Vector2(40, 252)
+	card.keep_target = Vector2(Hud.QX + 40, 252)
 	card.open_pick(list)
 	_card_open_t = real_t
 	stats.cards += 1
@@ -571,18 +572,23 @@ func _bot_step(dt: float) -> void:
 			_plan_t -= dt
 			if _plan_t <= 0.0:
 				_plan_t = 0.1
-				_bot_press = _plan()
+				_bot_press = _plan(2.4)
+		"okay":
+			# 「还行的人」：反应慢（0.35 秒才改一次主意）、只看 1.2 秒远，四次里有一次走神乱按
+			_plan_t -= dt
+			if _plan_t <= 0.0:
+				_plan_t = 0.35
+				_bot_press = _plan(1.2) if _rng.randf() > 0.25 else _rng.randf() < 0.5
 
 
 const _PLANS := [[false, 9.0], [true, 0.1], [true, 0.2], [true, 0.35], [true, 0.5], [true, 0.75], [true, 1.0],
 	[true, 1.4], [true, 9.0], [false, 0.2], [false, 0.4], [false, 0.7], [false, 1.0], [false, 1.5]]
 
 
-func _plan() -> bool:
+func _plan(H: float) -> bool:
 	## 把每个按键计划往前模拟 2.4 秒（用和真飞船一样的 step），吃到光点 +，撞到 -，选最好的。
 	var best := -1e9
 	var best_press := false
-	var H := 2.4
 	var h := 1.0 / 20.0
 	var ceil_y: float = ship.ceiling
 	for plan in _PLANS:

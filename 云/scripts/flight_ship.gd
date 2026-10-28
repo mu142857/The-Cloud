@@ -8,7 +8,7 @@ const DOWN := 44.0        # 松开时往下滑的速度
 const ACC := 2.7          # 追目标速度的快慢（越大越跟手，越小越飘）
 const EDGE_SOFT := 3.0    # 离上下边界每差 1 像素，最大速度减这么多（贴边时慢慢停住，不会「撞墙」）
 const TOP := 34.0
-const BOTTOM := 236.0
+const BOTTOM := 228.0
 const EMERG_UP := 0.42    # 紧急模式：上升只剩这么多
 
 const SHIP_TEX := preload("res://art/flight/ship.png")
