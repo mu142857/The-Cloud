@@ -1,0 +1,153 @@
+[gd_scene load_steps=21 format=3]
+
+[ext_resource type="Texture2D" path="res://art/river/sky.png" id="1_sky"]
+[ext_resource type="Texture2D" path="res://art/river/ridge.png" id="2_ridge"]
+[ext_resource type="Texture2D" path="res://art/river/mist.png" id="3_mist"]
+[ext_resource type="Texture2D" path="res://art/river/shore.png" id="4_shore"]
+[ext_resource type="Texture2D" path="res://art/river/ripples.png" id="5_ripples"]
+[ext_resource type="Texture2D" path="res://art/river/glints.png" id="6_glints"]
+[ext_resource type="Texture2D" path="res://art/river/water.png" id="7_water"]
+[ext_resource type="Texture2D" path="res://art/river/main.png" id="8_main"]
+[ext_resource type="Texture2D" path="res://art/river/front.png" id="9_front"]
+[ext_resource type="Script" path="res://scripts/river_test.gd" id="20_script"]
+[ext_resource type="Shader" path="res://scripts/vignette.gdshader" id="21_vig"]
+[ext_resource type="Shader" path="res://scripts/river_water.gdshader" id="22_water"]
+[ext_resource type="Script" path="res://scripts/river_motes.gd" id="31_motes"]
+[ext_resource type="Script" path="res://scripts/river_fish.gd" id="32_fish"]
+[ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
+
+[sub_resource type="CanvasItemMaterial" id="add"]
+blend_mode = 1
+
+[sub_resource type="ShaderMaterial" id="vig"]
+shader = ExtResource("21_vig")
+shader_parameter/strength = 0.6
+shader_parameter/tint = Color(0.8, 0.87, 1.0, 1)
+
+[sub_resource type="ShaderMaterial" id="glint_mat"]
+shader = ExtResource("22_water")
+shader_parameter/palette_mode = true
+shader_parameter/c0 = Color(0.180, 0.235, 0.294, 1)
+shader_parameter/c1 = Color(0.294, 0.353, 0.416, 1)
+shader_parameter/c2 = Color(0.412, 0.471, 0.525, 1)
+shader_parameter/c3 = Color(0.541, 0.584, 0.627, 1)
+shader_parameter/speed = 1.0
+shader_parameter/wobble = 2.0
+shader_parameter/flicker = 0.9
+shader_parameter/show = 0.6
+
+[sub_resource type="ShaderMaterial" id="ripple_mat"]
+shader = ExtResource("22_water")
+shader_parameter/palette_mode = false
+shader_parameter/speed = 0.7
+shader_parameter/wobble = 2.0
+shader_parameter/flicker = 0.0
+shader_parameter/show = 0.62
+
+[node name="RiverTest" type="Node2D"]
+script = ExtResource("20_script")
+
+[node name="Sky" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Sky"]
+texture = ExtResource("1_sky")
+centered = false
+
+[node name="Ridge" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.05, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Ridge"]
+texture = ExtResource("2_ridge")
+centered = false
+
+[node name="Mist" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.1, 1)
+repeat_size = Vector2(960, 0)
+autoscroll = Vector2(-2.5, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Mist"]
+texture = ExtResource("3_mist")
+centered = false
+
+[node name="Shore" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.16, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Shore"]
+texture = ExtResource("4_shore")
+centered = false
+
+[node name="Ripples" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.3, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Ripples"]
+texture_repeat = 2
+material = SubResource("ripple_mat")
+position = Vector2(0, 151)
+texture = ExtResource("5_ripples")
+centered = false
+
+[node name="Glints" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0, 0)
+
+[node name="Sprite" type="Sprite2D" parent="Glints"]
+material = SubResource("glint_mat")
+position = Vector2(0, 155)
+texture = ExtResource("6_glints")
+centered = false
+
+[node name="Fish" type="Node2D" parent="Glints"]
+script = ExtResource("32_fish")
+
+[node name="Water" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.42, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Water"]
+texture = ExtResource("7_water")
+centered = false
+
+[node name="Motes" type="Node2D" parent="Water"]
+material = SubResource("add")
+script = ExtResource("31_motes")
+
+[node name="Main" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.0, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Main"]
+texture = ExtResource("8_main")
+centered = false
+
+[node name="Chen" parent="." instance=ExtResource("40_chen")]
+position = Vector2(204, 226)
+
+[node name="Front" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.4, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Sprite" type="Sprite2D" parent="Front"]
+texture = ExtResource("9_front")
+centered = false
+
+[node name="Camera" type="Camera2D" parent="."]
+position = Vector2(240, 135)
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="Vignette" type="ColorRect" parent="Overlay"]
+material = SubResource("vig")
+offset_right = 480.0
+offset_bottom = 270.0
+mouse_filter = 2

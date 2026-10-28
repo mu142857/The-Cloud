@@ -51,6 +51,9 @@ var _last_run_frame := -1          # 上一个显示的 run 帧，换帧时按�
 var _idle_t := 0.0
 var _next_blink := 2.5
 var _rng := RandomNumberGenerator.new()
+## 地面高度函数（x → 脚底所在行）。默认是针叶林主层的地面；别的场景在 _ready 里换成自己的，
+## 例如 chen.ground_fn = func(x: float) -> float: return 230.0
+var ground_fn: Callable = ground_y
 
 
 static func ground_y(x: float) -> float:
@@ -152,4 +155,4 @@ func _on_looped() -> void:
 
 
 func _snap() -> void:
-	position.y = round(ground_y(position.x)) + SINK
+	position.y = round(ground_fn.call(position.x)) + SINK
