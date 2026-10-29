@@ -33,6 +33,8 @@ extends Node2D
 @export var jitter := 0.15
 ## 步子对齐的程度：1 = 同一股人流里所有人同一只脚落地（齐步走），0 = 各走各的相位（节奏还是一样）
 @export var sync := 0.0
+## 一个走路周期身体往前走多远（个子的几倍）：city_art.py 按帧图里的步幅算（长大衣、步子小）
+@export var stride := 1.1
 ## 脚下的接触阴影：脚底下面那一行（大个子两行）压暗一档，短短一截，硬边（特效，半透明的黑）
 @export var shadow := 0.5
 ## 打开后不乘 tint，按 lo / hi / rim 给这一排上明度（见 city_crowd_ramp.gdshader）
@@ -76,8 +78,9 @@ func _lane(d: float, n: int) -> void:
 	var v := _rng.randf_range(speed.x, speed.y)
 	var gap := area_w / n
 	var x0 := _rng.randf_range(0.0, area_w)
-	# 一步的长短跟个子走（个子高 h 的人一个周期大约走 1.1h）；同一股里大家一样快，所以节奏也一样
-	var cycle := frame_size.y * 1.1 / v
+	# 一步的长短跟个子走（个子高 h 的人一个周期走 stride·h，city_art.py 按帧图里的步幅算好的，脚不打滑）；
+	# 同一股里大家一样快，所以节奏也一样
+	var cycle := frame_size.y * stride / v
 	var t0 := _rng.randf() * cycle
 	for i in n:
 		_p.append({

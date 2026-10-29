@@ -5,6 +5,8 @@ extends Node2D
 ## 节点：根 Node2D 的 x = 身体中线，y 不用管（_ready 里按晨的地面函数贴地：y = 地面那一行 + 1，和晨、npc_alien 一样）。
 ## 精灵在 _ready 里现搭，场景里不存帧。场景里放一个 Node2D、挂这个脚本、设 position.x 就行；
 ## 晨不叫 "../Chen" 的话改 watch_path。
+## 滑行（剧本用：森林章节里她是弥洛）：glide_to(x) 按 GLIDE_SPEED 平移过去，idle 照常播（蛇滑行），朝向跟着移动方向；
+## is_gliding() 问还在不在滑。不调它的时候和以前完全一样。
 ## 光：和晨用同一个 scripts/chen_light.gdshader、同一套 chen.gd 的 ENVS[env] 参数（乘 ENV_K 弱一点）；
 ## 她本来比晨亮（奶白蛇尾 L≈0.96、金发 0.7），整体乘 TINT（偏一点森林的冷绿）压一档，晨的白发还是全屏最亮。
 ## 脚下一块硬边接触阴影（和 chen_fx.gd 的写法一样：三行、越往下越窄越淡），跟着朝向翻。
@@ -40,6 +42,11 @@ var _watch: Node2D
 var _mat: ShaderMaterial
 var _shadow: Node2D
 var _turn_t := 0.0
+const GLIDE_SPEED := 40.0               # 滑行速度（像素 / 秒）；动画不变
+var _gliding := false
+var _glide_x := 0.0
+var _glide_v := GLIDE_SPEED
+var _gx := 0.0
 
 
 func _ready() -> void:
@@ -119,7 +126,41 @@ func _want() -> int:
 	return 1 if _watch.position.x > position.x else -1
 
 
+## 滑到 x（世界坐标）停下。speed 不给就是 GLIDE_SPEED。
+func glide_to(x: float, speed := GLIDE_SPEED) -> void:
+	x = round(x)
+	if absf(x - position.x) < 1.0:
+		return
+	_gliding = true
+	_glide_x = x
+	_glide_v = speed
+	_gx = position.x
+	_set_facing(1 if x > position.x else -1)
+
+
+func is_gliding() -> bool:
+	return _gliding
+
+
+## 直接站到 x（剧本的 show / 跳节拍用），停掉滑行
+func place(x: float) -> void:
+	_gliding = false
+	position.x = round(x)
+	_snap()
+
+
 func _process(delta: float) -> void:
+	if _gliding:
+		var step := _glide_v * delta
+		if absf(_glide_x - _gx) <= step:
+			_gx = _glide_x
+			_gliding = false
+		else:
+			_gx += signf(_glide_x - _gx) * step
+		position.x = round(_gx)
+		_snap()
+		_turn_t = 0.0
+		return
 	if _watch == null or not _watch.visible:
 		_turn_t = 0.0
 		return

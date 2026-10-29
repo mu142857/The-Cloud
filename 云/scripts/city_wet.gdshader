@@ -17,11 +17,11 @@ uniform float cam_left = 0.0;      // 镜头左边缘在世界里的 x（city_te
 uniform float chen_x = 204.0;      // 晨在屏幕上的 x（city_test.gd 每帧更新；现在晨也照进镜子，留着备用）
 uniform float ground = 188.0;      // 路沿受光边那一行（脚底），屏幕坐标（场景里按 city_art.py 的 GROUND - CAM_DY 写）
 uniform float persp = 0.0125;      // 倒影往下压扁多少：第 d 行照路沿上面 d·(1 + persp·d) 行
-uniform float refl_near = 0.7;     // 贴着路沿的反射率
-uniform float refl_far = 0.3;      // 最下面的反射率
+uniform float refl_near = 0.4;     // 贴着路沿的反射率
+uniform float refl_far = 0.18;     // 最下面的反射率
 uniform vec3 refl_tint = vec3(0.78, 0.86, 0.97);
 uniform float floor_keep = 0.55;   // 地面本身的颜色留几成（石板缝、路面）
-uniform float ripple = 1.6;        // 最下面那几行左右晃多少像素
+uniform float ripple = 1.2;        // 最下面那几行左右晃多少像素
 uniform float streak = 0.95;       // 竖光条的强度
 uniform float add_max = 0.16;      // 光条每个像素最多加这么多（sRGB 0..1）
 uniform float streak_len = 0.35;   // 光条往下淡掉多少（0 = 一直到底一样亮）
@@ -59,7 +59,7 @@ void fragment() {
 	float ys[6] = {150.0, 112.0, 88.0, 62.0, 38.0, 24.0};
 	for (int j = 0; j < 6; j++) {
 		vec3 c = src(vec2(rx, ground - ys[j]));
-		acc = max(acc, c * smoothstep(0.32, 0.6, lum(c)));
+		acc = max(acc, c * smoothstep(0.4, 0.62, lum(c)));
 	}
 	float gap = step(h1(wx * 0.31 + floor(d / 3.0) * 1.7 + floor(TIME * 3.0) * 5.1), 0.12);
 	float prof = (1.0 - depth * streak_len) * step(2.0, d);

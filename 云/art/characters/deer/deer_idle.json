@@ -1,0 +1,95 @@
+{
+ "frames": [
+  {
+   "filename": "deer_idle 0",
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_idle 1",
+   "frame": {
+    "x": 53,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_idle 2",
+   "frame": {
+    "x": 106,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_idle 3",
+   "frame": {
+    "x": 159,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_idle 4",
+   "frame": {
+    "x": 212,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_idle 5",
+   "frame": {
+    "x": 265,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  },
+  {
+   "filename": "deer_idle 6",
+   "frame": {
+    "x": 318,
+    "y": 0,
+    "w": 53,
+    "h": 58
+   },
+   "duration": 200
+  }
+ ],
+ "meta": {
+  "image": "deer_idle.png",
+  "size": {
+   "w": 371,
+   "h": 58
+  },
+  "frameTags": [
+   {
+    "name": "idle",
+    "from": 0,
+    "to": 5,
+    "direction": "forward"
+   },
+   {
+    "name": "ear",
+    "from": 6,
+    "to": 6,
+    "direction": "forward"
+   }
+  ]
+ }
+}

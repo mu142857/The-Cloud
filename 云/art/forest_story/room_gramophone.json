@@ -1,0 +1,10 @@
+{
+ "frame_w": 22,
+ "frame_h": 23,
+ "frames": 2,
+ "ms": 0,
+ "states": [
+  "old",
+  "new"
+ ]
+}

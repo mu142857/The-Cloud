@@ -1,0 +1,1367 @@
+{
+ "_comment": "引擎开发用的小样剧本（story_runner.gd 的全部步骤都用到了）。正式剧本是 data/story_forest.json；它不存在时引擎用这份。",
+ "speakers": {
+  "chen": {
+   "zh": "晨",
+   "en": "Chen"
+  },
+  "deer": {
+   "zh": "鹿",
+   "en": "Deer"
+  },
+  "miluo": {
+   "zh": "弥洛",
+   "en": "Milo"
+  },
+  "voice": {
+   "zh": "屋里的声音",
+   "en": "A voice inside"
+  }
+ },
+ "markers": {
+  "wall_left": -160,
+  "scrap": -60,
+  "wreck": 120,
+  "luggage": 190,
+  "chen_start": 250,
+  "wood": 372,
+  "resin": 520,
+  "branch": 690,
+  "deer_appear": 560,
+  "road_start": 900,
+  "stall": 1100,
+  "log": 1400,
+  "fog_start": 1550,
+  "cloth": 1780,
+  "hollow": 1900,
+  "wall_road": 1960,
+  "treehouse": 2600,
+  "empty_house": 2900,
+  "shop": 3120,
+  "slope": 3400,
+  "wall_right": 3600,
+  "deer_ship": 170,
+  "branch_a": 1372,
+  "branch_b": 1432,
+  "treehouse_arrive": 2520,
+  "deer_door": 2560,
+  "deer_empty": 2830,
+  "miluo_empty": 2860,
+  "room_door": 40,
+  "room_chairs": 100,
+  "room_kettle": 145,
+  "room_radio": 195,
+  "room_sign": 235,
+  "room_tools": 275,
+  "room_miluo": 305,
+  "room_dish": 330,
+  "room_gramophone": 360,
+  "room_box": 390,
+  "room_pipes": 440
+ },
+ "hotspots": [
+  {
+   "id": "wreck_launch",
+   "at": "wreck",
+   "room": "forest",
+   "label": {
+    "zh": "飞船",
+    "en": "Ship"
+   },
+   "need": [
+    "ready_to_launch"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "launch_go"
+  },
+  {
+   "id": "wreck_fail",
+   "at": "wreck",
+   "room": "forest",
+   "label": {
+    "zh": "飞船",
+    "en": "Ship"
+   },
+   "need": [
+    "fuel_full",
+    "got_luggage"
+   ],
+   "not": [
+    "deer_met"
+   ],
+   "once": false,
+   "scene": "launch_fail"
+  },
+  {
+   "id": "wreck_tinker",
+   "at": "wreck",
+   "room": "forest",
+   "label": {
+    "zh": "飞船",
+    "en": "Ship"
+   },
+   "need": [
+    "crashed"
+   ],
+   "not": [
+    "tried_parts",
+    "fuel_full"
+   ],
+   "once": false,
+   "scene": "wreck_tinker"
+  },
+  {
+   "id": "luggage",
+   "at": "luggage",
+   "room": "forest",
+   "label": {
+    "zh": "行李",
+    "en": "Luggage"
+   },
+   "need": [
+    "crashed"
+   ],
+   "not": [],
+   "once": true,
+   "scene": "luggage",
+   "sprite": "res://art/forest_story/luggage.png",
+   "hide_after": "got_luggage"
+  },
+  {
+   "id": "wood",
+   "at": "wood",
+   "room": "forest",
+   "label": {
+    "zh": "发光的木头",
+    "en": ""
+   },
+   "need": [
+    "crashed"
+   ],
+   "not": [
+    "got_wood"
+   ],
+   "once": true,
+   "scene": "wood_pickup"
+  },
+  {
+   "id": "scrap",
+   "at": "scrap",
+   "room": "forest",
+   "label": {
+    "zh": "金属碎片",
+    "en": ""
+   },
+   "need": [
+    "crashed"
+   ],
+   "not": [
+    "got_scrap"
+   ],
+   "once": true,
+   "scene": "mat_scrap",
+   "sprite": "res://art/forest_story/mat_scrap.png",
+   "hide_after": "got_scrap"
+  },
+  {
+   "id": "resin",
+   "at": "resin",
+   "room": "forest",
+   "label": {
+    "zh": "树脂",
+    "en": ""
+   },
+   "need": [
+    "crashed"
+   ],
+   "not": [
+    "got_resin"
+   ],
+   "once": true,
+   "scene": "mat_resin",
+   "sprite": "res://art/forest_story/mat_resin.png",
+   "hide_after": "got_resin"
+  },
+  {
+   "id": "branch",
+   "at": "branch",
+   "room": "forest",
+   "label": {
+    "zh": "干枝",
+    "en": ""
+   },
+   "need": [
+    "crashed"
+   ],
+   "not": [
+    "got_branch"
+   ],
+   "once": true,
+   "scene": "mat_branch",
+   "sprite": "res://art/forest_story/mat_branch.png",
+   "hide_after": "got_branch"
+  },
+  {
+   "id": "deer_chat",
+   "at": "deer",
+   "room": "forest",
+   "label": {
+    "zh": "鹿",
+    "en": "Deer"
+   },
+   "need": [
+    "road_stall"
+   ],
+   "not": [
+    "log_started"
+   ],
+   "once": false,
+   "scene": "deer_chat"
+  },
+  {
+   "id": "log_intro",
+   "at": "log",
+   "room": "forest",
+   "label": {
+    "zh": "倒木",
+    "en": ""
+   },
+   "need": [
+    "road_stall"
+   ],
+   "not": [
+    "log_started"
+   ],
+   "once": false,
+   "scene": "log_intro"
+  },
+  {
+   "id": "branch_a",
+   "at": "branch_a",
+   "room": "forest",
+   "label": {
+    "zh": "树枝",
+    "en": ""
+   },
+   "need": [
+    "log_started"
+   ],
+   "not": [
+    "branch_a"
+   ],
+   "once": false,
+   "scene": "branch_a_drag"
+  },
+  {
+   "id": "branch_b",
+   "at": "branch_b",
+   "room": "forest",
+   "label": {
+    "zh": "树枝",
+    "en": ""
+   },
+   "need": [
+    "log_started"
+   ],
+   "not": [
+    "branch_b"
+   ],
+   "once": false,
+   "scene": "branch_b_drag"
+  },
+  {
+   "id": "cloth",
+   "at": "cloth",
+   "room": "forest",
+   "label": {
+    "zh": "布条",
+    "en": ""
+   },
+   "need": [
+    "fog_on"
+   ],
+   "not": [
+    "at_treehouse"
+   ],
+   "once": false,
+   "scene": "cloth_enter"
+  },
+  {
+   "id": "hollow",
+   "at": "hollow",
+   "room": "forest",
+   "label": {
+    "zh": "水声",
+    "en": ""
+   },
+   "need": [
+    "fog_on"
+   ],
+   "not": [
+    "at_treehouse"
+   ],
+   "once": false,
+   "scene": "hollow_back",
+   "trigger": "enter"
+  },
+  {
+   "id": "miluo_help",
+   "at": "room_miluo",
+   "room": "treehouse",
+   "label": {
+    "zh": "弥洛",
+    "en": "Milo"
+   },
+   "need": [
+    "met_miluo"
+   ],
+   "not": [
+    "tools_ok"
+   ],
+   "once": false,
+   "scene": "help"
+  },
+  {
+   "id": "radio",
+   "at": "room_radio",
+   "room": "treehouse",
+   "label": {
+    "zh": "收音机",
+    "en": ""
+   },
+   "need": [
+    "met_miluo"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "radio"
+  },
+  {
+   "id": "room_door",
+   "at": "room_door",
+   "room": "treehouse",
+   "label": {
+    "zh": "门",
+    "en": ""
+   },
+   "need": [
+    "ship_fixed"
+   ],
+   "not": [
+    "pump_placed"
+   ],
+   "once": false,
+   "scene": "pump_out"
+  },
+  {
+   "id": "slope",
+   "at": "slope",
+   "room": "forest",
+   "label": {
+    "zh": "鹿",
+    "en": "Deer"
+   },
+   "need": [
+    "pump_placed"
+   ],
+   "not": [
+    "slope_talked"
+   ],
+   "once": false,
+   "scene": "slope_truth"
+  },
+  {
+   "id": "treehouse_revisit",
+   "at": "treehouse",
+   "room": "forest",
+   "label": {
+    "zh": "树屋",
+    "en": ""
+   },
+   "need": [
+    "slope_talked"
+   ],
+   "not": [
+    "ready_to_launch"
+   ],
+   "once": false,
+   "scene": "revisit"
+  }
+ ],
+ "scenes": {
+  "intro": [
+   {
+    "say": "chen",
+    "zh": "啊……糟糕……坠毁了。（小样）",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "crashed"
+   }
+  ],
+  "wreck_tinker": [
+   {
+    "say": "chen",
+    "zh": "这块装这里……不对。",
+    "en": ""
+   },
+   {
+    "say": "chen",
+    "zh": "那装这边……也不对。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "tried_parts"
+   }
+  ],
+  "luggage": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "say": "chen",
+    "zh": "行李散了一地。",
+    "en": ""
+   },
+   {
+    "do": "give",
+    "item": "elephant_drawing"
+   },
+   {
+    "do": "give",
+    "item": "music_box"
+   },
+   {
+    "do": "give",
+    "item": "travel_map"
+   },
+   {
+    "do": "journal",
+    "zh": "坠毁了。行李都还在。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "got_luggage"
+   }
+  ],
+  "wood_pickup": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "give",
+    "item": "glowing_wood"
+   },
+   {
+    "say": "chen",
+    "zh": "太好了，有了这个，飞船就能再次起飞了。",
+    "en": ""
+   },
+   {
+    "narr": {
+     "zh": "启动所需：200",
+     "en": ""
+    }
+   },
+   {
+    "do": "flag",
+    "set": "got_wood"
+   },
+   {
+    "do": "goto",
+    "scene": "fuel_check"
+   }
+  ],
+  "mat_scrap": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "give",
+    "item": "mat_scrap"
+   },
+   {
+    "say": "chen",
+    "zh": "碎片。也能烧。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "got_scrap"
+   },
+   {
+    "do": "goto",
+    "scene": "fuel_check"
+   }
+  ],
+  "mat_resin": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "give",
+    "item": "mat_resin"
+   },
+   {
+    "say": "chen",
+    "zh": "树脂，黏黏的。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "got_resin"
+   },
+   {
+    "do": "goto",
+    "scene": "fuel_check"
+   }
+  ],
+  "mat_branch": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "give",
+    "item": "mat_branch"
+   },
+   {
+    "say": "chen",
+    "zh": "干枝。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "got_branch"
+   },
+   {
+    "do": "goto",
+    "scene": "fuel_check"
+   }
+  ],
+  "fuel_check": [
+   {
+    "do": "if",
+    "flag": "!got_wood",
+    "then": "fuel_more",
+    "else": "fuel_check2"
+   }
+  ],
+  "fuel_check2": [
+   {
+    "do": "if",
+    "flag": "got_scrap",
+    "then": "fuel_check3",
+    "else": "fuel_more"
+   }
+  ],
+  "fuel_check3": [
+   {
+    "do": "if",
+    "flag": "got_resin",
+    "then": "fuel_check4",
+    "else": "fuel_more"
+   }
+  ],
+  "fuel_check4": [
+   {
+    "do": "if",
+    "flag": "got_branch",
+    "then": "fuel_full",
+    "else": "fuel_more"
+   }
+  ],
+  "fuel_more": [
+   {
+    "say": "chen",
+    "zh": "……再找一点。",
+    "en": ""
+   }
+  ],
+  "fuel_full": [
+   {
+    "narr": {
+     "zh": "燃烧值：200 / 200",
+     "en": ""
+    }
+   },
+   {
+    "say": "chen",
+    "zh": "够了。回飞船试试。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "fuel_full"
+   }
+  ],
+  "launch_fail": [
+   {
+    "do": "sfx",
+    "name": "engine_try"
+   },
+   {
+    "do": "wait",
+    "sec": 1.0
+   },
+   {
+    "narr": {
+     "zh": "推进器损坏",
+     "en": ""
+    }
+   },
+   {
+    "do": "give",
+    "item": "broken_part"
+   },
+   {
+    "say": "chen",
+    "zh": "你能不能一次说完。",
+    "en": ""
+   },
+   {
+    "do": "show",
+    "who": "deer",
+    "at": "deer_appear"
+   },
+   {
+    "say": "deer",
+    "zh": "它掉下来以前就坏了。",
+    "en": ""
+   },
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "deer"
+   },
+   {
+    "say": "chen",
+    "zh": "哪里能修？",
+    "en": ""
+   },
+   {
+    "do": "show_item",
+    "item": "elephant_drawing"
+   },
+   {
+    "say": "chen",
+    "zh": "你认识这个吗？这是一句比较长的话，用来看对话框会不会自动换行、中文字会不会出框。",
+    "en": ""
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "look"
+   },
+   {
+    "say": "deer",
+    "zh": "是大象。旧路那边有。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "deer_met"
+   },
+   {
+    "do": "guide",
+    "to": "road_start"
+   },
+   {
+    "do": "goto",
+    "scene": "road_1"
+   }
+  ],
+  "road_1": [
+   {
+    "say": "deer",
+    "zh": "跟我来。",
+    "en": ""
+   },
+   {
+    "do": "guide",
+    "to": "stall",
+    "speed": 45
+   },
+   {
+    "say": "deer",
+    "zh": "这里以前卖吃的。",
+    "en": ""
+   },
+   {
+    "do": "journal",
+    "zh": "鹿说这里以前卖吃的。"
+   },
+   {
+    "do": "flag",
+    "set": "road_stall"
+   }
+  ],
+  "deer_chat": [
+   {
+    "say": "deer",
+    "zh": "大象的鼻子很长。",
+    "en": ""
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "ear"
+   }
+  ],
+  "log_intro": [
+   {
+    "say": "deer",
+    "zh": "从这里更近。",
+    "en": ""
+   },
+   {
+    "say": "chen",
+    "zh": "下面压着两根树枝。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "log_started"
+   }
+  ],
+  "branch_a_drag": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "prop",
+    "id": "branch_a",
+    "state": "moved"
+   },
+   {
+    "do": "flag",
+    "set": "branch_a"
+   },
+   {
+    "do": "if",
+    "flag": "branch_b",
+    "then": "branches_done",
+    "else": "branches_one"
+   }
+  ],
+  "branch_b_drag": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "prop",
+    "id": "branch_b",
+    "state": "moved"
+   },
+   {
+    "do": "flag",
+    "set": "branch_b"
+   },
+   {
+    "do": "if",
+    "flag": "branch_a",
+    "then": "branches_done",
+    "else": "branches_one"
+   }
+  ],
+  "branches_one": [
+   {
+    "say": "chen",
+    "zh": "还有一根。",
+    "en": ""
+   }
+  ],
+  "branches_done": [
+   {
+    "do": "goto",
+    "scene": "log_push"
+   }
+  ],
+  "log_push": [
+   {
+    "do": "walk",
+    "who": "deer",
+    "to": "log"
+   },
+   {
+    "do": "sfx",
+    "name": "log_push"
+   },
+   {
+    "do": "prop",
+    "id": "log",
+    "state": "moved"
+   },
+   {
+    "do": "wait",
+    "sec": 0.6
+   },
+   {
+    "say": "deer",
+    "zh": "走吧。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "log_cleared"
+   },
+   {
+    "do": "guide",
+    "to": "fog_start"
+   },
+   {
+    "say": "deer",
+    "zh": "往这边。别去水声最响的地方，那里下面是空的。",
+    "en": ""
+   },
+   {
+    "do": "walk",
+    "who": "deer",
+    "to": "cloth"
+   },
+   {
+    "do": "hide",
+    "who": "deer"
+   },
+   {
+    "do": "prop",
+    "id": "fog",
+    "state": "thick"
+   },
+   {
+    "do": "ambient",
+    "name": "deer_knock",
+    "at": "cloth",
+    "on": true
+   },
+   {
+    "do": "ambient",
+    "name": "water_hollow",
+    "at": "hollow",
+    "on": true
+   },
+   {
+    "do": "flag",
+    "set": "fog_on"
+   }
+  ],
+  "hollow_back": [
+   {
+    "say": "chen",
+    "zh": "水声好响……往回走。",
+    "en": ""
+   },
+   {
+    "do": "walk",
+    "who": "chen",
+    "to": 1820
+   }
+  ],
+  "cloth_enter": [
+   {
+    "say": "chen",
+    "zh": "布条……是这边。",
+    "en": ""
+   },
+   {
+    "do": "fade_to",
+    "room": "forest",
+    "at": "treehouse_arrive"
+   },
+   {
+    "do": "ambient",
+    "name": "deer_knock",
+    "at": "cloth",
+    "on": false
+   },
+   {
+    "do": "ambient",
+    "name": "water_hollow",
+    "at": "hollow",
+    "on": false
+   },
+   {
+    "do": "show",
+    "who": "deer",
+    "at": "deer_door"
+   },
+   {
+    "do": "flag",
+    "set": "at_treehouse"
+   },
+   {
+    "do": "goto",
+    "scene": "treehouse_outside"
+   }
+  ],
+  "treehouse_outside": [
+   {
+    "say": "voice",
+    "zh": "你这次又跟人说自己见过了？",
+    "en": ""
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "graze_down"
+   },
+   {
+    "do": "wait",
+    "sec": 1.0
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "graze_up"
+   },
+   {
+    "do": "walk",
+    "who": "chen",
+    "to": "treehouse"
+   },
+   {
+    "say": "chen",
+    "zh": "请问……能修飞船吗？",
+    "en": ""
+   },
+   {
+    "say": "voice",
+    "zh": "坏的那块呢？",
+    "en": ""
+   },
+   {
+    "do": "fade_to",
+    "room": "treehouse",
+    "at": "room_door"
+   },
+   {
+    "do": "show",
+    "who": "miluo",
+    "at": "room_miluo"
+   },
+   {
+    "do": "face",
+    "who": "miluo",
+    "to": "chen"
+   },
+   {
+    "do": "walk",
+    "who": "chen",
+    "to": "room_tools"
+   },
+   {
+    "do": "take",
+    "item": "broken_part"
+   },
+   {
+    "say": "miluo",
+    "zh": "坐。别用那把。",
+    "en": ""
+   },
+   {
+    "do": "prop",
+    "id": "chairs",
+    "state": "pushed"
+   },
+   {
+    "do": "walk",
+    "who": "chen",
+    "to": "room_chairs",
+    "wait": false
+   },
+   {
+    "do": "walk",
+    "who": "miluo",
+    "to": "room_kettle",
+    "speed": 30
+   },
+   {
+    "do": "prop",
+    "id": "kettle",
+    "state": "off"
+   },
+   {
+    "do": "prop",
+    "id": "cups",
+    "state": "two"
+   },
+   {
+    "say": "miluo",
+    "zh": "喝不喝？",
+    "en": ""
+   },
+   {
+    "say": "chen",
+    "zh": "喝。",
+    "en": ""
+   },
+   {
+    "do": "walk",
+    "who": "miluo",
+    "to": "room_miluo"
+   },
+   {
+    "do": "flag",
+    "set": "met_miluo"
+   }
+  ],
+  "help": [
+   {
+    "say": "miluo",
+    "zh": "递我旁边那把。",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "tools_pick"
+   }
+  ],
+  "tools_pick": [
+   {
+    "do": "pick",
+    "options": [
+     {
+      "id": "tool_a",
+      "label": {
+       "zh": "锤子",
+       "en": ""
+      },
+      "scene": "tool_wrong"
+     },
+     {
+      "id": "tool_b",
+      "label": {
+       "zh": "扳手",
+       "en": ""
+      },
+      "scene": "tool_right"
+     },
+     {
+      "id": "tool_c",
+      "label": {
+       "zh": "汤勺",
+       "en": ""
+      },
+      "scene": "tool_wrong"
+     }
+    ]
+   }
+  ],
+  "tool_wrong": [
+   {
+    "say": "miluo",
+    "zh": "旁边那把。",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "tools_pick"
+   }
+  ],
+  "tool_right": [
+   {
+    "say": "miluo",
+    "zh": "嗯。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "tools_ok"
+   },
+   {
+    "say": "miluo",
+    "zh": "哪段管道漏气？听听看。",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "pipes_pick"
+   }
+  ],
+  "pipes_pick": [
+   {
+    "do": "pick",
+    "options": [
+     {
+      "id": "pipe_a",
+      "label": {
+       "zh": "左边那段",
+       "en": ""
+      },
+      "scene": "pipe_ok"
+     },
+     {
+      "id": "pipe_b",
+      "label": {
+       "zh": "中间那段",
+       "en": ""
+      },
+      "scene": "pipe_ok"
+     },
+     {
+      "id": "pipe_c",
+      "label": {
+       "zh": "右边那段",
+       "en": ""
+      },
+      "scene": "pipe_leak"
+     }
+    ]
+   }
+  ],
+  "pipe_ok": [
+   {
+    "do": "sfx",
+    "name": "pipe_clear"
+   },
+   {
+    "say": "chen",
+    "zh": "清清脆脆的。",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "pipes_pick"
+   }
+  ],
+  "pipe_leak": [
+   {
+    "do": "sfx",
+    "name": "pipe_hiss"
+   },
+   {
+    "say": "chen",
+    "zh": "细细的，尖尖的。",
+    "en": ""
+   },
+   {
+    "do": "prop",
+    "id": "pipes",
+    "state": "fixed"
+   },
+   {
+    "do": "flag",
+    "set": "ship_fixed"
+   },
+   {
+    "do": "goto",
+    "scene": "gramophone"
+   }
+  ],
+  "gramophone": [
+   {
+    "do": "show_item",
+    "item": "music_box",
+    "sec": 1.5
+   },
+   {
+    "do": "wait",
+    "sec": 1.6
+   },
+   {
+    "do": "prop",
+    "id": "gramophone",
+    "state": "new"
+   },
+   {
+    "do": "flag",
+    "set": "musicbox_fixed"
+   },
+   {
+    "say": "miluo",
+    "zh": "声音会变。",
+    "en": ""
+   },
+   {
+    "do": "prop",
+    "id": "box",
+    "state": "open"
+   },
+   {
+    "do": "journal",
+    "zh": "弥洛修好了音乐盒。"
+   }
+  ],
+  "radio": [
+   {
+    "say": "chen",
+    "zh": "收音机上挂着名字。",
+    "en": ""
+   }
+  ],
+  "pump_out": [
+   {
+    "do": "give",
+    "item": "pump"
+   },
+   {
+    "do": "fade_to",
+    "room": "forest",
+    "at": "treehouse",
+    "with": [
+     "miluo"
+    ]
+   },
+   {
+    "do": "walk",
+    "who": "miluo",
+    "to": "miluo_empty",
+    "wait": false
+   },
+   {
+    "do": "walk",
+    "who": "deer",
+    "to": "deer_empty",
+    "wait": false
+   },
+   {
+    "do": "walk",
+    "who": "chen",
+    "to": "empty_house"
+   },
+   {
+    "do": "prop",
+    "id": "pump",
+    "state": "at_door"
+   },
+   {
+    "do": "wait",
+    "sec": 0.5
+   },
+   {
+    "do": "take",
+    "item": "pump"
+   },
+   {
+    "do": "prop",
+    "id": "pump",
+    "state": "placed"
+   },
+   {
+    "say": "miluo",
+    "zh": "放这儿，淋不到雨。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "pump_placed"
+   }
+  ],
+  "slope_truth": [
+   {
+    "do": "hide",
+    "who": "miluo"
+   },
+   {
+    "do": "walk",
+    "who": "deer",
+    "to": "slope"
+   },
+   {
+    "say": "deer",
+    "zh": "我要是说不知道，你还会跟我来吗？",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "slope_talked"
+   }
+  ],
+  "revisit": [
+   {
+    "do": "fade_to",
+    "room": "treehouse",
+    "at": "room_door"
+   },
+   {
+    "do": "show",
+    "who": "miluo",
+    "at": "room_gramophone"
+   },
+   {
+    "say": "miluo",
+    "zh": "旧的实在不能用了。",
+    "en": ""
+   },
+   {
+    "do": "give",
+    "item": "clear_seed"
+   },
+   {
+    "do": "give",
+    "item": "miluo_note"
+   },
+   {
+    "say": "miluo",
+    "zh": "没长出来，也不是不能来。",
+    "en": ""
+   },
+   {
+    "do": "fade_to",
+    "room": "forest",
+    "at": "chen_start",
+    "with": [
+     "deer"
+    ]
+   },
+   {
+    "do": "show",
+    "who": "deer",
+    "at": "deer_ship"
+   },
+   {
+    "say": "deer",
+    "zh": "不知道。我只认得这里的路。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "ready_to_launch"
+   }
+  ],
+  "launch_go": [
+   {
+    "say": "chen",
+    "zh": "走了。",
+    "en": ""
+   },
+   {
+    "do": "prop",
+    "id": "ship",
+    "state": "launch"
+   },
+   {
+    "do": "sfx",
+    "name": "engine_start"
+   },
+   {
+    "do": "wait",
+    "sec": 1.5
+   },
+   {
+    "do": "flag",
+    "set": "launched"
+   },
+   {
+    "do": "end_chapter"
+   }
+  ]
+ }
+}

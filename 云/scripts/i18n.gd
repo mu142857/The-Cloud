@@ -52,6 +52,13 @@ const STR := {
 	"line_crash": ["Ow... oh no... I crashed...\nShould've insured the ship...",
 		"啊……糟糕……坠毁了……\n早知道就给飞船买上保险了……"],
 	"line_wood": ["Yes! With this, the ship can fly again!", "太好了，有了这个飞船就能再次起飞了！"],
+	# ---- 剧本引擎（story_runner.gd）的界面字；台词本身在 data/story_forest.json
+	"got_item": ["Got: %s", "获得：%s"],
+	"gave_item": ["Handed over: %s", "交出：%s"],
+	"journal_added": ["Written in the journal", "记进了日记"],
+	"journal_empty": ["Nothing written yet.", "还什么都没写。"],
+	"to_be_continued": ["To be continued", "未完待续"],
+	"to_be_continued_sub": ["未完待续", "To be continued"],
 }
 
 

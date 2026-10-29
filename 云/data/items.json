@@ -1,5 +1,5 @@
 {
-	"_comment": "物品表。加新物品：照 glowing_wood 抄一条。rarity 取 common / uncommon / rare / epic / legendary；burn = 燃烧值；icon = 图（res:// 路径，背包里按整数倍放大）；personal = 私人物品（不能烧掉，比如照片、信）。文字中英两套。",
+	"_comment": "物品表。加新物品：照 glowing_wood 抄一条。rarity 取 common / uncommon / rare / epic / legendary；burn = 燃烧值；icon = 图（res:// 路径，背包里按整数倍放大）；personal = 私人物品（不能烧掉，比如照片、信）。文字中英两套。desc_fixed（可选）= 修好以后换的描述（音乐盒：剧本里 flag musicbox_fixed 之后用）。森林章节的私人物品 burn 先填 0，以后飞行段再给燃料值。",
 	"base_burn": 10,
 	"launch_burn": 200,
 	"items": [
@@ -14,6 +14,133 @@
 				"en": "A branch from Jupiter's forest that never quite stopped burning. Warm to the touch, and it smells a little like rain.",
 				"zh": "木星森林里一截一直没有熄灭的树枝。摸起来暖暖的，闻起来有一点雨的味道。"
 			}
+		},
+		{
+			"id": "mat_scrap",
+			"name": {"en": "Metal Scrap", "zh": "金属碎片"},
+			"rarity": "common",
+			"burn": 50,
+			"icon": "res://art/forest_story/mat_scrap.png",
+			"personal": false,
+			"desc": {"en": "", "zh": "坠毁时从船上掉下来的碎片。边上还是热的。"}
+		},
+		{
+			"id": "mat_resin",
+			"name": {"en": "Resin", "zh": "树脂"},
+			"rarity": "common",
+			"burn": 40,
+			"icon": "res://art/forest_story/mat_resin.png",
+			"personal": false,
+			"desc": {"en": "", "zh": "从树干上流下来的树脂，黏黏的，很好烧。"}
+		},
+		{
+			"id": "mat_branch",
+			"name": {"en": "Dry Branch", "zh": "干枝"},
+			"rarity": "common",
+			"burn": 50,
+			"icon": "res://art/forest_story/mat_branch.png",
+			"personal": false,
+			"desc": {"en": "", "zh": "一截干透的树枝。森林里难得有不潮的东西。"}
+		},
+		{
+			"id": "elephant_drawing",
+			"name": {"en": "Elephant Drawing", "zh": "大象的画"},
+			"rarity": "legendary",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_drawing.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "画上是四条腿、长鼻子和两只耳朵。背面写着：「醒来后马上画的，应该还没有记错。」"}
+		},
+		{
+			"id": "species_query",
+			"name": {"en": "Species Search Result", "zh": "物种查询结果"},
+			"rarity": "uncommon",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_query.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "夹在画里的查询结果：「未找到符合描述的物种」。"}
+		},
+		{
+			"id": "commute_card",
+			"name": {"en": "Commuter Card", "zh": "通勤卡"},
+			"rarity": "uncommon",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_card.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "里面有几百条相同的进出站记录。最后一天没有刷卡。"}
+		},
+		{
+			"id": "home_photo",
+			"name": {"en": "Photo of Home", "zh": "母星照片"},
+			"rarity": "rare",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_photo.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "背面写着「这里什么都有」，下面半句被划掉了：「那我为什么……」"}
+		},
+		{
+			"id": "music_box",
+			"name": {"en": "Music Box", "zh": "音乐盒"},
+			"rarity": "epic",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_musicbox.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "附着朋友的纸条：「找不到也可以回来。不要因为说过一定会找到，就不好意思回来。」打开以后，旋律只响到一半。"},
+			"desc_fixed": {"en": "", "zh": "附着朋友的纸条：「找不到也可以回来。不要因为说过一定会找到，就不好意思回来。」弥洛清掉了里面的碎屑，没换零件。旋律能一直走到最后了。"}
+		},
+		{
+			"id": "travel_map",
+			"name": {"en": "Map", "zh": "地图"},
+			"rarity": "rare",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_map.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "标着森林、河流和云层。终点旁写着「云层之下就是家」。"}
+		},
+		{
+			"id": "journal",
+			"name": {"en": "Journal", "zh": "日记"},
+			"rarity": "epic",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_journal.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "晨的日记。路上遇见的人、听到的话，都记在这里。"}
+		},
+		{
+			"id": "broken_part",
+			"name": {"en": "Broken Thruster Part", "zh": "坏掉的推进器零件"},
+			"rarity": "common",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_part.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "从推进器上拆下来的零件。鹿说，它掉下来以前就坏了。"}
+		},
+		{
+			"id": "pump",
+			"name": {"en": "Water Pump", "zh": "水泵"},
+			"rarity": "common",
+			"burn": 0,
+			"icon": "res://art/forest_story/pump.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "弥洛修好的水泵。不是给晨的，只是让晨帮忙拿一段路。"}
+		},
+		{
+			"id": "clear_seed",
+			"name": {"en": "Clear Seed", "zh": "透明种子"},
+			"rarity": "epic",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_seed.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "弥洛的朋友走前留下的，说在云层下面可能会发芽。弥洛当时说不稀罕。"}
+		},
+		{
+			"id": "miluo_note",
+			"name": {"en": "Milo's Note", "zh": "弥洛的纸条"},
+			"rarity": "rare",
+			"burn": 0,
+			"icon": "res://art/forest_story/icon_note.png",
+			"personal": true,
+			"desc": {"en": "", "zh": "和种子放在一起：「不要埋太深。先浇一点水。别总挖出来看。」"}
 		}
 	]
 }

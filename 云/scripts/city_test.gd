@@ -22,7 +22,6 @@ const CAM_Y := 175.0
 
 @onready var cam: Camera2D = $Camera
 @onready var chen: Node2D = $Chen
-@onready var rays: Array[Node] = $Shafts.get_children()
 @onready var wet: CanvasItem = $Wet/Rect
 
 var _t := 0.0
@@ -40,7 +39,7 @@ var _saved := 0
 
 func _ready() -> void:
 	chen.ground_fn = ground_y
-	chen.set_env("city", func(c): return preload("res://scripts/env_light.gd").polygon_shafts(c, $Shafts))     # 楼缝漏下来的光照到晨身上
+	chen.set_env("city", func(c): return preload("res://scripts/env_light.gd").polygon_shafts(c, $Shafts))     # 路灯的光锥照到晨身上
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
 			_shot = a.trim_prefix("--shot=")
@@ -93,10 +92,7 @@ func _process(delta: float) -> void:
 	var wm := wet.material as ShaderMaterial
 	wm.set_shader_parameter("cam_left", cam.position.x - 240.0)
 	wm.set_shader_parameter("chen_x", chen.position.x - (cam.position.x - 240.0))
-	# 天缝里漏下来的几道斜光慢慢呼吸，几道错开（烟霾在动）
-	for i in rays.size():
-		var r := rays[i] as CanvasItem
-		r.modulate.a = 0.7 + 0.3 * sin(_t * 0.35 + i * 2.1)
+	# 路灯的光锥（Shafts）不呼吸、不闪：一盏盏一样亮，冷、稳
 	if _shot != "" and not _walked and _frame == _wait:
 		_save(_shot)
 		get_tree().quit()

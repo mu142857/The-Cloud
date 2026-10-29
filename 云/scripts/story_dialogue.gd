@@ -1,0 +1,434 @@
+extends Control
+## 剧情的界面：说话人头顶的对话框、屏幕中下方的旁白小字、拿到东西的小提示、点选（递工具 / 听管道）、章节结束卡。
+## story_runner.gd 建它（放在关卡 UI 层里），level_forest.gd 的 _input 在剧情播放时把按键 / 点击转给 handle_input。
+##
+## 对话框：名字 + 打字效果；按确认（空格 / 回车 / Z / E / 鼠标左键）：第一下补全打字，第二下下一句。
+##   框跟着说话人头顶（anchor 每帧给屏幕坐标），框下面一个小尖角指着说话人；出屏幕就贴边。
+##   文字宽过 MAX_W 就自动换行（中文一个字 14 像素 = 一格，MAX_W 是 14 的倍数，不会半个字出框）。
+##   打完以后右下角一个很小的三角慢慢闪：可以按了。
+## 自动（--story_auto）：auto_delay 秒以后自己补全并下一句。instant = true（跳节拍）时什么都不显示、立刻返回。
+
+signal advanced
+signal picked(i: int)
+
+const MAX_W := 196.0                 # 正文最宽（14 个汉字）
+const CPS_ZH := 14.0
+const CPS_EN := 30.0
+const BOX_BG := Color(0.02, 0.05, 0.04, 0.78)
+const BOX_EDGE := Color(0.5, 0.6, 0.55, 0.35)
+const NARR_Y := 206.0
+const HINT_TEX := preload("res://art/level1/hint_arrow.png")
+
+var auto_delay := -1.0               # >= 0：自动推进（每句停这么久）
+var instant := false
+var top_limit := 4.0                 # 框最高到哪（黑边在的时候往下挪）
+
+var _box: PanelContainer
+var _name: Label
+var _text: Label
+var _tail: Control
+var _more: ColorRect
+var _anchor: Callable
+var _typing := false
+var _chars := 0.0
+var _cps := 14.0
+var _open := false                   # 在等确认
+var _age := 0.0
+var _narr: Label
+var _narr_t := 0.0
+var _narr_wait := false
+var _toast: HBoxContainer
+var _toast_icon: TextureRect
+var _toast_label: Label
+var _toast_tw: Tween
+# 点选
+var _pick_on := false
+var _pick_opts: Array = []           # [{label, rect: Callable → Rect2（屏幕坐标，空 = 没有物件）}]
+var _pick_sel := 0
+var _pick_age := 0.0
+var _pick_auto := -1
+var _pick_arrow: TextureRect
+var _pick_label: Label
+var _pick_row: HBoxContainer
+var _pick_btns: Array[Button] = []
+# 结束卡
+var _end: Control
+var _t := 0.0
+
+
+func _ready() -> void:
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	theme = UITheme.get_theme()
+	_box = PanelContainer.new()
+	_box.add_theme_stylebox_override("panel", UITheme.box(BOX_BG, BOX_EDGE, 1, Vector4(7, 4, 7, 5)))
+	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box.visible = false
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box.add_child(v)
+	_name = _mk_label(UITheme.ACCENT)
+	v.add_child(_name)
+	_text = _mk_label(UITheme.TEXT)
+	_text.add_theme_constant_override("line_spacing", 2)
+	_text.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING     # 打字时不重新排版（行不跳）
+	v.add_child(_text)
+	add_child(_box)
+	_more = ColorRect.new()
+	_more.size = Vector2(3, 1)
+	_more.color = UITheme.TEXT_DIM
+	_more.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_more)
+	_more.visible = false
+	_tail = Control.new()
+	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tail.draw.connect(_draw_tail)
+	_tail.size = Vector2(5, 3)
+	add_child(_tail)
+	_tail.visible = false
+
+	_narr = _mk_label(Color("#c5d3ca"))
+	_narr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_narr.size = Vector2(480, 16)
+	_narr.position = Vector2(0, NARR_Y)
+	_narr.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.8))
+	_narr.add_theme_constant_override("shadow_offset_x", 0)
+	_narr.add_theme_constant_override("shadow_offset_y", 1)
+	_narr.modulate.a = 0.0
+	add_child(_narr)
+
+	_toast = HBoxContainer.new()
+	_toast.add_theme_constant_override("separation", 4)
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.modulate.a = 0.0
+	_toast_icon = TextureRect.new()
+	_toast_icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	_toast_icon.custom_minimum_size = Vector2(16, 16)
+	_toast_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast.add_child(_toast_icon)
+	_toast_label = _mk_label(UITheme.TEXT)
+	_toast.add_child(_toast_label)
+	add_child(_toast)
+
+	_pick_arrow = TextureRect.new()
+	_pick_arrow.texture = HINT_TEX
+	_pick_arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pick_arrow.visible = false
+	add_child(_pick_arrow)
+	_pick_label = _mk_label(UITheme.TEXT)
+	_pick_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.8))
+	_pick_label.add_theme_constant_override("shadow_offset_x", 0)
+	_pick_label.add_theme_constant_override("shadow_offset_y", 1)
+	_pick_label.visible = false
+	add_child(_pick_label)
+	_pick_row = HBoxContainer.new()
+	_pick_row.add_theme_constant_override("separation", 6)
+	_pick_row.visible = false
+	add_child(_pick_row)
+
+
+func _mk_label(c: Color) -> Label:
+	var l := Label.new()
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", c)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+
+# ======================================================================= 对话
+## 说一句：等到玩家按确认（第二下）才返回。anchor：func() -> Vector2，说话人头顶的屏幕坐标。
+func say(who_name: String, name_color: Color, text: String, anchor: Callable) -> void:
+	if instant:
+		return
+	_anchor = anchor
+	_name.text = who_name
+	_name.visible = who_name != ""
+	_name.add_theme_color_override("font_color", name_color)
+	_text.text = text
+	# 宽度：一行放得下就按字宽，放不下就固定 MAX_W 自动换行
+	var w := 0.0
+	for line in text.split("\n"):
+		w = maxf(w, UITheme.font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
+	if w > MAX_W:
+		_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_text.custom_minimum_size = Vector2(MAX_W, 0)
+	else:
+		_text.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_text.custom_minimum_size = Vector2.ZERO
+	_text.visible_characters = 0
+	_chars = 0.0
+	_cps = CPS_ZH if I18n.is_zh() else CPS_EN
+	_typing = true
+	_open = true
+	_age = 0.0
+	_box.visible = true
+	_tail.visible = true
+	_more.visible = false
+	_box.size = Vector2.ZERO
+	_box.reset_size()
+	_box.modulate.a = 0.0
+	create_tween().tween_property(_box, "modulate:a", 1.0, 0.15)
+	_place_box()
+	await advanced
+
+
+func close_box() -> void:
+	_open = false
+	_box.visible = false
+	_tail.visible = false
+	_more.visible = false
+
+
+func is_open() -> bool:
+	return _open or _narr_wait
+
+
+func is_typing() -> bool:
+	return _typing
+
+
+## 确认键 / 点击：在打字就补全，打完了就下一句
+func confirm() -> bool:
+	if _pick_on:
+		_pick_choose(_pick_sel)
+		return true
+	if not _open:
+		if _narr_wait:
+			_narr_wait = false
+			return true
+		return false
+	if _typing:
+		_typing = false
+		_text.visible_characters = -1
+		return true
+	_open = false
+	_box.visible = false
+	_tail.visible = false
+	_more.visible = false
+	advanced.emit()
+	return true
+
+
+func _place_box() -> void:
+	_box.reset_size()
+	var a: Vector2 = _anchor.call() if _anchor.is_valid() else Vector2(240, 60)
+	var sz := _box.size
+	var x := clampf(round(a.x - sz.x / 2.0), 6.0, 474.0 - sz.x)
+	var y := roundf(a.y - 5.0 - sz.y)
+	y = clampf(y, top_limit, 230.0 - sz.y)
+	_box.position = Vector2(x, y)
+	# 小尖角：框下沿、对着说话人（框贴边时尖角还在框里）
+	var tx := clampf(round(a.x) - 2.0, x + 3.0, x + sz.x - 8.0)
+	_tail.position = Vector2(tx, y + sz.y)
+	_tail.visible = _box.visible and a.y - 5.0 >= y + sz.y - 1.0
+	_more.position = Vector2(x + sz.x - 8.0, y + sz.y - 4.0)
+
+
+func _draw_tail() -> void:
+	# 5×3 的像素尖角，挂在框下沿：5、3、1，两边一格框边色
+	var rows := [5, 3, 1]
+	for i in rows.size():
+		var w: int = rows[i]
+		var x0: int = (5 - w) / 2
+		_tail.draw_rect(Rect2(x0, i, w, 1), BOX_BG)
+		_tail.draw_rect(Rect2(x0, i, 1, 1), BOX_EDGE)
+		_tail.draw_rect(Rect2(x0 + w - 1, i, 1, 1), BOX_EDGE)
+
+
+# ======================================================================= 旁白 / 小提示
+## 屏幕中下方一行小字。停 hold 秒（或按确认）就返回；字自己再留一会儿慢慢淡掉。
+func narr(text: String, hold: float) -> void:
+	if instant:
+		return
+	_narr.text = text
+	_narr.modulate.a = 0.0
+	_narr_t = hold + 2.2
+	var tw := create_tween()
+	tw.tween_property(_narr, "modulate:a", 1.0, 0.35)
+	_narr_wait = true
+	var t := 0.0
+	var limit := hold if auto_delay < 0.0 else minf(hold, auto_delay + 0.2)
+	while _narr_wait and t < limit:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	_narr_wait = false
+
+
+func toast(icon: Texture2D, text: String) -> void:
+	if instant:
+		return
+	_toast_icon.texture = icon
+	_toast_icon.visible = icon != null
+	_toast_label.text = text
+	_toast.reset_size()
+	var w := UITheme.font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + (20.0 if icon != null else 0.0)
+	_toast.position = Vector2(round(240.0 - w / 2.0), NARR_Y + 18.0)
+	if _toast_tw != null and _toast_tw.is_valid():
+		_toast_tw.kill()
+	_toast_tw = create_tween()
+	_toast_tw.tween_property(_toast, "modulate:a", 1.0, 0.25)
+	_toast_tw.tween_interval(1.8)
+	_toast_tw.tween_property(_toast, "modulate:a", 0.0, 0.6)
+
+
+# ======================================================================= 点选
+## options：[{label: String, rect: Callable（→ 屏幕 Rect2；Rect2() = 场景里没有这个物件）}]。返回选了第几个。
+## auto_pick >= 0：自动玩时过一会儿自己选它。
+func pick(options: Array, auto_pick := -1) -> int:
+	if instant:
+		return maxi(0, auto_pick)
+	_pick_opts = options
+	_pick_sel = 0
+	_pick_age = 0.0
+	_pick_auto = auto_pick
+	_pick_on = true
+	var all_in_scene := true
+	for o in options:
+		var r: Rect2 = (o["rect"] as Callable).call()
+		if r.size == Vector2.ZERO:
+			all_in_scene = false
+	for b in _pick_btns:
+		b.queue_free()
+	_pick_btns.clear()
+	_pick_row.visible = not all_in_scene
+	if not all_in_scene:
+		# 场景里没有这些物件：下面一排按钮
+		for i in options.size():
+			var b := Button.new()
+			b.text = str(options[i]["label"])
+			b.focus_mode = Control.FOCUS_NONE
+			b.pressed.connect(_pick_choose.bind(i))
+			b.mouse_entered.connect(func(): _pick_sel = i)
+			_pick_row.add_child(b)
+			_pick_btns.append(b)
+		_pick_row.reset_size()
+	var i: int = await picked
+	return i
+
+
+func _pick_choose(i: int) -> void:
+	if not _pick_on:
+		return
+	_pick_on = false
+	_pick_arrow.visible = false
+	_pick_label.visible = false
+	_pick_row.visible = false
+	picked.emit(i)
+
+
+func _update_pick(delta: float) -> void:
+	_pick_age += delta
+	if _pick_auto >= 0 and auto_delay >= 0.0:
+		if _pick_age > 0.5:
+			_pick_sel = _pick_auto
+		if _pick_age > 1.0:
+			_pick_choose(_pick_auto)
+			return
+	if _pick_row.visible:
+		_pick_row.position = Vector2(round(240.0 - _pick_row.size.x / 2.0), NARR_Y - 4.0)
+		for i in _pick_btns.size():
+			_pick_btns[i].modulate = Color(1.25, 1.25, 1.25) if i == _pick_sel else Color(0.8, 0.8, 0.8)
+		return
+	var r: Rect2 = (_pick_opts[_pick_sel]["rect"] as Callable).call()
+	var bob := 1.0 if fmod(_t, 1.0) < 0.5 else 0.0
+	_pick_arrow.visible = true
+	_pick_arrow.position = Vector2(round(r.get_center().x - 2.0), round(r.position.y - 6.0 - bob))
+	var lbl := str(_pick_opts[_pick_sel]["label"])
+	_pick_label.visible = lbl != ""
+	if _pick_label.text != lbl:
+		_pick_label.text = lbl
+		_pick_label.reset_size()
+	var w := UITheme.font().get_string_size(lbl, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+	_pick_label.position = Vector2(clampf(round(r.get_center().x - w / 2.0), 4.0, 476.0 - w), round(r.position.y - 26.0))
+
+
+func picking() -> bool:
+	return _pick_on
+
+
+# ======================================================================= 输入（level_forest 在剧情播放时转过来）
+func handle_input(event: InputEvent) -> bool:
+	var is_confirm := false
+	if event is InputEventKey and event.pressed and not event.echo:
+		var k: int = event.keycode
+		if k in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z, KEY_E]:
+			is_confirm = true
+		elif _pick_on and not _pick_opts.is_empty() and k in [KEY_LEFT, KEY_A, KEY_UP]:
+			_pick_sel = (_pick_sel + _pick_opts.size() - 1) % _pick_opts.size()
+			return true
+		elif _pick_on and not _pick_opts.is_empty() and k in [KEY_RIGHT, KEY_D, KEY_DOWN]:
+			_pick_sel = (_pick_sel + 1) % _pick_opts.size()
+			return true
+	elif event is InputEventMouseMotion and _pick_on and not _pick_row.visible:
+		for i in _pick_opts.size():
+			var r: Rect2 = (_pick_opts[i]["rect"] as Callable).call()
+			if r.grow(2).has_point(event.position):
+				_pick_sel = i
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		if _pick_on:
+			if _pick_row.visible:
+				return false          # 按钮自己处理
+			for i in _pick_opts.size():
+				var r: Rect2 = (_pick_opts[i]["rect"] as Callable).call()
+				if r.grow(2).has_point(event.position):
+					_pick_choose(i)
+					return true
+			return true
+		is_confirm = true
+	if is_confirm:
+		return confirm()
+	return false
+
+
+# ======================================================================= 结束卡
+func end_card(main_text: String, sub_text: String, parent: Node) -> void:
+	_end = Control.new()
+	_end.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_end.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_end.theme = UITheme.get_theme()
+	_end.modulate.a = 0.0
+	var l := Label.new()
+	l.text = main_text
+	l.add_theme_font_size_override("font_size", 28)
+	l.add_theme_color_override("font_color", Color("#b9cdc1"))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.size = Vector2(480, 32)
+	l.position = Vector2(0, 112)
+	_end.add_child(l)
+	var s := Label.new()
+	s.text = sub_text
+	s.add_theme_font_size_override("font_size", 14)
+	s.add_theme_color_override("font_color", Color("#6f877b"))
+	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	s.size = Vector2(480, 16)
+	s.position = Vector2(0, 150)
+	_end.add_child(s)
+	parent.add_child(_end)
+	create_tween().tween_property(_end, "modulate:a", 1.0, 2.0).set_trans(Tween.TRANS_SINE)
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	if _open:
+		_age += delta
+		if _typing:
+			_chars += _cps * delta
+			var total := _text.get_total_character_count()
+			_text.visible_characters = mini(int(_chars), total)
+			if _text.visible_characters >= total:
+				_typing = false
+				_text.visible_characters = -1
+		_more.visible = _box.visible and not _typing and fmod(_t, 1.0) < 0.6
+		if auto_delay >= 0.0 and _age >= auto_delay:
+			if _typing:
+				confirm()
+			confirm()
+		if _box.visible:
+			_place_box()
+	if _narr_t > 0.0:
+		_narr_t -= delta
+		if _narr_t <= 0.6:
+			_narr.modulate.a = maxf(0.0, _narr_t / 0.6)
+	if _pick_on:
+		_update_pick(delta)

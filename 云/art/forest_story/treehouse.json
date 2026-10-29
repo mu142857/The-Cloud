@@ -1,0 +1,162 @@
+{
+ "size": [
+  340,
+  236
+ ],
+ "anchor": "底边中点 = 世界里的 (树屋 x, 地面 228)；两张图（back / front）和 room_light 同尺寸同锚点",
+ "floor_offset": 0,
+ "walk_min": -122,
+ "walk_max": 122,
+ "door_x": -112,
+ "layers": [
+  "treehouse_back",
+  "objects (room_*, pipe_*, tool_*)",
+  "room_light（半透明）",
+  "人物",
+  "treehouse_front（进屋淡出 / 出屋淡入）"
+ ],
+ "note": "所有坐标都是相对锚点（图底边中点）的偏移：x 往右、y 往上为负。objects 的 x,y = 左上角；多帧的 w = 帧宽。hotspots = 人走到这个 x 互动。pipe_*.leak = 那段漏气时细白汽（pipe_steam，底边中点）的位置，默认漏 pipe_c。chairs = 带垫子那把（不给晨坐的），chair_free = 晨能坐的那把。",
+ "objects": {
+  "room_radio": {
+   "x": -3,
+   "y": -36,
+   "w": 19,
+   "h": 12,
+   "frames": 1
+  },
+  "room_sign": {
+   "x": 33,
+   "y": -46,
+   "w": 26,
+   "h": 46,
+   "frames": 4
+  },
+  "room_chairs": {
+   "x": -76,
+   "y": -32,
+   "w": 69,
+   "h": 32,
+   "frames": 1
+  },
+  "room_kettle": {
+   "x": -92,
+   "y": -46,
+   "w": 15,
+   "h": 18,
+   "frames": 2
+  },
+  "room_cups": {
+   "x": -38,
+   "y": -28,
+   "w": 15,
+   "h": 6,
+   "frames": 1
+  },
+  "room_dish": {
+   "x": 58,
+   "y": -30,
+   "w": 10,
+   "h": 4,
+   "frames": 1
+  },
+  "room_gramophone": {
+   "x": -61,
+   "y": -45,
+   "w": 22,
+   "h": 23,
+   "frames": 2,
+   "states": [
+    "old",
+    "new"
+   ]
+  },
+  "room_box": {
+   "x": -68,
+   "y": -69,
+   "w": 11,
+   "h": 7,
+   "frames": 1
+  },
+  "pipe_a": {
+   "x": 38,
+   "y": -97,
+   "w": 30,
+   "h": 27,
+   "frames": 1,
+   "leak": [
+    54,
+    -76
+   ]
+  },
+  "pipe_b": {
+   "x": 68,
+   "y": -77,
+   "w": 30,
+   "h": 7,
+   "frames": 1,
+   "leak": [
+    84,
+    -76
+   ]
+  },
+  "pipe_c": {
+   "x": 98,
+   "y": -77,
+   "w": 32,
+   "h": 7,
+   "frames": 1,
+   "leak": [
+    118,
+    -76
+   ]
+  },
+  "pipe_steam": {
+   "x": 115,
+   "y": -88,
+   "w": 7,
+   "h": 12,
+   "frames": 3,
+   "on": "pipe_c"
+  },
+  "tool_a": {
+   "x": 69,
+   "y": -32,
+   "w": 18,
+   "h": 6,
+   "frames": 1
+  },
+  "tool_b": {
+   "x": 89,
+   "y": -30,
+   "w": 18,
+   "h": 4,
+   "frames": 1
+  },
+  "tool_c": {
+   "x": 110,
+   "y": -34,
+   "w": 15,
+   "h": 8,
+   "frames": 1
+  }
+ },
+ "hotspots": {
+  "door": -112,
+  "stove": -85,
+  "box": -63,
+  "chairs": -14,
+  "chair_free": -70,
+  "cups": -31,
+  "gramophone": -50,
+  "radio": 6,
+  "shelf": 13,
+  "sign": 46,
+  "dish": 63,
+  "pipe_a": 53,
+  "pipe_b": 83,
+  "pipe_c": 114,
+  "tool_a": 78,
+  "tool_b": 98,
+  "tool_c": 117
+ }
+}

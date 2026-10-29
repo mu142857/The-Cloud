@@ -18,6 +18,13 @@ extends Node2D
 @export var splash := false
 @export var splash_color := Color(0.28, 0.29, 0.31)
 @export var seed := 1
+## 路灯的光锥（这一层的坐标）：每个 Vector4(灯头中心 x, 光锥上沿 y, 上沿半宽, 下沿半宽)，下沿在 light_bottom。
+## 落进光锥里的雨丝换成 color_lit（雨在灯下才看得见），越往下越淡回原色。
+@export var lights := PackedVector4Array()
+@export var light_bottom := 228.0
+@export var color_lit := Color(0.55, 0.6, 0.63)
+## 只画光锥里的雨丝（灯下那一阵密雨；光锥外面的雨由别的 Rain 节点画）
+@export var only_lit := false
 
 var _d: Array[Dictionary] = []
 var _s: Array[Dictionary] = []
@@ -57,6 +64,19 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func _lit(x: float, y: float) -> float:
+	## 这一点在不在某道光锥里：在的话返回 0..1（上面 1，往下淡到 0.35），分三档（硬边，不渐变）
+	for l in lights:
+		if y < l.y or y > light_bottom:
+			continue
+		var t := (y - l.y) / maxf(1.0, light_bottom - l.y)
+		var half := lerpf(l.z, l.w, t)
+		var dx := absf(fposmod(x - l.x + area.size.x * 0.5, area.size.x) - area.size.x * 0.5)
+		if dx <= half:
+			return 1.0 if t < 0.35 else (0.7 if t < 0.7 else 0.4)
+	return 0.0
+
+
 func _draw() -> void:
 	for d in _d:
 		var hx := roundf(d.x)
@@ -71,6 +91,11 @@ func _draw() -> void:
 			var y1 := hy - k0
 			var y0 := hy - k + 1
 			var c := color_dim if y1 >= y_dim else color
+			var lit := _lit(px, y1)
+			if lit > 0.0:
+				c = c.lerp(color_lit, lit)
+			elif only_lit:
+				continue
 			draw_rect(Rect2(px, y0, 1, y1 - y0 + 1), c)
 	for s in _s:
 		# 小水花：先是一个点，再炸成左右两点
