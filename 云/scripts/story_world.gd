@@ -42,10 +42,20 @@ extends Node2D
 ##   （林间空地 glade：岩画、信号箱、路标底座），没有 wall_glade 就到 wall_road。
 ##   B 的左边：有 house_return（回旧路的入口）就是它，不然 wall_house。晨在 B 往左走到入口（顶着走一小会儿）→
 ##   黑屏换到旧路段的 road_return（没有就是布条 cloth 那里），见 level_forest.gd 的 _update_portal。双向都能走。
-## 被撞断的树冠缺口（第五版）：art/forest_story/broken_treeline.png 贴在 json 说的那一层（Mid）里、层坐标 (x, y)，一直在；
-##   treeline_match：镜头移过去，把 drawing_arc.png 放大 scale_to_treeline 倍、按两端对齐叠到缺口上，淡入、停、淡出（见 match_arc）。
-##   弧线画在所有世界层（含 Front 近处的树干）上面（单独一个 CanvasLayer，每帧按缺口在屏幕上的位置对齐），像晨脑海里叠上去的一下。
-##   缺图就什么都不做。
+## 被撞断的树冠缺口（第五版，改成单独一屏）：森林的视差层里不挂它（Mid 层 960 宽循环，贴进去每隔一段就重复一次，
+##   标题画面上也有，也融不进背景），任何层、任何时候都没有。它是一张单独的全屏画面：
+##   art/forest_story/treeline_view_<sky|far|main|near>.png（480×270 起，平面侧视：坠毁现场那排树冠，中间被撞出一道弧形凹口）
+##   + treeline_view.json（layers 从后往前、drift 每层每秒往左漂几像素、arc_layer 弧在哪一层、arc_end_left 等弧在那层图里的坐标）。
+##   tools/forest_story_art.py --treeline 生成。用法：
+##     treeline_view_in(sec) / treeline_view_out(sec)：淡入 / 淡出这一屏（CanvasLayer 9：世界含 Front 之上，暗角 / 界面之下；
+##       四层放在一个 CanvasGroup 里整体淡，淡到一半也不会一层层透出底下的森林）。出来以后各层按 drift 整像素地漂，
+##       漂到图的右边缘贴着屏幕右边就停。这一屏淡入时左上角的目标 / 燃料和右上角的背包一起淡出（level_forest.gd 的
+##       hud_fade），淡出时淡回来；对话框挪到画面下方居中、不带尖角（story_runner.gd 的 _anchor），不挡凹口。
+##     match_arc(hold)：那一屏出来以后，把 drawing_arc.png 最近邻放大 scale_to_treeline 倍（drawing_arc.json），
+##       arc_end_left 对到 treeline_arc_end_left（main 层图内坐标），挂在 main 层下面跟着它漂，任何一帧都和凹口对齐；
+##       淡入到 0.8、停 hold 秒、淡出。
+##   剧本 treeline_match（story_runner.gd）和看树冠缺口的 hotspot（at = treeline_gap）都用这一屏。缺图就什么都不做。
+##   旧的 broken_treeline.png / .json 留在文件夹里，代码不再用。
 ## 远处有东西走过（elephant_call，sway_canopy）：中远景层上一段树冠从一侧到另一侧依次轻晃 1 像素，不露面。
 ## 看得见的边（不用台词推人）：倒木没推开之前，旧路到倒木为止（倒木右边一点）；塌陷口（hollow）是个坑，晨走到坑边就停住，
 ##   像碰到边（不自动往回走）。
@@ -61,8 +71,8 @@ const DEFAULT_MARKERS := {
 	"resin": 520, "deer_appear": 560, "branch": 690, "road_start": 900, "stall": 1100, "log": 1400,
 	"fog_start": 1550, "cloth": 1780, "hollow": 1900, "wall_road": 1960,
 	"road_house": 1250, "glade_rock": 2080, "glade_sign_base": 2130, "signal_box": 2180, "wall_glade": 2260,
-	"pine": 3200, "shop_plank": 3140,
-	"wall_house": 2380, "treehouse": 2600, "empty_house": 2900, "shop": 3120, "slope": 3400, "wall_right": 3600,
+	"pine": 3700, "shop_plank": 3640,
+	"wall_house": 2880, "treehouse": 3100, "empty_house": 3400, "shop": 3620, "slope": 3900, "wall_right": 4100,
 	# 屋内（剧本原来按 480 宽一屏写的 x，换算进树屋，见上）
 	"room_door": 40, "room_chairs": 100, "room_kettle": 145, "room_radio": 195, "room_sign": 235,
 	"room_tools": 275, "room_miluo": 305, "room_dish": 330, "room_gramophone": 360, "room_box": 390, "room_pipes": 440,
@@ -186,6 +196,7 @@ var fog_enabled := true                  # 开发者面板（F8）的「雾开 /
 var thick := false                       # prop fog:thick：旧路后半段的雾更浓
 var extra_rects := {}                    # 不归这里管、但 hotspot 要用的东西的矩形：名字 → func() -> Rect2（飞船 wreck）
 var on_pseudo: Callable                  # ship 这种伪物件交给关卡：func(id, state)
+var cockpit: Node2D                      # 驾驶舱（scripts/cockpit_room.gd；剧本 rooms 里有 cockpit 才建，见 add_cockpit）
 
 
 var _script_markers := {}
@@ -232,7 +243,7 @@ func setup(lv: Node2D, script_markers: Dictionary, steam_at := "", shown_ids: Ar
 	_add_room_light()
 	chen.ground_fn = walk_ground
 	_add_cloth_glow()
-	_add_treeline()
+	_load_treeline()
 	var objs: Dictionary = house["objects"]
 	if steam_at != "" and objs.has(steam_at) and (objs[steam_at] as Dictionary).has("leak"):
 		# 细白汽冒在漏气那段的 leak 点（底边中点）
@@ -263,6 +274,8 @@ func resolve(at) -> Dictionary:
 	var s := str(at)
 	if s.is_valid_float():
 		return {"ok": true, "x": s.to_float(), "room": room}
+	if cockpit != null and cockpit.has_marker(s):
+		return {"ok": true, "x": cockpit.mx(s), "room": "cockpit"}
 	if markers.has(s):
 		return {"ok": true, "x": float(markers[s]), "room": "treehouse" if s.begins_with("room_") else "forest"}
 	var pid := s.trim_prefix("room_")
@@ -274,7 +287,7 @@ func resolve(at) -> Dictionary:
 
 
 func has_marker(s: String) -> bool:
-	return markers.has(s) or _cfg.has(s) or _cfg.has(s.trim_prefix("room_")) or extra_rects.has(s)
+	return markers.has(s) or _cfg.has(s) or _cfg.has(s.trim_prefix("room_")) or extra_rects.has(s) or (cockpit != null and cockpit.has_marker(s))
 
 
 func mx(name: String) -> float:
@@ -287,6 +300,8 @@ func ground_at(x: float, r := "") -> float:
 		r = room
 	if r == "treehouse":
 		return float(house["floor"])
+	if r == "cockpit" and cockpit != null:
+		return cockpit.floor_world()
 	return walk_ground(x)
 
 
@@ -308,6 +323,10 @@ func set_room(r: String, instant := false) -> void:
 	if r == "treehouse":
 		var gy: float = house["floor"]
 		chen.ground_fn = func(_x: float) -> float: return gy
+	elif r == "cockpit" and cockpit != null:
+		var cy: float = cockpit.floor_world()
+		chen.ground_fn = func(_x: float) -> float: return cy
+		cockpit.set_visible_all(true)
 	else:
 		chen.ground_fn = walk_ground
 	var a := 0.0 if r == "treehouse" else 1.0
@@ -329,6 +348,16 @@ func in_house_span(x: float) -> bool:
 	return absf(x - float(house["cx"])) < float(house["w"]) / 2.0
 
 
+## 站在 x、半宽 half 的人和前墙（不透明的那段）重不重叠
+func overlaps_front(x: float, half: float) -> bool:
+	return x + half > float(house["front_x0"]) and x - half < float(house["front_x1"])
+
+
+## x 在不在前墙（不透明的那段）里面
+func behind_front(x: float) -> bool:
+	return x > float(house["front_x0"]) and x < float(house["front_x1"])
+
+
 ## x 在不在树屋那一片（进出屋不黑屏用）
 func near_house(x: float) -> bool:
 	return absf(x - float(house["cx"])) < float(house["w"]) / 2.0 + 120.0
@@ -338,6 +367,8 @@ func near_house(x: float) -> bool:
 func walls(x: float) -> Vector2:
 	if in_room():
 		return house["walk"]
+	if room == "cockpit" and cockpit != null:
+		return cockpit.walls()
 	if x < area_split():
 		# 看得见的边：倒木推开之前到倒木为止；塌陷口是个坑，没搭桥就停在坑边；搭了桥一直到林间空地的尽头
 		var r := a_end()
@@ -374,6 +405,8 @@ func area_split() -> float:
 func area_of(x: float) -> String:
 	if in_room():
 		return "house"
+	if room == "cockpit":
+		return "cockpit"
 	return "road" if x < area_split() else "trees"
 
 
@@ -569,6 +602,9 @@ func set_prop(id: String, state: String, save := true) -> void:
 	id = prop_id(id)
 	if save:
 		StoryState.set_prop(id, state)
+	if cockpit != null and cockpit.has_prop(id):
+		cockpit.set_prop(id, state)
+		return
 	if id == "fog":
 		if state == "lit":
 			_lit_t = 1.6                   # 发光木头举起来：雾里亮一下，布条、蹄印被照到
@@ -762,6 +798,23 @@ func _build_house() -> void:
 	var ft: Texture2D = load(ART + "treehouse_front.png") if ResourceLoader.exists(ART + "treehouse_front.png") else null
 	house_front.texture = ft if ft != null else _house_placeholder(size, true)
 	house_front.position = c
+	# 前墙实际不透明的横向范围（世界 x）：弥洛换前后图层只在不和它重叠的时候换（story_runner 的 _update_miluo_layer）
+	house["front_x0"] = c.x - size.x / 2.0
+	house["front_x1"] = c.x + size.x / 2.0
+	if ft != null:
+		var fimg := ft.get_image()
+		if fimg != null:
+			var fy := fimg.get_height() - 4
+			var x0 := -1
+			var x1 := -1
+			for fx in fimg.get_width():
+				if fimg.get_pixel(fx, fy).a > 0.5:
+					if x0 < 0:
+						x0 = fx
+					x1 = fx
+			if x0 >= 0:
+				house["front_x0"] = c.x - size.x / 2.0 + x0
+				house["front_x1"] = c.x - size.x / 2.0 + x1 + 1
 	# 前墙：在弥洛（Snake）后面一个、鹿和晨前面——屋里的东西和弥洛被它盖住，屋外的晨和鹿在它前面走
 	level.add_child(house_front)
 	level.move_child(house_front, level.get_node("Snake").get_index() + 1)
@@ -819,71 +872,124 @@ func prop_id(id: String) -> String:
 	return id
 
 
-# ======================================================================= 树冠缺口 + 画上的弧线
-var treeline: Dictionary = {}           # broken_treeline.json + 节点
+# ======================================================================= 树冠缺口（单独一屏）+ 画上的弧线
+var treeline: Dictionary = {}           # treeline_view.json（空 = 缺图：treeline_match / 看缺口都跳过）
+var _tv_layer: CanvasLayer              # 那一屏：世界（含 Front）之上，暗角 / 界面之下
+var _tv_group: CanvasGroup              # 四层画成一张再整体淡入淡出（不会一层层透出底下的森林）
+var _tv_sprites := {}                   # 层名 → Sprite2D
+var _tv_t := 0.0                        # 这一屏出来了几秒（漂移用）
 var _arc: Sprite2D
 
 
-func _add_treeline() -> void:
-	if not ResourceLoader.exists(ART + "broken_treeline.png") or not FileAccess.file_exists(ART + "broken_treeline.json"):
+func _load_treeline() -> void:
+	if not FileAccess.file_exists(ART + "treeline_view.json"):
 		return
-	var j = JSON.parse_string(FileAccess.get_file_as_string(ART + "broken_treeline.json"))
-	if not j is Dictionary:
+	var j = JSON.parse_string(FileAccess.get_file_as_string(ART + "treeline_view.json"))
+	if not j is Dictionary or (j.get("layers", []) as Array).is_empty():
 		return
-	var layer_name := {"mid": "Mid", "midfar": "MidFar", "far": "Far", "ridge": "Ridge"}.get(str(j.get("layer", "mid")).to_lower(), "Mid") as String
-	var layer: Node2D = level.get_node_or_null(layer_name)
-	if layer == null:
-		return
-	var s := Sprite2D.new()
-	s.name = "BrokenTreeline"
-	s.texture = load(ART + "broken_treeline.png")
-	s.centered = false
-	s.position = Vector2(float(j.get("x", 0)), float(j.get("y", 0)))
-	layer.add_child(s)
-	treeline = j.duplicate(true)
-	treeline["node"] = s
-	treeline["layer_node"] = layer
+	for k in j["layers"]:
+		if not ResourceLoader.exists(ART + "treeline_view_%s.png" % k):
+			return
+	treeline = j
 
 
-## 缺口的弧顶在屏幕上的位置（层会循环，挑离屏幕中间最近的那一份）
-func treeline_screen_top() -> Vector2:
+func has_treeline_view() -> bool:
+	return not treeline.is_empty()
+
+
+func treeline_view_shown() -> bool:
+	return _tv_layer != null and _tv_layer.visible
+
+
+func _build_treeline_view() -> void:
+	if _tv_layer != null:
+		return
+	_tv_layer = CanvasLayer.new()
+	_tv_layer.name = "TreelineView"
+	_tv_layer.layer = 9
+	_tv_layer.visible = false
+	level.add_child(_tv_layer)
+	_tv_group = CanvasGroup.new()
+	_tv_group.fit_margin = 0.0
+	_tv_group.clear_margin = 0.0
+	_tv_layer.add_child(_tv_group)
+	for k in treeline["layers"]:
+		var s := Sprite2D.new()
+		s.name = "View_" + str(k)
+		s.texture = load(ART + "treeline_view_%s.png" % k)
+		s.centered = false
+		_tv_group.add_child(s)
+		_tv_sprites[str(k)] = s
+
+
+## 各层左上角在 (-drift × t, 0)，按整像素走；漂到图的右边缘贴着屏幕右边就停
+func _place_treeline_view() -> void:
+	var drift: Dictionary = treeline.get("drift", {})
+	for k in _tv_sprites:
+		var s: Sprite2D = _tv_sprites[k]
+		var room := maxf(0.0, s.texture.get_width() - 480.0)
+		s.position = Vector2(-roundf(minf(float(drift.get(k, 0.0)) * _tv_t, room)), 0.0)
+
+
+## 淡入那一屏（sec 秒，淡完返回）；缺图直接返回
+func treeline_view_in(sec := 0.8) -> void:
 	if treeline.is_empty():
-		return Vector2(-1, -1)
-	var s: Sprite2D = treeline["node"]
-	var top := _vec(treeline.get("arc_top", [100, 58]))
-	var best := Vector2(-1, -1)
-	for k in [-2, -1, 0, 1, 2]:
-		var p: Vector2 = s.get_global_transform_with_canvas() * (top + Vector2(960.0 * k, 0))
-		if best.x < 0.0 or absf(p.x - 240.0) < absf(best.x - 240.0):
-			best = p
-	return best
+		return
+	_build_treeline_view()
+	_tv_t = 0.0
+	_place_treeline_view()
+	if _arc != null:
+		_arc.visible = false
+	_tv_group.self_modulate.a = 0.0
+	_tv_layer.visible = true
+	if level.has_method("hud_fade"):
+		level.hud_fade(true, sec)              # 左上角目标 / 燃料、右上角背包跟着淡出
+	var tw := create_tween()
+	tw.tween_property(_tv_group, "self_modulate:a", 1.0, sec).set_trans(Tween.TRANS_SINE)
+	await tw.finished
 
 
-## 画上的弧线叠到缺口上：淡入、停 hold 秒、淡出（返回总时长；缺图返回 0）
+## 淡出回到森林
+func treeline_view_out(sec := 0.8) -> void:
+	if not treeline_view_shown():
+		return
+	if level.has_method("hud_fade"):
+		level.hud_fade(false, sec)
+	var tw := create_tween()
+	tw.tween_property(_tv_group, "self_modulate:a", 0.0, sec).set_trans(Tween.TRANS_SINE)
+	await tw.finished
+	_tv_layer.visible = false
+	if _arc != null:
+		_arc.visible = false
+
+
+## 画上的弧线叠到凹口上：淡入、停 hold 秒、淡出（返回总时长；那一屏没出来 / 缺图返回 0）。
+## 弧线是弧所在那一层（arc_layer = main）的子节点，跟着它一起漂，任何时候都和凹口对齐。
 func match_arc(hold := 1.6) -> float:
-	if treeline.is_empty() or not ResourceLoader.exists(ART + "drawing_arc.png"):
+	if not treeline_view_shown() or not ResourceLoader.exists(ART + "drawing_arc.png"):
 		return 0.0
 	var aj = {}
 	if FileAccess.file_exists(ART + "drawing_arc.json"):
 		aj = JSON.parse_string(FileAccess.get_file_as_string(ART + "drawing_arc.json"))
 	if not aj is Dictionary:
 		aj = {}
-	var k := float(aj.get("scale_to_treeline", 2))
+	var host: Sprite2D = _tv_sprites.get(str(treeline.get("arc_layer", "main")), null)
+	if host == null:
+		return 0.0
+	var k := float(aj.get("scale_to_treeline", 3))
 	var a_left := _vec(aj.get("arc_end_left", [0, 0]))
 	var t_left := _vec(aj.get("treeline_arc_end_left", treeline.get("arc_end_left", [0, 0])))
 	if _arc == null:
-		var cl := CanvasLayer.new()
-		cl.name = "ArcLayer"
-		cl.layer = 9                               # 世界（含 Front）之上，暗角 / 界面之下
-		level.add_child(cl)
 		_arc = Sprite2D.new()
 		_arc.name = "DrawingArc"
 		_arc.texture = load(ART + "drawing_arc.png")
 		_arc.centered = false
-		cl.add_child(_arc)
+	if _arc.get_parent() != host:
+		if _arc.get_parent() != null:
+			_arc.get_parent().remove_child(_arc)
+		host.add_child(_arc)
 	_arc.scale = Vector2(k, k)
-	_arc.set_meta("local", t_left - a_left * k)    # 在缺口图里的左上角（两条弧的左端对上）
-	_place_arc()
+	_arc.position = (t_left - a_left * k).round()   # 两条弧的左端对上（图内坐标）
 	_arc.modulate.a = 0.0
 	_arc.visible = true
 	var tw := create_tween()
@@ -892,24 +998,6 @@ func match_arc(hold := 1.6) -> float:
 	tw.tween_property(_arc, "modulate:a", 0.0, 0.8)
 	tw.tween_callback(func(): _arc.visible = false)
 	return 0.8 + hold + 0.8
-
-
-## 弧线跟着缺口在屏幕上的位置走（缺口所在的层会循环，挑离屏幕中间最近的那一份）
-func _place_arc() -> void:
-	if _arc == null or treeline.is_empty():
-		return
-	var s: Sprite2D = treeline["node"]
-	var local: Vector2 = _arc.get_meta("local", Vector2.ZERO)
-	var xf := s.get_global_transform_with_canvas()
-	var best := Vector2.ZERO
-	var bd := INF
-	for k in [-2, -1, 0, 1, 2]:
-		var p: Vector2 = xf * (local + Vector2(960.0 * k, 0))
-		var d := absf(p.x + _arc.texture.get_width() * _arc.scale.x / 2.0 - 240.0)
-		if d < bd:
-			bd = d
-			best = p
-	_arc.position = best.round()
 
 
 ## 屋里的灯光（room_light.png，半透明，和树屋同尺寸同锚点）：在屋内物件上面、人物下面
@@ -1131,8 +1219,9 @@ func update(delta: float, cam_center: Vector2) -> void:
 			else:
 				s.frame = int(_anim_t * 1000.0 / float(c["anim"])) % s.hframes
 	_update_cloth()
-	if _arc != null and _arc.visible:
-		_place_arc()
+	if treeline_view_shown():
+		_tv_t += delta
+		_place_treeline_view()
 	if _sway_t >= 0.0:
 		_sway_t += delta
 		if _sway_t > _sway_dur + SWAY_EACH:
@@ -1145,7 +1234,9 @@ func update(delta: float, cam_center: Vector2) -> void:
 	fog_k = move_toward(fog_k, want, delta * 0.5)
 	if absf(want - fog_k) < 0.002:
 		fog_k = want
-	var off := not fog_enabled
+	var off := not fog_enabled or room == "cockpit"     # 驾驶舱里没有雾
+	if cockpit != null:
+		cockpit.update(delta)
 	var mb: ShaderMaterial = _fog_back.get_meta("mat")
 	mb.set_shader_parameter("density", FOG_BACK_BASE + (FOG_BACK_A - FOG_BACK_BASE) * fog_k)
 	mb.set_shader_parameter("fill", 0.8 * fog_k * fog_k)
@@ -1153,3 +1244,28 @@ func update(delta: float, cam_center: Vector2) -> void:
 	mf.set_shader_parameter("density", FOG_FRONT_BASE + (FOG_FRONT_A - FOG_FRONT_BASE) * fog_k)
 	_fog_back.visible = not off
 	_fog_front.visible = not off
+
+
+# ======================================================================= 驾驶舱（room = cockpit）
+## 剧本 rooms 里有 cockpit 时 story_runner 调：建驾驶舱（scripts/cockpit_room.gd），它的 markers 填进来（剧本里写 0 的按美术的坐标；
+## 非 0 的当成驾驶舱这一屏里的 x），hotspot 的点击框用物件的矩形。
+func add_cockpit() -> void:
+	if cockpit != null:
+		return
+	cockpit = (load("res://scripts/cockpit_room.gd") as GDScript).new()
+	add_child(cockpit)
+	cockpit.setup(level, self)
+	for k in _script_markers:
+		var n := str(k)
+		if n.begins_with("cockpit_") and (_script_markers[k] is float or _script_markers[k] is int) and float(_script_markers[k]) != 0.0:
+			cockpit.markers[n] = float(_script_markers[k])
+	for n in cockpit.markers:
+		markers[str(n)] = cockpit.mx(str(n))
+		extra_rects[str(n)] = cockpit.prop_rect.bind(str(n))
+	for id in StoryState.props:
+		if str(id).begins_with("cockpit_"):
+			cockpit.set_prop(str(id), str(StoryState.props[id]))
+
+
+func in_cockpit() -> bool:
+	return room == "cockpit"

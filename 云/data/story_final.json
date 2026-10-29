@@ -1,0 +1,1750 @@
+{
+	"_comment": "最终航行「还剩下什么」+ 四个结局 + 人物短尾声（剧情姐合订稿 in1030/yun1.txt 第 153–240 行）。入口 start_final。通讯器：休息空隙妮芙·河岸来消息（final_msg_nifu_1/2）；结局一 phone_draft「我找到大象了。」（发送设 sent_found）；结局一~三和母星尾声 phone_open friend。燃料界面（todo_mechanic final_flight）选中一件纪念品时播 look_<id>，确认转化后播 burn_<id>（设 burned_<id>）。结局由两次 pick 决定（final_action：下降 / 漂行=结局四；final_nav：旧货场=一、东侧低鸣=二、居民区=三），设 final_ending_1..4；结局里的动作和尾声按 burned_* / final_seed_planted / 森林 returned_all、returned_any、saw_rock 分支。if / goto 是跳转（不返回）。markers 坐标都是占位 0。带 added 的是补写。",
+	"speakers": {
+		"chen": {"zh": "晨", "en": "Chen"},
+		"elephant": {"zh": "大象", "en": "Elephant"},
+		"passerby": {"zh": "路过的人", "en": "Passerby"},
+		"resident": {"zh": "居民", "en": "Resident"},
+		"crowd": {"zh": "周围的人", "en": "People nearby"},
+		"townsfolk": {"zh": "居民", "en": "Local"},
+		"broadcast": {"zh": "城市广播", "en": "City broadcast"},
+		"deer": {"zh": "鹿", "en": "Deer"},
+		"miluo": {"zh": "弥洛", "en": "Milo"},
+		"niff": {"zh": "妮芙", "en": "Niff"}
+	},
+	"markers": {
+		"cockpit_bell": 0,
+		"cockpit_cabinet": 0,
+		"cockpit_copilot": 0,
+		"cockpit_drawing": 0,
+		"cockpit_panel": 0,
+		"cockpit_seat": 0,
+		"cockpit_tools": 0,
+		"cockpit_window": 0,
+		"east_bed": 0,
+		"east_crowd": 0,
+		"east_far": 0,
+		"east_landing": 0,
+		"east_resident": 0,
+		"east_slope": 0,
+		"east_tree": 0,
+		"east_water": 0,
+		"east_water_cup": 0,
+		"east_wing": 0,
+		"forest_crossroad": 0,
+		"forest_deer": 0,
+		"forest_treehouse": 0,
+		"river_home_door": 0,
+		"river_home_niff": 0,
+		"river_home_table": 0,
+		"town_back_side": 0,
+		"town_basket": 0,
+		"town_bed": 0,
+		"town_bench": 0,
+		"town_crowd": 0,
+		"town_far_side": 0,
+		"town_fountain": 0,
+		"town_helper": 0,
+		"town_landing": 0,
+		"town_lodging": 0,
+		"town_plaza_side": 0,
+		"townroom_desk": 0,
+		"townroom_door": 0,
+		"train_door": 0,
+		"train_seat": 0,
+		"treehouse_door": 0,
+		"treehouse_miluo": 0,
+		"yard_elephant": 0,
+		"yard_grass": 0,
+		"yard_hill": 0,
+		"yard_landing": 0,
+		"yard_passerby": 0,
+		"yard_prints": 0,
+		"yard_sign": 0,
+		"yard_soil": 0,
+		"yard_water": 0
+	},
+	"rooms": ["cockpit", "yard", "east_meadow", "town", "town_room", "forest", "treehouse", "river_home", "home_train"],
+	"objectives": [
+		{"need": ["final_epi_niff"], "not": ["final_done"], "zh": "回家", "en": "Go home", "show_fuel": false, "added": true},
+		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "zh": "去河流城市看妮芙", "en": "Visit Niff in the river city", "show_fuel": false, "added": true},
+		{"need": ["final_epi_deer"], "not": ["final_epi_miluo"], "zh": "去树屋看弥洛", "en": "Visit Milo at the treehouse", "show_fuel": false, "added": true},
+		{"need": ["final_e1_seed_done"], "not": ["final_epilogue"], "zh": "回飞机", "en": "Back to the ship", "show_fuel": false, "added": true},
+		{"need": ["final_e1_soil"], "not": ["final_seed_planted"], "zh": "把种子种进湿土", "en": "Plant the seed in the damp soil", "show_fuel": false, "added": true},
+		{"need": ["final_e1_seed_todo"], "not": ["final_e1_soil"], "zh": "问问哪里能种种子", "en": "Ask where to plant the seed", "show_fuel": false, "added": true},
+		{"need": ["final_e1_prints"], "not": ["final_e1_met"], "zh": "往声音那边走", "en": "Follow the sound", "show_fuel": false, "added": true},
+		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "zh": "沿着指示牌去水源", "en": "Follow the sign to the water", "show_fuel": false, "added": true},
+		{"need": ["final_e2_seed_done"], "not": ["final_e2_night", "final_epilogue"], "zh": "回飞机休息", "en": "Rest in the ship", "show_fuel": false, "added": true},
+		{"need": ["final_e2_seed_todo"], "not": ["final_seed_planted"], "zh": "把种子种进花圃", "en": "Plant the seed in the flower bed", "show_fuel": false, "added": true},
+		{"need": ["final_e2_dusk"], "not": ["final_e2_recorded"], "zh": "回飞机，把位置记下来", "en": "Back to the ship, note the location", "show_fuel": false, "added": true},
+		{"need": ["final_e2_landed"], "not": ["final_e2_seen"], "zh": "循着低鸣，走到坡下", "en": "Follow the rumble down the slope", "show_fuel": false, "added": true},
+		{"need": ["final_e3_seed_done"], "not": ["final_epilogue"], "zh": "回住处", "en": "Back to the lodging", "show_fuel": false, "added": true},
+		{"need": ["final_e3_seed_todo"], "not": ["final_seed_planted"], "zh": "把种子种进广场外的花圃", "en": "Plant the seed in the bed outside the plaza", "show_fuel": false, "added": true},
+		{"need": ["final_e3_round"], "not": ["final_e3_seed_todo", "final_e3_seed_done"], "zh": "回长椅那边", "en": "Go back to the bench", "show_fuel": false, "added": true},
+		{"need": ["final_e3_walk"], "not": ["final_e3_round"], "zh": "自己绕广场走一圈", "en": "Walk around the plaza on your own", "show_fuel": false, "added": true},
+		{"need": ["final_e3_day3"], "not": ["final_e3_walk"], "zh": "自己绕到喷泉另一侧", "en": "Go round the fountain on your own", "show_fuel": false, "added": true},
+		{"need": ["final_e3_touched"], "not": ["final_e3_day3"], "zh": "出门", "en": "Go out", "show_fuel": false, "added": true},
+		{"need": ["final_e3_day1"], "not": ["final_e3_touched"], "zh": "回住处", "en": "Back to the lodging", "show_fuel": false, "added": true},
+		{"need": ["final_e3_landed"], "not": ["final_e3_day1"], "zh": "去广场", "en": "Go to the plaza", "show_fuel": false, "added": true}
+	],
+	"hints": [
+		{"need": ["final_epi_niff"], "not": ["final_done"], "lines": [{"zh": "……该回家了。", "en": "...Time to go home.", "added": true}]},
+		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "lines": [{"zh": "妮芙还在等我讲完。", "en": "Niff's still waiting for me to finish.", "added": true}]},
+		{"need": ["final_epi_deer"], "not": ["final_epi_miluo"], "lines": [{"zh": "弥洛的树屋，就在前面。", "en": "Milo's treehouse is just ahead.", "added": true}]},
+		{"need": ["final_e1_prints"], "not": ["final_e1_met"], "lines": [{"zh": "咀嚼的声音……在水边。", "en": "Chewing... by the water.", "added": true}]},
+		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "lines": [{"zh": "指示牌指着水源。", "en": "The sign points to the water.", "added": true}, {"zh": "……先去看看。", "en": "...I'll go take a look.", "added": true}]},
+		{"need": ["final_e2_landed"], "not": ["final_e2_seen"], "lines": [{"zh": "低鸣在坡下面。", "en": "The rumble's down the slope.", "added": true}]},
+		{"need": ["final_e3_landed"], "not": ["final_e3_day1"], "lines": [{"zh": "他们都往喷泉那边走。", "en": "Everyone's heading for the fountain.", "added": true}]},
+		{"need": ["final_e3_walk"], "not": ["final_e3_round"], "lines": [{"zh": "广场那头，还没看过。", "en": "Haven't checked the far end of the plaza.", "added": true}]}
+	],
+	"hotspots": [
+		{"id": "ck_bell", "at": "cockpit_bell", "room": "cockpit", "label": {"zh": "铜铃", "en": "Copper Bell"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4", "burned_copper_bell"], "once": false, "scene": "ck_bell"},
+		{"id": "ck_rope", "at": "cockpit_bell", "room": "cockpit", "label": {"zh": "绳圈", "en": "Empty loop"}, "need": ["final_started", "burned_copper_bell"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_rope"},
+		{"id": "ck_copilot", "at": "cockpit_copilot", "room": "cockpit", "label": {"zh": "副驾驶座", "en": "Copilot's seat"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_copilot"},
+		{"id": "ck_cabinet", "at": "cockpit_cabinet", "room": "cockpit", "label": {"zh": "燃料柜", "en": "Fuel locker"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_cabinet"},
+		{"id": "ck_tools", "at": "cockpit_tools", "room": "cockpit", "label": {"zh": "工具", "en": "Tools"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_tools"},
+		{"id": "ck_drawing", "at": "cockpit_drawing", "room": "cockpit", "label": {"zh": "最初的画", "en": "The first drawing"}, "need": ["final_fuel_done"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_drawing"},
+		{"id": "yard_sign", "at": "yard_sign", "room": "yard", "label": {"zh": "指示牌", "en": "Sign"}, "need": ["final_e1_landed"], "not": [], "once": false, "scene": "yard_sign"},
+		{"id": "yard_grass", "at": "yard_grass", "room": "yard", "label": {"zh": "被压倒的草", "en": "Flattened grass"}, "need": ["final_e1_landed"], "not": ["final_e1_grass"], "once": false, "scene": "yard_grass", "trigger": "enter", "range": 30},
+		{"id": "yard_prints", "at": "yard_prints", "room": "yard", "label": {"zh": "脚印", "en": "Footprints"}, "need": ["final_e1_landed"], "not": ["final_e1_prints"], "once": false, "scene": "e1_prints", "trigger": "enter", "range": 24},
+		{"id": "yard_water", "at": "yard_water", "room": "yard", "label": {"zh": "浅水边", "en": "Shallows"}, "need": ["final_e1_prints"], "not": ["final_e1_met"], "once": false, "scene": "e1_meet", "trigger": "enter", "range": 30},
+		{"id": "yard_elephant", "at": "yard_elephant", "room": "yard", "label": {"zh": "大象", "en": "Elephant"}, "need": ["final_e1_met"], "not": ["final_e1_seed_done"], "once": false, "scene": "e1_elephant_chat"},
+		{"id": "yard_passerby_ask", "at": "yard_passerby", "room": "yard", "label": {"zh": "路过的人", "en": "Passerby"}, "need": ["final_e1_seed_todo"], "not": ["final_e1_soil"], "once": false, "scene": "e1_plant_ask"},
+		{"id": "yard_passerby", "at": "yard_passerby", "room": "yard", "label": {"zh": "路过的人", "en": "Passerby"}, "need": ["final_e1_met"], "not": [], "once": false, "scene": "e1_passerby_chat"},
+		{"id": "yard_soil", "at": "yard_soil", "room": "yard", "label": {"zh": "湿土", "en": "Damp soil"}, "need": ["final_e1_soil"], "not": ["final_seed_planted"], "once": false, "scene": "e1_plant"},
+		{"id": "yard_plane", "at": "yard_landing", "room": "yard", "label": {"zh": "飞机", "en": "Ship"}, "need": ["final_e1_seed_done"], "not": ["final_epilogue"], "once": false, "scene": "e1_evening"},
+		{"id": "east_slope", "at": "east_slope", "room": "east_meadow", "label": {"zh": "缓坡下", "en": "Foot of the slope"}, "need": ["final_e2_landed"], "not": ["final_e2_seen"], "once": false, "scene": "e2_see", "trigger": "enter", "range": 30},
+		{"id": "east_elephant", "at": "east_water", "room": "east_meadow", "label": {"zh": "大象", "en": "Elephant"}, "need": ["final_e2_dusk"], "not": ["final_e2_night"], "once": false, "scene": "e2_elephant_chat"},
+		{"id": "east_cup", "at": "east_water_cup", "room": "east_meadow", "label": {"zh": "水", "en": "Water"}, "need": ["final_e2_dusk"], "not": [], "once": false, "scene": "e2_cup"},
+		{"id": "east_plane_record", "at": "east_landing", "room": "east_meadow", "label": {"zh": "飞机", "en": "Ship"}, "need": ["final_e2_dusk"], "not": ["final_e2_recorded"], "once": false, "scene": "e2_record"},
+		{"id": "east_bed", "at": "east_bed", "room": "east_meadow", "label": {"zh": "花圃", "en": "Flower bed"}, "need": ["final_e2_seed_todo"], "not": ["final_seed_planted"], "once": false, "scene": "e2_plant"},
+		{"id": "east_plane_rest", "at": "east_landing", "room": "east_meadow", "label": {"zh": "回飞机休息", "en": "Rest in the ship"}, "need": ["final_e2_seed_done"], "not": ["final_e2_night"], "once": false, "scene": "e2_night_go"},
+		{"id": "town_basket", "at": "town_basket", "room": "town", "label": {"zh": "空篮子", "en": "Empty basket"}, "need": ["final_e3_landed"], "not": [], "once": false, "scene": "town_basket"},
+		{"id": "town_fountain", "at": "town_fountain", "room": "town", "label": {"zh": "喷泉", "en": "Fountain"}, "need": ["final_e3_landed"], "not": ["final_e3_day1"], "once": false, "scene": "e3_plaza", "trigger": "enter", "range": 40},
+		{"id": "town_crowd", "at": "town_crowd", "room": "town", "label": {"zh": "周围的人", "en": "People nearby"}, "need": ["final_e3_day1"], "not": ["final_e3_day3"], "once": false, "scene": "e3_crowd_chat"},
+		{"id": "town_lodging_1", "at": "town_lodging", "room": "town", "label": {"zh": "住处", "en": "Lodging"}, "need": ["final_e3_day1"], "not": ["final_e3_touched"], "once": false, "scene": "e3_touch"},
+		{"id": "townroom_door", "at": "townroom_door", "room": "town_room", "label": {"zh": "门", "en": "Door"}, "need": ["final_e3_touched"], "not": ["final_e3_day3"], "once": false, "scene": "e3_confess"},
+		{"id": "town_back", "at": "town_back_side", "room": "town", "label": {"zh": "喷泉另一侧", "en": "Other side of the fountain"}, "need": ["final_e3_day3"], "not": ["final_e3_walk"], "once": false, "scene": "e3_listen", "trigger": "enter", "range": 30},
+		{"id": "town_far", "at": "town_far_side", "room": "town", "label": {"zh": "广场那头", "en": "Far end of the plaza"}, "need": ["final_e3_walk"], "not": ["final_e3_round"], "once": false, "scene": "e3_round", "trigger": "enter", "range": 30},
+		{"id": "town_bench", "at": "town_bench", "room": "town", "label": {"zh": "长椅", "en": "Bench"}, "need": ["final_e3_round"], "not": ["final_e3_seed_todo", "final_e3_seed_done"], "once": false, "scene": "e3_bench"},
+		{"id": "town_fountain_look", "at": "town_fountain", "room": "town", "label": {"zh": "喷泉", "en": "Fountain"}, "need": ["final_e3_walk"], "not": [], "once": false, "scene": "e3_fountain_look"},
+		{"id": "town_bench_chat", "at": "town_bench", "room": "town", "label": {"zh": "居民", "en": "Local"}, "need": ["final_e3_walk"], "not": ["final_e3_round"], "once": false, "scene": "e3_townsfolk_chat"},
+		{"id": "town_bed", "at": "town_bed", "room": "town", "label": {"zh": "花圃", "en": "Flower bed"}, "need": ["final_e3_seed_todo"], "not": ["final_seed_planted"], "once": false, "scene": "e3_plant"},
+		{"id": "town_lodging_2", "at": "town_lodging", "room": "town", "label": {"zh": "住处", "en": "Lodging"}, "need": ["final_e3_seed_done"], "not": ["final_epilogue"], "once": false, "scene": "e3_night"},
+		{"id": "forest_deer", "at": "forest_deer", "room": "forest", "label": {"zh": "鹿", "en": "Deer"}, "need": ["final_epi_deer"], "not": [], "once": false, "scene": "epi_deer_chat"},
+		{"id": "forest_treehouse", "at": "forest_treehouse", "room": "forest", "label": {"zh": "去树屋", "en": "To the treehouse"}, "need": ["final_epi_deer"], "not": ["final_epi_miluo"], "once": false, "scene": "epi_miluo"},
+		{"id": "treehouse_miluo", "at": "treehouse_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["final_epi_miluo"], "not": [], "once": false, "scene": "epi_miluo_chat"},
+		{"id": "treehouse_out", "at": "treehouse_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_miluo"], "not": ["final_epi_niff"], "once": false, "scene": "epi_niff"},
+		{"id": "river_home_niff", "at": "river_home_niff", "room": "river_home", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["final_epi_niff"], "not": [], "once": false, "scene": "epi_niff_chat"},
+		{"id": "river_home_out", "at": "river_home_door", "room": "river_home", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_niff"], "not": ["final_done"], "once": false, "scene": "epi_home"}
+	],
+	"scenes": {
+		"start_final": [
+			{"do": "fade_to", "room": "cockpit", "at": "cockpit_seat"},
+			{"do": "flag", "set": "final_started"},
+			{"do": "sfx", "name": "engine_steady"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "hull_rattle", "pan": 0.6},
+			{"say": "chen", "zh": "这声可以先放着。", "en": "That one can wait.", "added": true},
+			{"do": "sfx", "name": "hiss_small", "pan": -0.5},
+			{"say": "chen", "zh": "这声不行。", "en": "That one can't.", "added": true},
+			{"do": "anim", "who": "chen", "name": "repair"},
+			{"do": "sfx", "name": "tighten"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "prop", "id": "cockpit_tools", "state": "left"},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "这里我拿着更顺。", "en": "Handier for me here."},
+			{"say": "chen", "zh": "弥洛看见，又要说我放错边了。", "en": "If Milo saw this, she'd say I put it on the wrong side again.", "added": true},
+			{"do": "sfx", "name": "bag_open"},
+			{"do": "anim", "who": "chen", "name": "eat"},
+			{"say": "chen", "zh": "……就吃边角。剩下的留着。", "en": "...Just the broken bits. Saving the rest.", "added": true},
+			{"do": "sfx", "name": "bell_soft"},
+			{"do": "sfx", "name": "musicbox_open"},
+			{"do": "anim", "who": "chen", "name": "hum"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "sfx", "name": "hum_wrong"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "anim", "who": "chen", "name": "hum"},
+			{"do": "sfx", "name": "hum_wrong"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "sfx", "name": "hum_new_key"},
+			{"do": "face", "who": "chen", "to": "cockpit_panel"},
+			{"say": "chen", "zh": "差不多就这样，你又不会告状。", "en": "Close enough. Not like you'll tell on me."},
+			{"do": "goto", "scene": "final_niff_msg"}
+		],
+		"final_niff_msg": [
+			{"do": "wait", "sec": 1.5},
+			{"do": "phone_msg", "id": "final_msg_nifu_1", "from": "nifu", "zh": "晨，你吃饭了吗？我刚翻到本子，上面还写着你肚子饿呢。\n啊，后面写了，吃过面包啦，那现在呢？", "en": "Chen, have you eaten? I just found my notebook, and it says you're hungry.\nAh, the next line says you had bread. So what about now?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}},
+			{"do": "anim", "who": "chen", "name": "fold_bag"},
+			{"do": "phone_open", "contact": "friend"},
+			{"do": "anim", "who": "chen", "name": "finger_still"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "phone_msg", "id": "final_msg_nifu_2", "from": "nifu", "zh": "阿汀让我提醒你，到地方记得晾浮筒哦，里面很容易存水。", "en": "Ting says to remind you: dry out the floats when you land. Water gets in easily.", "reply": {"zh": "记下了，到了就晾。", "en": "Got it. I'll dry them when I land.", "added": true}},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "维修：到地方先晾浮筒（阿汀说的）。", "en": "Repairs: dry the floats first thing after landing (Ting said).", "added": true},
+			{"do": "flag", "set": "final_niff_msg"},
+			{"do": "goto", "scene": "final_route"}
+		],
+		"final_route": [
+			{"say": "chen", "zh": "前面的航道……比记录上乱。", "en": "The route ahead... it's messier than the records said.", "added": true},
+			{"do": "todo_mechanic", "id": "final_route", "spec": "接近云层星的航道比旧记录复杂。碎石带向外扩展，稳定气流只剩几条窄路，玩家需要综合运用声音辨向、避障和修补。正确操作能减少燃料损耗，此前多收集的材料也在这里发挥作用。操作与准备能省下一部分材料，剩余航程仍需要玩家从纪念品中作出取舍。"},
+			{"say": "chen", "zh": "……还差一段。", "en": "...Still a stretch to go.", "added": true},
+			{"do": "goto", "scene": "final_cabinet"}
+		],
+		"final_cabinet": [
+			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
+			{"do": "sfx", "name": "cabinet_open"},
+			{"do": "if", "flag": "burned_blue_stone", "then": "cab_slot_stone", "else": "cab_slot_card"}
+		],
+		"cab_slot_stone": [
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……石头。", "en": "...The stone.", "added": true},
+			{"say": "chen", "zh": "对，已经不在了。", "en": "Right. It's gone.", "added": true},
+			{"do": "goto", "scene": "cab_count"}
+		],
+		"cab_slot_card": [
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……卡。", "en": "...The card.", "added": true},
+			{"say": "chen", "zh": "对，已经不在了。", "en": "Right. It's gone.", "added": true},
+			{"do": "goto", "scene": "cab_count"}
+		],
+		"cab_count": [
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "燃料柜：河水、种子、音乐盒、铜铃……", "en": "Fuel locker: river water, seed, music box, copper bell...", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……影像漏了。", "en": "...Forgot the footage.", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"do": "journal", "zh": "影像。", "en": "Footage.", "added": true},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"say": "chen", "zh": "一遍。", "en": "Once.", "added": true},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"say": "chen", "zh": "两遍。", "en": "Twice.", "added": true},
+			{"do": "if", "flag": "burned_blue_stone", "then": "cab_burned_stone", "else": "cab_burned_card"}
+		],
+		"cab_burned_stone": [
+			{"do": "journal", "zh": "已经烧掉的：蓝色石头。", "en": "Already burned: Blue Stone.", "added": true},
+			{"do": "goto", "scene": "cab_think"}
+		],
+		"cab_burned_card": [
+			{"do": "journal", "zh": "已经烧掉的：通勤卡。", "en": "Already burned: Commuter Card.", "added": true},
+			{"do": "goto", "scene": "cab_think"}
+		],
+		"cab_think": [
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "都到这里了。现在不去，前面那些不就……", "en": "I've come this far. If I don't go now, then everything before was just..."},
+			{"do": "prop", "id": "cockpit_burnlist", "state": "close"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "prop", "id": "cockpit_burnlist", "state": "flipped"},
+			{"do": "face", "who": "chen", "to": "cockpit_copilot"},
+			{"do": "anim", "who": "chen", "name": "sulk"},
+			{"say": "chen", "zh": "再往前飞，烧掉的东西也回不来了。", "en": "Flying on won't bring back what I burned, either."},
+			{"do": "face", "who": "chen", "to": "cockpit_panel"},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "show_item", "item": "clear_seed"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "prop", "id": "cockpit_map", "state": "open"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "hand"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "大象我还是想找，消息也还是想等。", "en": "I still want to find the elephant. And I still want to wait for that message."},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "closed"},
+			{"do": "sfx", "name": "hiss_small", "pan": 0.3},
+			{"do": "anim", "who": "chen", "name": "repair"},
+			{"do": "sfx", "name": "tighten"},
+			{"do": "wait", "sec": 0.8},
+			{"narr": {"zh": "预计航程：多了一点。", "en": "Estimated range: a little more."}, "added": true},
+			{"say": "chen", "zh": "……多了一点。", "en": "...A little more.", "added": true},
+			{"do": "flag", "set": "final_cabinet_seen"},
+			{"do": "goto", "scene": "final_fuel"}
+		],
+		"final_fuel": [
+			{"do": "todo_mechanic", "id": "final_flight", "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）"},
+			{"do": "choice", "options": [{"zh": "先把下一段飞完。", "en": "Just get through the next stretch.", "scene": "final_self_a"}, {"zh": "我再算一次。", "en": "Let me count again.", "scene": "final_self_b"}, {"zh": "这些我还想留着。", "en": "I still want to keep these.", "scene": "final_self_c"}]}
+		],
+		"final_self_a": [
+			{"say": "chen", "zh": "……嗯。先飞。", "en": "...Yeah. Fly first.", "added": true},
+			{"do": "goto", "scene": "final_paper"}
+		],
+		"final_self_b": [
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……还是这个数。", "en": "...Same number.", "added": true},
+			{"do": "goto", "scene": "final_paper"}
+		],
+		"final_self_c": [
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……能留几件，就留几件。", "en": "...I'll keep what I can.", "added": true},
+			{"do": "goto", "scene": "final_paper"}
+		],
+		"final_paper": [
+			{"narr": {"zh": "燃料不足。纸质物品可用。", "en": "Fuel low. Paper items usable."}, "added": true},
+			{"do": "show_item", "item": "journal"},
+			{"say": "chen", "zh": "……日记也算纸。", "en": "...The journal counts as paper.", "added": true},
+			{"do": "todo_mechanic", "id": "final_journal_rule", "spec": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
+			{"do": "flag", "set": "final_fuel_done"},
+			{"do": "goto", "scene": "final_approach"}
+		],
+		"look_river_water": [
+			{"do": "show_item", "item": "river_water"},
+			{"narr": {"zh": "增加航行时间：三分钟。", "en": "Flight time added: three minutes."}},
+			{"do": "wait", "sec": 1.0},
+			{"narr": {"zh": "晨来过的那条河", "en": "The river Chen came to"}},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "先读名字。", "en": "The name first.", "added": true},
+			{"say": "chen", "zh": "再看飞机在哪儿。", "en": "Then where the ship is.", "added": true},
+			{"say": "chen", "zh": "最后才问，吃过没有。", "en": "Last of all, whether I've eaten.", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……三分钟。刚好够她再来一遍。", "en": "...Three minutes. Just enough for her to go through it once more.", "added": true}
+		],
+		"burn_river_water": [
+			{"do": "sfx", "name": "water_pour"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "sfx", "name": "water_drop"},
+			{"do": "take", "item": "river_water"},
+			{"do": "flag", "set": "burned_river_water"},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "empty_bottle"},
+			{"do": "sfx", "name": "cap_twist"},
+			{"do": "wait", "sec": 0.5},
+			{"do": "sfx", "name": "cap_twist"},
+			{"narr": {"zh": "晨来过的那条河", "en": "The river Chen came to"}},
+			{"say": "chen", "zh": "……标签还在。", "en": "...The label's still on.", "added": true}
+		],
+		"look_clear_seed": [
+			{"do": "show_item", "item": "clear_seed"},
+			{"do": "show_item", "item": "miluo_note"},
+			{"say": "chen", "zh": "不要埋太深。先浇水。别总挖出来看。", "en": "Don't bury it too deep. Water it first. Don't keep digging it up to check.", "added": true},
+			{"do": "prop", "id": "cockpit_note", "state": "flipped"},
+			{"do": "wait", "sec": 1.0},
+			{"narr": {"zh": "没长出来不一定是你的问题。", "en": "If nothing comes up, it might not be your fault."}},
+			{"do": "wait", "sec": 2.0},
+			{"do": "show_item", "item": "clear_seed"},
+			{"say": "chen", "zh": "里面……有一条很细的纹。", "en": "Inside... there's a very thin line.", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "像芽。", "en": "Like a sprout.", "added": true},
+			{"say": "chen", "zh": "……也可能不是。", "en": "...Or maybe not.", "added": true}
+		],
+		"burn_clear_seed": [
+			{"do": "take", "item": "clear_seed"},
+			{"do": "flag", "set": "burned_clear_seed"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "prop", "id": "cockpit_note", "state": "folded_half"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "prop", "id": "cockpit_note", "state": "open"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "prop", "id": "cockpit_note", "state": "folded"},
+			{"say": "chen", "zh": "纸条留着。", "en": "I'll keep the note.", "added": true}
+		],
+		"look_elephant_footage": [
+			{"do": "show_item", "item": "elephant_footage"},
+			{"narr": {"zh": "南桥，退水后，第七日", "en": "South Bridge, day seven after the flood"}, "added": true},
+			{"say": "chen", "zh": "最后放一次。", "en": "One last time.", "added": true},
+			{"do": "sfx", "name": "footage_play"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "sfx", "name": "bridge_lamps"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "耳朵上的缺口。", "en": "The notch in the ear.", "added": true},
+			{"do": "sfx", "name": "elephant_low_call"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "路线抄下来了。", "en": "I copied down the route.", "added": true},
+			{"say": "chen", "zh": "……可这个声音，抄不下来。", "en": "...But I can't copy down this sound.", "added": true}
+		],
+		"burn_elephant_footage": [
+			{"do": "prop", "id": "cockpit_footage", "state": "lid_closed"},
+			{"do": "anim", "who": "chen", "name": "press"},
+			{"do": "wait", "sec": 0.8},
+			{"do": "take", "item": "elephant_footage"},
+			{"do": "flag", "set": "burned_elephant_footage"},
+			{"do": "sfx", "name": "convert"}
+		],
+		"look_music_box": [
+			{"do": "show_item", "item": "music_box"},
+			{"do": "sfx", "name": "musicbox_play"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "hum"},
+			{"do": "sfx", "name": "hum_late"},
+			{"do": "face", "who": "chen", "to": "cockpit_copilot"},
+			{"do": "prop", "id": "cockpit_copilot", "state": "toolbag_wrench"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "face", "who": "chen", "to": "cockpit_panel"},
+			{"do": "anim", "who": "chen", "name": "hold_close"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "anim", "who": "chen", "name": "thumb_lid"},
+			{"do": "wait", "sec": 1.0}
+		],
+		"keep_music_box": [
+			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"do": "sfx", "name": "bag_open"}
+		],
+		"burn_music_box": [
+			{"do": "anim", "who": "chen", "name": "close_lid"},
+			{"do": "sfx", "name": "musicbox_stop"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "take", "item": "music_box"},
+			{"do": "flag", "set": "burned_music_box"},
+			{"do": "sfx", "name": "convert"}
+		],
+		"look_copper_bell": [
+			{"do": "show_item", "item": "copper_bell"},
+			{"do": "sfx", "name": "bell_soft"},
+			{"narr": {"zh": "已经送给晨，不用还", "en": "Given to Chen. No need to return"}}
+		],
+		"burn_copper_bell": [
+			{"do": "anim", "who": "chen", "name": "untie"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "untie"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "take", "item": "copper_bell"},
+			{"do": "flag", "set": "burned_copper_bell"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "prop", "id": "cockpit_bell", "state": "empty_loop"},
+			{"do": "sfx", "name": "hull_rattle"},
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……对。", "en": "...Right.", "added": true}
+		],
+		"look_journal": [
+			{"do": "show_item", "item": "journal"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "鹿的角，画得太大了。", "en": "Drew the deer's antlers too big.", "added": true},
+			{"say": "chen", "zh": "名字是后来补的。", "en": "The names came later.", "added": true},
+			{"narr": {"zh": "这次没猜", "en": "Didn't guess this time"}},
+			{"say": "chen", "zh": "妮芙坐在河岸边。", "en": "Niff, sitting by the river.", "added": true},
+			{"narr": {"zh": "送给你啦，以后就是你的了。", "en": "It's yours now. For keeps."}},
+			{"say": "chen", "zh": "这几个字泡开了……", "en": "These words got soaked...", "added": true},
+			{"say": "chen", "zh": "这串数字，是干什么用的？", "en": "What were these numbers for?", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "大象的，越记越长。", "en": "The elephant notes keep getting longer.", "added": true},
+			{"say": "chen", "zh": "一张画，一个名字。", "en": "A drawing. A name.", "added": true},
+			{"say": "chen", "zh": "后来是声音、脚印、照片、船号……", "en": "Then a sound, footprints, a photo, a ship number...", "added": true},
+			{"say": "chen", "zh": "还有耳朵上的缺口。", "en": "And the notch in the ear.", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"do": "prop", "id": "cockpit_journal", "state": "deer_page"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "……那天，我真高兴。", "en": "...I was so happy that day.", "added": true}
+		],
+		"burn_journal": [
+			{"do": "anim", "who": "chen", "name": "untie"},
+			{"do": "prop", "id": "cockpit_journal", "state": "first_page_out"},
+			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"do": "wait", "sec": 2.5},
+			{"do": "take", "item": "journal"},
+			{"do": "give", "item": "journal_first_page"},
+			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "flag", "set": "burned_journal"},
+			{"do": "sfx", "name": "thruster_recover"},
+			{"narr": {"zh": "推进器恢复动力。", "en": "Thruster power restored."}, "added": true}
+		],
+		"look_footprint_rubbing": [
+			{"do": "show_item", "item": "footprint_rubbing"},
+			{"say": "chen", "zh": "我的手，妮芙的脚。", "en": "My hand. Niff's foot.", "added": true},
+			{"say": "chen", "zh": "还有它的。", "en": "And its footprint.", "added": true}
+		],
+		"burn_footprint_rubbing": [
+			{"do": "take", "item": "footprint_rubbing"},
+			{"do": "flag", "set": "burned_footprint_rubbing"},
+			{"do": "sfx", "name": "convert"},
+			{"say": "chen", "zh": "大小我记得。", "en": "I remember the size.", "added": true}
+		],
+		"look_home_photo": [
+			{"do": "show_item", "item": "home_photo"},
+			{"say": "chen", "zh": "箭头和批注都还在。", "en": "The arrows and notes are still there.", "added": true}
+		],
+		"burn_home_photo": [
+			{"do": "take", "item": "home_photo"},
+			{"do": "flag", "set": "burned_home_photo"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……他们长什么样，我记得。", "en": "...I remember what they looked like.", "added": true}
+		],
+		"look_species_query": [
+			{"do": "show_item", "item": "species_query"},
+			{"say": "chen", "zh": "未找到。", "en": "Not found.", "added": true},
+			{"say": "chen", "zh": "……一直夹在画下面。", "en": "...It was always tucked under the drawing.", "added": true}
+		],
+		"burn_species_query": [
+			{"do": "take", "item": "species_query"},
+			{"do": "flag", "set": "burned_species_query"},
+			{"do": "sfx", "name": "convert"},
+			{"say": "chen", "zh": "这张，不用再带了。", "en": "Don't need to carry this one anymore.", "added": true}
+		],
+		"look_postcard": [
+			{"do": "show_item", "item": "postcard"},
+			{"say": "chen", "zh": "弥洛推给我的。", "en": "Milo pushed it over to me.", "added": true},
+			{"say": "chen", "zh": "地址已经抄好了。", "en": "I've copied down the address.", "added": true}
+		],
+		"burn_postcard": [
+			{"do": "take", "item": "postcard"},
+			{"do": "flag", "set": "burned_postcard"},
+			{"do": "sfx", "name": "convert"},
+			{"say": "chen", "zh": "……回去跟她说一声。", "en": "...I'll tell her when I'm back.", "added": true}
+		],
+		"look_final_blue_stone": [
+			{"do": "show_item", "item": "blue_stone"},
+			{"say": "chen", "zh": "另一件已经烧了。", "en": "The other one's already burned.", "added": true},
+			{"say": "chen", "zh": "你是剩下的那个。", "en": "You're the one that's left.", "added": true}
+		],
+		"burn_final_blue_stone": [
+			{"do": "take", "item": "blue_stone"},
+			{"do": "flag", "set": "burned_blue_stone"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……也发光了。", "en": "...It glowed too.", "added": true}
+		],
+		"look_final_commute_card": [
+			{"do": "show_item", "item": "commute_card"},
+			{"say": "chen", "zh": "几百次，同一个站。", "en": "Hundreds of times. Same station.", "added": true}
+		],
+		"look_seat_chart": [
+			{"do": "show_item", "item": "seat_chart"},
+			{"say": "chen", "zh": "能晒到太阳的位置。", "en": "The seats that get the sun.", "added": true},
+			{"say": "chen", "zh": "第三节车厢的门，关得很响。", "en": "The third car's doors slam.", "added": true}
+		],
+		"burn_seat_chart": [
+			{"do": "take", "item": "seat_chart"},
+			{"do": "flag", "set": "burned_seat_chart"},
+			{"do": "sfx", "name": "convert"},
+			{"say": "chen", "zh": "……座位我记得。", "en": "...I remember the seat.", "added": true}
+		],
+		"burn_final_commute_card": [
+			{"do": "take", "item": "commute_card"},
+			{"do": "flag", "set": "burned_commute_card"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "wait", "sec": 1.0}
+		],
+		"final_approach": [
+			{"do": "sfx", "name": "beacon_slow"},
+			{"narr": {"zh": "下降航标", "en": "Descent beacon"}, "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"narr": {"zh": "下降仍需更多燃料。", "en": "More fuel needed to descend."}, "added": true},
+			{"do": "show_item", "item": "travel_map"},
+			{"narr": {"zh": "下次一起去看看云层里的大象", "en": "Next time, let's go see the elephant in the clouds together"}},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "smooth_paper"},
+			{"do": "prop", "id": "cockpit_map", "state": "line_pressed"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……就在下面。", "en": "...It's right down there.", "added": true},
+			{"do": "prop", "id": "cockpit_map", "state": "beside_panel"},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "prop", "id": "cockpit_drawing", "state": "open"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "我以前老觉得，找到大象，再收到她的消息，", "en": "I always thought that if I found the elephant, and then heard from her,"},
+			{"say": "chen", "zh": "前面这些就都好说了。", "en": "everything else would sort itself out."},
+			{"do": "face", "who": "chen", "to": "cockpit_cabinet"},
+			{"do": "if", "flag": "burned_journal", "then": "approach_page_loose", "else": "approach_page_journal"}
+		],
+		"approach_page_journal": [
+			{"do": "show_item", "item": "journal"},
+			{"do": "goto", "scene": "approach_page"}
+		],
+		"approach_page_loose": [
+			{"do": "show_item", "item": "journal_first_page"},
+			{"do": "goto", "scene": "approach_page"}
+		],
+		"approach_page": [
+			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"do": "wait", "sec": 2.5},
+			{"do": "prop", "id": "cockpit_phone", "state": "screen_on"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "prop", "id": "cockpit_drawing", "state": "under_page"},
+			{"say": "chen", "zh": "可大象就算在那儿，她也不一定回我啊。", "en": "But even if the elephant's there, she might not write back."},
+			{"do": "anim", "who": "chen", "name": "glance_phone"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "flip_phone"},
+			{"do": "prop", "id": "cockpit_phone", "state": "face_down"},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
+			{"say": "chen", "zh": "这些我也舍不得，得再想想。", "en": "I can't let go of these either. I need to think."},
+			{"do": "if", "flag": "burned_copper_bell", "then": "approach_rope", "else": "approach_bell"}
+		],
+		"approach_bell": [
+			{"do": "sfx", "name": "bell_soft"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "goto", "scene": "final_action"}
+		],
+		"approach_rope": [
+			{"do": "prop", "id": "cockpit_bell", "state": "rope_swing"},
+			{"do": "face", "who": "chen", "to": "cockpit_bell"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "face", "who": "chen", "to": "cockpit_panel"},
+			{"do": "goto", "scene": "final_action"}
+		],
+		"final_action": [
+			{"do": "todo_mechanic", "id": "final_action", "spec": "【行动选择：继续投入物品，进入下降航道；或关闭主推进器，进入安全漂行轨道。此处为实际行动选择，不同于此前会汇合的普通对话选项。进入安全漂行轨道触发结局四。确认下降后，进入下方的最终导航选择。】"},
+			{"do": "pick", "options": [{"id": "descend", "label": {"zh": "继续投入物品，进入下降航道", "en": "Burn more, enter the descent lane"}, "scene": "final_descend", "added": true}, {"id": "drift", "label": {"zh": "关闭主推进器，进入安全漂行轨道", "en": "Cut the main thruster, enter a safe drift orbit"}, "scene": "ending4", "added": true}]}
+		],
+		"final_descend": [
+			{"do": "flag", "set": "final_descend"},
+			{"do": "sfx", "name": "cloud_part"},
+			{"narr": {"zh": "地面信号恢复。", "en": "Ground signal restored."}, "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"narr": {"zh": "西侧：旧货场。运输船号对上了。", "en": "West: old freight yard. Transport ship number matches."}, "added": true},
+			{"do": "sfx", "name": "elephant_low_call", "pan": 0.8},
+			{"narr": {"zh": "东侧：低鸣。声源无法确定。", "en": "East: low rumble. Source unknown."}, "added": true},
+			{"say": "broadcast", "zh": "广场附近有大型动物停留。", "en": "A large animal is lingering near the plaza.", "added": true},
+			{"say": "broadcast", "zh": "请居民注意避让。", "en": "Residents, please keep clear.", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "旧货场的标记，褪色了。", "en": "The freight yard marker's faded.", "added": true},
+			{"do": "sfx", "name": "elephant_low_call", "pan": 0.8},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……又断了。", "en": "...Cut out again.", "added": true},
+			{"say": "broadcast", "zh": "广场附近有大型动物停留。", "en": "A large animal is lingering near the plaza.", "added": true},
+			{"do": "prop", "id": "cockpit_drawing", "state": "beside_panel"},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "好。这次看清楚再下去。", "en": "Okay. This time I look properly before I go down."},
+			{"do": "todo_mechanic", "id": "final_nav", "spec": "【最终导航选择：前往西侧旧货场，触发结局一；朝东侧低鸣的位置降落，触发结局二；接受城市引导，前往居民区，触发结局三。选择后显示确认提示。普通对话选项不参与结局判定，保留的物品只影响结局中的具体动作与人物尾声。】"},
+			{"do": "pick", "options": [{"id": "west", "label": {"zh": "前往西侧旧货场", "en": "Head west to the old freight yard"}, "scene": "ending1", "added": true}, {"id": "east", "label": {"zh": "朝东侧低鸣的位置降落", "en": "Land toward the low rumble in the east"}, "scene": "ending2", "added": true}, {"id": "town", "label": {"zh": "接受城市引导，前往居民区", "en": "Follow city guidance to the residential area"}, "scene": "ending3", "added": true}]}
+		],
+		"ck_bell": [
+			{"do": "sfx", "name": "bell_soft"},
+			{"say": "chen", "zh": "妮芙的铃。", "en": "Niff's bell.", "added": true},
+			{"say": "chen", "zh": "别撞窗框。", "en": "Don't knock against the window frame.", "added": true}
+		],
+		"ck_rope": [
+			{"say": "chen", "zh": "绳圈还在。", "en": "The empty loop's still here.", "added": true},
+			{"say": "chen", "zh": "……手老是伸过去。", "en": "...My hand keeps reaching for it.", "added": true}
+		],
+		"ck_copilot": [
+			{"say": "chen", "zh": "副驾驶座。", "en": "The copilot's seat.", "added": true},
+			{"say": "chen", "zh": "一直空着，我也一直在跟它说话。", "en": "Always empty. I keep talking to it anyway.", "added": true}
+		],
+		"ck_cabinet": [
+			{"say": "chen", "zh": "燃料柜。", "en": "The fuel locker.", "added": true},
+			{"say": "chen", "zh": "每一格，我都知道放的是什么。", "en": "I know what's in every slot.", "added": true}
+		],
+		"ck_tools": [
+			{"say": "chen", "zh": "最常用的那把，在左边。", "en": "The one I use most, on the left.", "added": true}
+		],
+		"ck_drawing": [
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"say": "chen", "zh": "耳朵画小了。缺口是后来补的。", "en": "Drew the ears too small. Added the notch later.", "added": true}
+		],
+		"ending1": [
+			{"do": "flag", "set": "final_ending_1"},
+			{"do": "fade_to", "room": "yard", "at": "yard_landing"},
+			{"do": "sfx", "name": "rough_landing"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "sfx", "name": "valve_close"},
+			{"say": "chen", "zh": "燃料阀，关了。", "en": "Fuel valve, closed.", "added": true},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"say": "chen", "zh": "温度还行。冒烟的……在这边。", "en": "Temperature's okay. The smoke's... coming from here.", "added": true},
+			{"do": "prop", "id": "yard_toolbag", "state": "placed"},
+			{"say": "chen", "zh": "工具……放这儿，伸手就拿得到。", "en": "Tools... here. Within reach.", "added": true},
+			{"do": "sfx", "name": "hatch_open"},
+			{"do": "flag", "set": "final_e1_landed"}
+		],
+		"yard_sign": [
+			{"say": "chen", "zh": "运输记录里的指示牌。", "en": "The sign from the transport records.", "added": true},
+			{"say": "chen", "zh": "箭头指着水源。", "en": "The arrow points to the water.", "added": true}
+		],
+		"yard_grass": [
+			{"say": "chen", "zh": "草被压倒了。", "en": "The grass is flattened.", "added": true},
+			{"say": "chen", "zh": "……一大片。", "en": "...A whole stretch of it.", "added": true},
+			{"do": "flag", "set": "final_e1_grass"}
+		],
+		"e1_prints": [
+			{"do": "anim", "who": "chen", "name": "crouch"},
+			{"say": "chen", "zh": "浅水里……好宽的脚印。", "en": "In the shallows... such wide footprints.", "added": true},
+			{"do": "if", "flag": "burned_footprint_rubbing", "then": "e1_after_rub", "else": "e1_rubbing"}
+		],
+		"e1_rubbing": [
+			{"do": "show_item", "item": "footprint_rubbing"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "一样大。", "en": "Same size.", "added": true},
+			{"say": "chen", "zh": "落点也像。", "en": "The steps match, too.", "added": true},
+			{"do": "goto", "scene": "e1_after_rub"}
+		],
+		"e1_after_rub": [
+			{"do": "if", "flag": "burned_elephant_footage", "then": "e1_no_footage", "else": "e1_footage"}
+		],
+		"e1_footage": [
+			{"do": "show_item", "item": "elephant_footage"},
+			{"do": "sfx", "name": "footage_play"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "左耳，有缺口。", "en": "Left ear. A notch.", "added": true},
+			{"do": "goto", "scene": "e1_sound"}
+		],
+		"e1_no_footage": [
+			{"do": "if", "flag": "burned_footprint_rubbing", "then": "e1_drawing", "else": "e1_sound"}
+		],
+		"e1_drawing": [
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……照记得的样子走。", "en": "...I'll go by what I remember.", "added": true},
+			{"do": "goto", "scene": "e1_sound"}
+		],
+		"e1_sound": [
+			{"do": "anim", "who": "chen", "name": "stand"},
+			{"do": "sfx", "name": "grass_tear", "pan": 0.6},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "chewing", "pan": 0.6},
+			{"say": "chen", "zh": "……在嚼东西。", "en": "...Something's chewing.", "added": true},
+			{"do": "flag", "set": "final_e1_prints"}
+		],
+		"e1_meet": [
+			{"do": "show", "who": "elephant", "at": "yard_elephant"},
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"do": "sfx", "name": "chewing"},
+			{"do": "wait", "sec": 3.0},
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "我找了你很久。", "en": "I've been looking for you for a long time."},
+			{"do": "anim", "who": "elephant", "name": "look"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "lips"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "take_phone"},
+			{"do": "phone_open", "contact": "friend"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "hold_phone"},
+			{"do": "show", "who": "passerby", "at": "yard_passerby"},
+			{"do": "face", "who": "chen", "to": "passerby"},
+			{"say": "passerby", "zh": "背包别放那么近。", "en": "Don't keep your bag so close.", "added": true},
+			{"say": "passerby", "zh": "它有时候会伸鼻子拿东西。", "en": "Sometimes it helps itself with its nose.", "added": true},
+			{"say": "passerby", "zh": "尤其爱翻有吃的味道的袋子。", "en": "Especially bags that smell like food.", "added": true},
+			{"do": "anim", "who": "chen", "name": "hug_bag"},
+			{"do": "sfx", "name": "biscuit_rustle"},
+			{"do": "anim", "who": "elephant", "name": "trunk_up"},
+			{"do": "anim", "who": "chen", "name": "step_back"},
+			{"say": "chen", "zh": "这个不行。最后一点了。", "en": "Not this. It's the last of it."},
+			{"do": "choice", "options": [{"zh": "原来你吃东西这么响。", "en": "So you're this loud when you eat.", "scene": "e1_ch_a"}, {"zh": "能让我再看一会儿吗？", "en": "Can I watch you a little longer?", "scene": "e1_ch_b"}, {"zh": "我还以为，见到你以后会有很多话。", "en": "I thought I'd have so much to say when I met you.", "scene": "e1_ch_c"}]}
+		],
+		"e1_ch_a": [
+			{"do": "sfx", "name": "chewing"},
+			{"say": "passerby", "zh": "它一直这样。", "en": "It's always like that.", "added": true},
+			{"say": "passerby", "zh": "隔着半条河都听得见。", "en": "You can hear it from halfway across the river.", "added": true},
+			{"do": "goto", "scene": "e1_sit"}
+		],
+		"e1_ch_b": [
+			{"say": "passerby", "zh": "看吧。它又不收钱。", "en": "Go ahead. It doesn't charge.", "added": true},
+			{"do": "goto", "scene": "e1_sit"}
+		],
+		"e1_ch_c": [
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……结果一句也想不起来。", "en": "...And now I can't think of a single thing.", "added": true},
+			{"do": "goto", "scene": "e1_sit"}
+		],
+		"e1_sit": [
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "elephant", "name": "drink"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "elephant", "name": "ear"},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "腿画细了。", "en": "Drew the legs too thin.", "added": true},
+			{"say": "chen", "zh": "耳朵也画小了。", "en": "The ears too small, too.", "added": true},
+			{"do": "anim", "who": "chen", "name": "draw"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "elephant", "name": "turn"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "anim", "who": "elephant", "name": "turn"},
+			{"do": "anim", "who": "chen", "name": "draw"},
+			{"say": "passerby", "zh": "你很喜欢大象吧？", "en": "You really like elephants, huh?", "added": true},
+			{"say": "chen", "zh": "我找它，找了……", "en": "I've been looking for it for...", "added": true},
+			{"do": "anim", "who": "elephant", "name": "tug_grass"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "我以前以为，找到它以后，我一定会高兴得不得了。", "en": "I used to think that when I found it, I'd be over the moon."},
+			{"say": "chen", "zh": "刚才确实挺高兴。现在腿有点麻，还有点饿。", "en": "And I was, just now. Now my legs are asleep, and I'm a bit hungry."},
+			{"do": "anim", "who": "passerby", "name": "laugh"},
+			{"say": "passerby", "zh": "吃的话，往那边走，有个小摊。", "en": "If you want food, there's a stall that way.", "added": true},
+			{"say": "chen", "zh": "它明天还会来吗？", "en": "Will it be back tomorrow?", "added": true},
+			{"say": "passerby", "zh": "常来。", "en": "Usually.", "added": true},
+			{"say": "passerby", "zh": "不过也不一定。", "en": "Not always, though.", "added": true},
+			{"do": "anim", "who": "chen", "name": "nod"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "stand"},
+			{"say": "chen", "zh": "我先去吃东西。", "en": "I'm going to get something to eat."},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "你继续。", "en": "You carry on."},
+			{"do": "anim", "who": "elephant", "name": "trunk_out"},
+			{"do": "flag", "set": "final_e1_met"},
+			{"do": "if", "flag": "burned_clear_seed", "then": "e1_note", "else": "e1_seed_hint"}
+		],
+		"e1_seed_hint": [
+			{"say": "chen", "zh": "种子……得问问哪里能种。", "en": "The seed... I should ask where to plant it.", "added": true},
+			{"do": "flag", "set": "final_e1_seed_todo"}
+		],
+		"e1_note": [
+			{"do": "show_item", "item": "miluo_note"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "回去以后，照实告诉她。", "en": "When I get back, I'll tell her the truth.", "added": true},
+			{"do": "flag", "set": "final_e1_seed_done"}
+		],
+		"e1_plant_ask": [
+			{"say": "chen", "zh": "这附近，哪里能种东西？", "en": "Is there anywhere around here to plant something?", "added": true},
+			{"say": "passerby", "zh": "水边那块湿土就行。", "en": "The damp soil by the water's fine.", "added": true},
+			{"say": "passerby", "zh": "别太靠近它吃草的地方。", "en": "Just not too close to where it grazes.", "added": true},
+			{"do": "flag", "set": "final_e1_soil"}
+		],
+		"e1_plant": [
+			{"do": "anim", "who": "chen", "name": "dig"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……太深了。", "en": "...Too deep.", "added": true},
+			{"do": "anim", "who": "chen", "name": "fill"},
+			{"do": "take", "item": "clear_seed"},
+			{"do": "sfx", "name": "water_pour"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "stand"},
+			{"say": "chen", "zh": "别总挖出来看。", "en": "Don't keep digging it up to check.", "added": true},
+			{"do": "prop", "id": "yard_stone", "state": "placed"},
+			{"do": "flag", "set": "final_seed_planted"},
+			{"do": "flag", "set": "final_e1_seed_done"}
+		],
+		"e1_elephant_chat": [
+			{"do": "anim", "who": "elephant", "name": "eat"},
+			{"say": "chen", "zh": "还在吃。", "en": "Still eating.", "added": true},
+			{"say": "chen", "zh": "……这片吃完，换那片。", "en": "...Done with this patch, on to the next.", "added": true}
+		],
+		"e1_passerby_chat": [
+			{"say": "passerby", "zh": "它不怕人，也不理人。", "en": "It's not afraid of people. Doesn't care about them either.", "added": true},
+			{"say": "passerby", "zh": "你别跟它抢就行。", "en": "Just don't fight it for anything.", "added": true}
+		],
+		"e1_evening": [
+			{"do": "prop", "id": "sky", "state": "dusk"},
+			{"do": "walk", "who": "elephant", "to": "yard_hill", "wait": false},
+			{"do": "anim", "who": "chen", "name": "stand"},
+			{"do": "wait", "sec": 3.0},
+			{"do": "hide", "who": "elephant"},
+			{"do": "walk", "who": "chen", "to": "yard_landing"},
+			{"do": "sfx", "name": "leak_hiss"},
+			{"say": "chen", "zh": "漏气……在这儿。", "en": "The leak... it's here.", "added": true},
+			{"do": "anim", "who": "chen", "name": "repair"},
+			{"say": "chen", "zh": "这段我会。", "en": "This part I know.", "added": true},
+			{"do": "sfx", "name": "tighten"},
+			{"do": "goto", "scene": "e1_paper"}
+		],
+		"e1_paper": [
+			{"do": "if", "flag": "burned_journal", "then": "e1_paper_get", "else": "e1_write"}
+		],
+		"e1_paper_get": [
+			{"do": "give", "item": "borrowed_paper"},
+			{"say": "chen", "zh": "日记烧了。跟居民借的纸，记这儿。", "en": "Burned the journal. Borrowed paper from a local. Writing here.", "added": true},
+			{"do": "goto", "scene": "e1_write"}
+		],
+		"e1_write": [
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "今天找到大象了。左耳有缺口，吃草很响，会翻袋子。", "en": "Found the elephant today. Notch in the left ear. Loud when it eats grass. Goes through bags."},
+			{"do": "wait", "sec": 1.5},
+			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"do": "wait", "sec": 2.5},
+			{"do": "goto", "scene": "e1_phone"}
+		],
+		"e1_phone": [
+			{"do": "fade_to", "room": "cockpit", "at": "cockpit_seat"},
+			{"do": "anim", "who": "chen", "name": "type"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "delete"},
+			{"do": "wait", "sec": 0.8},
+			{"do": "phone_draft", "to": "friend", "zh": "我找到大象了。", "en": "I found the elephant.", "flag": "sent_found"},
+			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"do": "face", "who": "chen", "to": "cockpit_window"},
+			{"do": "prop", "id": "cockpit_window", "state": "yard_elephant_far"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "sfx", "name": "stomach"},
+			{"do": "anim", "who": "chen", "name": "reach_bag"},
+			{"do": "sfx", "name": "biscuit_rustle"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "goto", "scene": "epilogue"}
+		],
+		"ending2": [
+			{"do": "flag", "set": "final_ending_2"},
+			{"do": "fade_to", "room": "east_meadow", "at": "east_landing"},
+			{"do": "sfx", "name": "rough_landing"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"say": "chen", "zh": "机身……还行。", "en": "The hull's... okay.", "added": true},
+			{"do": "sfx", "name": "elephant_low_call", "pan": 0.7},
+			{"say": "chen", "zh": "在坡下面。", "en": "Down the slope.", "added": true},
+			{"do": "flag", "set": "final_e2_landed"}
+		],
+		"e2_see": [
+			{"do": "show", "who": "elephant", "at": "east_tree"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "elephant", "name": "trunk_branch"},
+			{"do": "prop", "id": "east_tree", "state": "bark_rubbed"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "walk", "who": "elephant", "to": "east_water", "wait": false},
+			{"do": "wait", "sec": 2.0},
+			{"do": "show", "who": "resident", "at": "east_resident"},
+			{"say": "resident", "zh": "你一直站在这儿。", "en": "You've been standing here a while.", "added": true},
+			{"say": "resident", "zh": "需要帮忙吗？", "en": "Need any help?", "added": true},
+			{"do": "face", "who": "chen", "to": "elephant"},
+			{"say": "chen", "zh": "那边。你看。", "en": "Over there. Look.", "added": true},
+			{"say": "resident", "zh": "……在哪里？", "en": "...Where?", "added": true},
+			{"do": "anim", "who": "chen", "name": "step_aside"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "resident", "zh": "没看见啊。", "en": "I don't see anything.", "added": true},
+			{"do": "show", "who": "crowd", "at": "east_crowd"},
+			{"say": "crowd", "zh": "哪儿？草里？", "en": "Where? In the grass?", "added": true},
+			{"say": "crowd", "zh": "你看见了吗？", "en": "Do you see it?", "added": true},
+			{"say": "crowd", "zh": "没有啊。", "en": "Nope.", "added": true},
+			{"say": "chen", "zh": "你们听。", "en": "Listen.", "added": true},
+			{"do": "sfx", "name": "elephant_low_call", "pan": 0.4},
+			{"say": "crowd", "zh": "……风吧。", "en": "...The wind, probably.", "added": true},
+			{"say": "crowd", "zh": "远处有机器在干活。", "en": "Some machine working far off.", "added": true},
+			{"do": "flag", "set": "final_e2_seen"},
+			{"do": "if", "flag": "burned_elephant_footage", "then": "e2_explain", "else": "e2_footage"}
+		],
+		"e2_footage": [
+			{"do": "show_item", "item": "elephant_footage"},
+			{"do": "sfx", "name": "footage_play"},
+			{"say": "crowd", "zh": "画面里是有。", "en": "It's there in the footage.", "added": true},
+			{"say": "crowd", "zh": "可眼前没有啊。", "en": "But not here in front of us.", "added": true},
+			{"do": "goto", "scene": "e2_explain"}
+		],
+		"e2_explain": [
+			{"say": "chen", "zh": "耳朵缺了一块。", "en": "A piece of its ear is missing.", "added": true},
+			{"say": "chen", "zh": "鼻子刚才碰过地面。", "en": "Its nose just touched the ground.", "added": true},
+			{"say": "chen", "zh": "它一走，左边的草就晃。", "en": "When it moves, the grass on the left sways.", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "耳朵缺了一块！你们看！", "en": "A piece of its ear is missing! Look!", "added": true},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"say": "resident", "zh": "你画的这个我认得，", "en": "I know what you've drawn,"},
+			{"say": "resident", "zh": "可我眼前就是一块草地啊。", "en": "but all I see is a patch of grass."},
+			{"do": "wait", "sec": 2.5},
+			{"say": "crowd", "zh": "先坐下吧。喝点水。", "en": "Sit down for a bit. Have some water.", "added": true},
+			{"say": "resident", "zh": "你真的确定吗？", "en": "Are you really sure?"},
+			{"do": "anim", "who": "elephant", "name": "graze"},
+			{"do": "wait", "sec": 3.0},
+			{"say": "chen", "zh": "我现在看得见。", "en": "I can see it right now."},
+			{"do": "anim", "who": "chen", "name": "take_cup"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "phone_open", "contact": "friend"},
+			{"do": "anim", "who": "chen", "name": "reach_camera"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "hand_still"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "face", "who": "chen", "to": "elephant"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"do": "anim", "who": "chen", "name": "drink"},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "choice", "options": [{"zh": "你可以再陪我站一会儿吗？", "en": "Could you stand here with me a little longer?", "scene": "e2_ch_a"}, {"zh": "我想先把位置记下来。", "en": "I want to write down where it is first.", "scene": "e2_ch_b"}, {"zh": "水放旁边就好，谢谢。", "en": "Just leave the water there. Thanks.", "scene": "e2_ch_c"}]}
+		],
+		"e2_ch_a": [
+			{"say": "resident", "zh": "行啊。", "en": "Sure.", "added": true},
+			{"say": "resident", "zh": "反正我也没事。", "en": "Not like I've got anything else to do.", "added": true},
+			{"do": "goto", "scene": "e2_dusk"}
+		],
+		"e2_ch_b": [
+			{"say": "resident", "zh": "你记，我等着。", "en": "Go ahead. I'll wait.", "added": true},
+			{"do": "goto", "scene": "e2_dusk"}
+		],
+		"e2_ch_c": [
+			{"say": "resident", "zh": "嗯，就放这儿。", "en": "Okay. Right here.", "added": true},
+			{"do": "goto", "scene": "e2_dusk"}
+		],
+		"e2_dusk": [
+			{"do": "hide", "who": "crowd"},
+			{"do": "anim", "who": "resident", "name": "sit"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "raise_hand"},
+			{"do": "wait", "sec": 0.8},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "raise_hand"},
+			{"do": "wait", "sec": 0.8},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "prop", "id": "sky", "state": "dusk"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "resident", "zh": "我该回去了。", "en": "I should head back.", "added": true},
+			{"say": "resident", "zh": "飞机要帮忙吗？", "en": "Need a hand with the ship?", "added": true},
+			{"say": "chen", "zh": "左边的支架，得有人扶。", "en": "Someone needs to hold up the left strut.", "added": true},
+			{"say": "resident", "zh": "那我白天过来。", "en": "Then I'll come back when it's light.", "added": true},
+			{"do": "prop", "id": "east_water_cup", "state": "placed"},
+			{"do": "hide", "who": "resident"},
+			{"do": "flag", "set": "final_e2_dusk"}
+		],
+		"e2_elephant_chat": [
+			{"do": "anim", "who": "elephant", "name": "graze"},
+			{"say": "chen", "zh": "还在。", "en": "Still here.", "added": true},
+			{"say": "chen", "zh": "……只有我看得见，也还在。", "en": "...Only I can see it. It's still here.", "added": true}
+		],
+		"e2_cup": [
+			{"say": "chen", "zh": "他留下的水。", "en": "The water he left.", "added": true}
+		],
+		"e2_record": [
+			{"do": "goto", "scene": "e2_paper"}
+		],
+		"e2_paper": [
+			{"do": "if", "flag": "burned_journal", "then": "e2_paper_get", "else": "e2_write"}
+		],
+		"e2_paper_get": [
+			{"do": "give", "item": "borrowed_paper"},
+			{"say": "chen", "zh": "日记烧了。先写在借来的纸上。", "en": "Burned the journal. Borrowed paper for now.", "added": true},
+			{"do": "goto", "scene": "e2_write"}
+		],
+		"e2_write": [
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "位置：居民区外，缓坡下的树旁。往水边走。", "en": "Location: outside the residential area, by the tree at the foot of the slope. Heads for the water.", "added": true},
+			{"do": "journal", "zh": "声音：傍晚一次，比风低。", "en": "Sound: once at dusk, lower than the wind.", "added": true},
+			{"do": "journal", "zh": "今天找到大象了", "en": "Found the elephant today"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "journal", "zh": "我看见的", "en": "I saw it"},
+			{"do": "if", "flag": "burned_clear_seed", "then": "e2_no_seed", "else": "e2_seed_hint"}
+		],
+		"e2_seed_hint": [
+			{"say": "chen", "zh": "种子……附近有个围起来的花圃。", "en": "The seed... there's a fenced flower bed nearby.", "added": true},
+			{"do": "flag", "set": "final_e2_seed_todo"},
+			{"do": "flag", "set": "final_e2_recorded"}
+		],
+		"e2_no_seed": [
+			{"do": "flag", "set": "final_e2_seed_done"},
+			{"do": "flag", "set": "final_e2_recorded"}
+		],
+		"e2_plant": [
+			{"do": "anim", "who": "chen", "name": "dig"},
+			{"do": "take", "item": "clear_seed"},
+			{"do": "sfx", "name": "water_pour"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "围起来了，没人会踩到。", "en": "It's fenced in. No one will step on it.", "added": true},
+			{"do": "prop", "id": "east_bed", "state": "planted"},
+			{"do": "flag", "set": "final_seed_planted"},
+			{"do": "flag", "set": "final_e2_seed_done"}
+		],
+		"e2_night": [
+			{"do": "prop", "id": "sky", "state": "night"},
+			{"do": "anim", "who": "chen", "name": "lie"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "sfx", "name": "elephant_breath", "pan": 0.5},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "sit_up"},
+			{"do": "face", "who": "chen", "to": "east_water"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "prop", "id": "east_toolbag", "state": "ready"},
+			{"do": "anim", "who": "chen", "name": "lie"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "sky", "state": "day"},
+			{"narr": {"zh": "第二天。", "en": "The next day."}, "added": true},
+			{"do": "show", "who": "resident", "at": "east_wing"},
+			{"say": "resident", "zh": "昨晚睡得怎么样？", "en": "Sleep okay last night?", "added": true},
+			{"say": "resident", "zh": "机翼……是这边？", "en": "The wing... this side?", "added": true},
+			{"say": "chen", "zh": "……嗯。", "en": "...Mm.", "added": true},
+			{"do": "anim", "who": "resident", "name": "lift"},
+			{"do": "prop", "id": "east_plane", "state": "wing_up"},
+			{"do": "anim", "who": "chen", "name": "repair"},
+			{"do": "sfx", "name": "tighten"},
+			{"do": "sfx", "name": "engine_test"},
+			{"do": "sfx", "name": "leak_small"},
+			{"say": "chen", "zh": "小多了。", "en": "Much better.", "added": true},
+			{"do": "anim", "who": "chen", "name": "peek"},
+			{"do": "show", "who": "elephant", "at": "east_far"},
+			{"do": "walk", "who": "elephant", "to": "east_water"},
+			{"do": "anim", "who": "chen", "name": "lips"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "它刚才过去了。", "en": "It just walked past."},
+			{"do": "face", "who": "resident", "to": "east_water"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "resident", "zh": "我还是看不见。", "en": "I still can't see it."},
+			{"do": "anim", "who": "chen", "name": "nod"},
+			{"do": "sfx", "name": "wrench_half"},
+			{"say": "chen", "zh": "嗯。我知道。", "en": "Yeah. I know."},
+			{"say": "chen", "zh": "再帮我扶一下。", "en": "Hold it up for me once more.", "added": true},
+			{"do": "sfx", "name": "tighten"},
+			{"do": "anim", "who": "resident", "name": "lift"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "早上，大象从机翼后面过去。", "en": "Morning: the elephant walked past behind the wing.", "added": true},
+			{"do": "journal", "zh": "来帮忙的：昨天坐在旁边的那位居民。", "en": "Helping: the resident who sat with me yesterday.", "added": true},
+			{"do": "journal", "zh": "机翼还差一个固定件。", "en": "The wing still needs one more bracket.", "added": true},
+			{"do": "journal", "zh": "他们还是不相信", "en": "They still don't believe it"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "journal_strike", "match": "他们还是不相信"},
+			{"do": "journal", "zh": "他们还是看不见", "en": "They still can't see it"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "walk", "who": "elephant", "to": "east_far"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "hide", "who": "elephant"},
+			{"do": "goto", "scene": "epilogue"}
+		],
+		"e2_night_go": [
+			{"do": "flag", "set": "final_e2_night"},
+			{"do": "goto", "scene": "e2_night"}
+		],
+		"ending3": [
+			{"do": "flag", "set": "final_ending_3"},
+			{"do": "fade_to", "room": "town", "at": "town_landing"},
+			{"do": "sfx", "name": "landing_soft"},
+			{"do": "show", "who": "townsfolk", "at": "town_helper"},
+			{"say": "townsfolk", "zh": "绳子给我，飞机我们帮你固定。", "en": "Give me the rope. We'll tie down your ship.", "added": true},
+			{"say": "townsfolk", "zh": "你在找大象？", "en": "You looking for the elephant?", "added": true},
+			{"say": "townsfolk", "zh": "它今天一直在喷泉那边。", "en": "It's been by the fountain all day.", "added": true},
+			{"say": "chen", "zh": "现在？", "en": "Now?", "added": true},
+			{"say": "townsfolk", "zh": "现在。走吧。", "en": "Now. Come on.", "added": true},
+			{"do": "prop", "id": "town_toolbag", "state": "on_seat"},
+			{"do": "walk", "who": "townsfolk", "to": "town_plaza_side", "wait": false},
+			{"do": "flag", "set": "final_e3_landed"}
+		],
+		"town_basket": [
+			{"say": "chen", "zh": "篮子倒了。", "en": "The basket's tipped over.", "added": true},
+			{"say": "crowd", "zh": "刚才它碰倒的。", "en": "It knocked that over just now.", "added": true},
+			{"say": "crowd", "zh": "别挡它去水边的路啊。", "en": "Don't get between it and the water.", "added": true}
+		],
+		"e3_plaza": [
+			{"do": "ambient", "name": "plaza_crowd", "at": "town_fountain", "on": true},
+			{"do": "show", "who": "crowd", "at": "town_crowd"},
+			{"say": "crowd", "zh": "就在那儿，喷泉边上。", "en": "Right there, by the fountain.", "added": true},
+			{"say": "crowd", "zh": "看它耳朵，缺了一块。", "en": "Look at its ear. There's a piece missing.", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……哪里？", "en": "...Where is it?", "added": true},
+			{"do": "anim", "who": "chen", "name": "look_around"},
+			{"say": "townsfolk", "zh": "站我这儿。顺着我的手看。", "en": "Stand here. Follow my hand.", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"say": "crowd", "zh": "它刚挪了。你一直看错地方了。", "en": "It just moved. You've been looking in the wrong place.", "added": true},
+			{"do": "anim", "who": "chen", "name": "look_around"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "look_around"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "sfx", "name": "plaza_noise"},
+			{"say": "chen", "zh": "……那声，是吗？", "en": "...That sound, was that it?", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "这声也像。", "en": "That one could be, too.", "added": true},
+			{"do": "if", "flag": "burned_elephant_footage", "then": "e3_show_drawing", "else": "e3_show_footage"}
+		],
+		"e3_show_footage": [
+			{"do": "show_item", "item": "elephant_footage"},
+			{"do": "goto", "scene": "e3_ask"}
+		],
+		"e3_show_drawing": [
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "goto", "scene": "e3_ask"}
+		],
+		"e3_ask": [
+			{"say": "chen", "zh": "大家看到的，是这一头吗？", "en": "Is this the one you're all seeing?", "added": true},
+			{"say": "crowd", "zh": "是是是！", "en": "Yes, yes, that's it!", "added": true},
+			{"say": "crowd", "zh": "刚才它还把鼻子伸进喷泉里！", "en": "It just stuck its nose in the fountain!", "added": true},
+			{"do": "anim", "who": "chen", "name": "look_around"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "townsfolk", "zh": "今天先回去歇着吧。明天再来。", "en": "Go get some rest today. Come back tomorrow.", "added": true},
+			{"do": "flag", "set": "final_e3_day1"}
+		],
+		"e3_touch": [
+			{"do": "fade_to", "room": "town", "at": "town_fountain"},
+			{"narr": {"zh": "第二天。", "en": "The next day."}, "added": true},
+			{"do": "show", "who": "townsfolk", "at": "town_plaza_side"},
+			{"do": "show", "who": "crowd", "at": "town_crowd"},
+			{"say": "townsfolk", "zh": "它已经走到你面前了。", "en": "It's right in front of you now.", "added": true},
+			{"say": "townsfolk", "zh": "就差两步。", "en": "Two more steps.", "added": true},
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"say": "townsfolk", "zh": "往左一点。", "en": "A little to the left.", "added": true},
+			{"say": "townsfolk", "zh": "再往前一点。", "en": "A little further.", "added": true},
+			{"say": "townsfolk", "zh": "对，就是那里。", "en": "Yes, right there."},
+			{"do": "sfx", "name": "crowd_cheer"},
+			{"do": "anim", "who": "chen", "name": "hand_still"},
+			{"do": "wait", "sec": 2.5},
+			{"say": "chen", "zh": "原来是这样。", "en": "So that's how it is."},
+			{"do": "fade_to", "room": "town_room", "at": "townroom_desk"},
+			{"do": "anim", "who": "chen", "name": "hand_flip"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "goto", "scene": "e3_paper"}
+		],
+		"e3_paper": [
+			{"do": "if", "flag": "burned_journal", "then": "e3_paper_get", "else": "e3_write1"}
+		],
+		"e3_paper_get": [
+			{"do": "give", "item": "borrowed_paper"},
+			{"say": "chen", "zh": "日记烧了。跟他们借了几张纸。", "en": "Burned the journal. Borrowed a few sheets from them.", "added": true},
+			{"do": "goto", "scene": "e3_write1"}
+		],
+		"e3_write1": [
+			{"do": "journal", "zh": "今天，我终于见到了大象", "en": "Today I finally met the elephant"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "journal", "zh": "至少他们都这么说", "en": "At least, that's what they all say"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "journal", "zh": "？", "en": "?", "added": true},
+			{"say": "townsfolk", "zh": "今天它跟你可亲了！", "en": "It really took to you today!", "added": true},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "wait", "sec": 3.0},
+			{"do": "flag", "set": "final_e3_touched"}
+		],
+		"e3_confess": [
+			{"narr": {"zh": "又过了一天。", "en": "Another day."}, "added": true},
+			{"do": "show", "who": "townsfolk", "at": "townroom_door"},
+			{"say": "townsfolk", "zh": "走，去广场？", "en": "Coming to the plaza?", "added": true},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "昨天我伸手的时候，手心里是空的。", "en": "Yesterday, when I reached out, my hand touched nothing."},
+			{"say": "townsfolk", "zh": "……啊？那我告诉你，它是在……", "en": "...Huh? Well, let me tell you, it was right...", "added": true},
+			{"say": "chen", "zh": "我知道昨天站在哪里。", "en": "I know where I was standing yesterday.", "added": true},
+			{"do": "wait", "sec": 2.0},
+			{"say": "townsfolk", "zh": "……那还去吗？", "en": "...So, still going?", "added": true},
+			{"do": "anim", "who": "chen", "name": "nod"},
+			{"do": "fade_to", "room": "town", "at": "town_fountain", "with": ["townsfolk"]},
+			{"do": "flag", "set": "final_e3_day3"}
+		],
+		"e3_listen": [
+			{"do": "sfx", "name": "fountain"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "地上湿的。", "en": "The ground's wet.", "added": true},
+			{"say": "crowd", "zh": "它在甩鼻子呢！", "en": "It's swinging its nose!", "added": true},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "他们说它正在甩鼻子", "en": "They say it's swinging its nose"},
+			{"do": "show", "who": "townsfolk", "at": "town_back_side"},
+			{"say": "townsfolk", "zh": "你信不过我吗？", "en": "You don't trust me?", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "你说的我记着了，我自己看见的也得照实写。", "en": "I wrote down what you told me. But I have to write what I saw, too."},
+			{"do": "wait", "sec": 1.5},
+			{"say": "townsfolk", "zh": "昨天，我们以为你真摸到了。", "en": "Yesterday, we thought you'd really touched it.", "added": true},
+			{"say": "townsfolk", "zh": "大家才那么高兴。", "en": "That's why everyone was so happy.", "added": true},
+			{"say": "chen", "zh": "我知道。我也想让你们高兴。", "en": "I know. I wanted you to be happy, too."},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "而且，都走了这么远，我不太敢说还是没找到。", "en": "And after coming all this way, I couldn't bring myself to say I still hadn't found it."},
+			{"do": "sfx", "name": "cap_twist"},
+			{"do": "wait", "sec": 0.5},
+			{"do": "sfx", "name": "cap_twist"},
+			{"do": "anim", "who": "chen", "name": "drink"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "face", "who": "chen", "to": "town_fountain"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "take_phone"},
+			{"do": "phone_open", "contact": "friend"},
+			{"do": "anim", "who": "chen", "name": "finger_still"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"do": "choice", "options": [{"zh": "我想再自己看看。", "en": "I want to look on my own for a while.", "scene": "e3_ch_a"}, {"zh": "昨天那句话，我得改掉。", "en": "I need to fix what I wrote yesterday.", "scene": "e3_ch_b"}, {"zh": "你可以陪着，但先别告诉我该看见什么。", "en": "You can stay, but don't tell me what I should see.", "scene": "e3_ch_c"}]}
+		],
+		"e3_ch_a": [
+			{"say": "townsfolk", "zh": "……好。", "en": "...Okay.", "added": true},
+			{"do": "goto", "scene": "e3_wait"}
+		],
+		"e3_ch_b": [
+			{"say": "townsfolk", "zh": "改吧。", "en": "Go ahead.", "added": true},
+			{"say": "townsfolk", "zh": "昨天是我们太急了。", "en": "We got ahead of ourselves yesterday.", "added": true},
+			{"do": "goto", "scene": "e3_wait"}
+		],
+		"e3_ch_c": [
+			{"say": "townsfolk", "zh": "……那我不说话。", "en": "...Then I won't say a word.", "added": true},
+			{"do": "goto", "scene": "e3_wait"}
+		],
+		"e3_wait": [
+			{"say": "townsfolk", "zh": "那我坐这儿等你。", "en": "I'll sit here and wait for you."},
+			{"do": "walk", "who": "townsfolk", "to": "town_bench"},
+			{"do": "anim", "who": "townsfolk", "name": "sit"},
+			{"do": "flag", "set": "final_e3_walk"}
+		],
+		"e3_round": [
+			{"do": "anim", "who": "chen", "name": "look_up"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……", "en": "...", "added": true},
+			{"do": "flag", "set": "final_e3_round"}
+		],
+		"e3_bench": [
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"say": "chen", "zh": "我今天看见的还是那块空地。", "en": "All I saw today was the same empty ground."},
+			{"say": "townsfolk", "zh": "嗯。", "en": "Mm.", "added": true},
+			{"do": "if", "flag": "burned_clear_seed", "then": "e3_seedless", "else": "e3_seed_ask"}
+		],
+		"e3_seed_ask": [
+			{"say": "chen", "zh": "附近哪里能种东西？", "en": "Anywhere around here I can plant something?", "added": true},
+			{"say": "townsfolk", "zh": "广场外有一小块花圃。", "en": "There's a little flower bed just outside the plaza.", "added": true},
+			{"say": "townsfolk", "zh": "上午晒得到太阳，水从那边的龙头取。", "en": "It gets sun in the morning. There's a tap over there for water.", "added": true},
+			{"do": "flag", "set": "final_e3_seed_todo"}
+		],
+		"e3_seedless": [
+			{"do": "show_item", "item": "miluo_note"},
+			{"say": "chen", "zh": "能再借我几张纸吗？", "en": "Could I borrow a few more sheets of paper?", "added": true},
+			{"say": "chen", "zh": "有些消息，要带回去。", "en": "There's news I need to take back.", "added": true},
+			{"say": "townsfolk", "zh": "拿去。", "en": "Here.", "added": true},
+			{"do": "flag", "set": "final_e3_seed_done"}
+		],
+		"e3_plant": [
+			{"do": "anim", "who": "chen", "name": "dig"},
+			{"do": "take", "item": "clear_seed"},
+			{"do": "sfx", "name": "water_pour"},
+			{"do": "prop", "id": "town_bed", "state": "planted"},
+			{"do": "show_item", "item": "miluo_note"},
+			{"say": "chen", "zh": "不要埋太深。先浇水。", "en": "Don't bury it too deep. Water it first.", "added": true},
+			{"say": "chen", "zh": "……都对上了。", "en": "...Just like the note says.", "added": true},
+			{"do": "flag", "set": "final_seed_planted"},
+			{"do": "flag", "set": "final_e3_seed_done"}
+		],
+		"e3_night": [
+			{"do": "fade_to", "room": "town_room", "at": "townroom_desk"},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal_strike", "match": "今天，我终于见到了大象"},
+			{"do": "journal", "zh": "昨天我看见一块空地，伸出去的手也落了空。那时候不好意思说。", "en": "Yesterday I saw empty ground, and my hand reached into nothing. I was too embarrassed to say so then."},
+			{"do": "journal", "zh": "今天：喷泉这边、另一侧、长椅旁边，都看过。", "en": "Today: this side of the fountain, the other side, by the bench. Looked at all of it.", "added": true},
+			{"do": "journal", "zh": "（画了喷泉的形状）下次换一条路线。", "en": "(a sketch of the fountain) Try a different route next time.", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "townsfolk", "zh": "明早一起吃饭？", "en": "Breakfast together tomorrow?", "added": true},
+			{"say": "chen", "zh": "好。", "en": "Sure.", "added": true},
+			{"say": "chen", "zh": "能买到咸面包吗？", "en": "Can I get savory bread there?", "added": true},
+			{"say": "townsfolk", "zh": "给你留块脆边。", "en": "I'll save you a crusty end.", "added": true},
+			{"do": "journal", "zh": "明天：早饭。脆边。", "en": "Tomorrow: breakfast. Crusty end.", "added": true},
+			{"do": "goto", "scene": "epilogue"}
+		],
+		"e3_crowd_chat": [
+			{"say": "crowd", "zh": "你看它，多乖。", "en": "Look at it. So gentle.", "added": true},
+			{"say": "crowd", "zh": "……你还是没看见？", "en": "...You still don't see it?", "added": true}
+		],
+		"e3_fountain_look": [
+			{"say": "chen", "zh": "喷泉的水，一直在响。", "en": "The fountain never stops running.", "added": true},
+			{"say": "chen", "zh": "石砖湿漉漉的。", "en": "The paving stones are all wet.", "added": true}
+		],
+		"e3_townsfolk_chat": [
+			{"say": "townsfolk", "zh": "不急。慢慢看。", "en": "No rush. Take your time.", "added": true}
+		],
+		"ending4": [
+			{"do": "flag", "set": "final_ending_4"},
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "put_back"},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"narr": {"zh": "进入轨道后，可以关闭主推进器。", "en": "Once in orbit, the main thruster can be shut off."}, "added": true},
+			{"narr": {"zh": "着陆需要重新选择下降航线。", "en": "Landing will require choosing a new descent route."}, "added": true},
+			{"narr": {"zh": "预计抵达时间：待定", "en": "Estimated arrival: TBD"}, "added": true},
+			{"do": "wait", "sec": 2.0},
+			{"say": "chen", "zh": "我还是想下去，也还是想收到她的消息。", "en": "I still want to go down. I still want to hear from her."},
+			{"do": "if", "flag": "burned_copper_bell", "then": "e4_rope", "else": "e4_bell"}
+		],
+		"e4_bell": [
+			{"do": "sfx", "name": "bell_soft"},
+			{"do": "goto", "scene": "e4_confirm"}
+		],
+		"e4_rope": [
+			{"do": "prop", "id": "cockpit_bell", "state": "rope_swing"},
+			{"do": "goto", "scene": "e4_confirm"}
+		],
+		"e4_confirm": [
+			{"do": "sfx", "name": "confirm"},
+			{"do": "sfx", "name": "beacon_slow", "pan": -0.8},
+			{"do": "wait", "sec": 2.0},
+			{"do": "face", "who": "chen", "to": "cockpit_window"},
+			{"do": "wait", "sec": 2.0},
+			{"narr": {"zh": "安全轨道：稳定。", "en": "Safe orbit: stable."}, "added": true},
+			{"do": "anim", "who": "chen", "name": "release"},
+			{"say": "chen", "zh": "……手心全是汗。", "en": "...My palms are soaked.", "added": true},
+			{"say": "chen", "zh": "这次先到这里吧。", "en": "That's enough for this time."},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "cockpit_phone", "state": "seat_screen_up"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "closed"},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
+			{"do": "if", "flag": "burned_river_water", "then": "e4_bottle_empty", "else": "e4_bottle_full"}
+		],
+		"e4_bottle_empty": [
+			{"do": "sfx", "name": "bottle_knock"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "goto", "scene": "e4_straps"}
+		],
+		"e4_bottle_full": [
+			{"do": "sfx", "name": "water_slosh"},
+			{"do": "anim", "who": "chen", "name": "cap_twist"},
+			{"do": "prop", "id": "cockpit_bag", "state": "bottle_side_pocket"},
+			{"do": "wait", "sec": 0.8},
+			{"do": "goto", "scene": "e4_straps"}
+		],
+		"e4_straps": [
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "anim", "who": "chen", "name": "tie"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "prop", "id": "cockpit_cabinet", "state": "closed"},
+			{"do": "sfx", "name": "engine_off"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "sfx", "name": "seat_creak"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "latch_tap"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "leak_slow", "pan": 0.4},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "repair"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "face", "who": "chen", "to": "cockpit_window"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "face", "who": "chen", "to": "cockpit_panel"},
+			{"do": "sfx", "name": "tighten"},
+			{"do": "if", "flag": "burned_music_box", "then": "e4_hum", "else": "e4_musicbox"}
+		],
+		"e4_musicbox": [
+			{"do": "sfx", "name": "musicbox_play"},
+			{"do": "wait", "sec": 3.0},
+			{"do": "sfx", "name": "hum_wrong"},
+			{"say": "chen", "zh": "……又错了。", "en": "...Wrong again.", "added": true},
+			{"do": "anim", "who": "chen", "name": "laugh"},
+			{"say": "chen", "zh": "从前一个音再来。", "en": "Back one note. Again.", "added": true},
+			{"do": "sfx", "name": "musicbox_play"},
+			{"do": "goto", "scene": "e4_bell_place"}
+		],
+		"e4_hum": [
+			{"do": "anim", "who": "chen", "name": "hum"},
+			{"do": "wait", "sec": 3.0},
+			{"do": "sfx", "name": "hum_stop"},
+			{"say": "chen", "zh": "……后面忘了。", "en": "...I forget the rest.", "added": true},
+			{"do": "goto", "scene": "e4_bell_place"}
+		],
+		"e4_bell_place": [
+			{"do": "if", "flag": "burned_copper_bell", "then": "e4_rope_short", "else": "e4_bell_move"}
+		],
+		"e4_bell_move": [
+			{"do": "prop", "id": "cockpit_bell", "state": "moved"},
+			{"say": "chen", "zh": "挪开一点，别再碰窗框。", "en": "Move it over a bit. No more knocking the window frame.", "added": true},
+			{"do": "goto", "scene": "e4_page"}
+		],
+		"e4_rope_short": [
+			{"do": "prop", "id": "cockpit_bell", "state": "rope_short"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "goto", "scene": "e4_page"}
+		],
+		"e4_page": [
+			{"do": "if", "flag": "burned_journal", "then": "e4_page_loose", "else": "e4_page_journal"}
+		],
+		"e4_page_journal": [
+			{"do": "show_item", "item": "journal"},
+			{"do": "goto", "scene": "e4_write"}
+		],
+		"e4_page_loose": [
+			{"do": "show_item", "item": "journal_first_page"},
+			{"say": "chen", "zh": "……写在航图背面吧。", "en": "...I'll write on the back of the chart.", "added": true},
+			{"do": "goto", "scene": "e4_write"}
+		],
+		"e4_write": [
+			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"do": "wait", "sec": 2.0},
+			{"do": "anim", "who": "chen", "name": "pen_hover"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "journal", "zh": "坐标：云层之上，安全漂行轨道。", "en": "Position: above the clouds, safe drift orbit.", "added": true},
+			{"do": "journal", "zh": "剩下的材料：不多。", "en": "Materials left: not much.", "added": true},
+			{"do": "journal", "zh": "要修：右侧接口，慢慢漏气。", "en": "To fix: right-side joint, slow leak.", "added": true},
+			{"do": "journal", "zh": "下一步：", "en": "Next:", "added": true},
+			{"do": "wait", "sec": 2.0},
+			{"do": "journal", "zh": "（空着。圈了几处最近能补给的地方。）", "en": "(Blank. A few nearby supply stops circled.)", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "cockpit_screen", "state": "descent"},
+			{"narr": {"zh": "预计消耗：不变。", "en": "Estimated fuel use: unchanged."}, "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "cockpit_screen", "state": "orbit"},
+			{"do": "anim", "who": "chen", "name": "lie"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "prop", "id": "sky", "state": "shadow_pass"},
+			{"do": "anim", "who": "chen", "name": "sit_up"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "anim", "who": "chen", "name": "lie"},
+			{"do": "prop", "id": "cockpit_drawing", "state": "within_reach"},
+			{"do": "prop", "id": "cockpit_lamp", "state": "off"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "goto", "scene": "epilogue"}
+		],
+		"epilogue": [
+			{"do": "flag", "set": "final_epilogue"},
+			{"do": "todo_mechanic", "id": "final_epilogue", "spec": "【以下为四个结局后的条件尾声，呈现晨后来回访时的片段，不表示飞机在结局后立即修好。大象的结局改变晨带回的描述，物品状态改变相关动作和局部对白。】"},
+			{"do": "fade_to", "room": "forest", "at": "forest_crossroad"},
+			{"do": "show", "who": "deer", "at": "forest_deer"},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "deer", "zh": "回来啦。", "en": "You're back.", "added": true},
+			{"say": "deer", "zh": "外头的路，难走不？", "en": "Was the road out there rough?", "added": true},
+			{"do": "show_item", "item": "travel_map"},
+			{"say": "chen", "zh": "先是碎石带，得绕。", "en": "First the debris belt. I had to go around.", "added": true},
+			{"say": "chen", "zh": "旧地图上的跑道，泡在水里了。", "en": "The runway on the old map is underwater now.", "added": true},
+			{"do": "anim", "who": "deer", "name": "lean"},
+			{"say": "deer", "zh": "那这块得改。后面要是还有人来，咱可不能再照着带。", "en": "Then this part needs fixing. If anyone else comes, I can't lead them by this anymore."},
+			{"do": "anim", "who": "chen", "name": "write"},
+			{"do": "prop", "id": "forest_map", "state": "corrected"},
+			{"say": "chen", "zh": "没走过的，先空着。", "en": "Places I haven't been, I'll leave blank.", "added": true},
+			{"say": "deer", "zh": "那大象呢？", "en": "And the elephant?", "added": true},
+			{"do": "if", "flag": "final_ending_1", "then": "epi_deer_e1", "else": "epi_deer_q2"}
+		],
+		"epi_deer_q2": [
+			{"do": "if", "flag": "final_ending_2", "then": "epi_deer_e2", "else": "epi_deer_q3"}
+		],
+		"epi_deer_q3": [
+			{"do": "if", "flag": "final_ending_3", "then": "epi_deer_e3", "else": "epi_deer_e4"}
+		],
+		"epi_deer_e1": [
+			{"say": "chen", "zh": "见到了。", "en": "I saw it.", "added": true},
+			{"say": "chen", "zh": "在水边吃草。吃得很响。", "en": "Eating grass by the water. Very loudly.", "added": true},
+			{"say": "chen", "zh": "左耳缺了一块。不怎么理人。", "en": "A piece missing from its left ear. Doesn't pay people much mind.", "added": true},
+			{"do": "anim", "who": "deer", "name": "look"},
+			{"say": "deer", "zh": "……就这样？", "en": "...That's it?", "added": true},
+			{"say": "chen", "zh": "就这样。", "en": "That's it.", "added": true},
+			{"do": "goto", "scene": "epi_deer_drawing"}
+		],
+		"epi_deer_e2": [
+			{"say": "chen", "zh": "见到了。我能看见。", "en": "I saw it. I can see it.", "added": true},
+			{"say": "chen", "zh": "别人都看不见。", "en": "Nobody else can.", "added": true},
+			{"do": "anim", "who": "deer", "name": "ear"},
+			{"say": "deer", "zh": "……那咱信你看见了。", "en": "...Then I believe you saw it.", "added": true},
+			{"do": "goto", "scene": "epi_deer_drawing"}
+		],
+		"epi_deer_e3": [
+			{"say": "chen", "zh": "他们都说它在那儿。", "en": "They all said it was there.", "added": true},
+			{"say": "chen", "zh": "我眼前，一直是空地。", "en": "All I ever saw was empty ground.", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"say": "deer", "zh": "……那你就说看不见。", "en": "...Then just say you didn't see it.", "added": true},
+			{"say": "deer", "zh": "咱以前，就是没这么说。", "en": "That's what I didn't say, before.", "added": true},
+			{"do": "goto", "scene": "epi_deer_drawing"}
+		],
+		"epi_deer_e4": [
+			{"say": "chen", "zh": "那次停在云上了。", "en": "That time, I stopped above the clouds.", "added": true},
+			{"say": "chen", "zh": "后来，先回来了。", "en": "Then I came back. For now.", "added": true},
+			{"do": "anim", "who": "deer", "name": "look"},
+			{"say": "deer", "zh": "停着也行。路又跑不了。", "en": "Stopping's fine. The road's not going anywhere.", "added": true},
+			{"do": "goto", "scene": "epi_deer_drawing"}
+		],
+		"epi_deer_drawing": [
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "anim", "who": "deer", "name": "look"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "if", "flag": "returned_all", "then": "epi_deer_sign", "else": "epi_deer_rock"}
+		],
+		"epi_deer_sign": [
+			{"say": "deer", "zh": "空地上那个路标，你还过去的。", "en": "That signpost in the clearing, the one you brought back.", "added": true},
+			{"say": "deer", "zh": "到现在不转了，一直指着云那边。", "en": "It doesn't spin anymore. It just points at the clouds.", "added": true},
+			{"do": "goto", "scene": "epi_deer_rock"}
+		],
+		"epi_deer_rock": [
+			{"do": "if", "flag": "saw_rock", "then": "epi_deer_rock2", "else": "epi_deer_end"}
+		],
+		"epi_deer_rock2": [
+			{"say": "chen", "zh": "空地石头上那头，画得也不准。", "en": "The one on the rock in the clearing isn't drawn right either.", "added": true},
+			{"say": "deer", "zh": "比你画的还不准。", "en": "Even worse than yours.", "added": true},
+			{"do": "goto", "scene": "epi_deer_end"}
+		],
+		"epi_deer_end": [
+			{"do": "flag", "set": "final_epi_deer"}
+		],
+		"epi_deer_chat": [
+			{"say": "deer", "zh": "下回来，先在路口喊一声。", "en": "Next time, give a shout at the turnoff.", "added": true},
+			{"say": "deer", "zh": "咱听得见。", "en": "I'll hear you.", "added": true}
+		],
+		"epi_miluo": [
+			{"do": "fade_to", "room": "treehouse", "at": "treehouse_door"},
+			{"do": "sfx", "name": "knock"},
+			{"say": "miluo", "zh": "东西放外面。", "en": "Leave it outside.", "added": true},
+			{"do": "sfx", "name": "door_open"},
+			{"do": "show", "who": "miluo", "at": "treehouse_miluo"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "……是你。", "en": "...It's you.", "added": true},
+			{"say": "miluo", "zh": "这么久才来。", "en": "Took you long enough.", "added": true},
+			{"do": "anim", "who": "chen", "name": "open_map_fold"},
+			{"do": "show_item", "item": "cup_tracing"},
+			{"say": "chen", "zh": "河流城市来客册里抄的。", "en": "Copied from the guestbook in the river city.", "added": true},
+			{"say": "chen", "zh": "船名，日期。还有杯底的记号。", "en": "Ship name, date. And the mark from the bottom of the cup.", "added": true},
+			{"say": "chen", "zh": "那个人寄过信。", "en": "That person did write to you.", "added": true},
+			{"say": "chen", "zh": "北岸的邮箱，后来被水冲走了。", "en": "The mailbox on the north bank got washed away.", "added": true},
+			{"do": "take", "item": "cup_tracing"},
+			{"do": "anim", "who": "miluo", "name": "read"},
+			{"do": "wait", "sec": 2.5},
+			{"say": "miluo", "zh": "挑个不会掉进河里的邮箱，很难吗？", "en": "Was it that hard to pick a mailbox that wouldn't fall in the river?"},
+			{"do": "anim", "who": "miluo", "name": "flip"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "prop", "id": "treehouse_glass", "state": "paper"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "if", "flag": "final_seed_planted", "then": "epi_miluo_planted", "else": "epi_miluo_q"}
+		],
+		"epi_miluo_q": [
+			{"do": "if", "flag": "burned_clear_seed", "then": "epi_miluo_burned", "else": "epi_miluo_kept"}
+		],
+		"epi_miluo_planted": [
+			{"say": "miluo", "zh": "种下了？", "en": "Planted it?", "added": true},
+			{"say": "miluo", "zh": "什么土？", "en": "What soil?", "added": true},
+			{"say": "chen", "zh": "湿土。", "en": "Damp.", "added": true},
+			{"say": "miluo", "zh": "水呢？", "en": "Water?", "added": true},
+			{"say": "chen", "zh": "浇过了。没挖出来看。", "en": "Watered it. Didn't dig it up to check.", "added": true},
+			{"say": "miluo", "zh": "晒了多久太阳？", "en": "How much sun?", "added": true},
+			{"say": "chen", "zh": "……上午都晒得到。", "en": "...All morning.", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "行了，我就问这几句。", "en": "Fine. That's all I wanted to ask."},
+			{"do": "goto", "scene": "epi_miluo_end"}
+		],
+		"epi_miluo_kept": [
+			{"do": "show_item", "item": "clear_seed"},
+			{"say": "chen", "zh": "还在挑地方。", "en": "Still picking a spot.", "added": true},
+			{"do": "anim", "who": "miluo", "name": "check"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "miluo", "zh": "那就继续好好放着。别一脸现在就要交作业的样子。", "en": "Then keep it safe. And stop looking like you're handing in homework."},
+			{"do": "goto", "scene": "epi_miluo_end"}
+		],
+		"epi_miluo_burned": [
+			{"do": "show_item", "item": "miluo_note"},
+			{"say": "chen", "zh": "种子，我烧了。", "en": "I burned the seed.", "added": true},
+			{"say": "chen", "zh": "去云层星的路上，燃料不够。", "en": "On the way to the Cloud Planet. There wasn't enough fuel.", "added": true},
+			{"say": "chen", "zh": "我算了好几遍，最后还是放进去了。", "en": "I counted again and again. In the end I put it in.", "added": true},
+			{"do": "sfx", "name": "screw_half"},
+			{"do": "wait", "sec": 0.5},
+			{"do": "sfx", "name": "screw_back"},
+			{"say": "miluo", "zh": "你倒是终于知道，难听的话也得当面说了。", "en": "So you've finally learned to say the hard stuff to someone's face."},
+			{"do": "anim", "who": "miluo", "name": "screw"},
+			{"do": "wait", "sec": 2.5},
+			{"say": "miluo", "zh": "递过来啊，站那儿干吗，光都给你挡住了。", "en": "Hand it over, then. Don't just stand there, you're in my light."},
+			{"do": "anim", "who": "chen", "name": "hand_over"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "goto", "scene": "epi_miluo_end"}
+		],
+		"epi_miluo_end": [
+			{"do": "if", "flag": "returned_any", "then": "epi_miluo_returned", "else": "epi_miluo_done"}
+		],
+		"epi_miluo_returned": [
+			{"say": "miluo", "zh": "那只鹿说，小吃棚的收音机，前几天自己响了。", "en": "The deer says the radio at the snack stall came on by itself a few days ago.", "added": true},
+			{"say": "miluo", "zh": "……八成是风。", "en": "...Probably the wind.", "added": true},
+			{"do": "goto", "scene": "epi_miluo_done"}
+		],
+		"epi_miluo_done": [
+			{"do": "flag", "set": "final_epi_miluo"}
+		],
+		"epi_miluo_chat": [
+			{"say": "miluo", "zh": "站门口干什么。", "en": "Don't just stand in the doorway.", "added": true},
+			{"say": "miluo", "zh": "要走就走，要坐就坐。别坐那把。", "en": "Go or sit, one or the other. Not that chair.", "added": true}
+		],
+		"epi_niff": [
+			{"do": "fade_to", "room": "river_home", "at": "river_home_table"},
+			{"do": "show", "who": "niff", "at": "river_home_niff"},
+			{"do": "face", "who": "niff", "to": "chen"},
+			{"say": "niff", "zh": "咦？你是……？", "en": "Huh? You're...?", "added": true},
+			{"do": "anim", "who": "chen", "name": "wait"},
+			{"do": "anim", "who": "niff", "name": "read"},
+			{"do": "wait", "sec": 2.5},
+			{"say": "niff", "zh": "……晨！要去云层星找大象的晨！", "en": "...Chen! Chen, who's going to the Cloud Planet to find the elephant!", "added": true},
+			{"say": "niff", "zh": "你说，你说。我在听。", "en": "Go on, go on. I'm listening.", "added": true},
+			{"do": "if", "flag": "final_ending_1", "then": "epi_niff_e1", "else": "epi_niff_q2"}
+		],
+		"epi_niff_q2": [
+			{"do": "if", "flag": "final_ending_2", "then": "epi_niff_e2", "else": "epi_niff_q3"}
+		],
+		"epi_niff_q3": [
+			{"do": "if", "flag": "final_ending_3", "then": "epi_niff_e3", "else": "epi_niff_e4"}
+		],
+		"epi_niff_e1": [
+			{"say": "chen", "zh": "找到了。", "en": "I found it.", "added": true},
+			{"say": "chen", "zh": "它吃草的时候，很响。", "en": "It's loud when it eats grass.", "added": true},
+			{"say": "chen", "zh": "会甩耳朵。不怎么理人。", "en": "It flaps its ears. Doesn't pay people much mind.", "added": true},
+			{"say": "niff", "zh": "诶，不理人呀。", "en": "Aw, it ignores people?", "added": true},
+			{"do": "goto", "scene": "epi_niff_footage"}
+		],
+		"epi_niff_e2": [
+			{"say": "chen", "zh": "找到了。可只有我看得见。", "en": "I found it. But only I can see it.", "added": true},
+			{"say": "chen", "zh": "别人都没看见。", "en": "Nobody else saw it.", "added": true},
+			{"say": "niff", "zh": "那这个也写上。", "en": "Then write that down too.", "added": true},
+			{"say": "niff", "zh": "别人没看见，也是发生过的事呀。", "en": "Even if nobody else saw it, it still happened.", "added": true},
+			{"do": "goto", "scene": "epi_niff_footage"}
+		],
+		"epi_niff_e3": [
+			{"say": "chen", "zh": "我眼前，一直是一块空地。", "en": "All I ever saw was a patch of empty ground.", "added": true},
+			{"say": "chen", "zh": "他们都说它在。", "en": "They all said it was there.", "added": true},
+			{"do": "anim", "who": "chen", "name": "draw"},
+			{"say": "niff", "zh": "嗯……那就画这块空地。", "en": "Hmm... then draw the empty ground.", "added": true},
+			{"do": "goto", "scene": "epi_niff_footage"}
+		],
+		"epi_niff_e4": [
+			{"say": "chen", "zh": "我还没下去。", "en": "I haven't gone down yet.", "added": true},
+			{"say": "chen", "zh": "停在云层上面了。", "en": "I stopped above the clouds.", "added": true},
+			{"do": "anim", "who": "chen", "name": "draw"},
+			{"say": "chen", "zh": "就是这儿。", "en": "Right here.", "added": true},
+			{"say": "niff", "zh": "哇，飞机在云上睡觉。", "en": "Wow. A ship asleep on the clouds.", "added": true},
+			{"do": "goto", "scene": "epi_niff_footage"}
+		],
+		"epi_niff_footage": [
+			{"do": "if", "flag": "burned_elephant_footage", "then": "epi_niff_nofootage", "else": "epi_niff_play"}
+		],
+		"epi_niff_play": [
+			{"do": "show_item", "item": "elephant_footage"},
+			{"do": "sfx", "name": "footage_play"},
+			{"do": "sfx", "name": "elephant_low_call"},
+			{"say": "niff", "zh": "再放一次嘛。", "en": "Play it one more time?", "added": true},
+			{"do": "sfx", "name": "elephant_low_call"},
+			{"do": "goto", "scene": "epi_niff_bell"}
+		],
+		"epi_niff_nofootage": [
+			{"say": "chen", "zh": "影像……我烧掉了。", "en": "The footage... I burned it.", "added": true},
+			{"say": "chen", "zh": "记不清的地方，我空着。", "en": "The parts I can't remember, I left blank.", "added": true},
+			{"say": "niff", "zh": "嗯。空着也行。", "en": "Mm. Blank is okay.", "added": true},
+			{"do": "goto", "scene": "epi_niff_bell"}
+		],
+		"epi_niff_bell": [
+			{"do": "sfx", "name": "niff_bell"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "niff", "name": "read"},
+			{"say": "niff", "zh": "……我们刚才说到哪儿啦？", "en": "...Where were we?", "added": true},
+			{"say": "chen", "zh": "这一页。", "en": "This page.", "added": true},
+			{"do": "wait", "sec": 2.0},
+			{"say": "niff", "zh": "这里空着。是忘了吗？", "en": "This part's empty. Did you forget?", "added": true},
+			{"do": "anim", "who": "chen", "name": "check"},
+			{"say": "chen", "zh": "……这一段，我也不知道。", "en": "...I don't know this part either.", "added": true},
+			{"do": "anim", "who": "niff", "name": "write"},
+			{"say": "niff", "zh": "那先放着嘛。你哪天知道了，再告诉我呀。", "en": "Then leave it for now. Tell me when you know."},
+			{"do": "prop", "id": "river_home_cup", "state": "offered"},
+			{"do": "anim", "who": "chen", "name": "drink"},
+			{"say": "chen", "zh": "……我不太爱甜的。", "en": "...I'm not big on sweet things.", "added": true},
+			{"do": "anim", "who": "niff", "name": "laugh"},
+			{"say": "niff", "zh": "啊，拿错啦。这个才是你的。", "en": "Ah, wrong one. This one's yours."},
+			{"do": "flag", "set": "final_epi_niff"}
+		],
+		"epi_niff_chat": [
+			{"say": "niff", "zh": "这页写着：晨，回来过。", "en": "This page says: Chen came back.", "added": true},
+			{"say": "niff", "zh": "嘿嘿，这次没写成湿湿的人。", "en": "Hehe. Didn't write \"the soggy one\" this time.", "added": true}
+		],
+		"epi_home": [
+			{"do": "fade_to", "room": "home_train", "at": "train_door"},
+			{"do": "ambient", "name": "train_run", "at": "train_door", "on": true},
+			{"do": "prop", "id": "train_window", "state": "afternoon_sun"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "face", "who": "chen", "to": "train_seat"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "if", "flag": "burned_seat_chart", "then": "epi_home_phone", "else": "epi_home_chart"}
+		],
+		"epi_home_chart": [
+			{"do": "if", "flag": "burned_commute_card", "then": "epi_home_chart_loose", "else": "epi_home_chart_card"}
+		],
+		"epi_home_chart_card": [
+			{"do": "show_item", "item": "commute_card"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "goto", "scene": "epi_home_phone"}
+		],
+		"epi_home_chart_loose": [
+			{"do": "show_item", "item": "seat_chart"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "goto", "scene": "epi_home_phone"}
+		],
+		"epi_home_phone": [
+			{"do": "anim", "who": "chen", "name": "take_phone"},
+			{"do": "phone_open", "contact": "friend"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"do": "walk", "who": "chen", "to": "train_seat"},
+			{"do": "anim", "who": "chen", "name": "sit"},
+			{"do": "prop", "id": "train_window", "state": "trees_passing"},
+			{"do": "wait", "sec": 2.5},
+			{"do": "prop", "id": "train_seat", "state": "sun_on_knees"},
+			{"do": "wait", "sec": 2.0},
+			{"do": "if", "flag": "burned_journal", "then": "epi_home_page", "else": "epi_home_journal"}
+		],
+		"epi_home_journal": [
+			{"do": "show_item", "item": "journal"},
+			{"do": "goto", "scene": "epi_home_end"}
+		],
+		"epi_home_page": [
+			{"do": "show_item", "item": "journal_first_page"},
+			{"do": "goto", "scene": "epi_home_end"}
+		],
+		"epi_home_end": [
+			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"do": "wait", "sec": 3.0},
+			{"do": "flag", "set": "final_done"},
+			{"do": "end_chapter"}
+		]
+	}
+}

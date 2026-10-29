@@ -1,0 +1,10 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: Condition "!actions.custom_samplers.has(function->arguments[j].tex_builtin)" is true. Continuing.
+   at: _dump_node_code (servers/rendering/shader_compiler.cpp:1329)
+   GDScript backtrace (most recent call first):
+       [0] _ready (res://scripts/npc_snake.gd:67)
+WIN (64, 64) xf [X: (0.133333, 0.0), Y: (0.0, 0.133333), O: (0.0, 14.0)]
+CLICK_AT (289.0, 211.0) screen (38.53334, 42.13334)
+BTN_PRESSED
+CLICK_PICK_OK

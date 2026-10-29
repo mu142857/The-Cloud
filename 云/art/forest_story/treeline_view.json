@@ -1,0 +1,58 @@
+{
+ "layers": [
+  "sky",
+  "far",
+  "main",
+  "near"
+ ],
+ "drift": {
+  "sky": 0.0,
+  "far": 0.6,
+  "main": 1.2,
+  "near": 2.6
+ },
+ "arc_layer": "main",
+ "arc_points": [
+  [
+   102,
+   198
+  ],
+  [
+   148,
+   146
+  ],
+  [
+   194,
+   124
+  ],
+  [
+   240,
+   117
+  ],
+  [
+   286,
+   124
+  ],
+  [
+   332,
+   146
+  ],
+  [
+   378,
+   198
+  ]
+ ],
+ "arc_end_left": [
+  102,
+  198
+ ],
+ "arc_end_right": [
+  378,
+  198
+ ],
+ "arc_top": [
+  240,
+  117
+ ],
+ "note": "单独一屏（平面侧视，不挂森林的视差层）：四层图左上角都放在屏幕 (0,0)，按 drift 每秒往左漂（漂到图的右边缘贴着屏幕右边就停）；drawing_arc 放大 scale_to_treeline 倍、arc_end_left 对到 main 层的 arc_end_left，跟着 main 层漂"
+}

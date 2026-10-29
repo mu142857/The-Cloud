@@ -144,7 +144,7 @@
    "room": "forest",
    "label": {
     "zh": "发光的木头",
-    "en": ""
+    "en": "Glowing Wood"
    },
    "need": [
     "crashed"
@@ -161,7 +161,7 @@
    "room": "forest",
    "label": {
     "zh": "金属碎片",
-    "en": ""
+    "en": "Metal Scrap"
    },
    "need": [
     "crashed"
@@ -180,7 +180,7 @@
    "room": "forest",
    "label": {
     "zh": "树脂",
-    "en": ""
+    "en": "Resin"
    },
    "need": [
     "crashed"
@@ -199,7 +199,7 @@
    "room": "forest",
    "label": {
     "zh": "干枝",
-    "en": ""
+    "en": "Dry Branch"
    },
    "need": [
     "crashed"
@@ -235,7 +235,7 @@
    "room": "forest",
    "label": {
     "zh": "倒木",
-    "en": ""
+    "en": "Fallen Log"
    },
    "need": [
     "road_stall"
@@ -252,7 +252,7 @@
    "room": "forest",
    "label": {
     "zh": "树枝",
-    "en": ""
+    "en": "Branch"
    },
    "need": [
     "log_started"
@@ -269,7 +269,7 @@
    "room": "forest",
    "label": {
     "zh": "树枝",
-    "en": ""
+    "en": "Branch"
    },
    "need": [
     "log_started"
@@ -286,7 +286,7 @@
    "room": "forest",
    "label": {
     "zh": "布条",
-    "en": ""
+    "en": "Cloth Strip"
    },
    "need": [
     "fog_on"
@@ -303,7 +303,7 @@
    "room": "forest",
    "label": {
     "zh": "水声",
-    "en": ""
+    "en": "Rushing Water"
    },
    "need": [
     "fog_on"
@@ -338,7 +338,7 @@
    "room": "treehouse",
    "label": {
     "zh": "收音机",
-    "en": ""
+    "en": "Radio"
    },
    "need": [
     "met_miluo"
@@ -353,7 +353,7 @@
    "room": "treehouse",
    "label": {
     "zh": "门",
-    "en": ""
+    "en": "Door"
    },
    "need": [
     "ship_fixed"
@@ -387,7 +387,7 @@
    "room": "forest",
    "label": {
     "zh": "树屋",
-    "en": ""
+    "en": "Treehouse"
    },
    "need": [
     "slope_talked"
@@ -404,7 +404,7 @@
    "room": "forest",
    "label": {
     "zh": "木板",
-    "en": ""
+    "en": "Plank"
    },
    "need": [
     "pump_placed"
@@ -423,7 +423,7 @@
    "room": "forest",
    "label": {
     "zh": "塌陷口",
-    "en": ""
+    "en": "Sinkhole"
    },
    "need": [
     "fog_on"
@@ -444,7 +444,7 @@
    "room": "forest",
    "label": {
     "zh": "岩画",
-    "en": ""
+    "en": "Rock Carving"
    },
    "need": [
     "bridge_built"
@@ -461,7 +461,7 @@
    "room": "forest",
    "label": {
     "zh": "布条",
-    "en": ""
+    "en": "Cloth Strip"
    },
    "need": [
     "at_treehouse"
@@ -476,7 +476,7 @@
    {
     "say": "chen",
     "zh": "啊……糟糕……坠毁了。（小样）",
-    "en": ""
+    "en": "Ugh... no... I crashed. (sample)"
    },
    {
     "do": "elephant_call",
@@ -489,7 +489,7 @@
    {
     "say": "chen",
     "zh": "等一下！",
-    "en": ""
+    "en": "Wait!"
    },
    {
     "do": "flag",
@@ -500,12 +500,12 @@
    {
     "say": "chen",
     "zh": "这块装这里……不对。",
-    "en": ""
+    "en": "This goes here... no."
    },
    {
     "say": "chen",
     "zh": "那装这边……也不对。",
-    "en": ""
+    "en": "Then here... no, not that either."
    },
    {
     "do": "flag",
@@ -521,7 +521,7 @@
    {
     "say": "chen",
     "zh": "行李散了一地。",
-    "en": ""
+    "en": "Luggage everywhere."
    },
    {
     "do": "give",
@@ -538,7 +538,7 @@
    {
     "do": "journal",
     "zh": "坠毁了。行李都还在。",
-    "en": ""
+    "en": "Crashed. The luggage is all still here."
    },
    {
     "do": "give",
@@ -562,12 +562,12 @@
    {
     "say": "chen",
     "zh": "太好了，有了这个，飞船就能再次起飞了。",
-    "en": ""
+    "en": "Great. With this, the ship can fly again."
    },
    {
     "narr": {
      "zh": "启动所需：200",
-     "en": ""
+     "en": "Needed to launch: 200"
     }
    },
    {
@@ -592,7 +592,7 @@
    {
     "say": "chen",
     "zh": "碎片。也能烧。",
-    "en": ""
+    "en": "Scrap. That'll burn too."
    },
    {
     "do": "flag",
@@ -616,7 +616,7 @@
    {
     "say": "chen",
     "zh": "树脂，黏黏的。",
-    "en": ""
+    "en": "Resin. Sticky."
    },
    {
     "do": "flag",
@@ -640,7 +640,7 @@
    {
     "say": "chen",
     "zh": "干枝。",
-    "en": ""
+    "en": "A dry branch."
    },
    {
     "do": "flag",
@@ -687,20 +687,20 @@
    {
     "say": "chen",
     "zh": "……再找一点。",
-    "en": ""
+    "en": "...A bit more."
    }
   ],
   "fuel_full": [
    {
     "narr": {
      "zh": "燃烧值：200 / 200",
-     "en": ""
+     "en": "Burn: 200 / 200"
     }
    },
    {
     "say": "chen",
     "zh": "够了。回飞船试试。",
-    "en": ""
+    "en": "That's enough. Let's try the ship."
    },
    {
     "do": "flag",
@@ -719,7 +719,7 @@
    {
     "narr": {
      "zh": "推进器损坏",
-     "en": ""
+     "en": "Thruster damaged"
     }
    },
    {
@@ -729,7 +729,7 @@
    {
     "say": "chen",
     "zh": "你能不能一次说完。",
-    "en": ""
+    "en": "Could you just say it all at once."
    },
    {
     "do": "show",
@@ -739,7 +739,7 @@
    {
     "say": "deer",
     "zh": "它掉下来以前就坏了。",
-    "en": ""
+    "en": "It was broken before it fell."
    },
    {
     "do": "face",
@@ -749,7 +749,7 @@
    {
     "say": "chen",
     "zh": "哪里能修？",
-    "en": ""
+    "en": "Where can I get it fixed?"
    },
    {
     "do": "show_item",
@@ -758,7 +758,7 @@
    {
     "say": "chen",
     "zh": "你认识这个吗？这是一句比较长的话，用来看对话框会不会自动换行、中文字会不会出框。",
-    "en": ""
+    "en": "Do you know what this is? This is a longer line, to check that the dialogue box wraps and the text stays inside the frame."
    },
    {
     "do": "anim",
@@ -768,7 +768,7 @@
    {
     "say": "deer",
     "zh": "是大象。旧路那边有。",
-    "en": ""
+    "en": "An elephant. There's one down the old road."
    },
    {
     "do": "flag",
@@ -787,7 +787,7 @@
    {
     "say": "deer",
     "zh": "跟我来。",
-    "en": ""
+    "en": "Follow me."
    },
    {
     "do": "guide",
@@ -797,7 +797,7 @@
    {
     "say": "deer",
     "zh": "这里以前卖吃的。",
-    "en": ""
+    "en": "They used to sell food here."
    },
    {
     "do": "choice",
@@ -822,7 +822,7 @@
    {
     "say": "deer",
     "zh": "大象的鼻子很长。",
-    "en": ""
+    "en": "The elephant has a long nose."
    },
    {
     "do": "anim",
@@ -834,12 +834,12 @@
    {
     "say": "deer",
     "zh": "从这里更近。",
-    "en": ""
+    "en": "It's shorter this way."
    },
    {
     "say": "chen",
     "zh": "下面压着两根树枝。",
-    "en": ""
+    "en": "Two branches are pinned underneath."
    },
    {
     "do": "flag",
@@ -894,7 +894,7 @@
    {
     "say": "chen",
     "zh": "还有一根。",
-    "en": ""
+    "en": "One more."
    }
   ],
   "branches_done": [
@@ -925,7 +925,7 @@
    {
     "say": "deer",
     "zh": "走吧。",
-    "en": ""
+    "en": "Let's go."
    },
    {
     "do": "flag",
@@ -938,7 +938,7 @@
    {
     "say": "deer",
     "zh": "往这边。别去水声最响的地方，那里下面是空的。",
-    "en": ""
+    "en": "This way. Stay away from where the water's loudest. The ground's hollow there."
    },
    {
     "do": "walk",
@@ -975,7 +975,7 @@
    {
     "say": "chen",
     "zh": "水声好响……往回走。",
-    "en": ""
+    "en": "The water's so loud... better go back."
    },
    {
     "do": "walk",
@@ -987,7 +987,7 @@
    {
     "say": "chen",
     "zh": "布条……是这边。",
-    "en": ""
+    "en": "The cloth... it's this way."
    },
    {
     "do": "fade_to",
@@ -1024,7 +1024,7 @@
    {
     "say": "voice",
     "zh": "你这次又跟人说自己见过了？",
-    "en": ""
+    "en": "Telling people you've seen it again?"
    },
    {
     "do": "anim",
@@ -1048,12 +1048,12 @@
    {
     "say": "chen",
     "zh": "请问……能修飞船吗？",
-    "en": ""
+    "en": "Excuse me... can you fix a ship?"
    },
    {
     "say": "voice",
     "zh": "坏的那块呢？",
-    "en": ""
+    "en": "Where's the broken bit?"
    },
    {
     "do": "fade_to",
@@ -1082,7 +1082,7 @@
    {
     "say": "miluo",
     "zh": "坐。别用那把。",
-    "en": ""
+    "en": "Sit. Not that one."
    },
    {
     "do": "prop",
@@ -1114,12 +1114,12 @@
    {
     "say": "miluo",
     "zh": "喝不喝？",
-    "en": ""
+    "en": "Want some?"
    },
    {
     "say": "chen",
     "zh": "喝。",
-    "en": ""
+    "en": "Sure."
    },
    {
     "do": "walk",
@@ -1135,7 +1135,7 @@
    {
     "say": "miluo",
     "zh": "递我旁边那把。",
-    "en": ""
+    "en": "Hand me the one next to it."
    },
    {
     "do": "goto",
@@ -1150,7 +1150,7 @@
       "id": "tool_a",
       "label": {
        "zh": "锤子",
-       "en": ""
+       "en": "Hammer"
       },
       "scene": "tool_wrong"
      },
@@ -1158,7 +1158,7 @@
       "id": "tool_b",
       "label": {
        "zh": "扳手",
-       "en": ""
+       "en": "Wrench"
       },
       "scene": "tool_right"
      },
@@ -1166,7 +1166,7 @@
       "id": "tool_c",
       "label": {
        "zh": "汤勺",
-       "en": ""
+       "en": "Soup Spoon"
       },
       "scene": "tool_wrong"
      }
@@ -1177,7 +1177,7 @@
    {
     "say": "miluo",
     "zh": "旁边那把。",
-    "en": ""
+    "en": "The one next to it."
    },
    {
     "do": "goto",
@@ -1188,7 +1188,7 @@
    {
     "say": "miluo",
     "zh": "嗯。",
-    "en": ""
+    "en": "Mm."
    },
    {
     "do": "flag",
@@ -1197,7 +1197,7 @@
    {
     "say": "miluo",
     "zh": "哪段管道漏气？听听看。",
-    "en": ""
+    "en": "Which pipe's leaking? Listen."
    },
    {
     "do": "goto",
@@ -1212,7 +1212,7 @@
       "id": "pipe_a",
       "label": {
        "zh": "左边那段",
-       "en": ""
+       "en": "Left pipe"
       },
       "scene": "pipe_ok"
      },
@@ -1220,7 +1220,7 @@
       "id": "pipe_b",
       "label": {
        "zh": "中间那段",
-       "en": ""
+       "en": "Middle pipe"
       },
       "scene": "pipe_ok"
      },
@@ -1228,7 +1228,7 @@
       "id": "pipe_c",
       "label": {
        "zh": "右边那段",
-       "en": ""
+       "en": "Right pipe"
       },
       "scene": "pipe_leak"
      }
@@ -1243,7 +1243,7 @@
    {
     "say": "chen",
     "zh": "清清脆脆的。",
-    "en": ""
+    "en": "Nice and crisp."
    },
    {
     "do": "goto",
@@ -1258,7 +1258,7 @@
    {
     "say": "chen",
     "zh": "细细的，尖尖的。",
-    "en": ""
+    "en": "Thin and sharp."
    },
    {
     "do": "prop",
@@ -1296,7 +1296,7 @@
    {
     "say": "miluo",
     "zh": "声音会变。",
-    "en": ""
+    "en": "The sound changes."
    },
    {
     "do": "prop",
@@ -1312,7 +1312,7 @@
    {
     "say": "chen",
     "zh": "收音机上挂着名字。",
-    "en": ""
+    "en": "There's a name hanging on the radio."
    }
   ],
   "pump_out": [
@@ -1366,7 +1366,7 @@
    {
     "say": "miluo",
     "zh": "放这儿，淋不到雨。",
-    "en": ""
+    "en": "Here. The rain won't reach it."
    },
    {
     "do": "flag",
@@ -1386,7 +1386,7 @@
    {
     "say": "deer",
     "zh": "我要是说不知道，你还会跟我来吗？",
-    "en": ""
+    "en": "If I'd said I didn't know, would you still have come with me?"
    },
    {
     "do": "flag",
@@ -1420,7 +1420,7 @@
    {
     "say": "miluo",
     "zh": "旧的实在不能用了。",
-    "en": ""
+    "en": "The old one was past using."
    },
    {
     "do": "give",
@@ -1433,7 +1433,7 @@
    {
     "say": "miluo",
     "zh": "没长出来，也不是不能来。",
-    "en": ""
+    "en": "Even if it doesn't sprout, you can still come."
    },
    {
     "do": "fade_to",
@@ -1451,7 +1451,7 @@
    {
     "say": "deer",
     "zh": "不知道。我只认得这里的路。",
-    "en": ""
+    "en": "I don't know. I only know the paths here."
    },
    {
     "do": "flag",
@@ -1462,7 +1462,7 @@
    {
     "say": "chen",
     "zh": "走了。",
-    "en": ""
+    "en": "I'm off."
    },
    {
     "do": "prop",
@@ -1489,7 +1489,7 @@
    {
     "say": "deer",
     "zh": "不记得了。反正很好吃。",
-    "en": ""
+    "en": "I don't remember. It was good, though."
    },
    {
     "do": "goto",
@@ -1500,7 +1500,7 @@
    {
     "say": "deer",
     "zh": "你不问吗？",
-    "en": ""
+    "en": "Aren't you going to ask?"
    },
    {
     "do": "goto",
@@ -1511,7 +1511,7 @@
    {
     "say": "deer",
     "zh": "大象不吃这个。",
-    "en": ""
+    "en": "Elephants don't eat that."
    },
    {
     "do": "goto",
@@ -1551,7 +1551,7 @@
    {
     "say": "chen",
     "zh": "一块木板。",
-    "en": ""
+    "en": "A plank."
    },
    {
     "do": "flag",
@@ -1562,14 +1562,14 @@
    {
     "say": "chen",
     "zh": "……下面是空的。",
-    "en": ""
+    "en": "...It's hollow underneath."
    }
   ],
   "hollow_no": [
    {
     "say": "chen",
     "zh": "这个好像搭不上去。",
-    "en": ""
+    "en": "I don't think this will reach."
    }
   ],
   "plank_bridge": [
@@ -1589,7 +1589,7 @@
    {
     "say": "chen",
     "zh": "搭上了。",
-    "en": ""
+    "en": "It reaches."
    },
    {
     "do": "flag",
@@ -1600,7 +1600,7 @@
    {
     "say": "chen",
     "zh": "石头上刻着……大象？",
-    "en": ""
+    "en": "Something carved on the rock... an elephant?"
    },
    {
     "do": "journal",
@@ -1642,7 +1642,7 @@
    "icon": "res://art/forest_story/icon_drawing.png",
    "desc": {
     "zh": "画的旁边写着：大象。",
-    "en": ""
+    "en": "Written beside the drawing: elephant."
    },
    "desc_from_tag": "elephant"
   },
@@ -1658,7 +1658,7 @@
    "icon": "res://art/forest_story/icon_plank.png",
    "desc": {
     "zh": "从烂货架上拆下来的一块木板。",
-    "en": ""
+    "en": "A plank pulled off a rotten shelf."
    }
   }
  ],

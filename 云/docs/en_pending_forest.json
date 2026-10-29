@@ -1,0 +1,2410 @@
+[
+ {
+  "zh": "回飞机",
+  "en": "Back to the ship"
+ },
+ {
+  "zh": "出门，回飞机",
+  "en": "Head out, back to the ship"
+ },
+ {
+  "zh": "回树屋",
+  "en": "Back to the treehouse"
+ },
+ {
+  "zh": "跟鹿上坡地",
+  "en": "Follow the deer up the slope"
+ },
+ {
+  "zh": "跟上弥洛",
+  "en": "Catch up with Milo"
+ },
+ {
+  "zh": "送水泵",
+  "en": "Deliver the water pump"
+ },
+ {
+  "zh": "修好推进器",
+  "en": "Fix the thruster"
+ },
+ {
+  "zh": "找阀门",
+  "en": "Find a valve"
+ },
+ {
+  "zh": "找弹簧",
+  "en": "Find a spring"
+ },
+ {
+  "zh": "找松脂",
+  "en": "Find sap"
+ },
+ {
+  "zh": "找弹簧、阀门",
+  "en": "Find a spring and a valve"
+ },
+ {
+  "zh": "找松脂、阀门",
+  "en": "Find sap and a valve"
+ },
+ {
+  "zh": "找松脂、弹簧",
+  "en": "Find sap and a spring"
+ },
+ {
+  "zh": "找松脂、弹簧、阀门",
+  "en": "Find sap, a spring, a valve"
+ },
+ {
+  "zh": "找会修的人",
+  "en": "Find someone who can fix it"
+ },
+ {
+  "zh": "跟着鹿",
+  "en": "Follow the deer"
+ },
+ {
+  "zh": "试着启动飞机",
+  "en": "Try starting the ship"
+ },
+ {
+  "zh": "找燃料",
+  "en": "Find fuel"
+ },
+ {
+  "zh": "……该走了。",
+  "en": "...Time to go."
+ },
+ {
+  "zh": "飞机修好了。",
+  "en": "The ship's fixed."
+ },
+ {
+  "zh": "门在左边。",
+  "en": "The door's on the left."
+ },
+ {
+  "zh": "……鹿还在外面吧。",
+  "en": "...The deer's probably still outside."
+ },
+ {
+  "zh": "……弥洛还在树屋里。",
+  "en": "...Milo's still in the treehouse."
+ },
+ {
+  "zh": "回去看看吧。",
+  "en": "I should go back."
+ },
+ {
+  "zh": "鹿在坡上等我。",
+  "en": "The deer's waiting on the slope."
+ },
+ {
+  "zh": "……坡上有什么？",
+  "en": "...What's up on the slope?"
+ },
+ {
+  "zh": "她们往商店那边去了。",
+  "en": "They went toward the shop."
+ },
+ {
+  "zh": "……跟上去吧。",
+  "en": "...Better catch up."
+ },
+ {
+  "zh": "三样都齐了。",
+  "en": "That's all three."
+ },
+ {
+  "zh": "……回树屋。",
+  "en": "...Back to the treehouse."
+ },
+ {
+  "zh": "罐子还空着。",
+  "en": "The jar's still empty."
+ },
+ {
+  "zh": "松脂……哪棵树在流松脂？",
+  "en": "Sap... which tree is leaking sap?"
+ },
+ {
+  "zh": "门口那只鹿，也许知道。",
+  "en": "The deer by the door might know."
+ },
+ {
+  "zh": "还差一根弹簧。",
+  "en": "Still need a spring."
+ },
+ {
+  "zh": "空屋的窗台上，好像有个闹钟。",
+  "en": "I think there's a clock on the empty house's windowsill."
+ },
+ {
+  "zh": "空地上那个信号箱……",
+  "en": "That signal box in the clearing..."
+ },
+ {
+  "zh": "阀门也许还在上面。",
+  "en": "Maybe the valve's still on it."
+ },
+ {
+  "zh": "木板也许能搭在塌陷口上。",
+  "en": "A plank might reach across the sinkhole."
+ },
+ {
+  "zh": "……回旧路去试试。",
+  "en": "...Let's try the old road."
+ },
+ {
+  "zh": "阀门……塌陷口那边过不去。",
+  "en": "The valve... but I can't get past the sinkhole."
+ },
+ {
+  "zh": "得找块木板。",
+  "en": "I need a plank."
+ },
+ {
+  "zh": "商店里的货架好像塌了。",
+  "en": "The shelves in the shop looked collapsed."
+ },
+ {
+  "zh": "敲树的声音……从哪边来？",
+  "en": "That knocking... which way is it coming from?"
+ },
+ {
+  "zh": "……水声最响的地方别去。",
+  "en": "...Stay away from where the water's loudest."
+ },
+ {
+  "zh": "树枝上好像挂着什么。",
+  "en": "Something's hanging from that branch."
+ },
+ {
+  "zh": "底下那两根树枝，先拖开。",
+  "en": "Drag those two branches out first."
+ },
+ {
+  "zh": "……鹿在等我。",
+  "en": "...The deer's waiting."
+ },
+ {
+  "zh": "……那只鹿还在前面等我。",
+  "en": "...The deer's still waiting up ahead."
+ },
+ {
+  "zh": "前面好像被什么挡住了。",
+  "en": "Something's blocking the way ahead."
+ },
+ {
+  "zh": "鹿走得好慢……在等我？",
+  "en": "The deer's going so slowly... waiting for me?"
+ },
+ {
+  "zh": "往前走吧。",
+  "en": "Keep going."
+ },
+ {
+  "zh": "旧路，在右边。",
+  "en": "The old road's to the right."
+ },
+ {
+  "zh": "燃料够了。",
+  "en": "That's enough fuel."
+ },
+ {
+  "zh": "……回飞机试试。",
+  "en": "...Let's try the ship."
+ },
+ {
+  "zh": "燃料还不够。",
+  "en": "Not enough fuel yet."
+ },
+ {
+  "zh": "附近应该还有能烧的东西。",
+  "en": "There should be more to burn around here."
+ },
+ {
+  "zh": "左边好像有什么在反光。",
+  "en": "Something's glinting off to the left."
+ },
+ {
+  "zh": "飞机",
+  "en": "Ship"
+ },
+ {
+  "zh": "树冠缺口",
+  "en": "Gap in the trees"
+ },
+ {
+  "zh": "行李",
+  "en": "Luggage"
+ },
+ {
+  "zh": "发光的木头",
+  "en": "Glowing Wood"
+ },
+ {
+  "zh": "金属碎片",
+  "en": "Metal Scrap"
+ },
+ {
+  "zh": "树脂",
+  "en": "Resin"
+ },
+ {
+  "zh": "干枝",
+  "en": "Dry Branch"
+ },
+ {
+  "zh": "鹿",
+  "en": "Deer"
+ },
+ {
+  "zh": "小吃棚",
+  "en": "Snack stall"
+ },
+ {
+  "zh": "小屋",
+  "en": "Hut"
+ },
+ {
+  "zh": "倒木",
+  "en": "Fallen Log"
+ },
+ {
+  "zh": "拖开树枝",
+  "en": "Drag branch"
+ },
+ {
+  "zh": "鹿？",
+  "en": "Deer?"
+ },
+ {
+  "zh": "蹄印",
+  "en": "Hoofprints"
+ },
+ {
+  "zh": "树枝",
+  "en": "Branch"
+ },
+ {
+  "zh": "布条",
+  "en": "Cloth strip"
+ },
+ {
+  "zh": "去树屋",
+  "en": "To the treehouse"
+ },
+ {
+  "zh": "水声",
+  "en": "Rushing water"
+ },
+ {
+  "zh": "塌陷口",
+  "en": "Sinkhole"
+ },
+ {
+  "zh": "岩石",
+  "en": "Rock"
+ },
+ {
+  "zh": "信号箱",
+  "en": "Signal box"
+ },
+ {
+  "zh": "底座",
+  "en": "Sign base"
+ },
+ {
+  "zh": "回旧路",
+  "en": "Back to the old road"
+ },
+ {
+  "zh": "树屋",
+  "en": "Treehouse"
+ },
+ {
+  "zh": "弥洛",
+  "en": "Milo"
+ },
+ {
+  "zh": "门边的包裹",
+  "en": "Parcel by the door"
+ },
+ {
+  "zh": "门槛",
+  "en": "Doorstep"
+ },
+ {
+  "zh": "窗台上的闹钟",
+  "en": "Clock on the sill"
+ },
+ {
+  "zh": "商店",
+  "en": "Shop"
+ },
+ {
+  "zh": "橱窗",
+  "en": "Shop window"
+ },
+ {
+  "zh": "半张合影",
+  "en": "Half a photo"
+ },
+ {
+  "zh": "木板",
+  "en": "Plank"
+ },
+ {
+  "zh": "老松树",
+  "en": "Old pine"
+ },
+ {
+  "zh": "凹陷",
+  "en": "Hollows"
+ },
+ {
+  "zh": "雾",
+  "en": "Fog"
+ },
+ {
+  "zh": "门",
+  "en": "Door"
+ },
+ {
+  "zh": "收音机",
+  "en": "Radio"
+ },
+ {
+  "zh": "路标",
+  "en": "Signpost"
+ },
+ {
+  "zh": "油灯",
+  "en": "Oil Lamp"
+ },
+ {
+  "zh": "工具墙",
+  "en": "Tool wall"
+ },
+ {
+  "zh": "旧外套",
+  "en": "Old coat"
+ },
+ {
+  "zh": "杯子",
+  "en": "Cups"
+ },
+ {
+  "zh": "新零件的包装",
+  "en": "New part's wrapping"
+ },
+ {
+  "zh": "明信片",
+  "en": "Postcard"
+ },
+ {
+  "zh": "小碟子",
+  "en": "Little dish"
+ },
+ {
+  "zh": "炉子",
+  "en": "Stove"
+ },
+ {
+  "zh": "留声机",
+  "en": "Gramophone"
+ },
+ {
+  "zh": "盒子",
+  "en": "Box"
+ },
+ {
+  "zh": "管道",
+  "en": "Pipes"
+ },
+ {
+  "zh": "啊……糟糕。早知道就买保险了。",
+  "en": "Ugh... great. Should've gotten insurance."
+ },
+ {
+  "zh": "行，你先歇着，我还没打算让你报废呢",
+  "en": "Fine, you rest. I'm not scrapping you yet."
+ },
+ {
+  "zh": "……是你说的那个吗？",
+  "en": "...Is that the one you told me about?"
+ },
+ {
+  "zh": "……刚才撞上的，是这个？",
+  "en": "...Is this what I just hit?"
+ },
+ {
+  "zh": "等一下！",
+  "en": "Wait!"
+ },
+ {
+  "zh": "偏偏这时候坏，你可真会挑。",
+  "en": "Breaking down now, of all times. Great timing."
+ },
+ {
+  "zh": "我一定要找到大象，因为",
+  "en": "I have to find the elephant, because"
+ },
+ {
+  "zh": "如果有一天我们不联系了，你就去找云层里的大象，找到它，就能再次收到我的消息。",
+  "en": "If we ever stop talking, go find the elephant in the clouds. Find it, and you'll hear from me again."
+ },
+ {
+  "zh": "我问为什么，她说到时候就知道了。我问我们为什么会不联系，她笑了一下。",
+  "en": "I asked why. She said I'd know when the time came. I asked why we'd ever stop talking. She just smiled."
+ },
+ {
+  "zh": "那道缺口的弧，和画上一样。",
+  "en": "The curve of that gap. Same as the drawing."
+ },
+ {
+  "zh": "……也可能，只是我撞的。",
+  "en": "...Or maybe I just did that."
+ },
+ {
+  "zh": "缺口还在。",
+  "en": "The gap's still there."
+ },
+ {
+  "zh": "下次来，也许就长好了。",
+  "en": "Maybe it'll have grown back by next time."
+ },
+ {
+  "zh": "再撑一趟吧，就一趟",
+  "en": "Hang in there. Just one more trip."
+ },
+ {
+  "zh": "推进器坏了",
+  "en": "The thruster's broken"
+ },
+ {
+  "zh": "先跟鹿去找会修的。",
+  "en": "Follow the deer to someone who can fix it."
+ },
+ {
+  "zh": "好，行李全摔出来了，都不用我翻了",
+  "en": "Great. The luggage unpacked itself"
+ },
+ {
+  "zh": "在家唱得好好的，怎么一出来就哑了",
+  "en": "It played fine at home. Why go quiet now"
+ },
+ {
+  "zh": "又是这个站，这名字我闭着眼都能写了",
+  "en": "This station again. I could write it with my eyes closed"
+ },
+ {
+  "zh": "后面写什么呢，每次都卡在这儿",
+  "en": "What comes next... I always get stuck here"
+ },
+ {
+  "zh": "有这个了，你总该动一下了吧",
+  "en": "With this, you'll have to move, right"
+ },
+ {
+  "zh": "启动所需：200",
+  "en": "Needed to launch: 200"
+ },
+ {
+  "zh": "行，那就再找一点",
+  "en": "Fine. A bit more, then"
+ },
+ {
+  "zh": "飞机上掉的碎片，烧了也算用回去了",
+  "en": "It fell off the ship. Burning it is sort of giving it back"
+ },
+ {
+  "zh": "这树脂黏我一手，应该还挺好烧的",
+  "en": "Resin all over my hands. Should burn nicely"
+ },
+ {
+  "zh": "干透了，正好拿去烧",
+  "en": "Bone dry. Perfect for burning"
+ },
+ {
+  "zh": "够了，回飞机那边试试",
+  "en": "That's enough. Let's try the ship"
+ },
+ {
+  "zh": "推进器损坏",
+  "en": "Thruster damaged"
+ },
+ {
+  "zh": "你就不能一次说完吗？",
+  "en": "Couldn't you just say it all at once?"
+ },
+ {
+  "zh": "你这飞机掉下来以前就坏了",
+  "en": "Your ship was broken before it fell"
+ },
+ {
+  "zh": "你怎么知道？",
+  "en": "How do you know?"
+ },
+ {
+  "zh": "咱听着就不对",
+  "en": "It sounded wrong"
+ },
+ {
+  "zh": "你从咱头顶过去，那动静，比打雷还难听",
+  "en": "You went right over me. Sounded worse than thunder"
+ },
+ {
+  "zh": "就是降落的时候偏了点",
+  "en": "The landing was a little off, that's all"
+ },
+ {
+  "zh": "偏得挺远。",
+  "en": "A long way off."
+ },
+ {
+  "zh": "你知道哪里能修吗？",
+  "en": "Know anywhere I can get it fixed?"
+ },
+ {
+  "zh": "我平时开得没这么差。",
+  "en": "I'm not usually this bad a pilot."
+ },
+ {
+  "zh": "刚才树林里的声音，你听见了吗？",
+  "en": "Did you hear that sound in the woods?"
+ },
+ {
+  "zh": "这你问咱就对了。",
+  "en": "You asked the right deer."
+ },
+ {
+  "zh": "咱倒是信，你问问树信不信",
+  "en": "I believe you. Ask the trees if they do"
+ },
+ {
+  "zh": "听见了，林子这么大，什么响动都有",
+  "en": "I heard. Big forest. All kinds of noises"
+ },
+ {
+  "zh": "先把你这飞机修好吧，跟咱走，咱认识个会修的",
+  "en": "Let's get your ship fixed first. Come on, I know someone who fixes things"
+ },
+ {
+  "zh": "帮我看看这张画，你认得上面这个吗？",
+  "en": "Can you look at this drawing? Do you know what this is?"
+ },
+ {
+  "zh": "大象啊，旧路那边有",
+  "en": "That's an elephant. There's one down the old road"
+ },
+ {
+  "zh": "等等，你也知道大象？",
+  "en": "Wait, you know about elephants too?"
+ },
+ {
+  "zh": "旧路",
+  "en": "Old road"
+ },
+ {
+  "zh": "附近有水吗？",
+  "en": "Is there water around here?"
+ },
+ {
+  "zh": "找水啊？这你可问对了",
+  "en": "Water? You asked the right deer"
+ },
+ {
+  "zh": "前头往左，有条小溪，水甜。",
+  "en": "Up ahead on the left. There's a creek. Sweet water."
+ },
+ {
+  "zh": "旧路那头以前还有老大的脚印呢",
+  "en": "There used to be huge footprints down the old road"
+ },
+ {
+  "zh": "脚印？",
+  "en": "Footprints?"
+ },
+ {
+  "zh": "旧路以前有很大的脚印。",
+  "en": "There used to be huge footprints on the old road."
+ },
+ {
+  "zh": "你见的那头大象，长什么样？",
+  "en": "The elephant you saw. What did it look like?"
+ },
+ {
+  "zh": "鼻子很长。",
+  "en": "Long nose."
+ },
+ {
+  "zh": "左边的耳朵会动。",
+  "en": "Its left ear moves."
+ },
+ {
+  "zh": "大象从树边过去的时候，树枝都跟着晃",
+  "en": "When it walks past the trees, the branches all sway"
+ },
+ {
+  "zh": "这些你都亲眼见过？",
+  "en": "You saw all that yourself?"
+ },
+ {
+  "zh": "咱见过",
+  "en": "I did"
+ },
+ {
+  "zh": "鹿亲眼见过大象。",
+  "en": "The deer saw the elephant with its own eyes."
+ },
+ {
+  "zh": "鼻子很长，左边的耳朵会动，走过去的时候树枝都在晃。",
+  "en": "Long nose. Left ear moves. The branches sway when it walks past."
+ },
+ {
+  "zh": "这儿以前卖吃的。",
+  "en": "They used to sell food here."
+ },
+ {
+  "zh": "一下雨，大家就往这棚子底下挤",
+  "en": "When it rained, everyone squeezed in under here"
+ },
+ {
+  "zh": "咱小时候也往里钻，角老勾着人家的布",
+  "en": "I squeezed in too when I was little. My antlers kept snagging the canvas"
+ },
+ {
+  "zh": "卖什么？",
+  "en": "Selling what?"
+ },
+ {
+  "zh": "卖什么来着……咱还真忘了",
+  "en": "What was it... I really forget"
+ },
+ {
+  "zh": "反正好吃，咱吃过的，这个可不骗你",
+  "en": "It was good, though. I ate it. That part I'm not making up"
+ },
+ {
+  "zh": "说不定大象以前也从这儿走过呢",
+  "en": "Maybe the elephant walked by here once too"
+ },
+ {
+  "zh": "什么时候？",
+  "en": "When?"
+ },
+ {
+  "zh": "页角：一只顶着棚布的鹿。",
+  "en": "In the corner of the page: a deer with an awning on its head."
+ },
+ {
+  "zh": "还没画好",
+  "en": "Not done yet"
+ },
+ {
+  "zh": "给那只鹿添了一对过大的角。",
+  "en": "Gave the deer a pair of oversized antlers."
+ },
+ {
+  "zh": "棚子倒还撑得住",
+  "en": "The stall's still standing, at least"
+ },
+ {
+  "zh": "我们那儿的车站，下雨的时候也这么挤",
+  "en": "Our station back home got this crowded in the rain too"
+ },
+ {
+  "zh": "我都躲到最里头了，还是能淋一身",
+  "en": "I'd stand all the way at the back and still get soaked"
+ },
+ {
+  "zh": "这东西放在棚子里也用不上，先带着吧",
+  "en": "No use for this at the stall. I'll hang on to it"
+ },
+ {
+  "zh": "前头那棵歪树，打雷劈过。",
+  "en": "That crooked tree up ahead got hit by lightning."
+ },
+ {
+  "zh": "咱那天还在那棵树底下躲雨呢",
+  "en": "I was hiding under it from the rain that day"
+ },
+ {
+  "zh": "大象也在前面？",
+  "en": "Is the elephant up ahead too?"
+ },
+ {
+  "zh": "往前找找吧，兴许就碰上了",
+  "en": "Keep looking. Maybe we'll run into it"
+ },
+ {
+  "zh": "这么小的屋子，住着倒省事",
+  "en": "A house this small must be easy to keep"
+ },
+ {
+  "zh": "窗台这块颜色浅些，以前放过什么吧？",
+  "en": "This patch on the sill is lighter. Something used to sit here?"
+ },
+ {
+  "zh": "这东西在屋里也用不上，先收着吧",
+  "en": "No use for this in here. I'll keep it"
+ },
+ {
+  "zh": "这边近，咱从这儿走",
+  "en": "This way's shorter. We'll go through here"
+ },
+ {
+  "zh": "这条路多久没人走了？",
+  "en": "How long since anyone walked this road?"
+ },
+ {
+  "zh": "底下那几根你帮咱拖一下，挑轻的就行",
+  "en": "Help me drag the ones underneath. Just the light ones"
+ },
+ {
+  "zh": "大的咱来顶。",
+  "en": "I'll push the big one."
+ },
+ {
+  "zh": "问起旧路，鹿忙着让我搬树枝，回头再问。",
+  "en": "Asked about the old road. The deer got busy making me move branches. Ask again later."
+ },
+ {
+  "zh": "这根太重了，先拖底下的树枝吧",
+  "en": "Too heavy. I'll drag the branches underneath first"
+ },
+ {
+  "zh": "从底下走，树皮滑，摔了咱可接不住你",
+  "en": "Go under. The bark's slippery. If you fall, I can't catch you"
+ },
+ {
+  "zh": "大象也从这儿走过？",
+  "en": "Did the elephant come through here too?"
+ },
+ {
+  "zh": "……以前吧。",
+  "en": "...A while back, maybe."
+ },
+ {
+  "zh": "这几根我来就行",
+  "en": "I can handle these"
+ },
+ {
+  "zh": "拿得动吗？分两趟呗",
+  "en": "Can you carry that? Make two trips"
+ },
+ {
+  "zh": "拿得动，你顾好你那边就行",
+  "en": "I've got it. You worry about your end"
+ },
+ {
+  "zh": "走吧。",
+  "en": "Let's go."
+ },
+ {
+  "zh": "你见到大象的时候，离多近啊？",
+  "en": "When you saw the elephant, how close were you?"
+ },
+ {
+  "zh": "隔得远，咱站的地方也不太好",
+  "en": "Pretty far. And I wasn't standing in a good spot"
+ },
+ {
+  "zh": "鹿说：离得太远了。",
+  "en": "The deer says: it was too far away."
+ },
+ {
+  "zh": "这边走，水声最响那块底下是空的，咱掉下去过",
+  "en": "This way. Where the water's loudest, the ground's hollow. I fell in once"
+ },
+ {
+  "zh": "右边有敲树的声音，应该是鹿吧",
+  "en": "Something's knocking on a tree to the right. Must be the deer"
+ },
+ {
+  "zh": "蹄印。",
+  "en": "Hoofprints."
+ },
+ {
+  "zh": "鹿往前面去了",
+  "en": "The deer went on ahead"
+ },
+ {
+  "zh": "看岔了，就是根树枝",
+  "en": "My mistake. Just a branch"
+ },
+ {
+  "zh": "光秃秃的，布条呢？",
+  "en": "Bare. Where's the cloth?"
+ },
+ {
+  "zh": "雾里跟错了一次。先听，再走。",
+  "en": "Took a wrong turn in the fog once. Listen first, then walk."
+ },
+ {
+  "zh": "蹄印往前去了，再照远一点看看",
+  "en": "The hoofprints keep going. Let me light up further ahead"
+ },
+ {
+  "zh": "那根树枝上挂着布条。",
+  "en": "There's a strip of cloth on that branch."
+ },
+ {
+  "zh": "还是得找个能照亮的东西",
+  "en": "I need something to light the way"
+ },
+ {
+  "zh": "等下，前面是空的",
+  "en": "Wait. The ground drops away ahead"
+ },
+ {
+  "zh": "背包那块木板应该够长，搭上去试试",
+  "en": "The plank in my bag should be long enough. Let's try it"
+ },
+ {
+  "zh": "这底下还有水，踩空就麻烦了",
+  "en": "There's water down there. One wrong step and I'm in trouble"
+ },
+ {
+  "zh": "得找个东西搭过去才行",
+  "en": "I need something to bridge it"
+ },
+ {
+  "zh": "拿这个搭桥够呛，再找找吧",
+  "en": "That won't make a bridge. Keep looking"
+ },
+ {
+  "zh": "搭住了，慢点过应该行",
+  "en": "It holds. Should be fine if I go slowly"
+ },
+ {
+  "zh": "找到布条了",
+  "en": "Found the cloth"
+ },
+ {
+  "zh": "沿着布条这边走",
+  "en": "Follow the cloth this way"
+ },
+ {
+  "zh": "你当时看清大象的样子了吗？",
+  "en": "Did you get a good look at the elephant?"
+ },
+ {
+  "zh": "就一个背影，咱也没看清",
+  "en": "Just its back. I couldn't really see"
+ },
+ {
+  "zh": "鹿说：只看到了背影。",
+  "en": "The deer says: only saw it from behind."
+ },
+ {
+  "zh": "鼻子都说得出来，怎么又只见过背影？",
+  "en": "The deer knew about the nose, but only saw it from behind?"
+ },
+ {
+  "zh": "喂，你又跟谁吹自己见过大象了？",
+  "en": "Hey. Who are you bragging to about the elephant this time?"
+ },
+ {
+  "zh": "隔着窗都听见你了，嗓门还挺大",
+  "en": "I can hear you through the window. Loud, aren't you"
+ },
+ {
+  "zh": "咱这回是带人来修东西的",
+  "en": "This time I brought someone with something to fix"
+ },
+ {
+  "zh": "请问……能修飞机吗？",
+  "en": "Excuse me... can you fix a ship?"
+ },
+ {
+  "zh": "不能。",
+  "en": "No."
+ },
+ {
+  "zh": "喂，坏的零件呢，拿过来看看",
+  "en": "Hey, where's the broken part? Let me see it"
+ },
+ {
+  "zh": "你站门口看着我干什么，零件拿来啊",
+  "en": "Why are you just standing in the door? Bring the part"
+ },
+ {
+  "zh": "你往飞机里加的什么啊？",
+  "en": "What did you put in this ship?"
+ },
+ {
+  "zh": "燃料。",
+  "en": "Fuel."
+ },
+ {
+  "zh": "谢谢啊，我还以为你给它喂了午饭呢",
+  "en": "Thanks. I thought maybe you fed it lunch"
+ },
+ {
+  "zh": "我问你加的哪种燃料",
+  "en": "I mean what kind of fuel"
+ },
+ {
+  "zh": "便宜的",
+  "en": "The cheap kind"
+ },
+ {
+  "zh": "哈？就为了省这点钱，你敢开着这飞机飞那么远？",
+  "en": "Huh? You flew this thing all that way to save a few coins?"
+ },
+ {
+  "zh": "真有你的。",
+  "en": "You're something else."
+ },
+ {
+  "zh": "卖的时候那人拍着胸口说能用，我就买了",
+  "en": "The seller swore it was fine, so I bought it"
+ },
+ {
+  "zh": "那你让卖燃料的坐上来，带他飞一圈啊",
+  "en": "Then put the seller in and take him for a spin"
+ },
+ {
+  "zh": "副驾驶不算，让他坐推进器上试试",
+  "en": "Not the passenger seat. Strap him to the thruster"
+ },
+ {
+  "zh": "还笑呢，等飞机飞得起来再笑吧",
+  "en": "Laughing? Save it for when it flies"
+ },
+ {
+  "zh": "过来啊，站那么远，怕我把你也拆了？",
+  "en": "Come here. Why so far? Afraid I'll take you apart too?"
+ },
+ {
+  "zh": "架上这些都修好了吧，怎么没人来拿？",
+  "en": "All this on the shelves is fixed, right? Why hasn't anyone picked it up?"
+ },
+ {
+  "zh": "东西的主人都搬走了",
+  "en": "The owners all moved away"
+ },
+ {
+  "zh": "都搬走了？",
+  "en": "All of them?"
+ },
+ {
+  "zh": "差不多。",
+  "en": "More or less."
+ },
+ {
+  "zh": "那这些东西你还一直留着？",
+  "en": "And you've kept all of it?"
+ },
+ {
+  "zh": "都修好了，扔了多浪费，你倒舍得",
+  "en": "It all works. Throwing it out would be a waste. You'd do that?"
+ },
+ {
+  "zh": "坐啊，哎那把放着，坐你面前这把！",
+  "en": "Sit. No, not that one. The one in front of you!"
+ },
+ {
+  "zh": "喝点水？",
+  "en": "Some water?"
+ },
+ {
+  "zh": "我不太爱甜的。",
+  "en": "I don't really like sweet things."
+ },
+ {
+  "zh": "那先放着呗，你要求还挺多",
+  "en": "Then leave it. Picky, aren't you"
+ },
+ {
+  "zh": "喝这杯，没放糖，再挑你就渴着吧",
+  "en": "Drink this one. No sugar. Complain again and you can stay thirsty"
+ },
+ {
+  "zh": "「别拿去装螺丝。」",
+  "en": "\"Not for screws.\""
+ },
+ {
+  "zh": "杯底贴着纸条：别拿去装螺丝。旁边画了一个歪歪的生气脸。",
+  "en": "A note stuck to the bottom of the cup: Not for screws. Next to it, a lopsided angry face."
+ },
+ {
+  "zh": "杯子有什么好看的，你还走不走了？",
+  "en": "What's so interesting about a cup? Are we doing this or not?"
+ },
+ {
+  "zh": "想飞起来还差三样东西，你听好啊",
+  "en": "To fly, you still need three things. Listen up"
+ },
+ {
+  "zh": "松脂，拿来堵漏",
+  "en": "Sap, to plug the leak"
+ },
+ {
+  "zh": "再找根弹簧，还有阀门零件，记住没？",
+  "en": "Then a spring, and a valve part. Got that?"
+ },
+ {
+  "zh": "去哪里找？",
+  "en": "Where do I find them?"
+ },
+ {
+  "zh": "问门口那只鹿呗，带路的事它最来劲",
+  "en": "Ask the deer outside. Nothing it loves more than showing the way"
+ },
+ {
+  "zh": "这罐子拿好，装松脂用，别蹭得到处都是",
+  "en": "Take this jar for the sap. Don't smear it everywhere"
+ },
+ {
+  "zh": "修推进器要三样东西：松脂、弹簧、阀门零件。",
+  "en": "Three things to fix the thruster: sap, a spring, a valve part."
+ },
+ {
+  "zh": "弥洛出去了啊，那晚点再来",
+  "en": "Milo's out. I'll come back later"
+ },
+ {
+  "zh": "三样找齐再来，少一样都修不了",
+  "en": "Come back with all three. One short and I can't fix it"
+ },
+ {
+  "zh": "罐子拿稳啊，洒了你自己洗",
+  "en": "Hold that jar steady. Spill it, you clean it"
+ },
+ {
+  "zh": "那几件修好的东西，你送回去了？",
+  "en": "Those things I fixed. You took them back?"
+ },
+ {
+  "zh": "嗯",
+  "en": "Mm"
+ },
+ {
+  "zh": "找东西啊，这你问咱就对了",
+  "en": "Looking for something? You asked the right deer"
+ },
+ {
+  "zh": "商店旁边那棵老松你瞧见没，松脂一直往外冒",
+  "en": "See the old pine by the shop? Sap keeps oozing out of it"
+ },
+ {
+  "zh": "空屋窗台有个闹钟，停了好些年了",
+  "en": "There's a clock on the empty house's sill. Stopped years ago"
+ },
+ {
+  "zh": "舍不得拆闹钟，就去空地那个信号箱看看",
+  "en": "If you'd rather not take the clock apart, try the signal box in the clearing"
+ },
+ {
+  "zh": "塌陷口那头有个旧信号箱，去那儿找",
+  "en": "There's an old signal box past the sinkhole. Look there"
+ },
+ {
+  "zh": "塌陷口得先搭块板子，可别一脚踩下去",
+  "en": "You'll need a board across the sinkhole. Don't step in it"
+ },
+ {
+  "zh": "商店货架都烂了，能拆块木板下来",
+  "en": "The shop shelves are rotten. You could pull a plank off"
+ },
+ {
+  "zh": "零件齐了就进去吧，咱可帮不上修东西的忙",
+  "en": "Got everything? Go on in. I'm no help with fixing"
+ },
+ {
+  "zh": "松脂、弹簧、阀门，齐了，回树屋吧",
+  "en": "Sap, spring, valve. That's everything. Back to the treehouse"
+ },
+ {
+  "zh": "这块木板还挺结实，带上吧",
+  "en": "This plank's pretty solid. I'll take it"
+ },
+ {
+  "zh": "松脂从这道口子里渗出来了",
+  "en": "Sap's seeping out of this cut"
+ },
+ {
+  "zh": "接着点，别都滴地上了",
+  "en": "Better catch it before it all drips away"
+ },
+ {
+  "zh": "得拿罐子来接",
+  "en": "I need a jar to catch it"
+ },
+ {
+  "zh": "装满了，拿稳点，可别洒一身",
+  "en": "Full. Steady now, don't get it all over me"
+ },
+ {
+  "zh": "松脂还在往外渗",
+  "en": "Sap's still seeping out"
+ },
+ {
+  "zh": "这闹钟停了多久了，指针都不动了",
+  "en": "How long has this clock been stopped? The hands don't move at all"
+ },
+ {
+  "zh": "闹钟里应该有能用的弹簧吧",
+  "en": "There should be a usable spring in there"
+ },
+ {
+  "zh": "可人家回来，还得用这个吧",
+  "en": "But they'll need it when they come back"
+ },
+ {
+  "zh": "留张字条，借走弹簧",
+  "en": "Leave a note, borrow the spring"
+ },
+ {
+  "zh": "先不拿，找找别的",
+  "en": "Leave it, look elsewhere"
+ },
+ {
+  "zh": "「借走一根弹簧。晨。」",
+  "en": "\"Borrowed one spring. Chen.\""
+ },
+ {
+  "zh": "空屋窗台的闹钟里借了一根弹簧，留了字条。",
+  "en": "Borrowed a spring from the clock on the empty house's sill. Left a note."
+ },
+ {
+  "zh": "先找找别的吧，也不急着拆人家闹钟",
+  "en": "I'll look elsewhere first. No rush to take apart someone's clock"
+ },
+ {
+  "zh": "字条还压在闹钟底下",
+  "en": "My note's still under the clock"
+ },
+ {
+  "zh": "闹钟还停着",
+  "en": "The clock's still stopped"
+ },
+ {
+  "zh": "信号箱都废在这儿了",
+  "en": "This signal box has been dead a long time"
+ },
+ {
+  "zh": "阀门还拧得动，可以拿下来",
+  "en": "The valve still turns. I can take it off"
+ },
+ {
+  "zh": "旁边还有一根备用的弹簧",
+  "en": "There's a spare spring next to it"
+ },
+ {
+  "zh": "信号箱里能用的都拿出来了",
+  "en": "I've taken everything useful from the signal box"
+ },
+ {
+  "zh": "收音机上也有牌子，是谁送来修的啊？",
+  "en": "The radio has a tag too. Who brought it in?"
+ },
+ {
+  "zh": "早修好了，在这儿放到现在也没人来听",
+  "en": "Fixed it ages ago. It's sat here ever since, and no one's come to listen"
+ },
+ {
+  "zh": "我们那边的广播啊，来来回回就报那几个站名",
+  "en": "The radio back home just read the same few station names, over and over"
+ },
+ {
+  "zh": "牌子上写着：小吃棚。",
+  "en": "The tag says: Snack Stall."
+ },
+ {
+  "zh": "带去还给主人",
+  "en": "Take it back to its owner"
+ },
+ {
+  "zh": "先放着",
+  "en": "Leave it for now"
+ },
+ {
+  "zh": "小吃棚顺路，我把收音机带回去？",
+  "en": "The snack stall's on my way. Should I take the radio back?"
+ },
+ {
+  "zh": "拿吧，底下托着点，才修好的",
+  "en": "Go ahead. Hold it from the bottom. I just fixed it"
+ },
+ {
+  "zh": "这路标怎么还自己转？",
+  "en": "Why does this signpost spin by itself?"
+ },
+ {
+  "zh": "路标嘛，还没找着方向呢",
+  "en": "It's a signpost. It hasn't found its way yet"
+ },
+ {
+  "zh": "让它转呗，你别伸手掰就行",
+  "en": "Let it spin. Just don't grab it"
+ },
+ {
+  "zh": "底下的牌子写着：空地。",
+  "en": "The tag underneath says: Clearing."
+ },
+ {
+  "zh": "路标我也带过去，放回空地那边？",
+  "en": "I'll take the signpost too. Back to the clearing?"
+ },
+ {
+  "zh": "随你，哎你拿那头干什么，尖的，扎手",
+  "en": "Suit yourself. Hey, not that end. It's pointy"
+ },
+ {
+  "zh": "这盏油灯也修好了？",
+  "en": "This oil lamp's fixed too?"
+ },
+ {
+  "zh": "灯芯换好了，就是没油了，想点得自己找",
+  "en": "New wick. No oil, though. Want it lit, find your own"
+ },
+ {
+  "zh": "牌子上写着：路边的小屋",
+  "en": "The tag says: Roadside Hut"
+ },
+ {
+  "zh": "这盏灯我放回路边小屋的窗台上吧？",
+  "en": "Should I put this lamp back on the roadside hut's sill?"
+ },
+ {
+  "zh": "行，走路看着点，灯罩薄，磕一下就碎了",
+  "en": "Fine. Watch your step. The glass is thin. One bump and it's gone"
+ },
+ {
+  "zh": "收音机怎么全是沙沙声啊",
+  "en": "Nothing but static"
+ },
+ {
+  "zh": "雨棚下面压着一张纸条",
+  "en": "There's a note tucked under the awning"
+ },
+ {
+  "zh": "「收摊了。往云那边走。」",
+  "en": "\"Closed up. Heading for the clouds.\""
+ },
+ {
+  "zh": "纸条这半边泡花了，字都认不出来",
+  "en": "The rain's smeared this half. I can't read it"
+ },
+ {
+  "zh": "小吃棚的雨棚下压着一张纸条：收摊了，往云那边走。",
+  "en": "A note under the snack stall's awning: Closed up. Heading for the clouds."
+ },
+ {
+  "zh": "油灯先摆回窗台吧，油以后再添",
+  "en": "Lamp back on the sill. Oil can come later"
+ },
+ {
+  "zh": "门框上这些线，是用来量身高的吧？",
+  "en": "These lines on the doorframe... for measuring height?"
+ },
+ {
+  "zh": "最高这道边上，还刻了朵小云",
+  "en": "There's a little cloud carved by the highest one"
+ },
+ {
+  "zh": "路边小屋的门框上刻着身高线。最后一道旁边，刻着一朵云。",
+  "en": "Height marks on the roadside hut's doorframe. Next to the last one, a carved cloud."
+ },
+ {
+  "zh": "路标停了啊",
+  "en": "The signpost stopped"
+ },
+ {
+  "zh": "指的是云那边",
+  "en": "It's pointing at the clouds"
+ },
+ {
+  "zh": "底座旁边，压着半张车票",
+  "en": "Half a ticket, tucked by the base"
+ },
+ {
+  "zh": "车票终点都泡花了，这可怎么找",
+  "en": "The destination's washed out. No way to know where they went"
+ },
+ {
+  "zh": "路标归位，朝着云那边。底座旁有半张车票，终点泡花了。",
+  "en": "Signpost back in place, facing the clouds. Half a ticket by the base, the destination washed out."
+ },
+ {
+  "zh": "收音机还是沙沙响",
+  "en": "Still static"
+ },
+ {
+  "zh": "这朵云刻得浅，差点漏看",
+  "en": "The cloud's carved so faintly I almost missed it"
+ },
+ {
+  "zh": "这底座空着呢",
+  "en": "The base is empty"
+ },
+ {
+  "zh": "该放什么上来呢？",
+  "en": "What goes up here?"
+ },
+ {
+  "zh": "底座塞不下这个，换一个试试",
+  "en": "That won't fit. Try something else"
+ },
+ {
+  "zh": "路标还指着云那边",
+  "en": "The signpost still points at the clouds"
+ },
+ {
+  "zh": "这上面刻的是……",
+  "en": "Something's carved here..."
+ },
+ {
+  "zh": "长鼻子，四条腿",
+  "en": "A long nose. Four legs"
+ },
+ {
+  "zh": "像是小孩刻的",
+  "en": "Looks like a kid did it"
+ },
+ {
+  "zh": "刻痕都磨平了，应该有些年头了吧",
+  "en": "The lines are worn smooth. It must be old"
+ },
+ {
+  "zh": "很久以前，就有人见过它",
+  "en": "Someone saw it, long ago"
+ },
+ {
+  "zh": "画得跟小孩画的一样，也许谁都没见过",
+  "en": "Drawn like a kid's picture. Maybe no one ever saw it"
+ },
+ {
+  "zh": "岩石上刻着长鼻子、四条腿，看着挺旧的",
+  "en": "A long nose and four legs carved in rock. Looks old"
+ },
+ {
+  "zh": "很久以前，就有人见过它。",
+  "en": "Someone saw it, long ago."
+ },
+ {
+  "zh": "刻这幅画的人，当时也站在这儿吧",
+  "en": "Whoever carved this must have stood right here"
+ },
+ {
+  "zh": "工具的轮廓描了两排，怎么差这么高？",
+  "en": "Two rows of tool outlines. Why so far apart?"
+ },
+ {
+  "zh": "下面那排工具都拿走了啊",
+  "en": "The bottom row's all gone"
+ },
+ {
+  "zh": "「用完放回来，我够不到」",
+  "en": "\"Put them back when you're done. I can't reach\""
+ },
+ {
+  "zh": "「那就长高一点」",
+  "en": "\"Then grow a little\""
+ },
+ {
+  "zh": "刚才弥洛不让我坐的，就是这把吧",
+  "en": "This must be the chair Milo wouldn't let me sit in"
+ },
+ {
+  "zh": "外套褪色褪成这样，还搭在椅背上呢",
+  "en": "The coat's this faded, and it's still draped over the back"
+ },
+ {
+  "zh": "椅子倒是擦得很干净",
+  "en": "The chair's spotless, though"
+ },
+ {
+  "zh": "外套还搭在那儿",
+  "en": "The coat's still there"
+ },
+ {
+  "zh": "「别拿去装螺丝」",
+  "en": "\"Not for screws\""
+ },
+ {
+  "zh": "这张生气脸，画得还挺像",
+  "en": "The angry face is a pretty good likeness"
+ },
+ {
+  "zh": "这包新零件拆开过了吧",
+  "en": "This new part's been unwrapped before"
+ },
+ {
+  "zh": "包装纸都折软了，又给包回去了",
+  "en": "The paper's gone soft from folding. Wrapped back up again"
+ },
+ {
+  "zh": "旧零件补了这么多回，还接着用啊",
+  "en": "The old part's been patched so many times, and it's still in use"
+ },
+ {
+  "zh": "玻璃下面压着半张明信片",
+  "en": "Half a postcard, pressed under the glass"
+ },
+ {
+  "zh": "邮戳是河流城市的",
+  "en": "Postmarked from the river city"
+ },
+ {
+  "zh": "树脂就放一小块，试试嘛",
+  "en": "Just a little resin. Let's see"
+ },
+ {
+  "zh": "喂，你怎么往我炉子里乱塞东西！",
+  "en": "Hey! Don't just shove things in my stove!"
+ },
+ {
+  "zh": "算了，还挺香的，就这一块啊",
+  "en": "Fine. It smells nice. Just the one"
+ },
+ {
+  "zh": "这东西收好吧，放炉子里该烧坏了",
+  "en": "Better keep this. It'd burn up in there"
+ },
+ {
+  "zh": "收音机的名牌都落灰了，字盖住一半",
+  "en": "The radio's name tag is dusty. Half the writing's covered"
+ },
+ {
+  "zh": "放那儿吧，我待会儿擦",
+  "en": "Leave it. I'll wipe it later"
+ },
+ {
+  "zh": "路标还在转呢",
+  "en": "The signpost's still spinning"
+ },
+ {
+  "zh": "让它转呗，又没挡你的路",
+  "en": "Let it spin. It's not in your way"
+ },
+ {
+  "zh": "碟子里全是螺丝",
+  "en": "The dish is full of screws"
+ },
+ {
+  "zh": "这些螺丝我挑过了，都能用，你别给我丢了",
+  "en": "I sorted those. They all work. Don't lose any"
+ },
+ {
+  "zh": "水是温的",
+  "en": "The water's warm"
+ },
+ {
+  "zh": "……糖罐别动",
+  "en": "...Leave the sugar alone"
+ },
+ {
+  "zh": "以前早上赶车，哪有空等水烧开啊",
+  "en": "Back when I rushed for the train every morning, who had time to wait for a kettle"
+ },
+ {
+  "zh": "架子上还是摆着两个杯子",
+  "en": "Still two cups on the shelf"
+ },
+ {
+  "zh": "杯子顺手拿的，你还数上了？",
+  "en": "I just grabbed some cups. You're counting now?"
+ },
+ {
+  "zh": "一台留声机",
+  "en": "A gramophone"
+ },
+ {
+  "zh": "留声机先别碰，放着放着就卡了",
+  "en": "Don't touch that. It sticks partway through"
+ },
+ {
+  "zh": "这曲子总算放完了",
+  "en": "It finally played all the way through"
+ },
+ {
+  "zh": "这曲子怎么这么慢啊",
+  "en": "Why is this song so slow"
+ },
+ {
+  "zh": "桌上有个盒子",
+  "en": "There's a box on the table"
+ },
+ {
+  "zh": "盒子放着吧，你要的东西不在里面",
+  "en": "Leave the box. What you need isn't in there"
+ },
+ {
+  "zh": "盒子空了",
+  "en": "The box is empty"
+ },
+ {
+  "zh": "盒子看够了？把盖子合上吧",
+  "en": "Seen enough? Close the lid"
+ },
+ {
+  "zh": "墙上的管道一直在响",
+  "en": "The pipes in the wall keep making noise"
+ },
+ {
+  "zh": "管道响我听见了，先修你那飞机，急什么",
+  "en": "I hear them. Your ship first. What's the hurry"
+ },
+ {
+  "zh": "这段管道是我拧的",
+  "en": "I tightened this one"
+ },
+ {
+  "zh": "拧反了两次，你还挺得意",
+  "en": "Turned it the wrong way twice, and look how proud you are"
+ },
+ {
+  "zh": "还不走？门在左边",
+  "en": "Still here? The door's on the left"
+ },
+ {
+  "zh": "燃料买好点的啊，省那点钱干什么",
+  "en": "Buy better fuel. Why scrimp on that"
+ },
+ {
+  "zh": "还挺快嘛，零件摊开，我看看",
+  "en": "That was quick. Lay the parts out, let me see"
+ },
+ {
+  "zh": "我也帮点忙吧，总不能光坐着看",
+  "en": "Let me help. I can't just sit and watch"
+ },
+ {
+  "zh": "不用",
+  "en": "No need"
+ },
+ {
+  "zh": "左边第二把，递过来",
+  "en": "Second from the left. Hand it over"
+ },
+ {
+  "zh": "左边第一把",
+  "en": "First from the left"
+ },
+ {
+  "zh": "左边第二把",
+  "en": "Second from the left"
+ },
+ {
+  "zh": "最大的那把",
+  "en": "The biggest one"
+ },
+ {
+  "zh": "这才第一把，要我帮你数啊？",
+  "en": "That's the first one. Want me to count for you?"
+ },
+ {
+  "zh": "拿错了！那么大一把，你看能伸进去吗？",
+  "en": "Wrong one! That huge thing? Think it'll fit in there?"
+ },
+ {
+  "zh": "先松开这里，再——",
+  "en": "First loosen this, then..."
+ },
+ {
+  "zh": "这个我知道",
+  "en": "I know this part"
+ },
+ {
+  "zh": "知道了？",
+  "en": "You know?"
+ },
+ {
+  "zh": "刚才谁说自己知道的？",
+  "en": "So much for \"I know this\""
+ },
+ {
+  "zh": "我就看过说明书，图上画得挺简单的啊",
+  "en": "I read the manual. The pictures made it look easy"
+ },
+ {
+  "zh": "那就看我这边，窗户上又没写说明书",
+  "en": "Then look over here. The manual's not on the window"
+ },
+ {
+  "zh": "不会你就问，弄坏了我真要骂你了啊",
+  "en": "If you don't know, ask. Break it and I really will yell at you"
+ },
+ {
+  "zh": "听",
+  "en": "Listen"
+ },
+ {
+  "zh": "你闭着眼也听得出来啊？",
+  "en": "You can tell with your eyes closed?"
+ },
+ {
+  "zh": "你先睁着眼行不行，手都拧反了",
+  "en": "How about you keep yours open? You're turning it backwards"
+ },
+ {
+  "zh": "左边那段",
+  "en": "Left pipe"
+ },
+ {
+  "zh": "中间那段",
+  "en": "Middle pipe"
+ },
+ {
+  "zh": "右边那段",
+  "en": "Right pipe"
+ },
+ {
+  "zh": "这段听着挺脆，像敲空瓶子",
+  "en": "This one sounds crisp. Like tapping an empty bottle"
+ },
+ {
+  "zh": "这段没事",
+  "en": "That one's fine"
+ },
+ {
+  "zh": "闷闷的，像隔着一层被子",
+  "en": "Muffled. Like through a blanket"
+ },
+ {
+  "zh": "这段就是积灰了，接着听下一段",
+  "en": "That one's just dusty. Try the next"
+ },
+ {
+  "zh": "这儿有点尖响，应该就是这段了吧？",
+  "en": "A thin, sharp hiss. This must be the one?"
+ },
+ {
+  "zh": "这回对了吧？",
+  "en": "Got it this time, right?"
+ },
+ {
+  "zh": "总算听出来了",
+  "en": "Finally"
+ },
+ {
+  "zh": "再听错我真要怀疑你耳朵了",
+  "en": "One more wrong guess and I'd start worrying about your ears"
+ },
+ {
+  "zh": "右边那段管道，细小的尖响。",
+  "en": "Right pipe: a thin, sharp hiss."
+ },
+ {
+  "zh": "这次没猜",
+  "en": "Didn't guess this time"
+ },
+ {
+  "zh": "还挺结实",
+  "en": "Feels solid"
+ },
+ {
+  "zh": "那当然，我在旁边盯了你多久啊",
+  "en": "Of course. I watched you the whole time"
+ },
+ {
+  "zh": "谢谢",
+  "en": "Thanks"
+ },
+ {
+  "zh": "知道了，下回我教你的时候，你先让我说完",
+  "en": "Yeah, yeah. Next time I'm teaching you, let me finish first"
+ },
+ {
+  "zh": "装回飞机的时候，照着刚才的顺序来。",
+  "en": "When you put it back in the ship, do it in the same order."
+ },
+ {
+  "zh": "管道装好了。右边那段漏气，听着有细细的尖声。",
+  "en": "Pipes done. The right one was leaking. You could hear a thin hiss."
+ },
+ {
+  "zh": "我的音乐盒也老卡在一半",
+  "en": "My music box always gets stuck halfway too"
+ },
+ {
+  "zh": "你的音乐盒啊，下次少拍两下吧",
+  "en": "Your music box. Hit it less next time"
+ },
+ {
+  "zh": "它都卡住了，你拍它也唱不出来啊",
+  "en": "It's stuck. Smacking it won't make it sing"
+ },
+ {
+  "zh": "这留声机怎么还卡着？",
+  "en": "Why is the gramophone still stuck?"
+ },
+ {
+  "zh": "零件不合适",
+  "en": "Wrong part"
+ },
+ {
+  "zh": "那这个新零件呢？",
+  "en": "What about this new part?"
+ },
+ {
+  "zh": "能用",
+  "en": "It works"
+ },
+ {
+  "zh": "那为什么不换？",
+  "en": "Then why not swap it in?"
+ },
+ {
+  "zh": "换上新的，声音就不一样了",
+  "en": "With a new one, it won't sound the same"
+ },
+ {
+  "zh": "我还以为能响了就算修好了",
+  "en": "I thought if it made sound, it was fixed"
+ },
+ {
+  "zh": "那就先放着吧",
+  "en": "Then leave it for now"
+ },
+ {
+  "zh": "我的音乐盒，谢谢你",
+  "en": "Thank you. For my music box"
+ },
+ {
+  "zh": "会响就算修好？你飞机摔下来的时候也挺响啊",
+  "en": "If it makes sound, it's fixed? Your ship made plenty of sound coming down"
+ },
+ {
+  "zh": "我想什么时候修就什么时候修呗",
+  "en": "I'll fix it whenever I feel like it"
+ },
+ {
+  "zh": "顺手修的，你拿好就行",
+  "en": "It was nothing. Just hold on to it"
+ },
+ {
+  "zh": "拿稳你的音乐盒啊，再摔坏我可不管了",
+  "en": "Hold on to that music box. Break it again and you're on your own"
+ },
+ {
+  "zh": "起来吧，还得出去送趟水泵",
+  "en": "Up you get. We've got a water pump to deliver"
+ },
+ {
+  "zh": "水泵你抱着，拿稳啊",
+  "en": "You carry the pump. Don't drop it"
+ },
+ {
+  "zh": "瞧，咱就说她修得好",
+  "en": "See? I told you she could fix it"
+ },
+ {
+  "zh": "少来，每次给我领一堆麻烦回来，你都这么说",
+  "en": "Please. You say that every time you bring me trouble"
+ },
+ {
+  "zh": "这屋上回咱来就空着了",
+  "en": "This place was empty last time I came too"
+ },
+ {
+  "zh": "我知道啊，你都说几遍了",
+  "en": "I know. You've said so a hundred times"
+ },
+ {
+  "zh": "窗台上的字条，你写的？",
+  "en": "The note on the windowsill. Yours?"
+ },
+ {
+  "zh": "字条留着吧，人家回来总得知道谁拿的",
+  "en": "Leave it there. When they're back, they'll want to know who took it"
+ },
+ {
+  "zh": "门槛上积了这么厚的灰",
+  "en": "So much dust on the doorstep"
+ },
+ {
+  "zh": "连个脚印都找不着",
+  "en": "Not a single footprint"
+ },
+ {
+  "zh": "门边这个包裹，放多久了？",
+  "en": "How long has this parcel been by the door?"
+ },
+ {
+  "zh": "包装纸褪了色",
+  "en": "The wrapping's faded"
+ },
+ {
+  "zh": "包裹这绳结倒挺紧，像最近重新系过",
+  "en": "But the knot's tight. Like someone retied it recently"
+ },
+ {
+  "zh": "这门口一下雨就积水，咱绕着走",
+  "en": "This doorway floods when it rains. I go around"
+ },
+ {
+  "zh": "后头有条近路",
+  "en": "There's a shortcut out back"
+ },
+ {
+  "zh": "一直看着我干什么？",
+  "en": "What are you staring at?"
+ },
+ {
+  "zh": "走啦，再看天都要黑了",
+  "en": "Let's go. Keep looking and it'll be dark"
+ },
+ {
+  "zh": "你在看什么？",
+  "en": "What are you looking at?"
+ },
+ {
+  "zh": "这家的饼甜得要命，我吃一次就够了",
+  "en": "Their cakes are sickly sweet. Once was enough"
+ },
+ {
+  "zh": "咱记得你以前天天来",
+  "en": "I remember you used to come every day"
+ },
+ {
+  "zh": "你连我吃几回饼都记着啊？",
+  "en": "You keep count of how many cakes I eat?"
+ },
+ {
+  "zh": "弥洛以前跟她那朋友来，每回都——",
+  "en": "Milo used to come with her friend, and every time..."
+ },
+ {
+  "zh": "有空看我，你先把角上那块破布摘了吧",
+  "en": "If you've got time to watch me, take that rag off your antlers"
+ },
+ {
+  "zh": "我先回去了",
+  "en": "I'm heading back"
+ },
+ {
+  "zh": "这块泥滑，咱摔过，脚下当心点",
+  "en": "This mud's slippery. I fell here once. Watch your step"
+ },
+ {
+  "zh": "那家养过只鸟，见着咱就啄",
+  "en": "That house had a bird. It pecked me every time"
+ },
+ {
+  "zh": "咱绕后头走吧，还近点",
+  "en": "Let's go round the back. It's shorter"
+ },
+ {
+  "zh": "鹿说：那块泥容易打滑；那户人家养过很凶的鸟；从后头绕更快。",
+  "en": "The deer says: the mud there is slippery; that house had a mean bird; round the back is faster."
+ },
+ {
+  "zh": "总叫你鹿，日记上也这么写吗？",
+  "en": "I keep calling you Deer. Is that what I write in my journal too?"
+ },
+ {
+  "zh": "就叫咱鹿呗，这里又没第二个",
+  "en": "Just call me Deer. There's no other one here"
+ },
+ {
+  "zh": "页角那只大角鹿旁边，补上名字：鹿。",
+  "en": "Added a name next to the big-antlered deer in the corner: Deer."
+ },
+ {
+  "zh": "角还能画大点，咱的哪有这么小",
+  "en": "You can draw the antlers bigger. Mine aren't that small"
+ },
+ {
+  "zh": "玻璃后面有一只空点心罐",
+  "en": "An empty cookie jar behind the glass"
+ },
+ {
+  "zh": "「少糖的留两块」",
+  "en": "\"Save two of the less-sweet ones\""
+ },
+ {
+  "zh": "「她说难吃也要留」",
+  "en": "\"She says they're awful, but save them anyway\""
+ },
+ {
+  "zh": "里面的货架都塌了",
+  "en": "The shelves inside have collapsed"
+ },
+ {
+  "zh": "这合影只剩半张，雨都泡皱了",
+  "en": "Only half the photo's left, and the rain's wrinkled it"
+ },
+ {
+  "zh": "照片里那只手在给弥洛扣纸帽啊",
+  "en": "The hand in the photo is putting a paper hat on Milo"
+ },
+ {
+  "zh": "鹿在坡上等你",
+  "en": "The deer's waiting for you on the slope"
+ },
+ {
+  "zh": "看完回来一趟啊，还有东西给你",
+  "en": "Come back after. I've got something for you"
+ },
+ {
+  "zh": "你当时是在这儿哪个位置看见大象的？",
+  "en": "So where were you standing when you saw the elephant?"
+ },
+ {
+  "zh": "有个事，咱得跟你说",
+  "en": "There's something I have to tell you"
+ },
+ {
+  "zh": "大象，咱其实没亲眼见过",
+  "en": "I never actually saw the elephant"
+ },
+ {
+  "zh": "小时候，咱娘带咱走过这儿",
+  "en": "When I was little, my ma brought me through here"
+ },
+ {
+  "zh": "咱娘指着雾里，说那边有大象",
+  "en": "Ma pointed into the fog and said there was an elephant out there"
+ },
+ {
+  "zh": "咱个子矮，看不清，就记得咱娘站了好久",
+  "en": "I was too short to see. I just remember Ma standing there a long time"
+ },
+ {
+  "zh": "后来咱娘不在了",
+  "en": "Then Ma was gone"
+ },
+ {
+  "zh": "往后带人，咱还是走这条路",
+  "en": "After that, whenever I showed someone the way, I still came this way"
+ },
+ {
+  "zh": "说得多了，就说成是咱亲眼见过了",
+  "en": "I told it so many times, it turned into me seeing it myself"
+ },
+ {
+  "zh": "鼻子很长，左边的耳朵会动，走过去的时候树枝都在晃",
+  "en": "Long nose. Left ear moves. The branches sway when it walks past"
+ },
+ {
+  "zh": "这些也是你编的？",
+  "en": "You made all that up too?"
+ },
+ {
+  "zh": "有些是听来的，有些咱也记混了",
+  "en": "Some of it I heard. Some I got mixed up"
+ },
+ {
+  "zh": "你知道我为了来这里——",
+  "en": "Do you know what it took for me to get here..."
+ },
+ {
+  "zh": "咱怕说没见过，你就不肯跟咱来了",
+  "en": "I was scared if I said I hadn't seen it, you wouldn't come with me"
+ },
+ {
+  "zh": "我得顺着你说，你才肯听，对吗？",
+  "en": "So I have to tell you what you want to hear, or you won't listen. Right?"
+ },
+ {
+  "zh": "你可以带错路，但别骗我",
+  "en": "You can get the way wrong. Just don't lie to me"
+ },
+ {
+  "zh": "我刚才真的很高兴",
+  "en": "I was really happy, back there"
+ },
+ {
+  "zh": "以后不知道，就说不知道",
+  "en": "Next time you don't know, just say so"
+ },
+ {
+  "zh": "路咱认得，大象的事是咱瞎说了",
+  "en": "The way, I know. The elephant part, I made up"
+ },
+ {
+  "zh": "咱看见了，你连日记都拿出来了",
+  "en": "I saw. You even got your journal out"
+ },
+ {
+  "zh": "该早点告诉你的，是咱嘴硬",
+  "en": "I should've told you sooner. I was being stubborn"
+ },
+ {
+  "zh": "嗯，咱这回记住了",
+  "en": "Mm. I'll remember this time"
+ },
+ {
+  "zh": "凹陷：最靠近坡边的那处被雨冲过，另外几处能看出连续的落点。",
+  "en": "Hollows: the one nearest the edge is washed out by rain. The others look like a trail of footfalls."
+ },
+ {
+  "zh": "哪一处最近？",
+  "en": "Which one's newest?"
+ },
+ {
+  "zh": "就这块凹下去的，咱前几天来还没这么深",
+  "en": "This one here. It wasn't this deep a few days ago"
+ },
+ {
+  "zh": "刚才那声，咱也听见了",
+  "en": "I heard that too"
+ },
+ {
+  "zh": "还不知道是什么",
+  "en": "Don't know what it is yet"
+ },
+ {
+  "zh": "低鸣从坡地东边的雾里来，只响了一声。",
+  "en": "The low rumble came from the fog east of the slope. Just once."
+ },
+ {
+  "zh": "最近那处又量了一次：长四步，宽三步半。",
+  "en": "Measured the newest one again: four steps long, three and a half wide."
+ },
+ {
+  "zh": "这些凹坑的样子都画下来了",
+  "en": "I've drawn all these hollows"
+ },
+ {
+  "zh": "先记着吧，以后有线索了还能翻出来对对",
+  "en": "I'll keep them. If something turns up, I can check back"
+ },
+ {
+  "zh": "这雾还这么厚",
+  "en": "The fog's still so thick"
+ },
+ {
+  "zh": "再往那头就看不清了",
+  "en": "Can't see anything past here"
+ },
+ {
+  "zh": "大象的事，我想自己再找找看",
+  "en": "The elephant... I want to keep looking on my own"
+ },
+ {
+  "zh": "回去吧，弥洛该等急了",
+  "en": "Let's go back. Milo'll be getting impatient"
+ },
+ {
+  "zh": "她要嫌咱慢，你听听就行",
+  "en": "If she grumbles that we're slow, just let it go"
+ },
+ {
+  "zh": "留声机那个旧零件，实在用不了了",
+  "en": "That old part in the gramophone. It was past using"
+ },
+ {
+  "zh": "看什么，坏成那样，本来就该换了",
+  "en": "What? It was that broken. It needed replacing anyway"
+ },
+ {
+  "zh": "这首曲子慢死了",
+  "en": "This song is painfully slow"
+ },
+ {
+  "zh": "以前不是这个速度吗？",
+  "en": "Wasn't it always this speed?"
+ },
+ {
+  "zh": "我那朋友嫌慢，非得自己调快",
+  "en": "My friend thought it was too slow. Insisted on speeding it up"
+ },
+ {
+  "zh": "调坏了还不认，说是我听不懂",
+  "en": "Broke it, wouldn't admit it. Said I just didn't get it"
+ },
+ {
+  "zh": "笑什么，你又没听过她唱",
+  "en": "What's funny? You never heard her sing"
+ },
+ {
+  "zh": "她一唱起来，比留声机还快",
+  "en": "When she sang, she was faster than the gramophone"
+ },
+ {
+  "zh": "你那朋友后来去哪儿了？",
+  "en": "Where did your friend go?"
+ },
+ {
+  "zh": "不知道",
+  "en": "No idea"
+ },
+ {
+  "zh": "只知道去过河流城市",
+  "en": "Only that she went through the river city"
+ },
+ {
+  "zh": "再往后，我就没消息了",
+  "en": "After that, I heard nothing"
+ },
+ {
+  "zh": "她走之前应该跟你说过吧？",
+  "en": "She must have told you before she left"
+ },
+ {
+  "zh": "说了",
+  "en": "She did"
+ },
+ {
+  "zh": "那你……",
+  "en": "Then you..."
+ },
+ {
+  "zh": "那会儿正吵架呢，我哪听得进去啊",
+  "en": "We were in the middle of a fight. I wasn't listening"
+ },
+ {
+  "zh": "她收东西，我就说想走就走呗",
+  "en": "She was packing, and I said, go if you want"
+ },
+ {
+  "zh": "都到门口了还磨蹭，我又说了一遍",
+  "en": "She dawdled at the door, so I said it again"
+ },
+ {
+  "zh": "我就是气不过啊",
+  "en": "I was just so angry"
+ },
+ {
+  "zh": "这儿好好的东西还多着呢",
+  "en": "There's plenty of good stuff right here"
+ },
+ {
+  "zh": "她说走就走，倒像是我非赖在这儿一样",
+  "en": "She just up and left. Like I was the one clinging to this place"
+ },
+ {
+  "zh": "以前迟到十分钟都得跟我解释半天",
+  "en": "She used to explain for ages if she was ten minutes late"
+ },
+ {
+  "zh": "这回可省事了，连借口都懒得找",
+  "en": "This time she made it easy. Didn't even bother with an excuse"
+ },
+ {
+  "zh": "那个人的号码，你还留着吗？",
+  "en": "Do you still have her number?"
+ },
+ {
+  "zh": "发送失败　发送失败　发送失败",
+  "en": "Failed to send  Failed to send  Failed to send"
+ },
+ {
+  "zh": "换过号码了。",
+  "en": "She changed numbers."
+ },
+ {
+  "zh": "她走的时候说，安顿下来再给我新的。",
+  "en": "When she left, she said she'd send the new one once she was settled."
+ },
+ {
+  "zh": "要是哪天真收到她的消息呢？",
+  "en": "What if you hear from her someday?"
+ },
+ {
+  "zh": "收到再说呗，谁知道到时候还想不想回。",
+  "en": "I'll worry about it then. Who knows if I'll even want to reply."
+ },
+ {
+  "zh": "你要去河流城市吧，把这包种子带上",
+  "en": "You're going to the river city, right? Take this seed with you"
+ },
+ {
+  "zh": "要我替你种在哪儿？",
+  "en": "Where do you want me to plant it?"
+ },
+ {
+  "zh": "你想种就种呗",
+  "en": "Plant it wherever you like"
+ },
+ {
+  "zh": "别埋太深啊，先浇一点水",
+  "en": "Don't bury it too deep. Water it a little first"
+ },
+ {
+  "zh": "还有，别隔两天就挖出来看看长没长",
+  "en": "And don't dig it up every other day to check"
+ },
+ {
+  "zh": "等种子自己冒头呗，你盯着也长不快啊",
+  "en": "Let it come up on its own. Staring won't make it grow faster"
+ },
+ {
+  "zh": "你以前也挖出来看过吧？",
+  "en": "You used to dig yours up to check, didn't you?"
+ },
+ {
+  "zh": "你管我！教你种东西呢，你就听见这句？",
+  "en": "Mind your own business! I'm teaching you to plant, and that's what you heard?"
+ },
+ {
+  "zh": "好，我记着，省得回头真种坏了",
+  "en": "Okay, I'll write it down. So I don't kill it"
+ },
+ {
+  "zh": "种子：别埋太深，先浇一点水。不许隔两天就挖出来看。",
+  "en": "Seed: not too deep, water it a little first. No digging it up every other day to check."
+ },
+ {
+  "zh": "这也记啊，你本子够写吗？",
+  "en": "You're writing that down too? Got enough pages?"
+ },
+ {
+  "zh": "河流城市的地址，能抄一份吗？",
+  "en": "Can I copy down the address in the river city?"
+ },
+ {
+  "zh": "地址上的字是潦草了点，不认识就问我",
+  "en": "The handwriting's messy. Ask if you can't read it"
+ },
+ {
+  "zh": "别抄错了又来怪我啊",
+  "en": "And don't copy it wrong and blame me"
+ },
+ {
+  "zh": "那三件东西，你全送回原来的地方了？",
+  "en": "Those three things. You took them all back?"
+ },
+ {
+  "zh": "嗯，路标放回去就不转了，指着云那边",
+  "en": "Yeah. Once the signpost was back, it stopped spinning. It points at the clouds"
+ },
+ {
+  "zh": "我知道路标指哪边，修的时候就知道了",
+  "en": "I know where it points. Knew it when I fixed it"
+ },
+ {
+  "zh": "听鹿说，你去还东西了？",
+  "en": "The deer says you've been returning things?"
+ },
+ {
+  "zh": "……多事",
+  "en": "...Busybody"
+ },
+ {
+  "zh": "种子长出来，我就回来告诉你",
+  "en": "When the seed sprouts, I'll come back and tell you"
+ },
+ {
+  "zh": "说好了啊，别随便拔棵草回来就说是种出来的",
+  "en": "Deal. But don't pull up some weed and tell me you grew it"
+ },
+ {
+  "zh": "我给的种子长什么样，我认得",
+  "en": "I know what my seed grows into"
+ },
+ {
+  "zh": "不会",
+  "en": "I won't"
+ },
+ {
+  "zh": "还有，下次来先敲门啊",
+  "en": "And next time, knock first"
+ },
+ {
+  "zh": "也就我肯帮你收拾这些了",
+  "en": "Nobody else would clean up after you like this"
+ },
+ {
+  "zh": "砸倒一片树林，还得给你修飞机",
+  "en": "You flatten half a forest, and I still fix your ship"
+ },
+ {
+  "zh": "谢谢你",
+  "en": "Thank you"
+ },
+ {
+  "zh": "没长出来也可以回来啊，又没说一定得长出来",
+  "en": "You can come back even if it doesn't sprout. Nobody said it had to"
+ },
+ {
+  "zh": "等等。通讯器拿来。",
+  "en": "Wait. Give me your communicator."
+ },
+ {
+  "zh": "接头再响就发这里。",
+  "en": "If the joint starts making noise again, message here."
+ },
+ {
+  "zh": "把哪边响、什么时候响写清楚，别一上来就喊救命。",
+  "en": "Say which side and when. Don't just open with \"help.\""
+ },
+ {
+  "zh": "弥洛·修理",
+  "en": "Milo · Repairs"
+ },
+ {
+  "zh": "修理。省得你把它当许愿箱。",
+  "en": "Repairs. So you don't treat it like a wishing well."
+ },
+ {
+  "zh": "也给咱留个位置，咱有事就来这儿找她发。",
+  "en": "Save a spot for me too. If I need something, I'll come get her to send it."
+ },
+ {
+  "zh": "你先把蹄子擦干净再进来。",
+  "en": "Wipe your hooves before you come in."
+ },
+ {
+  "zh": "改正：长鼻子、左耳会动、树枝晃，都是鹿听来的。",
+  "en": "Correction: the long nose, the moving left ear, the swaying branches. The deer only heard about them."
+ },
+ {
+  "zh": "我能找到大象吗？",
+  "en": "Will I find the elephant?"
+ },
+ {
+  "zh": "这咱不知道，咱就认得森林里这几条路",
+  "en": "That I don't know. I only know the paths in this forest"
+ },
+ {
+  "zh": "下次你再来，旧路可能又变样了",
+  "en": "Next time you come, the old road might look different again"
+ },
+ {
+  "zh": "到路口喊咱就行，咱带你走",
+  "en": "Just call for me at the turnoff. I'll take you"
+ },
+ {
+  "zh": "好，这回我也记着点路",
+  "en": "Okay. This time I'll remember the way too"
+ },
+ {
+  "zh": "旧路路口：下次先到这儿找鹿。",
+  "en": "Turnoff to the old road: next time, find the deer here first."
+ },
+ {
+  "zh": "路上小心",
+  "en": "Be careful out there"
+ },
+ {
+  "zh": "云底下咱没去过，你自己当心点啊",
+  "en": "I've never been under the clouds. Take care of yourself"
+ },
+ {
+  "zh": "那等我回来，讲给你听",
+  "en": "Then I'll tell you about it when I'm back"
+ },
+ {
+  "zh": "云底下到底什么样，还是得自己去看看",
+  "en": "Whatever's under the clouds, I'll have to see for myself"
+ },
+ {
+  "zh": "走了",
+  "en": "I'm off"
+ },
+ {
+  "zh": "小吃棚的雨棚底下压着张字条，说收摊了，往云那边走。",
+  "en": "There was a note under the snack stall's awning. It said they'd closed up and headed for the clouds."
+ },
+ {
+  "zh": "小屋门框上有量身高的线，最高那道旁边刻了朵云。",
+  "en": "The hut's doorframe has height marks. There's a cloud carved by the highest one."
+ },
+ {
+  "zh": "路标放回底座就停了，指着云那边。旁边压着半张车票。",
+  "en": "Once the signpost was on its base, it stopped. It points at the clouds. There was half a ticket beside it."
+ },
+ {
+  "zh": "送回去了就行，看我干什么",
+  "en": "You took them back. That's enough. Why are you looking at me"
+ }
+]

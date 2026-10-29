@@ -1,6 +1,8 @@
 """森林章节（木星）屋外的场景物件。以后改这些图只改这一个文件。
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/forest_story_art.py [--preview 目录]
+    ... forest_story_art.py --treeline [--preview 目录]   只重画树冠缺口那一屏（treeline_view_*.png + .json）、
+        更新 drawing_arc.json，别的图不动（预览：v5_view / v5_view_arc 叠弧线 / v5_view_end 漂到头 / 画的特写）
 
 输出 art/forest_story/ 下「屋外」那一批（清单见 docs/forest_chapter.md「美术清单」）：
 树屋、空屋（+ 门边的旧东西）、旧商店、小吃棚、倒木（+ 推开以后）、两根轻树枝、布条（2 帧）、蹄印、塌陷口、
@@ -2072,10 +2074,18 @@ def shop_photo():
     return s
 
 
-# ================================================================ 第五版：撞断的树线 + 画的特写
-# 画上大象背的那道弧，和中景树线上被撞断的缺口是同一条曲线：back_arc(u)，u 从 0 到 1，0 和 1 是两头（高 0），
-# 中间最高（1）。树线上的弧正好是画上那道弧的 2 倍（宽 184 / 高 54 对 宽 92 / 高 27），引擎把 drawing_arc.png
-# 最近邻放大 2 倍、按 json 里的端点对齐，就严丝合缝地叠在缺口上。
+# ================================================================ 第五版：被撞出凹口的树线（单独一屏）+ 画的特写
+# 以前的 broken_treeline（贴在 Mid 层里）已经删掉：循环层里每隔一段重复一次、标题画面上也有，融不进背景。
+# 画上大象背的那道弧，和坠毁现场树线上被撞出来的凹口是同一条曲线：back_arc(u)，u 从 0 到 1，0 和 1 是两头（高 0），
+# 中间最高（1）。树线上的弧正好是画上那道弧的 VIEW_K 倍（3 倍：宽 276 / 高 81 对 宽 92 / 高 27），引擎把 drawing_arc.png
+# 最近邻放大 VIEW_K 倍、按 json 里的端点对齐，就严丝合缝地叠在凹口上。
+# 树线不贴在森林的视差层里（循环层里融不进去）：是一张单独的全屏画面（treeline_view_*.png，480×270 的平面侧视，
+# 不透视、不仰视），剧本 treeline_match / 看树冠缺口的时候淡入、叠弧线、淡出。分四层，画面里各自轻轻漂一点：
+#   sky   天和雾光（不动）       far   远处一排树梢剪影（漂得最慢）
+#   main  坠毁现场那排树冠，中间被撞出凹口（弧线跟着这一层走）       near  近处压在下沿的几簇枝梢（漂得最快）
+# 天 = art/forest 的 BANDS 背景色档 + 凹口后面一团 POOL_C 雾光（0~2 档）；树冠 = 中景 Mid 的叶子色阶往雾带褪一成。
+# 凹口：整排一样高的云杉，弧上面、两道撕开的墙之间全挖掉；断面下面补一层撕碎压在一起的枝叶（弧是一条连着的毛边），
+# 每棵削断的树戳出一截劈开的深木色树干茬，几根折断翘起的枝、墙上挂下来的残枝。不画浅色断桩。
 
 def back_arc(u):
     u = np.clip(np.asarray(u, float), 0, 1)
@@ -2083,9 +2093,10 @@ def back_arc(u):
 
 
 ARC_DRAW = dict(x0=44, x1=136, y_end=58, h=27)          # 画上的弧（drawing_closeup / drawing_arc 的像素坐标）
-ARC_TREE = dict(x0=8, x1=192, y_end=112, h=54)           # 树线上的弧（broken_treeline 的像素坐标）= 画上的 2 倍
-TREELINE_LAYER = "mid"                                   # 放在中景 Mid（scroll 0.62，地面 228，和它的树一个尺度）
-TREELINE_X = 270                                         # 在 mid 层里的 x（图的左边缘）；y = 0（图的上边缘贴着层的上边缘）
+VIEW_K = 3                                               # 树线上的弧 = 画上的几倍
+ARC_VIEW = dict(x0=102, x1=102 + 92 * VIEW_K, y_end=198, h=27 * VIEW_K)   # 树线上的弧（treeline_view_main 的像素坐标）
+VIEW_W = {"sky": 480, "far": 488, "main": 496, "near": 512}   # 各层图宽（比屏幕宽的那截就是能漂的距离）
+VIEW_DRIFT = {"sky": 0.0, "far": 0.6, "main": 1.2, "near": 2.6}   # 每秒往左漂几像素（漂到图的右边缘就停）
 
 
 def arc_y(a, x):
@@ -2098,114 +2109,277 @@ def arc_points(a, n=7):
     return [[int(round(x)), int(round(float(arc_y(a, x))))] for x in xs]
 
 
-def broken_treeline():
-    """中景树线上被撞断的一段：好几棵高云杉的树冠被齐齐削掉，断口连成一道很大、很平滑的弧，
-    像有个巨大的背从这里蹭过去（不画动物）。弧上面是削出来的一条「通道」，透出后面的雾、稍微亮一点；
-    弧下面留着的树冠是参差的断面；树干断在弧上，露出浅色的新木茬，几根断枝挂下来。
-    这张图贴在 mid 层（x = TREELINE_X，y = 0），只盖住那一段原来的树冠。"""
-    W, Hh = 200, 150
-    s = Spr(W, Hh)
-    mid = np.array(Image.open(ROOT / "art" / "forest" / "mid.png"))
-    seg = np.roll(mid, -TREELINE_X, axis=1)[:Hh, :W]
-    rng = np.random.default_rng(121)
-    ay = arc_y(ARC_TREE, s.xx)
-    u = (s.xx - ARC_TREE["x0"]) / (ARC_TREE["x1"] - ARC_TREE["x0"])
-    inside = (u > 0) & (u < 1)
-    f = back_arc(u)
-    # 弧上面那条通道：底边是弧，顶边是弧往上抬 T，顶边是剩下的树冠的毛边
-    # 顶边：剩下的树冠的毛边——一簇簇往下垂的枝尖，高低乱，不和弧平行
-    rag = np.zeros(W)
-    x = 0
-    while x < W:
-        w_ = int(rng.integers(4, 11))
-        rag[x:x + w_] = rng.integers(-9, 6)
-        x += w_
-    tips = (np.arange(W) % 3 == 1) * rng.integers(0, 4, W)        # 枝尖一根根垂下来
-    T = 8 + 30 * f + rag[None, :] * (f > 0.12) - tips[None, :] * (f > 0.12)
-    gap = inside & (s.yy < ay) & (s.yy > ay - np.maximum(T, 2))
-    # 缺口里是后面的雾：背景那一档的颜色，往光斑色提一点（缺口漏下来的天光）；只有一档，不画成一圈圈的彩虹
+def _dither_pick(cols, t, y, x):
+    """t（0..len-1 的小数）在相邻两档之间用 Bayer 抖动挑一档（硬边、色数少）。"""
+    lo = int(np.floor(t))
+    fr = t - lo
+    if lo >= len(cols) - 1:
+        return cols[-1]
+    return cols[lo + (FA.BAYER[y % 4, x % 4] < fr)]
+
+
+def _paste_rgba(dst, img, x, y):
+    """img 的底边中点放在 (x, y)（树根），不绕回。"""
+    h, w = img.shape[:2]
+    left, top = int(x) - w // 2, int(y) - h + 1
+    H_, W_ = dst.shape[:2]
+    x0, y0, x1, y1 = max(0, left), max(0, top), min(W_, left + w), min(H_, top + h)
+    if x0 >= x1 or y0 >= y1:
+        return
+    src = img[y0 - top:y1 - top, x0 - left:x1 - left]
+    m = src[..., 3] > 0
+    dst[y0:y1, x0:x1][m] = src[m]
+
+
+def view_sky():
+    """天：就是 art/forest 的那几档背景色（上面几乎是黑的墨绿，往下进一条青绿灰的雾带，170 附近最亮），
+    档与档之间 Bayer 抖动，不画渐变。凹口后面一团雾光（坠毁那一下被雾打散的天光，不暖）：同一套光斑，
+    往 FA.POOL_C 提 0~2 档（每档 0.7），扁的一团，正好从凹口里透出来。"""
+    W, Hh = VIEW_W["sky"], 270
+    a = np.zeros((Hh, W, 4), np.uint8)
+    cx, cy = (ARC_VIEW["x0"] + ARC_VIEW["x1"]) / 2, 165.0
+    xs = np.arange(W)
     for y in range(Hh):
-        m = gap[y]
-        if m.any():
-            s.a[y, m] = tuple(mixc(FA.BAND_C[FA.band_of(y)], FA.POOL_C, 0.17)) + (255,)
-    # 通道里远处几根淡淡的树干（更远的那层，雾里）
-    for x in (34, 71, 118, 151, 172):
-        col = gap[:, x] | gap[:, x + 1]
-        for y in np.nonzero(col)[0]:
-            for xx in (x, x + 1):
-                if gap[y, xx]:
-                    s.a[y, xx, :3] = mixc(s.a[y, xx, :3], FA.BAND_C[FA.band_of(y)], 0.6)
-    # 弧下面：原来的树冠留着（mid 层里本来就有），只在断面上补参差：沿弧往下 1~3 格的毛边，暗
-    bark = R("#161e1a", 4, 0.08)
-    fol = R("#0c1712", 5, 0.15, 10)
-    # 断面不是一条光滑的轮廓：撕开的枝叶一簇簇往上翘出弧外 1~4 格（弧本身靠下面那排白茬读出来）
-    x = 0
-    while x < W:
-        w_ = int(rng.integers(2, 5))
-        if rng.random() < 0.55:
-            hh = int(rng.integers(1, 5))
-            for xx in range(x, min(W, x + w_)):
-                if inside[0, xx]:
-                    y0 = int(round(float(arc_y(ARC_TREE, xx))))
-                    for d in range(1, hh + 1 - (xx == x + w_ - 1)):
-                        s.put(xx, y0 - d, fol[1 if d < hh else 2])
-        x += w_
-    # 断面下面：几道漏光的缝（被撞散的树冠之间透出后面的雾），树冠就不是一整块
-    trunk_cols = set()
-    for x in range(W):
-        if mid[160, (x + TREELINE_X) % mid.shape[1], 3] > 0:
-            trunk_cols.add(x)
-    for x0_ in range(12, 190, 12):
-        x0_ += int(rng.integers(-4, 5))
+        i, bf = FA.band_frac(y)
+        b_px = np.minimum(i + (FA.BAYER[(y + 2) % 4, (xs + 1) % 4] < bf), len(FA.BANDS) - 1)
+        e = ((xs - cx) / 250.0) ** 2 + ((y - cy) / 72.0) ** 2
+        lv = np.clip(1 - e, 0, 1) ** 1.1 * 2.0
+        lo = np.floor(lv)
+        p_px = np.minimum(2, lo + (FA.BAYER[(y + 1) % 4, (xs + 3) % 4] < lv - lo))
+        for bb, pp in set(zip(b_px.tolist(), p_px.tolist())):
+            sel = (b_px == bb) & (p_px == pp)
+            a[y, sel] = tuple(FA.pool_color(int(bb), int(pp) * 0.7)) + (255,)
+    return a
+
+
+def view_far():
+    """远处一排树梢：两档的剪影（受光边 + 身体），比主树线小、矮，往雾里褪（只从凹口和树缝里看得见）。"""
+    W, Hh = VIEW_W["far"], 270
+    a = np.zeros((Hh, W, 4), np.uint8)
+    rng = np.random.default_rng(311)
+    pal = [mixc(from_hex("#16261f"), from_hex("#517060"), t) for t in (0.38, 0.55)]
+    x = -10
+    while x < W + 10:
+        r = int(rng.integers(13, 19))
+        hgt = int(rng.integers(110, 140))
+        tip = int(rng.uniform(146, 180))
+        img = FA.conifer(hgt, r, int(rng.integers(1, 10 ** 6)), pal, pal, detail=0, crown=0.98, droop=0.55)
+        _paste_rgba(a, img, x, tip + img.shape[0] - 3)
+        x += int(rng.integers(10, 18))
+    a[215:, :] = tuple(pal[0]) + (255,)
+    a[..., 3] = np.where(a[..., 3] > 0, 255, 0)
+    return a
+
+
+# 和 art/forest 的中景 Mid 同一条叶子色阶，往雾带的颜色褪一成（远景；Mid 在森林里也是靠空气透视褪出来的，不然最暗那档近乎纯黑）
+MAIN_FOL = [mixc(c, from_hex("#2b4135"), 0.1) for c in R("#0c1712", 5, 0.15, 10)]
+MAIN_BARK = [mixc(c, from_hex("#2b4135"), 0.1) for c in R("#161e1a", 4, 0.08, 10)]
+SNAP = H("#1f2620", "#2a2f27", "#363830")  # 断口新露出来的木头：只比树皮亮一点点，偏暖灰（不是浅灰）
+
+
+def view_main():
+    """坠毁现场那排树冠（平面侧视）：一排高云杉，树梢高低错开连成天际线；中间一段被撞出一道弧形的凹口——
+    凹口里的树都被齐齐削断，断面连起来就是那道弧（和画上大象的背同一条曲线，凹口后面透出雾光）。
+    断面不是一刀平：一簇簇撕开的针叶往上翘、往下缺，每棵树的树干在弧上戳出一截劈开的茬（深木色，往左歪：
+    飞船从右上方斜着下来），几根折断的枝翘起来。凹口两边的树被撕掉半边枝（边上一截截参差），
+    残枝斜斜挂下来。下面两排更近、更暗的树梢把画面下半填满。最亮的地方也只比树冠受光那一档亮一点。"""
+    W, Hh = VIEW_W["main"], 270
+    a = np.zeros((Hh, W, 4), np.uint8)
+    rng = np.random.default_rng(321)
+    A = ARC_VIEW
+    yy, xx = np.mgrid[0:Hh, 0:W]
+
+    def tree(x, tip, r, hgt, seed, fol=MAIN_FOL, bark=MAIN_BARK, detail=2, **kw):
+        img = FA.conifer(hgt, r, seed, fol, bark, detail=detail, crown=0.97, droop=float(rng.uniform(0.6, 0.85)),
+                         grain=0.45, tier_lit=1.2, ragged=0.25, **kw)
+        _paste_rgba(a, img, x, tip + img.shape[0] - 3)
+
+    # 第一排：天际线。整排一样的高云杉（凹口里的那几棵原来也一样高，削掉的是上半截）
+    trees = []
+    x = -14
+    while x < W + 20:
+        r, hgt = int(rng.integers(22, 30)), int(rng.integers(230, 262))
+        tip = int(rng.uniform(28, 78))
+        tree(x, tip, r, hgt, int(rng.integers(1, 10 ** 6)))
+        trees.append(x)
+        x += int(rng.integers(18, 28))
+    # 第二、三排：更近、更暗的树梢，把下半截填满（凹口最低的两头也在它们上面）
+    dark2 = [mixc(c, from_hex("#06100c"), 0.25) for c in MAIN_FOL]
+    dark3 = [mixc(c, from_hex("#06100c"), 0.45) for c in MAIN_FOL]
+    for fol, (t0, t1), sp, seed0 in ((dark2, (200, 224), (26, 36), 400), (dark3, (228, 246), (22, 30), 500)):
+        x = -10
+        while x < W + 10:
+            tree(x, int(rng.uniform(t0, t1)), int(rng.integers(30, 40)), 140, seed0 + x, fol=fol)
+            x += int(rng.integers(*sp))
+    a[250:, :] = np.where(a[250:, :, 3:] > 0, a[250:, :], np.array(tuple(dark3[0]) + (255,), np.uint8))
+    row1 = a.copy()
+
+    # 凹口：弧上面、两道被撕开的「墙」之间，全挖空（透出后面的远树和雾光）。
+    # 墙：从弧的两头往上张开，右边张得多（从右上方撞进来）；边上一截截参差（一层层被撕掉的枝，宽窄不一）
+    def rag(seed, n, lo, hi, step=(3, 8)):
+        r_ = np.random.default_rng(seed)
+        out = np.zeros(n)
+        i = 0
+        while i < n:
+            w_ = int(r_.integers(*step))
+            out[i:i + w_] = r_.uniform(lo, hi)
+            i += w_
+        return out
+    ys = np.arange(Hh)
+    up = np.clip(A["y_end"] - ys, 0, None)
+    xl = A["x0"] + 2 - 0.12 * up - rag(331, Hh, -2, 9)
+    xr = A["x1"] - 2 + 0.32 * up + rag(332, Hh, -2, 11)
+    xr = np.minimum(xr, W - 1)
+    top_y = np.where((xx >= A["x0"]) & (xx <= A["x1"]), arc_y(A, xx), A["y_end"])
+    # 断面：一簇簇针叶往上翘 1~2 格、偶尔往下缺 1~3 格（宽 1~3 格一簇）
+    jag = np.zeros(W)
+    i = 0
+    while i < W:
         w_ = int(rng.integers(1, 4))
-        if any(c in trunk_cols for c in range(x0_ - 1, x0_ + w_ + 1)):
+        jag[i:i + w_] = rng.choice([-2, -1, -1, 0, 0, 0, 1, 1, 2, 3])
+        i += w_
+    notch = (xx >= xl[:, None]) & (xx <= xr[:, None]) & (yy < top_y + jag[None, :])
+    a[notch] = 0
+    # 断面下面一层撕碎、压在一起的枝叶（一列列深浅不一的厚度），弧就是一条连着的毛边，
+    # 不会被削断的树冠一棵棵的「^」顶断成一串小尖：再往下才露出冠和冠之间漏雾光的缝
+    mat = rag(333, W, 4, 11, step=(2, 6))
+    mat_m = (~notch) & (xx > A["x0"] - 1) & (xx < A["x1"] + 1) & (yy >= top_y + jag[None, :]) & \
+        (yy < top_y + jag[None, :] + mat[None, :]) & (a[..., 3] == 0)
+    for y, x in zip(*np.nonzero(mat_m)):
+        d = y - (top_y[y, x] + jag[x])
+        k = 1 if d < 2 else 0
+        a[y, x] = tuple(MAIN_FOL[k + (FA.BAYER[y % 4, x % 4] < 0.3)]) + (255,)
+    op = a[..., 3] > 0
+
+    def put(x, y, c):
+        if 0 <= x < W and 0 <= y < Hh:
+            a[y, x] = tuple(c) + (255,)
+
+    # 断口上沿：接到雾光的那一格亮一档（新撕开的针叶，最亮也就是树冠受光那一档）
+    above_empty = np.zeros_like(op)
+    above_empty[1:] = ~op[:-1]
+    in_gap = (xx > A["x0"] - 2) & (xx < A["x1"] + 2) & (yy > top_y - 5) & (yy < top_y + 5)
+    rim = op & above_empty & in_gap
+    for y, x in zip(*np.nonzero(rim)):
+        a[y, x, :3] = MAIN_FOL[3] if (x * 7 + y) % 5 else MAIN_FOL[2]
+    # 劈开的树干茬：凹口里每棵被削断的树，树干在弧上戳出一截（往左歪），顶上参差的劈茬，深木色
+    for cxt in trees:
+        if not A["x0"] + 8 < cxt < A["x1"] - 8:
             continue
-        y0 = int(round(float(arc_y(ARC_TREE, x0_ + w_ / 2)))) + int(rng.integers(4, 12))
-        dep = int(rng.integers(6, 20))
-        for xx in range(x0_, x0_ + w_):
-            for yy in range(y0 + int(rng.integers(0, 3)), y0 + dep - int(rng.integers(0, 4))):
-                if 0 <= yy < Hh:
-                    s.a[yy, xx] = tuple(mixc(FA.BAND_C[FA.band_of(yy)], FA.POOL_C, 0.15)) + (255,)
-    # 树干断在弧上：mid 层里在这段的树干（冠下面那截能看到的竖条），往上接到弧，顶上一截白茬
-    row = np.roll(mid[160], -TREELINE_X, axis=0)[:W]      # 冠下面那一截：哪几列是树干
-    xs_ = np.nonzero(row[:, 3] > 0)[0]
-    trunks = []
-    if len(xs_):
-        start = xs_[0]
-        for a_, b_ in zip(xs_, list(xs_[1:]) + [None]):
-            if b_ is None or b_ != a_ + 1:
-                trunks.append((start, a_))
-                if b_ is not None:
-                    start = b_
-    trunks = [(a_, b_) for a_, b_ in trunks if 0 < u[0, a_] < 1 and b_ - a_ <= 10]
-    for x0_, x1_ in [(x0_, x1_) for x0_, x1_ in trunks] + [(58, 62), (96, 101), (140, 144)]:
-        top = int(round(float(arc_y(ARC_TREE, (x0_ + x1_) / 2))))
-        tw = x1_ - x0_ + 1
-        m = s.rect(x0_, top, x1_, top + 2)                 # 断口下面那截树干（再往下被树冠挡住）
-        s.fill(m, bark, np.where(s.xx == x0_, 2.4, 0.8))
-        # 参差的白茬：几根尖往上戳进通道
-        for k, x in enumerate(range(x0_, x1_ + 1)):
-            h_ = int(rng.integers(2, 7)) if k % 2 == 0 else int(rng.integers(1, 4))
-            for d in range(h_ + 1):
-                s.put(x, top - d, DRY[3] if (d == 0 or k == 0) else DRY[2])
-        s.put(x0_ + tw // 2, top + 1, DRY[1])
-    # 沿弧散着的断枝：浅色的断口，几根挂下来的枝
-    for x in range(12, 190, 9):
+        y0 = int(round(float(arc_y(A, cxt)))) + 2
+        tw = int(rng.integers(3, 5))
+        hh = int(rng.integers(6, 13))
+        lean = rng.uniform(0.2, 0.5)
+        for k in range(hh):
+            sx = int(round(-lean * k))
+            for i in range(tw):
+                if k > hh - 4 and rng.random() < 0.35 + 0.18 * (k - hh + 4):   # 劈茬：顶上几格缺牙
+                    continue
+                c = MAIN_BARK[2] if i == 0 else MAIN_BARK[1] if i < tw - 1 else MAIN_BARK[0]
+                if k >= hh - 3 and i == 0:
+                    c = SNAP[1]
+                put(cxt - tw // 2 + i + sx, y0 - k, c)
+        put(cxt - tw // 2 + int(round(-lean * (hh - 1))), y0 - hh, SNAP[0])
+    # 折断的枝：从断面伸出来、往左上翘一截，末端一小簇针叶（深绿），稀稀拉拉
+    for x in range(A["x0"] + 12, A["x1"] - 10, 11):
         x += int(rng.integers(-3, 4))
-        y = int(round(float(arc_y(ARC_TREE, x))))
-        s.put(x, y, DRY[2])
-        if rng.random() < 0.5:
-            s.put(x + 1, y - 1, DRY[1])
-    for x0_, ln_ in ((30, 7), (77, 9), (123, 6), (166, 8)):          # 挂下来的断枝（一端还连着，斜斜垂进通道）
-        y0_ = int(round(float(arc_y(ARC_TREE, x0_)))) - int(T[0, x0_]) + 2
-        for k in range(ln_):
-            xx, yy = x0_ + k // 2, y0_ + k
-            if gap[yy, xx]:
-                s.put(xx, yy, fol[1])
-                if k % 2 == 0:
-                    s.put(xx - 1, yy, fol[2])
-        s.put(x0_ + ln_ // 2, y0_ + ln_, DRY[2])
-    return s
+        if rng.random() < 0.35:
+            continue
+        y0 = int(round(float(arc_y(A, x)))) + 1
+        ln = int(rng.integers(3, 8))
+        sl = rng.uniform(0.5, 1.4)
+        for k in range(ln):
+            put(x - k, y0 - int(round(k * sl * 0.6)), MAIN_BARK[1] if k < ln - 1 else SNAP[0])
+        ex, ey = x - ln, y0 - int(round(ln * sl * 0.6))
+        for dx, dy in ((0, 0), (-1, 0), (0, 1), (-1, -1)):
+            if rng.random() < 0.8:
+                put(ex + dx, ey + dy, MAIN_FOL[1])
+    # 两边的墙：被撕下来、还连着一点皮的枝，斜斜往下挂进凹口（针叶一簇簇往下垂）
+    hangs = [("r", 92, 15), ("r", 128, 18), ("r", 160, 12), ("l", 110, 11), ("l", 158, 9)]
+    for side, y0, ln in hangs:
+        y0 += int(rng.integers(-4, 5))
+        if side == "r":
+            x0 = int(xr[y0]) + 1
+            while x0 < W - 1 and not op[y0, x0]:
+                x0 += 1
+            dx_, dy_ = -0.85, 0.9
+        else:
+            x0 = int(xl[y0]) - 1
+            while x0 > 0 and not op[y0, x0]:
+                x0 -= 1
+            dx_, dy_ = 1.0, 0.45
+        px, py = float(x0), float(y0)
+        for k in range(ln):
+            px += dx_
+            py += dy_ * (0.6 + 0.5 * k / ln)
+            ix, iy = int(round(px)), int(round(py))
+            if iy >= top_y[min(Hh - 1, iy), min(W - 1, max(0, ix))] - 1:
+                break
+            put(ix, iy, MAIN_BARK[1])
+            if k % 2 == 0:
+                for d in range(1, int(rng.integers(2, 4))):
+                    put(ix, iy + d, MAIN_FOL[1] if d == 1 else MAIN_FOL[0])
+                put(ix + (1 if side == "r" else -1), iy + 1, MAIN_FOL[2])
+    # 被撕开的那一侧：墙边上的叶子新露出来的断面暗一档（不是浅色）
+    del row1
+    a[..., 3] = np.where(a[..., 3] > 0, 255, 0)
+    a[a[..., 3] == 0] = 0
+    return a
+
+
+def view_near():
+    """近处：下沿压着几簇很暗的枝梢（比主树线更暗、几乎是剪影），左上角垂下来一截枝。不挡凹口。"""
+    W, Hh = VIEW_W["near"], 270
+    a = np.zeros((Hh, W, 4), np.uint8)
+    rng = np.random.default_rng(341)
+    fol = [mixc(c, from_hex("#040b08"), 0.62) for c in MAIN_FOL]
+    bark = [mixc(c, from_hex("#040b08"), 0.6) for c in MAIN_BARK]
+    x = -6
+    while x < W + 6:
+        img = FA.conifer(120, int(rng.integers(20, 30)), int(rng.integers(1, 10 ** 6)), fol, bark, detail=1,
+                         crown=0.97, droop=0.7, grain=0.4)
+        _paste_rgba(a, img, x, int(rng.uniform(250, 262)) + img.shape[0] - 3)
+        x += int(rng.integers(26, 46))
+    # 左上角垂下来的一截枝（只要树冠的一边：一棵很大的树，树干在画面外左边）
+    img = FA.conifer(150, 70, 3417, fol, bark, detail=1, crown=0.97, droop=0.85, grain=0.4, bough=True)
+    _paste_rgba(a, img, -62, 30)
+    a[..., 3] = np.where(a[..., 3] > 0, 255, 0)
+    a[a[..., 3] == 0] = 0
+    return a
+
+
+def treeline_view():
+    return {"sky": view_sky(), "far": view_far(), "main": view_main(), "near": view_near()}
+
+
+def save_treeline_view():
+    """存四层图 + treeline_view.json（弧在 main 层图里的坐标、各层漂移），并更新 drawing_arc.json 里对齐用的数。"""
+    out = {}
+    layers = treeline_view()
+    for k, arr in layers.items():
+        Image.fromarray(arr).save(OUT / f"treeline_view_{k}.png")
+        out[f"treeline_view_{k}"] = arr
+    meta = {
+        "layers": ["sky", "far", "main", "near"],
+        "drift": VIEW_DRIFT,
+        "arc_layer": "main",
+        "arc_points": arc_points(ARC_VIEW),
+        "arc_end_left": [ARC_VIEW["x0"], ARC_VIEW["y_end"]], "arc_end_right": [ARC_VIEW["x1"], ARC_VIEW["y_end"]],
+        "arc_top": [(ARC_VIEW["x0"] + ARC_VIEW["x1"]) // 2, ARC_VIEW["y_end"] - ARC_VIEW["h"]],
+        "note": "单独一屏（平面侧视，不挂森林的视差层）：四层图左上角都放在屏幕 (0,0)，按 drift 每秒往左漂（漂到图的右边缘贴着屏幕右边就停）；"
+                "drawing_arc 放大 scale_to_treeline 倍、arc_end_left 对到 main 层的 arc_end_left，跟着 main 层漂",
+    }
+    (OUT / "treeline_view.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+    return out
+
+
+def drawing_arc_meta():
+    return {
+        "arc_end_left": [ARC_DRAW["x0"], ARC_DRAW["y_end"]], "arc_end_right": [ARC_DRAW["x1"], ARC_DRAW["y_end"]],
+        "arc_top": [(ARC_DRAW["x0"] + ARC_DRAW["x1"]) // 2, ARC_DRAW["y_end"] - ARC_DRAW["h"]],
+        "scale_to_treeline": VIEW_K,
+        "treeline_arc_end_left": [ARC_VIEW["x0"], ARC_VIEW["y_end"]],
+        "note": "最近邻放大 scale_to_treeline 倍后，把 arc_end_left 对到 treeline_view_main 的 treeline_arc_end_left（图内坐标），两条弧重合"}
 
 
 def drawing_closeup():
@@ -2299,47 +2473,39 @@ def drawing_arc(closeup):
     return s
 
 
+def view_frame(t=0.0, with_arc=False, arc_alpha=0.8):
+    """树冠缺口那一屏在第 t 秒的样子（和引擎同一套：各层左上角在 (-drift*t, 0)，漂到图的右边缘贴屏幕右边就停；
+    with_arc = 叠上放大 VIEW_K 倍的 drawing_arc，跟着 main 层走）。"""
+    bg = np.zeros((270, 480, 3), np.uint8)
+    offs = {}
+    for k in ("sky", "far", "main", "near"):
+        a = np.array(Image.open(OUT / f"treeline_view_{k}.png"))
+        off = int(round(min(VIEW_DRIFT[k] * t, a.shape[1] - 480)))
+        offs[k] = off
+        a = a[:, off:off + 480]
+        m = a[..., 3] > 0
+        bg[m] = a[m][:, :3]
+    if with_arc:
+        arc = np.array(Image.open(OUT / "drawing_arc.png"))
+        big = np.repeat(np.repeat(arc, VIEW_K, 0), VIEW_K, 1)
+        ex, ey = ARC_DRAW["x0"], ARC_DRAW["y_end"]
+        ox_, oy_ = ARC_VIEW["x0"] - ex * VIEW_K - offs["main"], ARC_VIEW["y_end"] - ey * VIEW_K
+        hh, ww = big.shape[:2]
+        for j in range(hh):
+            for i in range(ww):
+                if big[j, i, 3] and 0 <= oy_ + j < 270 and 0 <= ox_ + i < 480:
+                    y_, x_ = oy_ + j, ox_ + i
+                    bg[y_, x_] = (bg[y_, x_] * (1 - arc_alpha) + big[j, i, :3] * arc_alpha).astype(np.uint8)
+    return bg
+
+
 def preview_v5(d):
-    """坠毁现场一屏（中景缺口 + 飞船 + 晨）、弧线叠在缺口上、画的特写。"""
-    cam = 10
+    """树冠缺口那一屏（刚淡入 / 漂到头）、弧线叠在凹口上、画的特写。"""
+    d.mkdir(parents=True, exist_ok=True)
     out = []
-    tl = np.array(Image.open(OUT / "broken_treeline.png"))
-    arc = np.array(Image.open(OUT / "drawing_arc.png"))
-    meta = json.loads((OUT / "drawing_arc.json").read_text())
-
-    def scene(with_arc):
-        bg = np.zeros((270, 480, 3), np.uint8)
-        for k, sc in FA.SCROLL.items():
-            if k == "front":
-                continue
-            a = np.array(Image.open(ROOT / "art" / "forest" / f"{k}.png"))
-            if a.shape[1] != 480:
-                off = int(round(cam * sc)) % a.shape[1]
-                a = np.roll(a, -off, axis=1)[:, :480]
-            m = a[..., 3] > 0
-            bg[m] = a[m][:, :3]
-            if k == "mid":
-                left = TREELINE_X - int(round(cam * sc))
-                _blit(bg, tl, left, 0)
-                if with_arc:
-                    big = np.repeat(np.repeat(arc, 2, 0), 2, 1)
-                    ex, ey = meta["arc_end_left"]
-                    tx, ty = meta["treeline_arc_end_left"]
-                    ox_, oy_ = left + tx - ex * 2, ty - ey * 2
-                    hh, ww = big.shape[:2]
-                    for j in range(hh):
-                        for i in range(ww):
-                            if big[j, i, 3] and 0 <= oy_ + j < 270 and 0 <= ox_ + i < 480:
-                                y_, x_ = oy_ + j, ox_ + i
-                                bg[y_, x_] = (bg[y_, x_] * 0.45 + np.array((205, 200, 215)) * 0.55).astype(np.uint8)
-        wreck = np.array(Image.open(ROOT / "art" / "level1" / "ship_wreck.png"))
-        place(bg, wreck, 120, cam)
-        put_chen(bg, 250, cam)
-        return bg
-
-    for name, wa in (("v5_crash", False), ("v5_crash_arc", True)):
+    for name, t, wa in (("v5_view", 0.0, False), ("v5_view_arc", 2.0, True), ("v5_view_end", 30.0, False)):
         p = d / f"{name}.png"
-        Image.fromarray(scene(wa)).resize((1440, 810), Image.NEAREST).save(p)
+        Image.fromarray(view_frame(t, wa)).resize((1440, 810), Image.NEAREST).save(p)
         out.append(p)
     cl = np.array(Image.open(OUT / "drawing_closeup.png"))
     z = np.zeros((cl.shape[0] + 10, cl.shape[1] + 10, 3), np.uint8)
@@ -2409,20 +2575,10 @@ def build(with_treehouse=False):
     out["shop_jar"] = save("shop_jar", shop_jar(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *JAR_IN_SHOP)})
     out["shop_photo"] = save("shop_photo", shop_photo(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *PHOTO_ON_SHOP)})
     # ---- 第五版
-    out["broken_treeline"] = save("broken_treeline", broken_treeline(), meta={
-        "layer": TREELINE_LAYER, "layer_scroll": FA.SCROLL[TREELINE_LAYER], "x": TREELINE_X, "y": 0,
-        "note": "贴在 Mid 层里，图的左上角放在层坐标 (x, y)；Mid 层 960 宽循环，这张也跟着循环",
-        "arc_points": arc_points(ARC_TREE), "arc_points_layer": [[px + TREELINE_X, py] for px, py in arc_points(ARC_TREE)],
-        "arc_end_left": [ARC_TREE["x0"], ARC_TREE["y_end"]], "arc_end_right": [ARC_TREE["x1"], ARC_TREE["y_end"]],
-        "arc_top": [ (ARC_TREE["x0"] + ARC_TREE["x1"]) // 2, ARC_TREE["y_end"] - ARC_TREE["h"]]})
+    out.update(save_treeline_view())
     cl = drawing_closeup()
     out["drawing_closeup"] = save("drawing_closeup", cl)
-    out["drawing_arc"] = save("drawing_arc", drawing_arc(cl), meta={
-        "arc_end_left": [ARC_DRAW["x0"], ARC_DRAW["y_end"]], "arc_end_right": [ARC_DRAW["x1"], ARC_DRAW["y_end"]],
-        "arc_top": [(ARC_DRAW["x0"] + ARC_DRAW["x1"]) // 2, ARC_DRAW["y_end"] - ARC_DRAW["h"]],
-        "scale_to_treeline": 2,
-        "treeline_arc_end_left": [ARC_TREE["x0"], ARC_TREE["y_end"]],
-        "note": "最近邻放大 scale_to_treeline 倍后，把 arc_end_left 对到 broken_treeline 的 treeline_arc_end_left（图内坐标），两条弧重合"})
+    out["drawing_arc"] = save("drawing_arc", drawing_arc(cl), meta=drawing_arc_meta())
     rh = out["road_house"]
     lamp = placed_lamp()
     out["placed_lamp"] = save("placed_lamp", lamp, meta={
@@ -2667,7 +2823,17 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", help="把合成预览存到这个目录")
     ap.add_argument("--treehouse", action="store_true", help="也重画 treehouse.png（默认不动它）")
+    ap.add_argument("--treeline", action="store_true",
+                    help="只重画树冠缺口那一屏（treeline_view_*.png + .json）并更新 drawing_arc.json，别的图不动")
     args = ap.parse_args()
+    if args.treeline:
+        imgs = save_treeline_view()
+        (OUT / "drawing_arc.json").write_text(json.dumps(drawing_arc_meta(), ensure_ascii=False, indent=1))
+        good = check(imgs)
+        if args.preview:
+            for p in preview_v5(Path(args.preview)):
+                print("preview", p)
+        sys.exit(0 if good else "有图不合规矩，见上面")
     imgs = build(args.treehouse)
     good = check(imgs)
     if args.preview:

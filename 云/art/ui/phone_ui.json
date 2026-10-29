@@ -1,0 +1,109 @@
+{
+ "note": "9-slice 边距 margins = [左, 上, 右, 下]（Godot NinePatchRect 的 patch_margin_*）；文字颜色建议：屏上 #b9c9bf，按钮上 #e3dccb",
+ "items": {
+  "phone_frame": {
+   "size": [
+    24,
+    24
+   ],
+   "margins": [
+    7,
+    7,
+    7,
+    7
+   ],
+   "desc": "聊天界面外框：外面一圈旧机身、中间暗屏（拉伸）"
+  },
+  "phone_bubble_in": {
+   "size": [
+    9,
+    9
+   ],
+   "margins": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "desc": "对方的消息"
+  },
+  "phone_bubble_out": {
+   "size": [
+    9,
+    9
+   ],
+   "margins": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "desc": "晨发的消息"
+  },
+  "phone_notify": {
+   "size": [
+    16,
+    12
+   ],
+   "margins": [
+    4,
+    4,
+    4,
+    4
+   ],
+   "desc": "屏幕角落的通知小卡"
+  },
+  "phone_button": {
+   "size": [
+    12,
+    10
+   ],
+   "margins": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "desc": "回复 / 稍后看 / 发送 按钮"
+  },
+  "phone_button_hover": {
+   "size": [
+    12,
+    10
+   ],
+   "margins": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "desc": "按钮悬停"
+  },
+  "phone_input": {
+   "size": [
+    12,
+    10
+   ],
+   "margins": [
+    3,
+    3,
+    3,
+    3
+   ],
+   "desc": "输入栏（草稿）"
+  },
+  "phone_unread": {
+   "size": [
+    3,
+    3
+   ],
+   "margins": [
+    0,
+    0,
+    0,
+    0
+   ],
+   "desc": "未读小点（不拉伸）"
+  }
+ }
+}

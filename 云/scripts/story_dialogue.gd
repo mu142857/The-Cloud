@@ -77,7 +77,7 @@ var _pick_age := 0.0
 var _pick_auto := -1
 var _pick_arrow: TextureRect
 var _pick_label: Label
-var _pick_row: HBoxContainer
+var _pick_row: BoxContainer        # 一排放得下就横排，放不下就竖着一列
 var _pick_btns: Array[Button] = []
 # 结束卡
 var _end: Control
@@ -150,7 +150,7 @@ func _ready() -> void:
 	_pick_label.add_theme_constant_override("shadow_offset_y", 1)
 	_pick_label.visible = false
 	add_child(_pick_label)
-	_pick_row = HBoxContainer.new()
+	_pick_row = BoxContainer.new()
 	_pick_row.add_theme_constant_override("separation", 6)
 	_pick_row.visible = false
 	add_child(_pick_row)
@@ -342,7 +342,12 @@ func pick(options: Array, auto_pick := -1) -> int:
 	_pick_btns.clear()
 	_pick_row.visible = not all_in_scene
 	if not all_in_scene:
-		# 场景里没有这些物件：下面一排按钮
+		# 场景里没有这些物件：下面一排按钮（字长、一排超出屏幕就竖着排）
+		var row_w := 0.0
+		for o in options:
+			row_w += UITheme.font().get_string_size(str(o["label"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		_pick_row.vertical = row_w > 460.0
+		_pick_row.add_theme_constant_override("separation", 3 if _pick_row.vertical else 6)
 		for i in options.size():
 			var b := Button.new()
 			b.text = str(options[i]["label"])
@@ -426,7 +431,7 @@ func _update_pick(delta: float) -> void:
 			_pick_choose(_pick_auto)
 			return
 	if _pick_row.visible:
-		_pick_row.position = Vector2(round(240.0 - _pick_row.size.x / 2.0), NARR_Y - 4.0)
+		_pick_row.position = Vector2(round(240.0 - _pick_row.size.x / 2.0), minf(NARR_Y - 4.0, round(262.0 - _pick_row.size.y)))
 		for i in _pick_btns.size():
 			_pick_btns[i].modulate = Color(1.25, 1.25, 1.25) if i == _pick_sel else Color(0.8, 0.8, 0.8)
 		return
@@ -446,6 +451,11 @@ func _update_pick(delta: float) -> void:
 
 func picking() -> bool:
 	return _pick_on
+
+
+## 下面那排点选按钮开着：鼠标点击要留给按钮自己（关卡别吞掉）
+func pick_buttons_shown() -> bool:
+	return _pick_on and _pick_row.visible
 
 
 ## 点选的判定框：最少 24×24

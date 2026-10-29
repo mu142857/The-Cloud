@@ -224,7 +224,103 @@ scene 里的步骤（引擎全部要支持，剧本只用这些）：
 
 1. **坠毁后尽快给大象一个异常的迹象**：拿到「大象的画」时不要像普通道具一样一闪而过。
    - 晨把画拿出来时，屏幕中间展开一张**画的特写**（纸、铅笔线、画得不太准的大象），停 2~3 秒，镜头 / 特写只露出画的局部（比如背的弧线）。
-   - 然后镜头慢慢移到远处：坠毁现场右上方的树线上有一处**被撞断的树冠缺口**——断口连成一道很大的弧（新美术 `broken_treeline.png`，放在中景层，坠毁现场附近一直存在），画上那道背的弧线淡淡地叠到缺口上，正好吻合。
+   - 然后淡入一个单独的画面：坠毁现场那排树冠的平面侧视远景，中间一段被撞出一道弧形凹口——削断的树冠连成一道很大的弧，凹口后面透出雾光（`art/forest_story/treeline_view_*.png` 四层 + `treeline_view.json`，`tools/forest_story_art.py --treeline` 生成）。停一下，画上那道背的弧线放大 3 倍淡淡地叠到凹口上，正好吻合，再淡出回到森林。
+   - 这道缺口**不在森林的视差背景里**（以前贴在 Mid 层，960 宽循环，每隔一段重复一次、标题画面上也有，融不进背景，已经去掉；旧的 `broken_treeline.png` 不再用）。之后在坠毁现场看「树冠缺口」（hotspot treeline_gap / treeline_gap_late）也是淡入这一屏、晨在上面说完台词再淡出。
    - 晨：「……刚才撞上的，是这个？」（这句是剧情姐的，按原句处理，不标 added）。之后接现有的开场（低鸣、「等一下！」可以合并到这一段的前后，顺序剧本定）。
 2. **顶部目标跟着任务变**：屏幕左上的燃烧值那块改成「当前目标」：燃料不够时显示「燃烧值 60 / 200」，到 200 以后改成「修好推进器」，之后每个主线阶段一条（短、像晨记在本子上的一行）。数据：剧本顶层新增 `"objectives": [{"need": [...], "not": [...], "zh": "...", "en": "", "show_fuel": true/false}]`，按顺序取第一个满足条件的；换目标时轻轻淡入，并播 page_turn。
 3. **物品分类【纪念品】**：items.json 每样东西加 `"category": "material" | "keepsake" | "quest"`（燃料材料 / 纪念品 / 任务物品），背包里按类分页签或在名字旁显示【纪念品】标签；纪念品带 `burn`（比材料多，例如 60~120，越重要越多）和 `burn_note`（烧掉时晨的一句话，可以先空）。**森林这一章不强制烧纪念品**；真正的「只能烧纪念品 / 烧纪念品回复更多燃料」规则留给星球之间的飞行段（飞行玩法重做时用）。现在只把数据和背包显示做好，背包里不提供烧的按钮。
+
+## 第六版（剧情姐 10-29 合订稿）
+
+来源两份，都在 scratchpad `in1030/`：对白表 `木星森林.xlsx`（第 5 列「修订台词」383 句）和合订稿 `yun1.txt`（docx 转的纯文本，前半「木星森林」归这一章，「离开森林」以后归 `story_flight1.json` 等，不在这里）。
+
+### A. 对白表的 383 句
+- 按「scene + 原句」逐句定位换成新句，383 句全部对上、没有对不上的。改过的句子去掉 `added`（她改写了就算她的）。
+- 她有不少句子只改了标点（去掉句末的句号），照她的写法原样用。
+- 对白表和合订稿说同一拍、但写法不一样的地方（大约 150 处：合订稿是小说式叙述，对白表是口语化的台词版），**台词以对白表为准**，合订稿只取新增的东西和改了剧情前提的地方。唯一的例外见下面「鹿说出大象」。
+
+### B. 合订稿的新增 / 改写
+**通讯器暗线**（格式按 `docs/phone_and_cockpit_contract.md`，引擎步骤由另一位 agent 实现，`--story_check` 现在会报 phone_* 是「不支持的步骤」，引擎接上以后就没了）：
+- 新物品 `communicator`（通讯器，quest、personal、不能烧）：行李里拿到 → `phone_open friend` 给玩家看一眼朋友的聊天（最后一条是晨发的、一直空着）→ 按灭（small_click）。
+- 新文件 `data/phone.json`：失联朋友（`friend`）的初始聊天 19 条，全部补写（added）：三月里坐车找晒太阳的座位、音乐盒卡了「别拍它」；四月二日那次争执（「说了。你没在听。」「嗯。周六再说吧。」）；之后只剩晨一个人发的几条，最后一条「明天出发了。」是出发前一天（和通勤卡「最后一条是出发前一天」对上）。名字剧情姐没写，联系人先叫「朋友」占位。`miluo`（弥洛·修理）、`nifu`（妮芙·河岸）先 hidden。
+- **回忆页不是独立物品**：合订稿里它是日记里「后来补记的那页」（河流段「翻到后来补记的那页，日期仍空着」），烧日记时只抽出首页保留，回忆页跟着日记走。所以做成开场日记首页后面的两条 journal（`tag: "memory"`，`sfx: "none"` 不配写字声，前面翻页声），原句一字不改；日记的描述补上「因为」后面的墨点和「后面夹着一页回忆，日期空着」。
+- 再访树屋：晨问那个人的号码 → 弥洛调出旧联系人，一排「发送失败」（narr）→「换过号码了。」「她走的时候说，安顿下来再给我新的。」「要是哪天真收到她的消息呢？」「收到再说呗，谁知道到时候还想不想回。」（放在「连借口都懒得找」之后、拿种子之前）。
+- 告别以后：弥洛叫住晨、拿过通讯器存号码（`phone_add miluo「弥洛」` → 她自己加两个字 `phone_add miluo「弥洛·修理」`）、「修理。省得你把它当许愿箱。」；鹿在门口探头（`show deer at room_door`）「也给咱留个位置……」「你先把蹄子擦干净再进来。」；最后 `phone_open miluo` 给玩家看新联系人。go_home 的 fade 本来就带着鹿。
+
+**其它新增 / 改写**：
+- 开场：低鸣先来（晨刚爬出来），晨朝树林「……是你说的那个吗？」、摸衣袋找画（`hold_item`）；「等一下！」以后回头看飞机「偏偏这时候坏，你可真会挑。」；装零件装不上以后若无其事拍了拍机身（`pat_console` + tap）。
+- 鹿说出大象：合订稿改了前提——画是朋友画的、「大象」这个名字是朋友说过的，所以晨不再问「你说它叫什么？」，改成她的「等等，你也知道大象？」，鹿又说了一遍「大象啊，旧路那边有」，日记在画旁边记下「旧路」并圈起来（journal + journal_mark）。**这是唯一一处没按对白表、按合订稿改的台词**（对白表那句和新前提矛盾），给剧情姐确认。
+- 「在『亲眼见过』下面画线」原来是一条补写的日记文字，改成真的 `journal_mark`（后来坡地 journal_strike 盖在上面）。
+- 修好以后：弥洛多一句「装回飞机的时候，照着刚才的顺序来。」（合订稿原句去掉开头的「知道了，」，接在对白表那句「知道了，下回……」后面）；她检查完固定环把修好的部件包起来 → 新物品 `fixed_part`（修好的推进器零件，quest，图标暂用 icon_part）。回飞机时照着记下的步骤装回去（take fixed_part、两下扳手）、试机（engine_test）、再听一遍管道，然后才改正旧记录、问鹿。最后把路口的位置记进日记（补写）。
+- 坡地：「咱怕说没见过，你就不肯跟咱来了」之后，晨想起朋友以前问过的一句——用 narr 显示她的原句「我得顺着你说，你才肯听，对吗？」，停顿，再划掉「亲眼见过」。凹陷记完以后又量了一次最近的脚印，尺寸记在旁边（补写）。
+- 姓名牌：送还以后「回树屋时再告诉弥洛」——miluo_b_ret 里晨按送过的几件各说一句看见了什么（tell_radio / tell_lamp / tell_sign，补写），再接她原来那句「送回去了就行，看我干什么」。
+- 几句把叙述改成的补写台词按合订稿的问法调整：「这条路多久没人走了？」「你当时是在这儿哪个位置看见大象的？」「要我替你种在哪儿？」「你以前也挖出来看过吧？」。
+- 物品描述按合订稿重写（用她的句子）：大象的画（朋友画的、鼻子旁改过的笔迹、背面「下次一起去看看云层里的大象。」、折痕穿过大象的脸）、通勤卡（最后一条是出发前一天、两人画的座位图、被划掉的位置）、母星照片（常去的面包店、朋友站在窗边、「第二天便宜一半，你非要当天吃。」「当天的边是脆的。」）、音乐盒（和朋友出游时一起买的、转音慢半拍；朋友的纸条合订稿里没有了，去掉）、地图（旧批注「下次一起去看看云层里的大象。」、「一起」下面断开的线）、蓝色石头（「后来也一直收着」）。物种查询结果合订稿没再提，物品保留（飞行段 / 结局还在用）。
+
+### 新动画（引擎没有就退回 idle、打 MISSING_ANIM，给奥斯卡的清单）
+晨：`hold_item`（开场摸衣袋找画、再访时攥着通讯器）、`pat_console`（开场拍机身）。
+
+### 对白表
+`SP/dialogue_xlsx.py` 现在也导出通讯器的字：`phone.json` 的初始聊天记录放在表最前面（scene 格写 `phone: friend`），剧本里的 phone_msg 正文 + 回复、phone_send、phone_draft、phone_add 也各占一行。
+
+## 换章 + 驾驶舱（第一次飞行 flight1，10-29）
+
+约定：`docs/phone_and_cockpit_contract.md`「驾驶舱」。引擎还是 `scenes/level_forest.tscn` 这一个关卡（背包、设置、HUD、F8、测试模式全复用），按「章节」切：
+
+- `scripts/chapter_flow.gd`：章节表（forest → flight1）、带状态换章、直接进 flight1 时的起点 SEED（森林自动玩到 launched 时的 flags + 背包）。
+  森林剧本 `end_chapter`：照旧播起飞，黑屏以后 `CHAPTER forest → flight1`，`StoryState.to_dict()`（flags、日记、物件状态、背包、通讯器）存进 Engine meta，重新载入关卡、恢复，直接进驾驶舱播 `start_flight1`（不播耳机 / 标题 / 坠毁）。flight1 的 `end_chapter`：淡到黑、「未完待续」卡；卡出来 3 秒后按键 = 回标题、新游戏（清掉章节和带过来的状态）。
+  `data/items_later.json` 在进 flight1 时补进物品表（座位图等）。
+- `scripts/cockpit_room.gd`：驾驶舱一屏（房间 `cockpit`，放在世界 x = -20000 那里，镜头固定）。读 `art/cockpit/cockpit.json`（写法见文件头：size、anchor 底边中点、floor_offset、walk_min/max、window + window_mask、markers、objects 的 states 帧表 / `on` 条件 / fps），缺图用程序画的占位，新放进来、还没导入的 png 也直接读。剧本 markers 里写 0 的 cockpit_* 按美术的坐标；`prop cockpit_*` 换帧，没有那个状态打一行警告用第 0 帧。
+- `scripts/cockpit_debris.gd`：`debris_steer`；`scripts/cockpit_keepsake.gd`：`keepsake_choice`（玩法写在两个文件头）。
+- **船外长镜头（10-29 二改，约定 `docs/flight_sky_contract.md`）**：作者说窗外 57×39 小图硬切 15 次像 PPT、躲碎石那条气流线看不懂 →
+  风景搬到船外一整屏：`cockpit_room.gd` 在 CanvasLayer（layer -10，不跟镜头走）里画 `art/cockpit/sky/sky.json` 的层，
+  剧本的 `prop cockpit_window <状态>` 现在是关键帧，换状态 = blend 秒里平滑过渡（同一层插值、新层 / 旧层 4 档淡入淡出）。
+  窗洞在 cockpit_back.png 里透明，透出的就是同一片背景；旧的 window_*.png 不再用。美术 `tools/sky_art.py`（`--preview 目录` 出整套预览：
+  每个状态一张、9 段过渡、碎石在云上、每张层图接两遍看接缝），改完重跑，再 `Godot --headless --import`（命令行测试读的是导入过的图）。
+- **躲碎石改成上下躲**：碎石从左边（机头）在船外飞过来，上 / 下两条道；↑ ↓ / W S / 按住屏幕上下半边让整艘船上下挪（镜头反向偏移，背景不动）。
+  船的移动是弹簧追目标（先缓起再缓停、停下 1 像素回弹），挪动时船身周围亮一圈青绿的反重力泛光（`scripts/ship_glow.gd`，森林起飞过场也用它，用法写在文件头）。
+  `--story_auto` 自己躲（8 秒、0 次撞）；不按就每波都撞（乱玩 40 秒里 7 波撞 7 次，燃料最多扣 5）。
+- `story_runner.gd`：晨的动作没有就退回 idle 并打 `MISSING_ANIM 名字`（统计里 `STORY_MISSING_ANIM`）；chen.gd 的 ANIMS 里加了同名的段就直接播。
+  `if` 的分支 scene 里只有普通步骤（没有 goto / if / 点选 / 带路 / 结束）时，播完回来接着播 if 后面的步骤（flight1 记日记那段这么写的；森林所有 if 都在 scene 最后一步，行为不变）。
+
+### 测试
+- 森林照旧：`-- --story_check` / `--story_auto` / `--story_auto=full` / `--story_fuzz=120 --seed=n` / `--dev_test`。测试模式下森林结尾照旧出结束卡、不接 flight1。
+- flight1：加 `--chapter=flight1`（或 `--story=res://data/story_flight1.json`），其余一样：
+  `-- --chapter=flight1 --story_check`、`--story_auto`（放第一件：蓝色石头）、`--story_auto=full`（先看第一件、放回去、看航线，再放最后一件：通勤卡）、`--story_fuzz=150 --seed=n`、`--dev_test`、`--beat=flight1_burned`。
+- 连起来：`-- --story_auto --story_chain` 森林自动玩到起飞 → 换章 → flight1 自动玩到「未完待续」（打两份 STORY_DONE）。
+- F8「1 节拍」页最上面：森林里是「▶ 跳到飞行一（驾驶舱）」（森林已经起飞就带着真实状态，不然用 SEED）；flight1 里是「重开飞行一」「回到森林（新游戏）」。「重开本章」在 flight1 = 从 start_flight1 重来。
+- 输出：`COCKPIT debris_steer …: bumps=n`、`COCKPIT keepsake_choice …: 物品`、`CHAPTER forest → flight1`、`MISSING_ANIM 名字`。
+
+## 第六版：通讯器 + 开头捡东西提速（2026-10-29）
+
+- **通讯器**：步骤 `phone_add` / `phone_msg` / `phone_send` / `phone_open` / `phone_draft`，数据 `data/phone.json`，约定全在 `docs/phone_and_cockpit_contract.md`。
+  引擎：`scripts/phone_ui.gd`（界面 + 步骤 + `--story_check` 校验）、`scripts/phone_state.gd`（状态，跟 StoryState 一起 reset / 存档）。
+  `phone_msg` 正文里的换行 = 几条连续气泡；没有 `reply` 的只有「收起」。背包里选通讯器按「查看」（或 E / 空格 / 回车 / Z）打开；F8「开关」页有「打开通讯器」「模拟一条消息」。
+- **give 数组**：`{"do": "give", "items": [..], "toast": "luggage_items"}`：一起飞进背包（错开 0.07 秒，约 1 秒），提示合成一条（I18n key，默认 `got_items`）。
+- **bark**：`{"say": "chen", "zh": "…", "bark": true}`：晨头顶的小气泡（`scripts/story_bark.gd`），不等、不锁人、几秒后自己淡掉，多句排队；
+  对话框 / 点选 / 通讯器 / 背包开着时先藏着、计时停住。
+- **走过去就捡**：hotspot 写 `"trigger": "enter", "pickup": true, "range": 14`：晨经过就捡，不停下（`scripts/story_quick.gd`）。
+  scene 里只跑快步骤（give / flag / if / goto / sfx / anim / wait / count / prop / bark），碰到正经对话就从那一步交给正常播放（比如材料齐了的 fuel_full）。
+
+## 过场 / 转场打磨（2026-10-29，作者：「细节就是一切」）
+
+- **开场晨被甩出来**（`level_forest.gd` `_chen_thrown`）：一直用「趴着」那帧绕身体中心转；身体中心走真抛物线（初速度由舱门 → 落点、飞 0.78 秒、重力 640 反算），
+  角速度出舱最大、指数衰减（τ 0.42 秒），一共转约 70°，落地时脸往前栽 15°；角度按 15° 一档（连续转和 15° 档都拍过：小角度连续转时轮廓有一条斜着的台阶，整档更干净）。
+  落地：一小团尘 + 镜头轻抖 + 弹起 3 像素、往前滑 10 像素减速停住，栽下去的角度回正，然后趴着、接爬起来。外星人那条（`ALIEN_IN_FOREST = false`）没改。
+- **上船**（剧本 `prop ship launch` → `_board_ship`）：晨先绕到船尾右边（和船身不重叠的地方）→ 换到飞船后面（场景树里挪到 Wreck 前面）→ 回头往舱门走，
+  腿从船腹底下露出来、上身被船挡住，最后 26 像素按 4 档淡掉 → 舱门「哐」+ 船身沉 1 像素。不黑屏、不突然消失。`launch_go` 去掉了原来的 `sfx engine_start`（引擎声挪进起飞过场）。
+- **起飞**（`story_takeoff`）：坠毁图拆成船身 `art/level1/ship_lift.png`（-17°..+10° 每 1° 一帧 × 4 行：不亮 / 喷口余火 / 尾焰两帧，
+  `tools/level1_art.py --takeoff` 生成，-17° 那帧 + 土和 ship_wreck.png 逐像素一样）和留在原地的土 `ship_crater.png`（0 帧 = 原样，1 帧 = 机头拔出来后的坑）。
+  扎在土里的机头用 shader 按地面线裁掉。预热 1.5 秒（喷口余火闪两下亮住、1 像素抖越来越密、船底泛光亮起、船腹下尘土往两边吹，镜头慢慢摆好后不动）
+  → 反重力竖直升 30 像素（smoothstep），边升边把机头摆平到 -4°；机头拔出土时土块往下掉（落地停住、慢慢淡，`puffs.gd` 的 `clod`）→ 悬停 0.7 秒
+  → 尾焰点着，机头抬到 +9°，速度 150·t² 从 0 开始，方向永远 = 机头朝向（路径是往左上弯的平滑曲线）→ 出画面 → 淡到黑。没有任何往后退。
+  泛光用驾驶舱同一个 `scripts/ship_glow.gd`（`set_hull` 喂每个角度那帧的轮廓：`art/level1/ship_lift.json`），`use_parent_material` 让它也按地面线裁。
+- **离开树屋 → 回到飞船**（`go_home`）：镜头停住，出门（前墙淡回来）、镜头慢慢往右摆，鹿先跑、晨跟着往左走，边走边黑（`fade_to` 的 `leave`）；
+  淡入时镜头停在坠毁现场（`cam: home_view`），晨从画面右边走进来、鹿跟在后面，晨走到飞船前（`wreck_front`），鹿修船那几秒里走到 `deer_ship`（改成 196，免得和晨叠在一起）。台词一句没动。
+- **别的转场**：`launch_fail` 鹿从画面外（`deer_appear`）跑进来停在 `deer_fail` 再说话（原来一直在画面外说话）；`fog_intro` 鹿边跑进雾边按 4 档淡掉（原来跑到布条那里一下没了）；
+  `cloth_enter` / 进树屋的四处（`treehouse_outside` / `enter_room` / `parts_return` / `revisit`）：鹿、弥洛在黑着 / 前墙还挡着的时候就放好（`fade_to` 的 `place`），淡入以后不再凭空出现；
+  `farewell` 鹿从画面左边跑进屋、停在晨旁边（`room_deer_out` → `room_deer_in`），原来是直接出现在门口。
+  顺手修了 `sync_npc_vis` 的一个老问题：进屋时人先被淡掉、紧接着又被放进屋，旧的淡出 tween 会把人重新淡没（revisit 里弥洛说着话却看不见）。
+- **新的剧本写法**：`fade_to` 可带 `"leave": marker`（边走边黑）、`"cam": marker`（换过去以后镜头停在那，人从画面外走进来）、`"place": {人: marker}`；
+  `{"do": "camera", "hold": true}` / `{"do": "camera", "at": marker, "sec": n, "wait"?: false}` / `{"do": "camera", "release": true}`；`show` / `hide` 可带 `"fade": 秒`。
+  scene 播完、鹿带路放手时镜头自动放开。新 markers：`home_enter` 455、`home_enter_deer` 487、`home_view` 180、`house_leave_view` 3140、`house_leave_deer` 2850、`deer_fail` 262、`room_deer_out` -330、`room_deer_in` -142。

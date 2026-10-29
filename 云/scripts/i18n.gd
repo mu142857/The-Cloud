@@ -41,7 +41,7 @@ const STR := {
 	"burn_value": ["Burn +%d", "燃烧值 +%d"],
 	"burn_total": ["%d / %d", "%d / %d"],
 	"to_launch": ["Reach %d to launch the ship", "燃烧值到 %d 就能起飞"],
-	"personal": ["Personal — can't be burned", "私人物品，不能烧"],
+	"personal": ["Personal. Can't be burned.", "私人物品，不能烧"],
 	"rarity_common": ["Common", "普通"],
 	"rarity_uncommon": ["Uncommon", "少见"],
 	"rarity_rare": ["Rare", "稀有"],
@@ -54,6 +54,8 @@ const STR := {
 	"line_wood": ["Yes! With this, the ship can fly again!", "太好了，有了这个飞船就能再次起飞了！"],
 	# ---- 剧本引擎（story_runner.gd）的界面字；台词本身在 data/story_forest.json
 	"got_item": ["Got: %s", "获得：%s"],
+	"got_items": ["Got %d items", "获得 %d 件东西"],           # give 数组（story_quick.gd）
+	"luggage_items": ["Luggage: %d items", "行李：%d 件"],
 	"gave_item": ["Handed over: %s", "交出：%s"],
 	"journal_added": ["Written in the journal", "记进了日记"],
 	"journal_empty": ["Nothing written yet.", "还什么都没写。"],

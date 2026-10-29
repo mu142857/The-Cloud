@@ -1,0 +1,361 @@
+{
+ "size": [
+  330,
+  150
+ ],
+ "anchor": "底边中点。所有 x / y 都相对锚点（x 往右、y 往上为负）；同时给了 px（图左上角起的像素坐标）",
+ "floor_offset": -22,
+ "floor_px": 128,
+ "walk_min": -81,
+ "walk_max": 97,
+ "walk_px": [
+  84,
+  262
+ ],
+ "window": {
+  "x": -131,
+  "y": -96,
+  "w": 57,
+  "h": 39,
+  "px": [
+   34,
+   54,
+   57,
+   39
+  ],
+  "poly_px": [
+   [
+    34,
+    92
+   ],
+   [
+    44,
+    77
+   ],
+   [
+    59,
+    64
+   ],
+   [
+    76,
+    56
+   ],
+   [
+    90,
+    54
+   ],
+   [
+    90,
+    92
+   ]
+  ],
+  "states": [
+   "forest_canopy",
+   "canopy_fall",
+   "forest_below",
+   "forest_far",
+   "turning",
+   "clouds",
+   "debris_wall",
+   "clouds_fast",
+   "river_planet",
+   "river_city",
+   "clocktower",
+   "boats",
+   "tilt",
+   "skid",
+   "channel",
+   "crate"
+  ],
+  "mask": "window_mask.png",
+  "debris": [
+   "debris_a",
+   "debris_b",
+   "debris_c",
+   "debris_d",
+   "debris_e"
+  ],
+  "airflow": "airflow.png",
+  "note": "window_<state>.png 都是 w×h，左上角对齐这里，画在 cockpit_back 下面；已经按窗洞形状（poly）裁好，窗洞外是透明的。避障时 debris_*.png / airflow.png 也画在 back 下面，但窗矩形左上角在机身外面，所以这一层要用 window_mask.png 裁（Godot：一个 Sprite2D 放 window_mask、clip_children = CLIP_CHILDREN_ONLY，碎石当它的子节点）。airflow.png 和窗一样宽，横向循环滚动；碎石从左右两边飘进来。"
+ },
+ "layers": [
+  "（屏幕底色：很暗的灰绿，比如 #101614）",
+  "window_<state>（+ 避障时的 airflow / debris_*）",
+  "cockpit_back",
+  "objects（cockpit_console / cockpit_nav / cockpit_repair_log / cockpit_bell / cockpit_toolbox / cockpit_leak / cockpit_leak_steam / cockpit_converter / cockpit_bag / cockpit_phone）",
+  "人物",
+  "cockpit_front（机身外壳；进舱淡出 / 出舱淡入，舱里时不显示）"
+ ],
+ "markers": {
+  "cockpit_window": {
+   "x": -76,
+   "ground_y": -22,
+   "px": [
+    89,
+    128
+   ]
+  },
+  "cockpit_console": {
+   "x": -81,
+   "ground_y": -22,
+   "px": [
+    84,
+    128
+   ]
+  },
+  "cockpit_nav": {
+   "x": -87,
+   "ground_y": -22,
+   "px": [
+    78,
+    128
+   ]
+  },
+  "cockpit_repair_log": {
+   "x": -70,
+   "ground_y": -22,
+   "px": [
+    95,
+    128
+   ]
+  },
+  "cockpit_seat": {
+   "x": -61,
+   "ground_y": -22,
+   "px": [
+    104,
+    128
+   ]
+  },
+  "cockpit_bell": {
+   "x": -43,
+   "ground_y": -22,
+   "px": [
+    122,
+    128
+   ]
+  },
+  "cockpit_copilot": {
+   "x": -19,
+   "ground_y": -22,
+   "px": [
+    146,
+    128
+   ]
+  },
+  "cockpit_toolbox": {
+   "x": 7,
+   "ground_y": -22,
+   "px": [
+    172,
+    128
+   ]
+  },
+  "cockpit_leak": {
+   "x": 33,
+   "ground_y": -22,
+   "px": [
+    198,
+    128
+   ]
+  },
+  "cockpit_converter": {
+   "x": 63,
+   "ground_y": -22,
+   "px": [
+    228,
+    128
+   ]
+  },
+  "cockpit_bag": {
+   "x": 96,
+   "ground_y": -22,
+   "px": [
+    261,
+    128
+   ]
+  }
+ },
+ "objects": {
+  "cockpit_console": {
+   "x": -147,
+   "y": -53,
+   "w": 38,
+   "h": 16,
+   "frames": 4,
+   "states": {
+    "normal": 0,
+    "dim": 1,
+    "main_off": 2,
+    "stone_shadow": 3
+   },
+   "px": [
+    18,
+    97
+   ]
+  },
+  "cockpit_nav": {
+   "x": -107,
+   "y": -54,
+   "w": 23,
+   "h": 18,
+   "frames": 7,
+   "states": {
+    "stable": 0,
+    "route_broken": 1,
+    "detour": 2,
+    "fuel_short": 3,
+    "zoom": 4,
+    "river_in_range": 5,
+    "landing_zone": 6
+   },
+   "px": [
+    58,
+    96
+   ]
+  },
+  "cockpit_repair_log": {
+   "x": -83,
+   "y": -53,
+   "w": 9,
+   "h": 14,
+   "frames": 3,
+   "states": {
+    "none": 0,
+    "check_1": 1,
+    "check_2": 2
+   },
+   "px": [
+    82,
+    97
+   ]
+  },
+  "cockpit_bell": {
+   "x": -46,
+   "y": -71,
+   "w": 11,
+   "h": 17,
+   "frames": 12,
+   "states": {
+    "bell": 0,
+    "empty_loop": 1,
+    "rope_swing": [
+     2,
+     9
+    ],
+    "moved": 10,
+    "rope_short": 11
+   },
+   "px": [
+    119,
+    79
+   ]
+  },
+  "cockpit_toolbox": {
+   "x": -3,
+   "y": -42,
+   "w": 22,
+   "h": 20,
+   "frames": 2,
+   "states": {
+    "closed": 0,
+    "open": 1
+   },
+   "px": [
+    162,
+    108
+   ]
+  },
+  "cockpit_leak": {
+   "x": 25,
+   "y": -71,
+   "w": 16,
+   "h": 15,
+   "frames": 3,
+   "states": {
+    "default": 0,
+    "steam": 1,
+    "fixed": 2
+   },
+   "px": [
+    190,
+    79
+   ]
+  },
+  "cockpit_converter": {
+   "x": 39,
+   "y": -84,
+   "w": 46,
+   "h": 62,
+   "frames": 5,
+   "states": {
+    "closed": 0,
+    "idle": 1,
+    "glow": 2,
+    "burn": 3,
+    "card_curl": 4
+   },
+   "px": [
+    204,
+    66
+   ]
+  },
+  "cockpit_bag": {
+   "x": 86,
+   "y": -43,
+   "w": 20,
+   "h": 21,
+   "frames": 1,
+   "states": {
+    "default": 0
+   },
+   "px": [
+    251,
+    107
+   ]
+  },
+  "cockpit_phone": {
+   "x": -118,
+   "y": -66,
+   "w": 8,
+   "h": 13,
+   "frames": 1,
+   "states": {
+    "by_gauges": 0
+   },
+   "px": [
+    47,
+    84
+   ],
+   "default": "hidden"
+  },
+  "cockpit_leak_steam": {
+   "x": 26,
+   "y": -90,
+   "w": 13,
+   "h": 22,
+   "frames": 4,
+   "fps": 8,
+   "loop": true,
+   "on": "cockpit_leak=steam",
+   "px": [
+    191,
+    60
+   ]
+  }
+ },
+ "hotspots": {
+  "window": -76,
+  "console": -81,
+  "nav": -87,
+  "repair_log": -70,
+  "seat": -61,
+  "bell": -43,
+  "copilot": -19,
+  "toolbox": 7,
+  "leak": 33,
+  "converter": 63,
+  "bag": 96
+ },
+ "note": "objects 的 x,y = 左上角（相对锚点），w = 帧宽，frames = 横排帧数；states = 每个状态对应第几帧（多帧动画写成 [起, 止]）；fps = 动画帧率（100ms 一帧 = 10）。cockpit_leak_steam 只在 cockpit_leak = steam 时显示。默认状态：console normal、nav stable、converter closed、leak default、toolbox closed、repair_log none、bell bell；写了 default 的按它（cockpit_phone 默认 hidden，剧本 prop by_gauges 才出现）。"
+}

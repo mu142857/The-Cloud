@@ -4,6 +4,8 @@
 跑法：
   "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/level1_art.py
 输出到 art/level1/。后面给一个路径参数会另存一张 8 倍预览。
+  ... tools/level1_art.py --takeoff [预览.png]   只出起飞用的 ship_lift.png（按角度的船身帧）、ship_lift.json（每帧轮廓）、
+                                               ship_crater.png（留在地上的土），别的图不动。见下面「起飞」一节。
 
 画法：飞船在「自己的坐标系」里用几个形状定义（船身、驾驶舱、尾翼、喷口、条纹），每个像素反算回自己的坐标
 再上色，所以飞行时斜 18° 和坠毁时斜 34° 都是一笔一笔硬边像素，不是把图旋转出来的（不会有 mixel）。
@@ -80,7 +82,7 @@ FIN_UP = ((22, -17), (58, -17), (67, -42))
 FIN_DN = ((36, 11), (62, 11), (70, 27))
 
 
-def ship_color(lx, ly, damaged=False, broken_fin=False, flame_phase=-1, rng=None):
+def ship_color(lx, ly, damaged=False, broken_fin=False, flame_phase=-1, rng=None, nozzle=None):
     """自己坐标里 (lx, ly) 这一点是什么颜色；None = 透明。"""
     # 喷口火焰（飞行时）
     if flame_phase >= 0 and 71 <= lx <= 98:
@@ -91,7 +93,7 @@ def ship_color(lx, ly, damaged=False, broken_fin=False, flame_phase=-1, rng=None
     # 喷口（往外凸一截，两道环）
     if 63 <= lx <= 72 and -10 <= ly <= 8:
         if lx >= 70 and -8 <= ly <= 6:
-            return GLASS[0]                  # 喷口里面
+            return nozzle or GLASS[0]        # 喷口里面（起飞预热时 nozzle = 暗暗的余火色）
         if abs(lx - 66) < 0.6:
             return HULL[0]
         return HULL[1] if ly > -1 else HULL[2]
@@ -222,6 +224,20 @@ def ship_wreck():
     a = c.a
     # 地面以下的船身被土埋住
     a[ground:, :, 3] = 0
+    _wreck_soil(a)
+    return c
+
+
+def _wreck_soil(a, pit=None):
+    """坠毁现场的土（画在 a 上，和 ship_wreck 同尺寸同锚点）：机头犁出来的土堆、飞出去的土点、斜插在地上的断尾翼尖。
+    pit = 船身那一张 RGBA（不切地面）：起飞以后土里留下的坑（船身在地面那一行扎进去的地方压暗）。"""
+    W, H = WRECK_W, WRECK_H
+    ground = WRECK_GROUND
+    if pit is not None:
+        for x in range(W):
+            if pit[ground - 1:ground + 2, x, 3].max() > 0:
+                for y in (ground, ground + 1):
+                    a[y, x] = (*hexc(SOIL[0]), 255)
     # 机头周围翻起的土堆：左边大坡（机头犁出来的），右边小坡
     nose = to_world((-L_SHIP / 2, 0), WRECK_ANG)
     nx = int(round(WRECK_C[0] + nose[0]))
@@ -240,12 +256,49 @@ def ship_wreck():
     for (x, y, col) in ((nx - 22, ground - 4, SOIL[2]), (nx - 16, ground - 10, SOIL[3]), (nx - 26, ground - 1, SOIL[2]),
                         (nx + 30, ground - 13, SOIL[2]), (150, ground - 1, HULL[1]), (151, ground - 1, HULL[1]),
                         (162, ground - 2, HULL[2]), (170, ground - 1, HULL[1])):
-        if 0 <= x < W:
+        if 0 <= x < W and not (pit is not None and y < ground - 4):     # 起飞以后：悬在半空的那两颗不要
             a[y, x] = (*hexc(col), 255)
     # 断下来的尾翼尖斜插在地上（尾巴右后方）
     for i in range(9):
         for j in range(3 - i // 4):
             a[ground - 1 - i, 140 + i // 2 + j] = (*hexc(HULL[2] if j == 0 else HULL[1]), 255)
+
+
+# ---------------------------------------------------------------- 起飞（2026-10-29）
+# 起飞时坠毁图拆成两层：船身（ship_lift.png，按角度预先画好的一排帧）和留在地上的土（ship_crater.png）。
+# 船身每一帧都是在自己的坐标里一笔一笔画的硬边像素（和坠毁图同一个函数），所以「转」= 换帧，不是旋转图片，没有 mixel。
+LIFT_ANGS = list(range(-17, 11))           # -17°（坠毁时的斜度，机头朝左下）.. +10°（机头朝左上）每 1° 一帧
+LIFT_W, LIFT_H = 204, 120                   # 每帧多大；船身中心在 (LIFT_W / 2, LIFT_H / 2)
+LIFT_ROWS = ("off", "warm", "flame0", "flame1")   # 第几行：喷口不亮 / 喷口里暗暗的余火（预热）/ 尾焰两帧
+
+
+def ship_lift():
+    """起飞的船身：LIFT_ROWS 行 × LIFT_ANGS 列，每格 LIFT_W × LIFT_H，锚点 = 格子正中 = 船身中心（坠毁图的 WRECK_C）。
+    坏的样子和坠毁图一样（断尾翼、没门的舱口、破洞），不切地面（扎进土里的那截机头也画全，关卡里用 shader 按地面线裁掉）。
+    -17° 那一格和 ship_wreck.png 里地面以上的船身逐像素一样（同一个光栅化、整数平移），换图的那一下不跳。"""
+    sheet = Canvas(LIFT_W * len(LIFT_ANGS), LIFT_H * len(LIFT_ROWS))
+    for r, row in enumerate(LIFT_ROWS):
+        kw = {"damaged": True, "broken_fin": True}
+        if row == "warm":
+            kw["nozzle"] = FLAME[0]
+        elif row.startswith("flame"):
+            kw["flame_phase"] = int(row[-1])
+        for i, ang in enumerate(LIFT_ANGS):
+            f = raster(LIFT_W, LIFT_H, LIFT_W // 2, LIFT_H // 2, ang, **kw)
+            sheet.paste(f, LIFT_W * i, LIFT_H * r)
+    return sheet
+
+
+def ship_crater():
+    """起飞时留在地上的东西，两帧横排，每帧和 ship_wreck.png 同尺寸同锚点：
+    0 = 船还扎在土里时的土（和坠毁图里的土逐像素一样）；1 = 机头拔出来以后（地面那两行压暗成坑，悬空的土点没了）。"""
+    c = Canvas(WRECK_W * 2, WRECK_H)
+    hull = raster(WRECK_W, WRECK_H, WRECK_C[0], WRECK_C[1], WRECK_ANG, damaged=True, broken_fin=True).a
+    f0, f1 = Canvas(WRECK_W, WRECK_H), Canvas(WRECK_W, WRECK_H)
+    _wreck_soil(f0.a)
+    _wreck_soil(f1.a, pit=hull)
+    c.paste(f0, 0, 0)
+    c.paste(f1, WRECK_W, 0)
     return c
 
 
@@ -398,7 +451,41 @@ def save_arr(a, name):
     Image.fromarray(a, "RGBA").save(OUT / name)
 
 
+def main_takeoff():
+    """只出起飞用的两张（不动别的图）：python tools/level1_art.py --takeoff [预览.png]"""
+    lift, crater = ship_lift(), ship_crater()
+    lift.save(OUT / "ship_lift.png")
+    crater.save(OUT / "ship_crater.png")
+    # 每个角度那一帧（喷口不亮那一行）的船身轮廓：每列最上 / 最下那个不透明像素（相对格子左上角，-1 = 空列）。
+    # 关卡用它给反重力泛光（scripts/ship_glow.gd 的 set_hull）——运行时不用再读图算。
+    import json
+    cols = {}
+    for i, ang in enumerate(LIFT_ANGS):
+        f = lift.a[0:LIFT_H, LIFT_W * i:LIFT_W * (i + 1), 3] > 0
+        tops, bots = [], []
+        for x in range(LIFT_W):
+            ys = np.nonzero(f[:, x])[0]
+            tops.append(int(ys[0]) if len(ys) else -1)
+            bots.append(int(ys[-1]) if len(ys) else -1)
+        cols[str(ang)] = {"top": tops, "bot": bots}
+    meta = {"note": "tools/level1_art.py --takeoff 生成。ship_lift.png：行 = rows，列 = angles（度，负 = 机头朝左下），"
+                    "每格 frame 大小、船身中心在格子正中。hull = 每个角度那帧每列最上 / 最下的不透明像素 y（格子坐标，-1 = 空列）。",
+            "frame": [LIFT_W, LIFT_H], "rows": list(LIFT_ROWS), "angles": LIFT_ANGS, "hull": cols}
+    (OUT / "ship_lift.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print("ok ship_lift.png", lift.w, lift.h, "frames", len(LIFT_ANGS), "x", len(LIFT_ROWS), "ship_crater.png", crater.w, crater.h)
+    args = [a for a in sys.argv[1:] if a != "--takeoff"]
+    if args:
+        from PIL import Image
+        bg = Image.new("RGBA", (lift.w, lift.h + crater.h + 4), (20, 32, 28, 255))
+        bg.alpha_composite(Image.fromarray(lift.a, "RGBA"), (0, 0))
+        bg.alpha_composite(Image.fromarray(crater.a, "RGBA"), (0, lift.h + 4))
+        bg.save(args[0])
+
+
 def main():
+    if "--takeoff" in sys.argv:
+        main_takeoff()
+        return
     parts = {
         "ship_fly.png": ship_fly(),
         "ship_wreck.png": ship_wreck(),

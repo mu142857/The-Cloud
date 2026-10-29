@@ -1,0 +1,1866 @@
+{
+	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接降落。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。",
+	"speakers": {
+		"chen": {
+			"zh": "晨",
+			"en": "Chen"
+		}
+	},
+	"markers": {
+		"cockpit_seat": 0,
+		"cockpit_console": 0,
+		"cockpit_window": 0,
+		"cockpit_copilot": 0,
+		"cockpit_nav": 0,
+		"cockpit_converter": 0,
+		"cockpit_leak": 0,
+		"cockpit_toolbox": 0,
+		"cockpit_repair_log": 0,
+		"cockpit_bag": 0
+	},
+	"rooms": [
+		"cockpit"
+	],
+	"objectives": [
+		{
+			"need": [
+				"flight1_leak_wait"
+			],
+			"not": [
+				"flight1_leak_fixed"
+			],
+			"zh": "找到漏气的地方",
+			"en": "Find the leak",
+			"show_fuel": false,
+			"added": true
+		},
+		{
+			"need": [
+				"flight1_leak_fixed"
+			],
+			"not": [
+				"flight1_reroute"
+			],
+			"zh": "回到驾驶座",
+			"en": "Back to the pilot's seat",
+			"show_fuel": true,
+			"added": true
+		},
+		{
+			"need": [
+				"flight1_landing"
+			],
+			"not": [
+				"flight1_done"
+			],
+			"zh": "降落",
+			"en": "Land",
+			"show_fuel": false,
+			"added": true
+		},
+		{
+			"need": [
+				"flight1_journal"
+			],
+			"not": [
+				"flight1_landing"
+			],
+			"zh": "看看窗外",
+			"en": "Look out the window",
+			"show_fuel": true,
+			"added": true
+		},
+		{
+			"need": [
+				"flight1_burned"
+			],
+			"not": [
+				"flight1_landing"
+			],
+			"zh": "飞往河流星球",
+			"en": "Fly to the river planet",
+			"show_fuel": true,
+			"added": true
+		},
+		{
+			"need": [
+				"flight1_fuel_low"
+			],
+			"not": [
+				"flight1_burned"
+			],
+			"zh": "补上燃料缺口",
+			"en": "Make up the missing fuel",
+			"show_fuel": true,
+			"added": true
+		},
+		{
+			"need": [
+				"flight1_started"
+			],
+			"not": [
+				"flight1_fuel_low"
+			],
+			"zh": "飞往河流星球",
+			"en": "Fly to the river planet",
+			"show_fuel": true,
+			"added": true
+		}
+	],
+	"hints": [
+		{
+			"need": [
+				"flight1_leak_wait"
+			],
+			"not": [
+				"flight1_leak_fixed"
+			],
+			"lines": [
+				{
+					"zh": "……右边，在漏。",
+					"en": "...The right side. It's leaking.",
+					"added": true
+				},
+				{
+					"zh": "那股白汽。",
+					"en": "That white steam.",
+					"added": true
+				}
+			]
+		},
+		{
+			"need": [
+				"flight1_leak_fixed"
+			],
+			"not": [
+				"flight1_reroute"
+			],
+			"lines": [
+				{
+					"zh": "修好了。回座位上去。",
+					"en": "Fixed. Back to the seat.",
+					"added": true
+				}
+			]
+		},
+		{
+			"need": [
+				"flight1_fuel_low"
+			],
+			"not": [
+				"flight1_burned"
+			],
+			"lines": [
+				{
+					"zh": "……还差一截。",
+					"en": "...Still a bit short.",
+					"added": true
+				},
+				{
+					"zh": "蓝色石头，还是通勤卡。",
+					"en": "The Blue Stone, or the Commuter Card.",
+					"added": true
+				},
+				{
+					"zh": "不急。再看看。",
+					"en": "No rush. Look again.",
+					"added": true
+				}
+			]
+		},
+		{
+			"need": [
+				"flight1_reroute"
+			],
+			"not": [
+				"flight1_fuel_low"
+			],
+			"lines": [
+				{
+					"zh": "绕远了。",
+					"en": "It's the long way around.",
+					"added": true
+				},
+				{
+					"zh": "……先把材料放进去。",
+					"en": "...Put the materials in first.",
+					"added": true
+				}
+			]
+		},
+		{
+			"need": [
+				"flight1_journal"
+			],
+			"not": [
+				"flight1_landing"
+			],
+			"lines": [
+				{
+					"zh": "……该看得见了吧。",
+					"en": "...Should be able to see it by now.",
+					"added": true
+				}
+			]
+		}
+	],
+	"hotspots": [
+		{
+			"id": "leak",
+			"at": "cockpit_leak",
+			"room": "cockpit",
+			"label": {
+				"zh": "冒白汽的接口",
+				"en": "Steaming joint"
+			},
+			"need": [
+				"flight1_leak_wait"
+			],
+			"not": [
+				"flight1_leak_fixed"
+			],
+			"once": true,
+			"scene": "flight1_leak_fix",
+			"added": true
+		},
+		{
+			"id": "seat",
+			"at": "cockpit_seat",
+			"room": "cockpit",
+			"label": {
+				"zh": "驾驶座",
+				"en": "Pilot's seat"
+			},
+			"need": [
+				"flight1_leak_fixed"
+			],
+			"not": [
+				"flight1_reroute"
+			],
+			"once": true,
+			"trigger": "enter",
+			"range": 6,
+			"cutscene": true,
+			"scene": "flight1_seat",
+			"added": true
+		},
+		{
+			"id": "copilot_late",
+			"at": "cockpit_copilot",
+			"room": "cockpit",
+			"label": {
+				"zh": "副驾驶座",
+				"en": "Copilot's seat"
+			},
+			"need": [
+				"flight1_burned"
+			],
+			"not": [
+				"flight1_done"
+			],
+			"once": false,
+			"scene": "copilot_look_late"
+		},
+		{
+			"id": "copilot",
+			"at": "cockpit_copilot",
+			"room": "cockpit",
+			"label": {
+				"zh": "副驾驶座",
+				"en": "Copilot's seat"
+			},
+			"need": [
+				"flight1_started"
+			],
+			"not": [
+				"flight1_done"
+			],
+			"once": false,
+			"scene": "copilot_look"
+		},
+		{
+			"id": "repair_log",
+			"at": "cockpit_repair_log",
+			"room": "cockpit",
+			"label": {
+				"zh": "维修记录",
+				"en": "Repair log"
+			},
+			"need": [
+				"flight1_reroute"
+			],
+			"not": [
+				"flight1_done"
+			],
+			"once": false,
+			"scene": "repair_log_look"
+		},
+		{
+			"id": "toolbox",
+			"at": "cockpit_toolbox",
+			"room": "cockpit",
+			"label": {
+				"zh": "工具",
+				"en": "Tools"
+			},
+			"need": [
+				"flight1_leak_fixed"
+			],
+			"not": [
+				"flight1_done"
+			],
+			"once": false,
+			"scene": "toolbox_look"
+		},
+		{
+			"id": "converter_late",
+			"at": "cockpit_converter",
+			"room": "cockpit",
+			"label": {
+				"zh": "转化装置",
+				"en": "Converter"
+			},
+			"need": [
+				"flight1_burned"
+			],
+			"not": [
+				"flight1_done"
+			],
+			"once": false,
+			"scene": "converter_look_late"
+		},
+		{
+			"id": "converter",
+			"at": "cockpit_converter",
+			"room": "cockpit",
+			"label": {
+				"zh": "转化装置",
+				"en": "Converter"
+			},
+			"need": [
+				"flight1_started"
+			],
+			"not": [
+				"flight1_fuel_low",
+				"flight1_done"
+			],
+			"once": false,
+			"scene": "converter_look"
+		},
+		{
+			"id": "window_approach",
+			"at": "cockpit_window",
+			"room": "cockpit",
+			"label": {
+				"zh": "窗外",
+				"en": "Window"
+			},
+			"need": [
+				"flight1_journal"
+			],
+			"not": [
+				"flight1_landing"
+			],
+			"once": true,
+			"scene": "flight1_approach",
+			"added": true
+		},
+		{
+			"id": "window",
+			"at": "cockpit_window",
+			"room": "cockpit",
+			"label": {
+				"zh": "窗外",
+				"en": "Window"
+			},
+			"need": [
+				"flight1_started"
+			],
+			"not": [
+				"flight1_journal",
+				"flight1_landing"
+			],
+			"once": false,
+			"scene": "window_look"
+		},
+		{
+			"id": "console",
+			"at": "cockpit_console",
+			"room": "cockpit",
+			"label": {
+				"zh": "操纵台",
+				"en": "Console"
+			},
+			"need": [
+				"flight1_leak_fixed"
+			],
+			"not": [
+				"flight1_landing"
+			],
+			"once": false,
+			"scene": "console_pat"
+		}
+	],
+	"scenes": {
+		"start_flight1": [
+			{
+				"do": "flag",
+				"set": "flight1_started"
+			},
+			{
+				"do": "fuel",
+				"have": 200,
+				"need": 200
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "forest_canopy"
+			},
+			{
+				"do": "sfx",
+				"name": "engine_start"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "watch_gauges"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "canopy_fall"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "relax"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pat_console"
+			},
+			{
+				"do": "sfx",
+				"name": "pat"
+			},
+			{
+				"say": "chen",
+				"zh": "这次不错。",
+				"en": "Not bad this time."
+			},
+			{
+				"say": "chen",
+				"zh": "保持住，别刚夸完就出事。",
+				"en": "Keep it up. Don't break the second I say that."
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "forest_below"
+			},
+			{
+				"do": "wait",
+				"sec": 2.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "forest_far"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_window"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "lean_window"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "turning"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "clouds"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "idle"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_console"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_debris"
+			}
+		],
+		"flight1_debris": [
+			{
+				"do": "debris_steer",
+				"id": "flight1_debris",
+				"sec": 40,
+				"fuel_per_bump": 1,
+				"fuel_max_loss": 5
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_leak"
+			}
+		],
+		"flight1_leak": [
+			{
+				"do": "sfx",
+				"name": "hiss_thin",
+				"pan": 0.8
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_leak",
+				"state": "steam"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_leak"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pat_console"
+			},
+			{
+				"do": "sfx",
+				"name": "pat"
+			},
+			{
+				"do": "wait",
+				"sec": 0.6
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "freeze"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_toolbox",
+				"state": "open"
+			},
+			{
+				"do": "ambient",
+				"name": "hiss_thin",
+				"at": "cockpit_leak",
+				"on": true
+			},
+			{
+				"do": "flag",
+				"set": "flight1_leak_wait"
+			}
+		],
+		"flight1_seat": [
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_repair_log"
+			},
+			{
+				"do": "sfx",
+				"name": "pen_write",
+				"db": -8.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_repair_log",
+				"state": "check_1"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_repair_log",
+				"state": "check_2"
+			},
+			{
+				"do": "wait",
+				"sec": 0.6
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_nav"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_reroute"
+			}
+		],
+		"flight1_reroute": [
+			{
+				"do": "sfx",
+				"name": "nav_alert"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "route_broken"
+			},
+			{
+				"narr": {
+					"zh": "旧航线中断",
+					"en": "Original route blocked"
+				},
+				"added": true
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "debris_wall"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"narr": {
+					"zh": "重新计算航线……",
+					"en": "Recalculating route..."
+				},
+				"added": true
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "detour"
+			},
+			{
+				"do": "fuel",
+				"need": 255
+			},
+			{
+				"narr": {
+					"zh": "燃料不足",
+					"en": "Not enough fuel"
+				},
+				"added": true
+			},
+			{
+				"do": "flag",
+				"set": "flight1_reroute"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_nav"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "zoom"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "detour"
+			},
+			{
+				"do": "wait",
+				"sec": 0.6
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "zoom"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "detour"
+			},
+			{
+				"say": "chen",
+				"zh": "……还是这么远。",
+				"en": "...Still that far.",
+				"added": true
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "adjust_console"
+			},
+			{
+				"do": "sfx",
+				"name": "switch_off"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_console",
+				"state": "dim"
+			},
+			{
+				"do": "wait",
+				"sec": 0.5
+			},
+			{
+				"do": "sfx",
+				"name": "switch_off"
+			},
+			{
+				"narr": {
+					"zh": "预计航程增加",
+					"en": "Estimated distance increased"
+				},
+				"added": true
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"narr": {
+					"zh": "距河流星球：还差一段",
+					"en": "River planet: still a way to go"
+				},
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_materials"
+			}
+		],
+		"flight1_materials": [
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "burn"
+			},
+			{
+				"do": "sfx",
+				"name": "converter_burn"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "sfx",
+				"name": "converter_burn"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "idle"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "fuel_short"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "shake_bag"
+			},
+			{
+				"do": "sfx",
+				"name": "crumbs"
+			},
+			{
+				"do": "wait",
+				"sec": 1.2
+			},
+			{
+				"say": "chen",
+				"zh": "这点都不收，还挺挑。",
+				"en": "Won't even take this. Picky."
+			},
+			{
+				"do": "flag",
+				"set": "flight1_fuel_low"
+			},
+			{
+				"narr": {
+					"zh": "可转化：蓝色石头、通勤卡",
+					"en": "Can convert: Blue Stone, Commuter Card"
+				},
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_fuel_choice"
+			}
+		],
+		"flight1_fuel_choice": [
+			{
+				"narr": {
+					"zh": "放进转化装置的东西，无法取回。",
+					"en": "Whatever goes into the converter can't be taken back."
+				},
+				"added": true
+			},
+			{
+				"do": "keepsake_choice",
+				"id": "flight1_choice",
+				"items": [
+					"blue_stone",
+					"commute_card"
+				],
+				"route": true,
+				"scenes": {
+					"blue_stone": "burn_blue_stone",
+					"commute_card": "burn_commute_card"
+				},
+				"look": {
+					"blue_stone": [
+						{
+							"say": "chen",
+							"zh": "拇指放上去，还是正好。",
+							"en": "My thumb still fits it just right.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "给人看过，说根本不会亮。",
+							"en": "I showed someone once. They said it never glows.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "……沾了水才亮一点。",
+							"en": "...It only glows a little when it's wet.",
+							"added": true
+						}
+					],
+					"commute_card": [
+						{
+							"say": "chen",
+							"zh": "几百次，都是同一个站。",
+							"en": "Hundreds of times. Always the same station.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "为了等下午的太阳，坐过了站。",
+							"en": "Missed my stop once, waiting for the afternoon sun.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "最后一天没有刷。",
+							"en": "Didn't tap it on the last day.",
+							"added": true
+						}
+					]
+				},
+				"put_back": [
+					{
+						"say": "chen",
+						"zh": "……再看看。",
+						"en": "...Let me think.",
+						"added": true
+					}
+				],
+				"route_look": [
+					{
+						"say": "chen",
+						"zh": "就差这一截。",
+						"en": "Just this last stretch.",
+						"added": true
+					}
+				]
+			}
+		],
+		"burn_blue_stone": [
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "show_item",
+				"item": "blue_stone"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "hold_item"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "glow"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "turn_item"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_console",
+				"state": "stone_shadow"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "wait",
+				"sec": 2.0
+			},
+			{
+				"do": "take",
+				"item": "blue_stone"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_console",
+				"state": "dim"
+			},
+			{
+				"do": "sfx",
+				"name": "drop_in"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "closed"
+			},
+			{
+				"do": "sfx",
+				"name": "converter_burn"
+			},
+			{
+				"do": "fuel",
+				"burn": "blue_stone"
+			},
+			{
+				"narr": {
+					"zh": "航程增加",
+					"en": "Range extended"
+				},
+				"added": true
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_nav"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"say": "chen",
+				"zh": "原来你还真能发光。",
+				"en": "So you really can glow."
+			},
+			{
+				"do": "flag",
+				"set": "burned_blue_stone"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_burned"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_after_burn"
+			}
+		],
+		"burn_commute_card": [
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "show_item",
+				"item": "commute_card"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pull_out"
+			},
+			{
+				"do": "show_item",
+				"item": "seat_chart"
+			},
+			{
+				"say": "chen",
+				"zh": "「第三节车厢的门关得很响。」",
+				"en": "\"The third car's doors slam.\""
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "fold_paper"
+			},
+			{
+				"do": "give",
+				"item": "seat_chart"
+			},
+			{
+				"do": "take",
+				"item": "commute_card"
+			},
+			{
+				"do": "sfx",
+				"name": "drop_in"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "closed"
+			},
+			{
+				"do": "sfx",
+				"name": "card_beep"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "card_curl"
+			},
+			{
+				"do": "sfx",
+				"name": "converter_burn"
+			},
+			{
+				"do": "fuel",
+				"burn": "commute_card"
+			},
+			{
+				"narr": {
+					"zh": "航程增加",
+					"en": "Range extended"
+				},
+				"added": true
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "touch_pocket"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "idle"
+			},
+			{
+				"do": "flag",
+				"set": "burned_commute_card"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_burned"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_after_burn"
+			}
+		],
+		"flight1_after_burn": [
+			{
+				"do": "sfx",
+				"name": "engine_boost"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "clouds_fast"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "river_in_range"
+			},
+			{
+				"narr": {
+					"zh": "河流星球：可抵达",
+					"en": "River planet: in range"
+				},
+				"added": true
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "wait",
+				"sec": 0.8
+			},
+			{
+				"do": "sfx",
+				"name": "nav_beep"
+			},
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_seat"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "adjust_console"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "stable"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "write"
+			},
+			{
+				"do": "if",
+				"flag": "burned_blue_stone",
+				"then": "flight1_log_stone",
+				"else": "flight1_log_card"
+			}
+		],
+		"flight1_log_stone": [
+			{
+				"do": "journal",
+				"zh": "烧掉了蓝色石头。换成了燃料。",
+				"en": "Burned the Blue Stone. It became fuel.",
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_log_done"
+			}
+		],
+		"flight1_log_card": [
+			{
+				"do": "journal",
+				"zh": "烧掉了通勤卡。座位图留下了。换成了燃料。",
+				"en": "Burned the Commuter Card. Kept the seat map. It became fuel.",
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_log_done"
+			}
+		],
+		"flight1_log_done": [
+			{
+				"do": "journal",
+				"zh": "备用",
+				"en": "Spare",
+				"added": true
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "journal_strike",
+				"match": "备用"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_logged"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_miluo_msg"
+			}
+		],
+		"flight1_drawing": [
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "flip_pages"
+			},
+			{
+				"do": "show_item",
+				"item": "elephant_drawing"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "smooth_paper"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "take_phone"
+			},
+			{
+				"say": "chen",
+				"zh": "等我找到，给你拍张清楚的，正面侧面都拍。",
+				"en": "When I find it, I'll take a clear photo for you. Front and side."
+			},
+			{
+				"do": "phone_open",
+				"contact": "friend"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "type"
+			},
+			{
+				"do": "sfx",
+				"name": "key_tap"
+			},
+			{
+				"do": "wait",
+				"sec": 0.8
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "delete"
+			},
+			{
+				"do": "sfx",
+				"name": "key_tap"
+			},
+			{
+				"do": "wait",
+				"sec": 0.8
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_phone",
+				"state": "by_gauges"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "idle"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_traits"
+			}
+		],
+		"flight1_traits": [
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "write"
+			},
+			{
+				"do": "journal",
+				"zh": "大象，要亲眼确认的：鼻子、耳朵、脚印、声音。",
+				"en": "Elephant. To see for myself: nose, ears, footprints, voice.",
+				"tag": "elephant",
+				"added": true
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "sfx",
+				"name": "book_close"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_journal"
+			}
+		],
+		"flight1_approach": [
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_window"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "river_planet"
+			},
+			{
+				"do": "wait",
+				"sec": 2.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "river_city"
+			},
+			{
+				"do": "wait",
+				"sec": 2.0
+			},
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_seat"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_window"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_landing"
+			},
+			{
+				"do": "show_item",
+				"item": "travel_map"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "landing_zone"
+			},
+			{
+				"narr": {
+					"zh": "降落区",
+					"en": "Landing zone"
+				},
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "降落区……在这儿。",
+				"en": "Landing zone... here.",
+				"added": true
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "clocktower"
+			},
+			{
+				"say": "chen",
+				"zh": "……广场呢？",
+				"en": "...Where's the square?",
+				"added": true
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "boats"
+			},
+			{
+				"say": "chen",
+				"zh": "跑道上怎么停着船？",
+				"en": "Why are there boats on the runway?",
+				"added": true
+			},
+			{
+				"do": "sfx",
+				"name": "alarm"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pull_up"
+			},
+			{
+				"do": "sfx",
+				"name": "wire_scrape",
+				"pan": 0.6
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "tilt"
+			},
+			{
+				"do": "sfx",
+				"name": "splash"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "skid"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_splashdown"
+			}
+		],
+		"flight1_splashdown": [
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "adjust_console"
+			},
+			{
+				"do": "sfx",
+				"name": "thruster_off"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_console",
+				"state": "main_off"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "lock_pipe"
+			},
+			{
+				"do": "sfx",
+				"name": "valve_lock"
+			},
+			{
+				"do": "wait",
+				"sec": 0.6
+			},
+			{
+				"do": "sfx",
+				"name": "wood_knock",
+				"pan": -0.5
+			},
+			{
+				"do": "wait",
+				"sec": 0.3
+			},
+			{
+				"do": "sfx",
+				"name": "wood_knock",
+				"pan": 0.4
+			},
+			{
+				"do": "wait",
+				"sec": 0.3
+			},
+			{
+				"do": "sfx",
+				"name": "wood_knock",
+				"pan": 0.0
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "channel"
+			},
+			{
+				"do": "sfx",
+				"name": "thud"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "sfx",
+				"name": "alarm_stop"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "slump_console"
+			},
+			{
+				"do": "wait",
+				"sec": 2.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "idle"
+			},
+			{
+				"say": "chen",
+				"zh": "行。至少到了。",
+				"en": "Okay. At least I made it."
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_window",
+				"state": "crate"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "sfx",
+				"name": "crate_bump"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "flag",
+				"set": "flight1_done"
+			},
+			{
+				"do": "end_chapter"
+			}
+		],
+		"copilot_look": [
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"say": "chen",
+				"zh": "以前坐这儿的人，修完总要先问一句：",
+				"en": "The one who used to sit here always asked after a fix:",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "「这回真修好了？」",
+				"en": "\"Is it really fixed this time?\""
+			},
+			{
+				"say": "chen",
+				"zh": "……现在没人问了。",
+				"en": "...No one asks now.",
+				"added": true
+			}
+		],
+		"copilot_look_late": [
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"say": "chen",
+				"zh": "还是空着。",
+				"en": "Still empty.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "快到了。你也看着点。",
+				"en": "Almost there. You keep an eye out too.",
+				"added": true
+			}
+		],
+		"repair_log_look": [
+			{
+				"say": "chen",
+				"zh": "右侧接口，一个勾。",
+				"en": "Right-side joint. One check mark.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "……两个也不算多。",
+				"en": "...Two isn't that many.",
+				"added": true
+			}
+		],
+		"toolbox_look": [
+			{
+				"say": "chen",
+				"zh": "弥洛给的工具。",
+				"en": "Tools from Milo.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "用完放回原处，不然她要骂人。",
+				"en": "Put them back after, or she'll yell.",
+				"added": true
+			}
+		],
+		"converter_look": [
+			{
+				"say": "chen",
+				"zh": "烧东西的地方。",
+				"en": "Where things get burned.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "……别盯着它看了。",
+				"en": "...Stop staring at it.",
+				"added": true
+			}
+		],
+		"converter_look_late": [
+			{
+				"say": "chen",
+				"zh": "盖子关着。",
+				"en": "The lid's shut.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "里面已经没有了。",
+				"en": "Nothing left inside.",
+				"added": true
+			}
+		],
+		"window_look": [
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_window"
+			},
+			{
+				"say": "chen",
+				"zh": "全是云。",
+				"en": "Nothing but clouds.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "树屋早就看不见了。",
+				"en": "The treehouse is long out of sight.",
+				"added": true
+			}
+		],
+		"console_pat": [
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pat_console"
+			},
+			{
+				"do": "sfx",
+				"name": "pat"
+			},
+			{
+				"say": "chen",
+				"zh": "没说你。",
+				"en": "Wasn't talking about you.",
+				"added": true
+			},
+			{
+				"say": "chen",
+				"zh": "……保持住。",
+				"en": "...Keep it up.",
+				"added": true
+			}
+		],
+		"flight1_leak_fix": [
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pickup"
+			},
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_leak"
+			},
+			{
+				"do": "ambient",
+				"name": "hiss_thin",
+				"at": "cockpit_leak",
+				"on": false
+			},
+			{
+				"do": "sfx",
+				"name": "wrench"
+			},
+			{
+				"do": "wait",
+				"sec": 0.8
+			},
+			{
+				"do": "sfx",
+				"name": "wrench"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_leak",
+				"state": "fixed"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "flag",
+				"set": "flight1_leak_fixed"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "smile_small"
+			},
+			{
+				"say": "chen",
+				"zh": "看吧，这次一遍就好了。",
+				"en": "See? Got it in one this time."
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "journal",
+				"zh": "右侧接口：松开螺丝，重新对准。漏气停了。",
+				"en": "Right-side joint: loosened the screws, lined it back up. Leak stopped.",
+				"added": true
+			}
+		],
+		"flight1_miluo_msg": [
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "flip_phone"
+			},
+			{
+				"do": "phone_msg",
+				"id": "f1_msg_miluo",
+				"from": "miluo",
+				"zh": "飞起来了？右边接头再听一遍，响就停稳了拧。你那两下拍得我到现在还记着。",
+				"en": "In the air? Listen to the right joint again. If it hisses, hold steady, then tighten. I still remember those two smacks you gave it.",
+				"reply": {
+					"zh": "这回用的扳手，已经好了。",
+					"en": "Used the wrench this time. It's fixed."
+				}
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_phone",
+				"state": "by_gauges"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "adjust_console"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "flag",
+				"set": "flight1_miluo_msg"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_drawing"
+			}
+		]
+	}
+}

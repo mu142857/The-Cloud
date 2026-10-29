@@ -1,0 +1,728 @@
+{
+ "_note": "tools/sky_art.py 生成，别手改。约定见 docs/flight_sky_contract.md。顶层 layers 的顺序就是从后往前的画的顺序；每个状态里的层也按这个顺序列。不 tile 的图（planet_s/m、clocktower、crate）用 x 定位，x 在用到它的各状态里不变，只改 y / alpha，所以引擎插不插值 x 都一样。",
+ "size": [
+  480,
+  270
+ ],
+ "default_blend": 2.0,
+ "layers": {
+  "stars": {
+   "img": "stars.png",
+   "tile": true
+  },
+  "planet_s": {
+   "img": "planet_s.png"
+  },
+  "planet_m": {
+   "img": "planet_m.png"
+  },
+  "cloud_high": {
+   "img": "cloud_high.png",
+   "tile": true
+  },
+  "forest_far": {
+   "img": "forest_far.png",
+   "tile": true
+  },
+  "forest_mid": {
+   "img": "forest_mid.png",
+   "tile": true
+  },
+  "cloud_far": {
+   "img": "cloud_far.png",
+   "tile": true
+  },
+  "debris_belt": {
+   "img": "debris_belt.png",
+   "tile": true
+  },
+  "forest_near": {
+   "img": "forest_near.png",
+   "tile": true
+  },
+  "cloud_deck": {
+   "img": "cloud_deck.png",
+   "tile": true
+  },
+  "ground": {
+   "img": "ground.png",
+   "tile": true
+  },
+  "city_far": {
+   "img": "city_far.png",
+   "tile": true
+  },
+  "clocktower": {
+   "img": "clocktower.png"
+  },
+  "city_mid": {
+   "img": "city_mid.png",
+   "tile": true
+  },
+  "canal": {
+   "img": "canal.png",
+   "tile": true
+  },
+  "wall_channel": {
+   "img": "wall_channel.png",
+   "tile": true
+  },
+  "water_near": {
+   "img": "water_near.png",
+   "tile": true
+  },
+  "crate": {
+   "img": "crate.png"
+  },
+  "debris_near": {
+   "img": "debris_near.png",
+   "tile": true
+  },
+  "wisps": {
+   "img": "wisps.png",
+   "tile": true
+  },
+  "spray": {
+   "img": "spray.png",
+   "tile": true
+  },
+  "streaks": {
+   "img": "streaks.png",
+   "tile": true
+  }
+ },
+ "states": {
+  "forest_canopy": {
+   "blend": 1.0,
+   "bg": [
+    "#0c1612",
+    "#25312a"
+   ],
+   "layers": [
+    {
+     "id": "forest_far",
+     "y": 150,
+     "speed": 1,
+     "vy": 1
+    },
+    {
+     "id": "forest_mid",
+     "y": 118,
+     "speed": 3,
+     "vy": 2
+    },
+    {
+     "id": "forest_near",
+     "y": -36,
+     "speed": 8,
+     "vy": 6
+    }
+   ]
+  },
+  "canopy_fall": {
+   "blend": 1.0,
+   "bg": [
+    "#0c1612",
+    "#25312a"
+   ],
+   "layers": [
+    {
+     "id": "forest_far",
+     "y": 158,
+     "speed": 2,
+     "vy": 1
+    },
+    {
+     "id": "forest_mid",
+     "y": 150,
+     "speed": 5,
+     "vy": 3
+    },
+    {
+     "id": "forest_near",
+     "y": 150,
+     "speed": 12,
+     "vy": 22
+    }
+   ]
+  },
+  "forest_below": {
+   "blend": 1.5,
+   "bg": [
+    "#0e1914",
+    "#28342d"
+   ],
+   "layers": [
+    {
+     "id": "cloud_high",
+     "y": -40,
+     "speed": 2,
+     "vy": 6,
+     "alpha": 0.5
+    },
+    {
+     "id": "forest_far",
+     "y": 164,
+     "speed": 3,
+     "vy": 3
+    },
+    {
+     "id": "forest_mid",
+     "y": 180,
+     "speed": 7,
+     "vy": 4
+    },
+    {
+     "id": "forest_near",
+     "y": 420,
+     "speed": 14,
+     "vy": 0
+    },
+    {
+     "id": "cloud_deck",
+     "y": -330,
+     "speed": 10,
+     "vy": 0
+    }
+   ]
+  },
+  "forest_far": {
+   "blend": 1.2,
+   "bg": [
+    "#0e1914",
+    "#28342d"
+   ],
+   "layers": [
+    {
+     "id": "cloud_high",
+     "y": -10,
+     "speed": 3,
+     "vy": 8,
+     "alpha": 0.75
+    },
+    {
+     "id": "forest_far",
+     "y": 182,
+     "speed": 4,
+     "vy": 4
+    },
+    {
+     "id": "forest_mid",
+     "y": 212,
+     "speed": 9,
+     "vy": 5
+    },
+    {
+     "id": "cloud_deck",
+     "y": -300,
+     "speed": 10,
+     "vy": 4
+    }
+   ]
+  },
+  "turning": {
+   "blend": 1.0,
+   "bg": [
+    "#0e1914",
+    "#28342d"
+   ],
+   "layers": [
+    {
+     "id": "cloud_high",
+     "y": 20,
+     "speed": 8,
+     "vy": 6
+    },
+    {
+     "id": "forest_far",
+     "y": 212,
+     "speed": 8,
+     "vy": 5
+    },
+    {
+     "id": "forest_mid",
+     "y": 262,
+     "speed": 16,
+     "vy": 4
+    },
+    {
+     "id": "cloud_deck",
+     "y": -240,
+     "speed": 18,
+     "vy": 10
+    },
+    {
+     "id": "wisps",
+     "y": -150,
+     "speed": 40,
+     "vy": 0
+    }
+   ]
+  },
+  "clouds": {
+   "blend": 1.8,
+   "bg": [
+    "#09120f",
+    "#1a2622"
+   ],
+   "layers": [
+    {
+     "id": "cloud_high",
+     "y": 6,
+     "speed": 3,
+     "vy": 0
+    },
+    {
+     "id": "forest_far",
+     "y": 330,
+     "speed": 8,
+     "vy": 0
+    },
+    {
+     "id": "cloud_far",
+     "y": 146,
+     "speed": 5,
+     "vy": 0
+    },
+    {
+     "id": "cloud_deck",
+     "y": 176,
+     "speed": 14,
+     "vy": 0
+    },
+    {
+     "id": "wisps",
+     "y": 0,
+     "speed": 46,
+     "vy": 0
+    }
+   ]
+  },
+  "debris_wall": {
+   "blend": 2.5,
+   "bg": [
+    "#08100e",
+    "#171f1c"
+   ],
+   "layers": [
+    {
+     "id": "cloud_high",
+     "y": 0,
+     "speed": 2,
+     "vy": 0,
+     "alpha": 0.5
+    },
+    {
+     "id": "cloud_far",
+     "y": 150,
+     "speed": 4,
+     "vy": 0
+    },
+    {
+     "id": "debris_belt",
+     "y": 28,
+     "speed": 5,
+     "vy": 0
+    },
+    {
+     "id": "cloud_deck",
+     "y": 184,
+     "speed": 10,
+     "vy": 0
+    },
+    {
+     "id": "debris_near",
+     "y": 0,
+     "speed": 20,
+     "vy": 0
+    },
+    {
+     "id": "wisps",
+     "y": 0,
+     "speed": 30,
+     "vy": 0,
+     "alpha": 0.5
+    }
+   ]
+  },
+  "clouds_fast": {
+   "blend": 1.5,
+   "bg": [
+    "#09120f",
+    "#1a2622"
+   ],
+   "layers": [
+    {
+     "id": "planet_s",
+     "y": 92,
+     "speed": 0,
+     "vy": 0,
+     "alpha": 0.5,
+     "x": 34
+    },
+    {
+     "id": "cloud_high",
+     "y": 6,
+     "speed": 12,
+     "vy": 0
+    },
+    {
+     "id": "cloud_far",
+     "y": 146,
+     "speed": 16,
+     "vy": 0
+    },
+    {
+     "id": "cloud_deck",
+     "y": 180,
+     "speed": 48,
+     "vy": 0
+    },
+    {
+     "id": "wisps",
+     "y": 0,
+     "speed": 150,
+     "vy": 0
+    },
+    {
+     "id": "streaks",
+     "y": 0,
+     "speed": 260,
+     "vy": 0
+    }
+   ]
+  },
+  "river_planet": {
+   "blend": 2.0,
+   "bg": [
+    "#050b09",
+    "#101b17"
+   ],
+   "layers": [
+    {
+     "id": "stars",
+     "y": 0,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "planet_s",
+     "y": 92,
+     "speed": 0,
+     "vy": 0,
+     "alpha": 0.0,
+     "x": 34
+    },
+    {
+     "id": "planet_m",
+     "y": 64,
+     "speed": 0,
+     "vy": 0,
+     "x": 16
+    },
+    {
+     "id": "cloud_far",
+     "y": 300,
+     "speed": 10,
+     "vy": 0
+    },
+    {
+     "id": "cloud_deck",
+     "y": 300,
+     "speed": 24,
+     "vy": 0
+    },
+    {
+     "id": "wisps",
+     "y": 160,
+     "speed": 60,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "ground",
+     "y": 290,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "city_far",
+     "y": 290,
+     "speed": 2,
+     "vy": 0
+    }
+   ]
+  },
+  "river_city": {
+   "blend": 2.0,
+   "bg": [
+    "#0d1412",
+    "#212b27"
+   ],
+   "layers": [
+    {
+     "id": "stars",
+     "y": 0,
+     "speed": 1,
+     "vy": 0,
+     "alpha": 0.25
+    },
+    {
+     "id": "planet_m",
+     "y": 40,
+     "speed": 0,
+     "vy": 0,
+     "alpha": 0.0,
+     "x": 16
+    },
+    {
+     "id": "ground",
+     "y": 152,
+     "speed": 3,
+     "vy": -0.6
+    },
+    {
+     "id": "city_far",
+     "y": 112,
+     "speed": 4,
+     "vy": -0.6
+    },
+    {
+     "id": "clocktower",
+     "y": 240,
+     "speed": 0,
+     "vy": 0,
+     "alpha": 0.0,
+     "x": 88
+    },
+    {
+     "id": "city_mid",
+     "y": 290,
+     "speed": 8,
+     "vy": 0
+    }
+   ]
+  },
+  "clocktower": {
+   "blend": 1.5,
+   "bg": [
+    "#0d1412",
+    "#212b27"
+   ],
+   "layers": [
+    {
+     "id": "ground",
+     "y": 142,
+     "speed": 4,
+     "vy": -1
+    },
+    {
+     "id": "city_far",
+     "y": 100,
+     "speed": 5,
+     "vy": -1
+    },
+    {
+     "id": "clocktower",
+     "y": 46,
+     "speed": 0,
+     "vy": -1,
+     "x": 88
+    },
+    {
+     "id": "city_mid",
+     "y": 112,
+     "speed": 10,
+     "vy": -1
+    }
+   ]
+  },
+  "boats": {
+   "blend": 1.5,
+   "bg": [
+    "#0d1412",
+    "#212b27"
+   ],
+   "layers": [
+    {
+     "id": "ground",
+     "y": 132,
+     "speed": 5,
+     "vy": -1
+    },
+    {
+     "id": "city_far",
+     "y": 86,
+     "speed": 6,
+     "vy": -1
+    },
+    {
+     "id": "clocktower",
+     "y": 4,
+     "speed": 0,
+     "vy": -1,
+     "x": 88
+    },
+    {
+     "id": "city_mid",
+     "y": 70,
+     "speed": 14,
+     "vy": -1
+    },
+    {
+     "id": "canal",
+     "y": 200,
+     "speed": 20,
+     "vy": -1
+    }
+   ]
+  },
+  "tilt": {
+   "blend": 0.6,
+   "bg": [
+    "#0d1412",
+    "#212b27"
+   ],
+   "layers": [
+    {
+     "id": "ground",
+     "y": 124,
+     "speed": 6,
+     "vy": 0
+    },
+    {
+     "id": "city_far",
+     "y": 76,
+     "speed": 8,
+     "vy": 0
+    },
+    {
+     "id": "clocktower",
+     "y": -18,
+     "speed": 0,
+     "vy": 0,
+     "x": 88
+    },
+    {
+     "id": "city_mid",
+     "y": 52,
+     "speed": 22,
+     "vy": 0
+    },
+    {
+     "id": "canal",
+     "y": 176,
+     "speed": 40,
+     "vy": 0
+    }
+   ]
+  },
+  "skid": {
+   "blend": 0.8,
+   "bg": [
+    "#0d1412",
+    "#212b27"
+   ],
+   "layers": [
+    {
+     "id": "ground",
+     "y": 120,
+     "speed": 8,
+     "vy": 0
+    },
+    {
+     "id": "city_far",
+     "y": 70,
+     "speed": 10,
+     "vy": 0
+    },
+    {
+     "id": "clocktower",
+     "y": -30,
+     "speed": 0,
+     "vy": 0,
+     "x": 88
+    },
+    {
+     "id": "city_mid",
+     "y": 44,
+     "speed": 30,
+     "vy": 0
+    },
+    {
+     "id": "canal",
+     "y": 160,
+     "speed": 120,
+     "vy": 0
+    },
+    {
+     "id": "water_near",
+     "y": 190,
+     "speed": 170,
+     "vy": 0
+    },
+    {
+     "id": "spray",
+     "y": 158,
+     "speed": 230,
+     "vy": 0
+    }
+   ]
+  },
+  "channel": {
+   "blend": 1.0,
+   "bg": [
+    "#111917",
+    "#1d2623"
+   ],
+   "layers": [
+    {
+     "id": "city_mid",
+     "y": 44,
+     "speed": 6,
+     "vy": 0
+    },
+    {
+     "id": "wall_channel",
+     "y": -10,
+     "speed": 5,
+     "vy": 0
+    },
+    {
+     "id": "water_near",
+     "y": 190,
+     "speed": 6,
+     "vy": 0
+    }
+   ]
+  },
+  "crate": {
+   "blend": 1.2,
+   "bg": [
+    "#111917",
+    "#1d2623"
+   ],
+   "layers": [
+    {
+     "id": "wall_channel",
+     "y": -10,
+     "speed": 3,
+     "vy": 0
+    },
+    {
+     "id": "water_near",
+     "y": 190,
+     "speed": 4,
+     "vy": 0
+    },
+    {
+     "id": "crate",
+     "y": 177,
+     "speed": 0,
+     "vy": 0,
+     "x": 42
+    }
+   ]
+  }
+ }
+}

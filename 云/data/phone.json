@@ -1,0 +1,28 @@
+{
+	"_comment": "通讯器的联系人和初始聊天记录（格式见 docs/phone_and_cockpit_contract.md）。history 从旧到新；from = chen / 联系人 id。hidden = phone_add 之前不显示。friend = 失联的朋友：最后一条是晨出发前一天发的，之后一直空着，往前滑一点是那次争执（4月2日）；对方的名字剧情姐没写，先用「朋友」占位，整段记录是补写（added）给剧情姐审。miluo 在森林告别时 phone_add（先存「弥洛」，她自己改成「弥洛·修理」）；nifu 在河流段加。",
+	"contacts": {
+		"friend": {"name": {"zh": "朋友", "en": "Friend"}, "added": true, "history": [
+			{"from": "friend", "zh": "下午那趟，第三节车厢。", "en": "The afternoon train. Third car.", "date": "3月14日", "added": true},
+			{"from": "chen", "zh": "晒得到吗", "en": "Does it get sun", "date": "3月14日", "added": true},
+			{"from": "friend", "zh": "晒得到。就是门一开有风。", "en": "It does. Just windy when the doors open.", "date": "3月14日", "added": true},
+			{"from": "chen", "zh": "那我坐里面", "en": "Then I'll sit further in", "date": "3月14日", "added": true},
+			{"from": "chen", "zh": "盒子又卡了", "en": "The box is stuck again", "date": "3月21日", "added": true},
+			{"from": "friend", "zh": "别拍它", "en": "Don't hit it", "date": "3月21日", "added": true},
+			{"from": "chen", "zh": "拍完了", "en": "Already did", "date": "3月21日", "added": true},
+			{"from": "friend", "zh": "……那你听听，是不是更卡了", "en": "...Then listen. Is it worse now", "date": "3月21日", "added": true},
+			{"from": "friend", "zh": "周六那个，你还去吗", "en": "Saturday. Are you still going", "date": "4月2日", "added": true},
+			{"from": "chen", "zh": "去啊，不是早就说好了", "en": "Of course, we planned it ages ago", "date": "4月2日", "added": true},
+			{"from": "friend", "zh": "是你说好的。", "en": "You planned it.", "date": "4月2日", "added": true},
+			{"from": "chen", "zh": "那你当时怎么不说", "en": "Then why didn't you say so", "date": "4月2日", "added": true},
+			{"from": "friend", "zh": "说了。你没在听。", "en": "I did. You weren't listening.", "date": "4月2日", "added": true},
+			{"from": "chen", "zh": "我在听啊", "en": "I was listening", "date": "4月2日", "added": true},
+			{"from": "friend", "zh": "嗯。周六再说吧。", "en": "Okay. We'll see on Saturday.", "date": "4月2日", "added": true},
+			{"from": "chen", "zh": "周六我自己去了。人挺多的。", "en": "Went by myself on Saturday. It was crowded.", "date": "4月6日", "added": true},
+			{"from": "chen", "zh": "面包店换招牌了", "en": "The bakery has a new sign", "date": "4月19日", "added": true},
+			{"from": "chen", "zh": "第三节今天没太阳", "en": "No sun in the third car today", "date": "5月3日", "added": true},
+			{"from": "chen", "zh": "明天出发了。", "en": "Leaving tomorrow.", "date": "6月11日", "added": true}
+		]},
+		"miluo": {"name": {"zh": "弥洛·修理", "en": "Milo · Repairs"}, "hidden": true, "history": []},
+		"nifu": {"name": {"zh": "妮芙·河岸", "en": "Niff · Riverbank"}, "hidden": true, "history": []}
+	}
+}

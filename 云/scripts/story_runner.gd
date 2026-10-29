@@ -45,11 +45,23 @@ extends Node
 ## 第五版：
 ##   {"do": "drawing_closeup", "sec": n}：屏幕中间展开画的特写（art/forest_story/drawing_closeup.png，纸张展开、背景压暗），
 ##     停 n 秒，确认键 / 点击提前收起。缺图跳过。
-##   {"do": "treeline_match"}：镜头移到中景层那道被撞断的树冠缺口（broken_treeline），画上的弧线（drawing_arc）放大对齐、
-##     淡淡叠上去、停一下、淡出，镜头回到晨。缺图跳过。
+##   {"do": "treeline_match"}：淡入树冠缺口那一屏（坠毁现场那排树冠的平面侧视、中间被撞出的弧形凹口；单独一屏，
+##     不在森林的视差层里，见 story_world.gd 的 treeline_view_in）→ 停一下 → 画上的弧线（drawing_arc）放大 3 倍、
+##     按端点对齐叠到凹口上（淡入、停、淡出；弧线跟着凹口那一层漂，任何一帧都对得上）→ 淡出回到森林。缺图跳过。
+##   看树冠缺口的 hotspot（at = treeline_gap，或 hotspot 写 "view": "treeline"）：scene 开始前淡入同一屏（不叠弧线），
+##     晨的台词在这一屏上说完再淡出回到森林（森林里抬头是看不到这道缺口的）。这一屏出来的时候所有对话框都放在
+##     画面下方居中（TREELINE_VIEW_ANCHOR，不挡凹口），左上角目标 / 燃料和背包图标淡出（见 story_world.gd）。
 ##   顶层 "objectives"：[{need, not, zh, en, show_fuel}…] 取第一个满足条件的，当左上角的「当前目标」（level_forest.gd 画）。
 ## 不推人（作者的规矩）：走进 trigger:"enter" 的点触发的 scene 里，「晨 walk」一律不执行（不能用台词 + 自动走路把玩家推回去；
 ##   该停的地方由 story_world.gd 的「看得见的边」挡住）。--story_check 会把这种步骤列出来。
+##   例外：hotspot 写了 "cutscene": true = 走到这里是玩家自己要去的终点、后面是一整段往前走的过场（flight1 回到驾驶座 →
+##   改航线 → 走去转化装置），过场里晨的 walk 照常走（不是把人推回去）。
+## 转场（10-29）：fade_to 可带 "leave": marker（边往那边走边黑，离开）、"cam": marker（换过去以后镜头停在那，晨从画面外走进来）、
+##   "arrive": marker（淡入的同时晨从 at 走几步到这里停住：到达，不是一淡入就站在目标点上；只走一小段）、
+##   "place": {人: marker}（换地方的同时把人放好，淡入后不凭空出现）；show / hide 可带 "fade": 秒（4 档透明度淡入淡出）；
+##   {"do": "camera", "hold"/"at"/"release"}（见 _camera）。scene 播完自动放开镜头。
+##   晨的 walk 可带 "pace": "walk"（走路的速度、缓起缓停；arrive 和区域入口的到达也是这个速度）。
+##   过场一播完（玩家能动了），还没走到的 walk（wait:false）立刻松手：玩家任何时候都不会被推着走。
 ## 引擎扩展（设计文档之外、可选）：hotspot 的 at = NPC 名（跟着角色）；
 ##   show / hide 的 who 也可以是物件 id；pick 选项的 "correct": true；
 ##   flag 步骤的 "clear"；剧本顶层的 "items"（items.json 里没有的物品先用它顶上）、"hooks"。
@@ -66,9 +78,12 @@ extends Node
 const DEFAULT_STORY := "res://data/story_forest.json"
 const SAMPLE_STORY := "res://data/story_forest_sample.json"
 const SFX_DIR := "res://audio/sfx/"
+const TREELINE_VIEW_ANCHOR := Vector2(240, 234)   # 树冠缺口那一屏里对话框的锚点：框底边落在 229（凹口两头最低 198，框在下面的树冠上），尖角不画
 const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "take", "flag", "journal", "sfx",
 	"fade_to", "anim", "prop", "guide", "goto", "pick", "end_chapter", "if", "ambient", "show_item",
-	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match"]
+	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match", "fuel", "camera"]
+const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
+const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd"}   # 驾驶舱
 const HOOKS := {
 	"crash": ["crash_wake", "wake", "crash", "intro", "opening"],
 	"wood": ["wood_found", "wood", "wood_pickup", "pickup_wood", "glowing_wood"],
@@ -89,6 +104,9 @@ const AUTO_LINE := 0.6
 const WORLD_GD := preload("res://scripts/story_world.gd")
 const HOTSPOTS_GD := preload("res://scripts/hotspots.gd")
 const DIALOGUE_GD := preload("res://scripts/story_dialogue.gd")
+const PHONE_GD := preload("res://scripts/phone_ui.gd")
+const BARK_GD := preload("res://scripts/story_bark.gd")      # say 带 bark：晨头顶的小气泡（不锁人）
+const QUICK_GD := preload("res://scripts/story_quick.gd")    # give 数组、走过去就捡（hotspot pickup）
 
 var level: Node2D
 var path := ""
@@ -99,6 +117,12 @@ var hotspot_defs: Array = []
 var world: Node2D
 var hotspots: Node2D
 var dlg: Control
+var phone: Control                   # 通讯器界面（phone_ui.gd）
+var bark: Control                    # 头顶小气泡（story_bark.gd）
+var quick: RefCounted                # story_quick.gd
+var cockpit_ui: Control              # 正在等玩家的驾驶舱步骤（避碎石 / 选纪念品；软锁检测用）
+var missing_anims := {}              # 剧本要、晨还没有的动作（MISSING_ANIM，给奥斯卡画）
+var entry_scene := ""                # 这一章的入口 scene（flight1 = start_flight1；关卡直接播，--story_check 不算「播不到」）
 var chen: Node2D
 var deer: Node2D
 var miluo: Node2D
@@ -116,6 +140,7 @@ var played := {}
 var played_order: Array[String] = []
 var lines := 0
 var hotspots_used := 0
+var _scene_view := ""                # 下一个 play() 的 scene 在哪一屏上播（"treeline" = 树冠缺口那一屏；trigger 设，play 用完清掉）
 var _t0_ms := 0
 var _game_t := 0.0
 var _cur_scene := ""
@@ -187,6 +212,8 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 			if st is Dictionary and str(st.get("do", "")) == "prop" and str(st.get("state", "")) == "shown":
 				shown.append(str(st.get("id", "")))
 	world.setup(lv, data.get("markers", {}), _steam_pipe(), shown)
+	if "cockpit" in data.get("rooms", []):
+		world.add_cockpit()                # 驾驶舱（cockpit_room.gd）
 	hotspots = HOTSPOTS_GD.new()
 	hotspots.name = "Hotspots"
 	lv.add_child(hotspots)
@@ -195,6 +222,17 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	dlg.name = "StoryDialogue"
 	ui_root.add_child(dlg)
 	hotspots.setup(self, world, hotspot_defs, ui_root)
+	phone = PHONE_GD.new()
+	phone.name = "Phone"
+	phone.story = self
+	phone.level = lv
+	ui_root.add_child(phone)
+	bark = BARK_GD.new()
+	bark.name = "StoryBark"
+	bark.story = self
+	ui_root.add_child(bark)
+	ui_root.move_child(bark, dlg.get_index())
+	quick = QUICK_GD.new(self)
 	# 角色的起始位置：鹿藏着（启动失败那一幕才出来），弥洛在树屋里
 	deer.visible = false
 	_place(miluo, world.mx("room_miluo"), "treehouse")
@@ -315,6 +353,11 @@ func play(id: String, manage := true, from_index := 0) -> void:
 	if manage and not ff:
 		level.story_begin(_wants_bars(id))
 		dlg.top_limit = level.BAR_H + 4.0 if level.bars_on() else 4.0
+	var view: bool = _scene_view == "treeline" and manage and not ff and world.has_treeline_view()
+	_scene_view = ""
+	if view:
+		await world.treeline_view_in(0.7 if auto == "" else 0.3)
+		_ui_shot("treeline", 0.3)
 	var cur := id
 	var hops := 0
 	var fuel_before := StoryState.has("fuel_full")
@@ -346,8 +389,13 @@ func play(id: String, manage := true, from_index := 0) -> void:
 			if g != "":
 				next = g
 				break
+		if ff and ff_stop and _ff_target != "" and StoryState.has(_ff_target) and next != "":
+			ff_resume = next                 # 跳节拍（别的章节）：设目标 flag 的 scene 播完就停，后面的由关卡正常播
+			break
 		cur = next
 	dlg.close_box()
+	if view:
+		await world.treeline_view_out(0.7 if auto == "" else 0.3)
 	free_walk = false
 	step_i = -1
 	if manage and not ff and not ended:
@@ -431,7 +479,10 @@ func _step(st: Dictionary) -> String:
 		"hide":
 			_show(st, false)
 		"give":
-			await _give(str(st.get("item", "")))
+			if st.has("items"):
+				await quick.give_many(st)
+			else:
+				await _give(str(st.get("item", "")))
 		"take":
 			_take(str(st.get("item", "")))
 		"flag":
@@ -465,6 +516,18 @@ func _step(st: Dictionary) -> String:
 			var yes := not StoryState.has(f.substr(1)) if f.begins_with("!") else StoryState.has(f)
 			var to := str(st.get("then" if yes else "else", ""))
 			if to == "":
+				return ""
+			if _falls_through(to):
+				# 分支 scene 播完没有跳走（没有 goto / 点选 / 结束）：播完回来接着播 if 后面的步骤（flight1 记日记那种写法）
+				var outer := _cur_scene
+				_on_scene(to)
+				for st2 in scenes[to]:
+					if not st2 is Dictionary:
+						continue
+					var g2: String = await _step(st2)
+					if ended or g2 != "":
+						return g2
+				_cur_scene = outer
 				return ""
 			return to
 		"ambient":
@@ -509,9 +572,61 @@ func _step(st: Dictionary) -> String:
 					c += 1
 			if c >= int(st.get("at_least", 1)) and st.has("set"):
 				StoryState.set_flag(str(st["set"]))
+		"fuel":
+			_fuel_step(st)
+		"camera":
+			await _camera(st)
+		"phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft":
+			await phone.step(st)
+		"debris_steer", "keepsake_choice":
+			var cs2: String = await _cockpit_step(d, st)     # 驾驶舱的两个小玩法（cockpit_debris.gd / cockpit_keepsake.gd）
+			return cs2
 		_:
 			_warn_once("不认识的步骤：" + JSON.stringify(st))
 	return ""
+
+
+## 飞行段燃料表（左上角「现在 / 需要」，StoryState.fuel / fuel_need）：
+##   {"do": "fuel", "have": 200, "need": 200}  设两个数（起飞时满的）；{"do": "fuel", "need": 255}  只改需要的量（改航线）
+##   {"do": "fuel", "burn": "blue_stone"}  加这件东西的 keepsake_burn（没有就用 burn）；{"do": "fuel", "add": n} / "sub": n
+##   燃料最多到「需要的量」（放进去的比缺口多，表也只到满）。纪念品卡片上不标燃料值，差多少只看这张表。
+func _fuel_step(st: Dictionary) -> void:
+	var was := StoryState.fuel()
+	var need_was := StoryState.fuel_need()
+	var have := was
+	var need := -1
+	if st.has("need"):
+		need = int(st["need"])
+	if st.has("have"):
+		have = int(st["have"])
+	if st.has("burn"):
+		have += fuel_of(str(st["burn"]))
+	have += int(st.get("add", 0)) - int(st.get("sub", 0))
+	if need < 0 and not StoryState.fuel_on():
+		need = maxi(have, 0)
+	StoryState.set_fuel(have, need)
+	level.fuel_changed(was, need_was)
+
+
+## 一件东西放进转化装置给多少燃料（纪念品 keepsake_burn，材料 burn）
+static func fuel_of(id: String) -> int:
+	var it := Inventory.item(id)
+	return int(it.get("keepsake_burn", it.get("burn", 0)))
+
+
+## 驾驶舱步骤：建那个界面（挂在对话界面下，按键先到它那里），等它播完；返回要跳去的 scene（"" = 接着播）
+func _cockpit_step(kind: String, st: Dictionary) -> String:
+	if world.cockpit == null:
+		_warn_once("%s：剧本 rooms 里没有 cockpit，跳过" % kind)
+		return ""
+	var n: Control = (load(COCKPIT_STEPS[kind]) as GDScript).new()
+	n.name = kind
+	dlg.add_child(n)
+	cockpit_ui = n
+	var r: String = await n.play(self, st)
+	cockpit_ui = null
+	n.queue_free()
+	return r
 
 
 func _wait(sec: float) -> void:
@@ -525,6 +640,9 @@ func _wait(sec: float) -> void:
 func _say(st: Dictionary) -> void:
 	lines += 1
 	if ff:
+		return
+	if st.get("bark", false):
+		bark.push(txt(st), bool(st.get("added", false)) and mark_added)    # 头顶小气泡，不等
 		return
 	var who := str(st["say"])
 	var tl := txt_lang(st)
@@ -542,6 +660,8 @@ func _say(st: Dictionary) -> void:
 
 
 func _anchor(who: String) -> Vector2:
+	if world.treeline_view_shown():
+		return TREELINE_VIEW_ANCHOR             # 树冠缺口那一屏：框放在画面下方居中，不挡凹口
 	var left: Vector2 = level.cam_left()
 	var n := npc(who)
 	if n != null and n.visible:
@@ -599,7 +719,13 @@ func _walk(st: Dictionary) -> void:
 				_warn_once("walk：晨的 speed 不支持（晨的速度在 chen.gd 里，不改），按平常速度走")
 			var w: Vector2 = world.walls(chen.position.x)
 			x = clampf(x, w.x + 4.0, w.y - 4.0)
-			if wait:
+			if str(st.get("pace", "")) == "walk":
+				# "pace": "walk"（10-29）：走路的速度，慢慢起步、慢慢停（level_forest.gd 的 stroll_to；动画照旧 100ms 一帧）
+				if wait:
+					await level.stroll_to(x)
+				else:
+					level.stroll_to(x)
+			elif wait:
 				await _chen_walk(x)
 			else:
 				_chen_walk(x)
@@ -638,6 +764,8 @@ func _chen_walk(x: float) -> void:
 		var d := x - chen.position.x
 		if absf(d) <= 2.0 + chen.stop_distance() or signf(d) != dir:
 			break
+		if level.player_free():
+			break                            # 过场播完了（walk 带 wait:false 的还没走到）：松手，绝不推着玩家走
 		chen.auto_dir = dir
 		await get_tree().process_frame
 		t += get_process_delta_time()
@@ -683,12 +811,83 @@ func _show(st: Dictionary, on: bool) -> void:
 			_place(n, r["x"], r["room"])
 		else:
 			_warn_once("show：找不到 " + str(st["at"]))
+	# "fade": 秒（10-29）：按 4 档透明度淡入 / 淡出（鹿走进雾里、慢慢出现），不突然出现 / 消失；不等它淡完就播下一步
+	var fade := 0.0 if ff else float(st.get("fade", 0.0))
+	if n.has_meta("vis_tw"):
+		var old = n.get_meta("vis_tw")
+		if old is Tween and (old as Tween).is_valid():
+			(old as Tween).kill()
+		n.remove_meta("vis_tw")
+		n.modulate.a = 1.0
+	if fade > 0.0 and not on and n.visible:
+		var tw := create_tween()
+		n.set_meta("vis_tw", tw)
+		tw.tween_method(func(a: float): n.modulate.a = ceilf(a * 4.0) / 4.0, 1.0, 0.0, fade)
+		tw.tween_callback(func():
+			n.visible = false
+			n.modulate.a = 1.0
+			n.remove_meta("vis_tw"))
+		return
+	var was := n.visible
 	n.visible = on
 	sync_npc_vis(true)
+	if fade > 0.0 and on and not was and n.modulate.a > 0.0:
+		var tw2 := create_tween()
+		n.set_meta("vis_tw", tw2)
+		n.modulate.a = 0.0
+		tw2.tween_method(func(a: float): n.modulate.a = floorf(a * 4.0) / 4.0, 0.0, 1.0, fade)
+		tw2.tween_callback(func(): n.remove_meta("vis_tw"))
+
+
+## fade_to 的 "place": {"deer": marker, …}：换地方的同时（黑着的时候 / 进出屋前墙还挡着的时候）把这些人放到位、显示出来，
+## 淡入以后不会凭空冒出来
+func _fade_place(st: Dictionary) -> void:
+	var pl = st.get("place", {})
+	if not pl is Dictionary:
+		return
+	for who in pl:
+		_show({"who": str(who), "at": pl[who]}, true)
 
 
 func _room_of(n: Node2D) -> String:
 	return str(_npc_room.get(n.name, "forest"))
+
+
+## 弥洛和树屋前墙的前后（10-29）：前墙本来就画在弥洛前面一格（屋里的她被前墙盖住）。
+##   在屋里 = 前墙后面；在屋外 = 前墙前面（从屋前走过不会被墙吞掉）；往屋里走（滑向前墙范围里的点）= 前墙后面
+##   （从屋子边上绕到后面去，被墙一点点挡住）。只在她和前墙不重叠、或者前墙透明（在屋里）的时候换，换的那一下看不出来。
+const MILUO_HALF := 16.0            # 弥洛半宽（帧宽 31，留一点）
+var _miluo_front := false
+
+
+func _update_miluo_layer() -> void:
+	if miluo == null or world == null or not world.house.has("front_x0"):
+		return
+	var want := _miluo_front
+	var x := miluo.position.x
+	if _room_of(miluo) == "treehouse":
+		want = false
+	elif miluo.is_gliding():
+		want = not world.behind_front(float(miluo._glide_x))
+	elif not world.behind_front(x):
+		want = true
+	if want == _miluo_front:
+		return
+	if ff or not miluo.visible or not world.overlaps_front(x, MILUO_HALF) or world.house_front.modulate.a < 0.05:
+		_set_miluo_front(want)
+
+
+func _set_miluo_front(on: bool) -> void:
+	_miluo_front = on
+	var hf: Node2D = world.house_front
+	if hf.get_parent() != miluo.get_parent():
+		return
+	var i := miluo.get_index()
+	var j := hf.get_index()
+	if on and i < j:
+		level.move_child(miluo, j)          # 前墙挪到她后面一格
+	elif not on and i > j:
+		level.move_child(miluo, j)
 
 
 ## 把角色直接放到 x（房间 r 的地面上），停掉正在跑 / 滑
@@ -705,6 +904,8 @@ func _place(n: Node2D, x: float, r: String) -> void:
 		chen._vel = 0.0
 	n.position = Vector2(round(x), round(world.ground_at(x, r)) + 1.0)
 	_npc_room[n.name] = r
+	if n == miluo and world.house.has("front_x0"):
+		_set_miluo_front(r != "treehouse" and not world.behind_front(round(x)))    # 直接放过去的：图层也直接对
 
 
 ## 屋里屋外：和晨不在同一边、又站在树屋图范围里的角色淡掉（晨进屋时屋外门口的鹿；晨在屋外时屋里的弥洛本来就被前墙挡着）
@@ -713,10 +914,16 @@ func sync_npc_vis(instant := false) -> void:
 		var nd: Node2D = n
 		var away: bool = _room_of(nd) != world.room and world.in_house_span(nd.position.x)
 		var a := 0.0 if away and world.in_room() else 1.0
+		# 上一次还没淡完的先停掉（10-29：进屋时先淡掉、紧接着 fade_to 的 place 把人放进屋，旧的 tween 会把人又淡没）
+		var old = nd.get_meta("sync_tw") if nd.has_meta("sync_tw") else null
+		if old is Tween and (old as Tween).is_valid():
+			(old as Tween).kill()
 		if instant or ff:
 			nd.modulate.a = a
 		elif not is_equal_approx(nd.modulate.a, a):
-			create_tween().tween_property(nd, "modulate:a", a, 0.5)
+			var tw := create_tween()
+			tw.tween_property(nd, "modulate:a", a, 0.5)
+			nd.set_meta("sync_tw", tw)
 
 
 func _anim(st: Dictionary) -> void:
@@ -729,6 +936,17 @@ func _anim(st: Dictionary) -> void:
 	var n := npc(who)
 	var key := "miluo" if n == miluo else who
 	var m: Dictionary = ANIM_MAP.get(key, {})
+	if n == chen and n != null and not m.has(name):
+		# 晨：chen.gd 的 ANIMS 里有同名的段就直接播（奥斯卡画好加进去就能用）；没有就退回待机，记下来给奥斯卡（帧速照旧 100ms）
+		if chen.spr.sprite_frames.has_animation(StringName(name)):
+			chen.spr.play(StringName(name))
+			return
+		if not missing_anims.has(name):
+			missing_anims[name] = true
+			print("MISSING_ANIM " + name)
+		if chen._vel <= 0.0:
+			chen.spr.play(&"idle")
+		return
 	if n == null or not m.has(name):
 		_warn_once("anim：%s 没有 %s" % [who, name])
 		return
@@ -925,20 +1143,86 @@ func _fade_to(st: Dictionary) -> void:
 		_warn_once("fade_to：找不到 " + str(st.get("at")))
 		return
 	var x: float = r["x"]
+	var arrive := NAN
+	if st.has("arrive"):
+		var ar: Dictionary = world.resolve(st["arrive"])
+		if ar["ok"]:
+			arrive = float(ar["x"])
 	if ff:
 		_teleport(room, x, st.get("with", []), true)
+		_fade_place(st)
+		if not is_nan(arrive):
+			_place(chen, arrive, room)
 		return
 	# 进屋 / 出屋（树屋就在森林里）：不黑屏，前墙淡出 / 淡入
 	var door: bool = room != world.room and (room == "treehouse" or world.room == "treehouse") \
 		and world.near_house(x) and world.near_house(chen.position.x)
 	if door:
 		_teleport(room, x, st.get("with", []), false)
+		_fade_place(st)
 		await _wait(0.55)
 		return
-	await level.fade_to_black(0.5)
+	var out_sec := 0.5
+	if st.has("leave"):
+		# 边走边黑：晨（和 with 里的人）朝 leave 那边一直走，黑透了再换地方（离开，不是原地消失）
+		var lr: Dictionary = world.resolve(st["leave"])
+		if lr["ok"]:
+			out_sec = 0.8
+			chen.auto_dir = signf(float(lr["x"]) - chen.position.x)
+	await level.fade_to_black(out_sec)
+	chen.auto_dir = 0.0
 	_teleport(room, x, st.get("with", []), true)
+	_fade_place(st)
+	if st.has("cam"):
+		# 镜头停在 cam 这里不跟晨（晨从画面外走进来）；camera release 步骤或这个 scene 播完放开
+		var cr: Dictionary = world.resolve(st["cam"])
+		if cr["ok"]:
+			level.camera_hold_at(Vector2(float(cr["x"]), 135.0))
 	await _wait(0.25)
+	if is_nan(arrive) or _enter_scene:
+		await level.fade_from_black(0.5)
+		return
+	# "arrive": marker（10-29）：淡入的同时晨从 at 走几步到这里（到达，不是凭空站在那）；停稳了才往下播。
+	# 只走一小段，走路的速度（level_forest.gd 的 stroll_to），不是过场里把人推着跑
+	await _arrive_walk(arrive)
+
+
+## 黑着的时候晨已经站在入口边上、朝着要走的方向；淡入的同时走几步停住
+func _arrive_walk(to: float) -> void:
+	if absf(to - chen.position.x) >= 1.0:
+		chen._set_facing(1 if to > chen.position.x else -1)
+		level._snap_camera()
+	level.stroll_to(to)
 	await level.fade_from_black(0.5)
+	while level.strolling() or chen._vel > 0.0:
+		await get_tree().process_frame
+
+
+## 镜头（10-29）：{"do": "camera", "hold": true} 停在现在的位置不跟晨（让人走出画面）；
+## {"do": "camera", "at": marker 或 x, "sec": n} 慢慢移过去停住（sec = 0 直接到）；{"do": "camera", "release": true} 慢慢跟回晨。
+## scene 播完、鹿带路放手让晨走的时候都会自动放开。跳节拍时不动镜头。
+func _camera(st: Dictionary) -> void:
+	if ff:
+		return
+	if st.get("release", false):
+		level.camera_release()
+		return
+	if st.has("at"):
+		var r: Dictionary = world.resolve(st["at"])
+		if not r["ok"]:
+			_warn_once("camera：找不到 " + str(st["at"]))
+			return
+		var to := Vector2(float(r["x"]), 135.0)
+		var sec := float(st.get("sec", 1.0))
+		if sec <= 0.0:
+			level.camera_hold_at(to)
+		elif st.get("wait", true):
+			await level.camera_pan(to, sec)
+		else:
+			level.camera_pan(to, sec)
+		return
+	if st.get("hold", false):
+		level.camera_hold_at(level.cam.position)
 
 
 func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
@@ -1057,6 +1341,8 @@ func _auto_pick(st: Dictionary) -> int:
 
 
 var ff_hit_end := false              # 跳节拍时碰到了 end_chapter（跳到 launched：跳完直接播起飞）
+var ff_stop := false                 # 跳节拍时目标 flag 一设上、那个 scene 播完就停（flight1 一路 goto 到底，不停会跳过头）
+var ff_resume := ""                  # 停下的地方：接下来该播的 scene（关卡跳完以后正常播）
 
 
 func _end_chapter() -> void:
@@ -1066,6 +1352,11 @@ func _end_chapter() -> void:
 	ended = true
 	dlg.close_box()
 	await level.story_takeoff()
+	if level.chapter_next():
+		# 接下一章（森林起飞 → 驾驶舱）：关卡带着状态重新载入，不出结束卡
+		if auto != "":
+			print_stats("STORY_DONE")
+		return
 	dlg.end_card(I18n.t("to_be_continued"), I18n.t("to_be_continued_sub"), level.get_node("Top"))
 	if auto != "":
 		await _wait(2.5)
@@ -1159,6 +1450,9 @@ func play_end() -> void:
 ## 晨按了互动（或自动玩走到了）：播它的 scene
 func trigger(p: Dictionary) -> void:
 	var h: Dictionary = p["h"]
+	if not ff and quick.is_quick(h):
+		await quick.pickup(p)           # 走过去就捡：不锁人
+		return
 	var id := str(h.get("id", ""))
 	if h.get("once", false):
 		StoryState.mark_used(id)
@@ -1166,7 +1460,7 @@ func trigger(p: Dictionary) -> void:
 	hotspots_used += 1
 	if not ff and absf(float(p["x"]) - chen.position.x) > 2.0:
 		chen._set_facing(1 if float(p["x"]) > chen.position.x else -1)
-	_enter_scene = hotspots.is_enter(h)
+	_enter_scene = hotspots.is_enter(h) and not bool(h.get("cutscene", false))
 	var scene := str(h.get("scene", ""))
 	var acc: Dictionary = h.get("accepts", {})
 	if not acc.is_empty() and not _enter_scene and not _owned_accepted(acc).is_empty():
@@ -1186,7 +1480,9 @@ func trigger(p: Dictionary) -> void:
 					level.story_end()
 				_visited[id] = StoryState.progress()
 				return
+	_scene_view = _hotspot_view(h) if not ff else ""
 	await play(scene, not ff)
+	_scene_view = ""
 	_enter_scene = false
 	_visited[id] = StoryState.progress()
 
@@ -1219,17 +1515,20 @@ func use_item(item: String) -> void:
 	await play(scene)
 
 
-## 换区域（树屋段 → 旧路段的入口）：黑屏换过去
-func portal_to(x: float) -> void:
+## 换区域（树屋段 ↔ 旧路段的入口）：黑屏换过去。给了 from：晨先站在 from（那一段的入口边上），淡入的同时走几步到 x（到达）
+func portal_to(x: float, from := NAN) -> void:
 	if busy:
 		return
 	busy = true
 	hotspots.active = false
 	level.story_begin(false)
 	await level.fade_to_black(0.45)
-	_teleport("forest", x, [], true)
+	_teleport("forest", x if is_nan(from) else from, [], true)
 	await _wait(0.2)
-	await level.fade_from_black(0.45)
+	if is_nan(from):
+		await level.fade_from_black(0.45)
+	else:
+		await _arrive_walk(x)
 	busy = false
 	level.story_end()
 
@@ -1372,20 +1671,22 @@ func _elephant_call(st: Dictionary) -> void:
 	await _wait(dur + 0.4)
 
 
-## 镜头移到树冠缺口、画上的弧线叠上去、镜头回来
+## 树冠缺口那一屏淡入、画上的弧线叠上去对齐、停一下、淡出回到森林
 func _treeline_match() -> void:
-	if world.treeline.is_empty():
+	if not world.has_treeline_view():
 		return
-	var top: Vector2 = world.treeline_screen_top()
-	var s := float(world.treeline.get("layer_scroll", 0.62))
-	var cam: Camera2D = level.cam
-	var to := Vector2(cam.position.x + (top.x - 240.0) / maxf(0.05, s), 135.0 - 16.0)
-	await level.camera_pan(to, 1.4)
+	await world.treeline_view_in(0.9 if auto == "" else 0.4)
+	await _wait(0.6 if auto == "" else 0.2)
 	var dur: float = world.match_arc(1.8 if auto == "" else 0.8)
 	_ui_shot("arc", 0.9)
-	await _wait(dur + 0.2)
-	level.camera_release()
-	await _wait(0.6)
+	await _wait(dur + 0.3)
+	await world.treeline_view_out(0.9 if auto == "" else 0.4)
+	await _wait(0.3)
+
+
+## 这个 hotspot 的 scene 要不要在树冠缺口那一屏上播
+func _hotspot_view(h: Dictionary) -> String:
+	return str(h.get("view", "treeline" if str(h.get("at", "")) == "treeline_gap" else ""))
 
 
 ## 左上角的当前目标：第一个满足条件的 objectives 条目；没有就 {}
@@ -1474,6 +1775,10 @@ func _would_progress(s: String, seen: Dictionary) -> bool:
 				for o in st.get("options", []):
 					if _would_progress(str(o.get("scene", "")), seen):
 						return true
+			"keepsake_choice":
+				for v in (st.get("scenes", {}) as Dictionary).values():
+					if _would_progress(str(v), seen):
+						return true
 	return false
 
 
@@ -1494,6 +1799,9 @@ func _reach(s: String, seen: Dictionary) -> Array:
 			"pick", "choice":
 				for o in st.get("options", []):
 					_reach(str(o.get("scene", "")), seen)
+			"keepsake_choice":
+				for v in (st.get("scenes", {}) as Dictionary).values():
+					_reach(str(v), seen)
 	return seen.keys()
 
 
@@ -1556,6 +1864,7 @@ func _process(delta: float) -> void:
 	_game_t += delta
 	step_t += delta
 	_update_item_show(delta)
+	_update_miluo_layer()
 	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood")):
 		alarm(false)
 	if not ended and not ff:
@@ -1700,6 +2009,7 @@ func print_stats(tag: String) -> void:
 	print("STORY_ITEMS " + ", ".join(Inventory.owned))
 	print("STORY_UNPLAYED " + (", ".join(unplayed) if not unplayed.is_empty() else "(none)"))
 	print("STORY_MISSING_SFX " + (", ".join(missing_sfx.keys()) if not missing_sfx.is_empty() else "(none)"))
+	print("STORY_MISSING_ANIM " + (", ".join(missing_anims.keys()) if not missing_anims.is_empty() else "(none)"))
 	if tag == "STORY_STUCK":
 		var av: Array = []
 		for p in hotspots.available():
@@ -1714,10 +2024,14 @@ func validate() -> Array[String]:
 	for f in ENGINE_FLAGS:
 		set_flags[f] = true
 	var refs := {}
+	if entry_scene != "":
+		refs[entry_scene] = true
 	for id in scenes:
 		for st in scenes[id]:
 			if st is Dictionary and str(st.get("do", "")) in ["flag", "count"] and st.has("set"):
 				set_flags[str(st["set"])] = true
+			if st is Dictionary and str(st.get("do", "")) == "phone_draft" and str(st.get("flag", "")) != "":
+				set_flags[str(st["flag"])] = true
 	for k in HOOKS:
 		var h := hook(k)
 		if h == "":
@@ -1736,8 +2050,8 @@ func validate() -> Array[String]:
 		var at = h.get("at", null)
 		if at == null or (at is String and npc(str(at)) == null and not world.has_marker(str(at)) and not str(at).is_valid_float()):
 			out.append("hotspot %s：at 找不到 %s" % [hid, str(at)])
-		if not str(h.get("room", "forest")) in ["forest", "treehouse"]:
-			out.append("hotspot %s：room 只能是 forest / treehouse（%s）" % [hid, h.get("room")])
+		if not str(h.get("room", "forest")) in ["forest", "treehouse"] and not (str(h.get("room", "")) == "cockpit" and world.cockpit != null):
+			out.append("hotspot %s：room 只能是 forest / treehouse%s（%s）" % [hid, " / cockpit" if world.cockpit != null else "", h.get("room")])
 		var sc := str(h.get("scene", ""))
 		if not scenes.has(sc):
 			out.append("hotspot %s：没有 scene %s" % [hid, sc])
@@ -1771,8 +2085,11 @@ func validate() -> Array[String]:
 				out.append("scene %s：步骤不是对象 %s" % [id, str(st)])
 				continue
 			var kind := "say" if st.has("say") else ("narr" if st.has("narr") else str(st.get("do", "")))
-			if not kind in STEPS:
+			if not kind in STEPS and not kind in PHONE_STEPS and not COCKPIT_STEPS.has(kind):
 				out.append("scene %s：不支持的步骤 %s" % [id, JSON.stringify(st)])
+				continue
+			if COCKPIT_STEPS.has(kind):
+				out.append_array(_validate_cockpit(str(id), kind, st, refs))
 				continue
 			match kind:
 				"say":
@@ -1798,9 +2115,9 @@ func validate() -> Array[String]:
 					if st.has("at") and not world.has_marker(str(st["at"])) and not str(st["at"]).is_valid_float():
 						out.append("scene %s：%s 的 at 找不到 %s" % [id, kind, st["at"]])
 				"give", "take":
-					var item := str(st.get("item", ""))
-					if not Inventory.defined(item):
-						out.append("scene %s：物品 %s 不在 items.json（也不在剧本 items 里）" % [id, item])
+					for item in (st.get("items", []) if kind == "give" and st.has("items") else [str(st.get("item", ""))]):
+						if not Inventory.defined(str(item)):
+							out.append("scene %s：物品 %s 不在 items.json（也不在剧本 items 里）" % [id, item])
 				"journal":
 					if str(st.get("zh", "")) == "":
 						out.append("scene %s：journal 没有 zh" % id)
@@ -1828,6 +2145,13 @@ func validate() -> Array[String]:
 				"count":
 					if not st.has("set") or not st.has("flags"):
 						out.append("scene %s：count 要有 flags 和 set" % id)
+				"fuel":
+					var known := ["do", "have", "need", "burn", "add", "sub", "added", "_comment"]
+					for k3 in st:
+						if not str(k3) in known:
+							out.append("scene %s：fuel 不认识 %s（有 have / need / burn / add / sub）" % [id, k3])
+					if st.has("burn") and (not Inventory.defined(str(st["burn"])) or fuel_of(str(st["burn"])) <= 0):
+						out.append("scene %s：fuel 的 burn %s 不在物品表或没有 keepsake_burn / burn" % [id, st["burn"]])
 				"journal_strike", "journal_mark":
 					if str(st.get("match", "")) == "":
 						out.append("scene %s：%s 没有 match" % [id, kind])
@@ -1853,14 +2177,38 @@ func validate() -> Array[String]:
 					for w in st.get("with", []):
 						if npc(str(w)) == null:
 							out.append("scene %s：fade_to 的 with 不认识 %s" % [id, w])
+					var pl4 = st.get("place", {})
+					if pl4 is Dictionary:
+						for w4 in pl4:
+							if npc(str(w4)) == null:
+								out.append("scene %s：fade_to 的 place 不认识 %s" % [id, w4])
+							elif not world.has_marker(str(pl4[w4])) and not str(pl4[w4]).is_valid_float():
+								out.append("scene %s：fade_to 的 place 找不到 %s" % [id, pl4[w4]])
+					for k4 in ["leave", "cam", "arrive"]:
+						if st.has(k4) and not world.has_marker(str(st[k4])) and not str(st[k4]).is_valid_float():
+							out.append("scene %s：fade_to 的 %s 找不到 %s" % [id, k4, st[k4]])
+				"camera":
+					if st.has("at") and not world.has_marker(str(st["at"])) and not str(st["at"]).is_valid_float():
+						out.append("scene %s：camera 的 at 找不到 %s" % [id, st["at"]])
+					if not (st.has("at") or st.get("hold", false) or st.get("release", false)):
+						out.append("scene %s：camera 要有 at / hold / release" % id)
 				"anim":
 					var who := str(st.get("who", ""))
 					var key := "miluo" if npc(who) == miluo else who
-					if not (ANIM_MAP.get(key, {}) as Dictionary).has(str(st.get("name", ""))):
+					if npc(who) == chen and chen != null and not (ANIM_MAP["chen"] as Dictionary).has(str(st.get("name", ""))):
+						if not chen.spr.sprite_frames.has_animation(StringName(str(st.get("name", "")))):
+							out.append("info: MISSING_ANIM %s（scene %s：晨还没有这段动作，播的时候退回待机）" % [st.get("name"), id])
+					elif not (ANIM_MAP.get(key, {}) as Dictionary).has(str(st.get("name", ""))):
 						out.append("scene %s：%s 没有动画 %s（有：%s）" % [id, who, st.get("name"), ", ".join((ANIM_MAP.get(key, {}) as Dictionary).keys())])
 				"prop":
 					var pid := str(st.get("id", ""))
-					if not world.props.has(world.prop_id(pid)) and not pid in world.PSEUDO_PROPS:
+					if world.cockpit != null and world.cockpit.has_prop(pid):
+						var ks: Array = world.cockpit.KNOWN_STATES.get(pid, [])
+						if not world.cockpit.objects.has(pid) and pid != "cockpit_window":
+							out.append("info: scene %s：驾驶舱物件 %s 没有位置（cockpit.json / 占位布局里都没有），只记状态" % [id, pid])
+						elif not ks.has(str(st.get("state", ""))):
+							out.append("info: scene %s：驾驶舱物件 %s 的状态 %s 引擎没专门画（占位亮一档；有 %s_%s.png 就用图）" % [id, pid, st.get("state"), pid.trim_prefix("cockpit_"), st.get("state")])
+					elif not world.props.has(world.prop_id(pid)) and not pid in world.PSEUDO_PROPS:
 						out.append("scene %s：没有物件 %s（只记状态，画面上没东西）" % [id, pid])
 				"guide":
 					if not world.has_marker(str(st.get("to", ""))) and not str(st.get("to", "")).is_valid_float():
@@ -1880,7 +2228,7 @@ func validate() -> Array[String]:
 						if not world.props.has(pid) and not world.props.has(pid.trim_prefix("room_")):
 							out.append("info: scene %s：pick 选项 %s 场景里没有这个物件（用下面一排按钮）" % [id, pid])
 	for h in hotspot_defs:
-		if h is Dictionary and hotspots.is_enter(h):
+		if h is Dictionary and hotspots.is_enter(h) and not bool(h.get("cutscene", false)):
 			for s in _reach(str(h.get("scene", "")), {}):
 				for st in scenes.get(s, []):
 					if st is Dictionary and str(st.get("do", "")) == "walk" and str(st.get("who", "chen")) == "chen":
@@ -1897,6 +2245,103 @@ func validate() -> Array[String]:
 		for f in hs:
 			if not set_flags.has(str(f)):
 				out.append("hints：flag %s 没有地方设" % f)
+	out.append_array(PHONE_GD.validate(scenes))
+	out.append_array(_validate_fuel())
 	if not missing_sfx.is_empty():
 		out.append("info: 缺音效文件（静默跳过）：" + ", ".join(missing_sfx.keys()))
 	return out
+
+
+## --story_check：驾驶舱的两个步骤（debris_steer / keepsake_choice）
+func _validate_cockpit(id: String, kind: String, st: Dictionary, refs: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	if world.cockpit == null:
+		out.append("scene %s：%s 要在驾驶舱里（剧本 rooms 里加 cockpit）" % [id, kind])
+	if kind == "debris_steer":
+		if not (st.get("sec", 40) is float or st.get("sec", 40) is int):
+			out.append("scene %s：debris_steer 的 sec 要是数字" % id)
+		return out
+	var items: Array = st.get("items", [])
+	var sc: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}
+	if items.is_empty():
+		out.append("scene %s：keepsake_choice 没有 items" % id)
+	for it in items:
+		if not Inventory.defined(str(it)):
+			out.append("scene %s：keepsake_choice 的物品 %s 不在物品表" % [id, it])
+		if not sc.has(str(it)):
+			out.append("scene %s：keepsake_choice 的 %s 没有对应的 scene（scenes 里加上）" % [id, it])
+	for k in sc:
+		refs[str(sc[k])] = true
+		if not scenes.has(str(sc[k])):
+			out.append("scene %s：keepsake_choice 的 %s → scene %s 不存在" % [id, k, sc[k]])
+	var groups: Array = []
+	var look = st.get("look", {})
+	if look is Dictionary:
+		for k in look:
+			groups.append(look[k])
+	groups.append(st.get("put_back", []))
+	groups.append(st.get("route_look", []))
+	for g in groups:
+		if not g is Array:
+			out.append("scene %s：keepsake_choice 的 look / put_back / route_look 要是台词数组" % id)
+			continue
+		for l in g:
+			if l is Dictionary and l.has("say") and not speakers.has(str(l["say"])):
+				out.append("scene %s：keepsake_choice 台词的说话人 %s 不在 speakers 里" % [id, l["say"]])
+	return out
+
+
+## --story_check：燃料表对得上——起飞的燃料 − 避碎石最多扣的 + 放进任何一件纪念品给的 ≥ 改航线以后需要的量
+## （作者的规矩：放一件就一定补得上；纪念品卡片上不标数，差多少只看左上角）
+func _validate_fuel() -> Array[String]:
+	var out: Array[String] = []
+	var have := -1
+	var need := 0
+	var loss := 0
+	var any := false
+	for id in scenes:
+		for st in scenes[id]:
+			if not st is Dictionary:
+				continue
+			var d := str(st.get("do", ""))
+			if d == "fuel":
+				any = true
+				if st.has("have") and have < 0:
+					have = int(st["have"])
+				if st.has("need"):
+					need = maxi(need, int(st["need"]))
+			elif d == "debris_steer" and int(st.get("fuel_per_bump", 0)) > 0:
+				if not st.has("fuel_max_loss"):
+					out.append("scene %s：debris_steer 扣燃料要写 fuel_max_loss（最多扣多少），不然放一件纪念品可能补不上" % id)
+				loss += int(st.get("fuel_max_loss", 0))
+	if not any:
+		return out
+	if have < 0:
+		out.append("fuel：剧本里没有设起始燃料（{\"do\": \"fuel\", \"have\": n, \"need\": n}）")
+		return out
+	for id in scenes:
+		for st in scenes[id]:
+			if not st is Dictionary or str(st.get("do", "")) != "keepsake_choice":
+				continue
+			var sc: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}
+			for it in st.get("items", []):
+				var gain := 0
+				for sid in _reach(str(sc.get(str(it), "")), {}):
+					for s2 in scenes.get(sid, []):
+						if s2 is Dictionary and str(s2.get("do", "")) == "fuel":
+							gain += fuel_of(str(s2["burn"])) if s2.has("burn") else int(s2.get("add", 0))
+				if gain <= 0:
+					out.append("scene %s：keepsake_choice 放 %s 以后没有 fuel 步骤加燃料（燃料表不会涨）" % [id, it])
+				elif have - loss + gain < need:
+					out.append("scene %s：放 %s 补不上燃料：起飞 %d − 撞碎石最多 %d + %d < 需要 %d" % [id, it, have, loss, gain, need])
+	return out
+
+
+## if 的分支 scene 能不能「播完回来」：里面只有普通步骤（没有 goto / if / 点选 / 对话选项 / 带路 / 结束 / 驾驶舱选择）
+func _falls_through(s: String) -> bool:
+	if not scenes.has(s):
+		return false
+	for st in scenes[s]:
+		if st is Dictionary and str(st.get("do", "")) in ["goto", "if", "pick", "choice", "guide", "end_chapter", "keepsake_choice"]:
+			return false
+	return true

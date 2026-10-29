@@ -6,6 +6,7 @@ extends Node2D
 ##   add_source(key, pos, rate, preset)   持续冒（坠毁飞船的烟柱）；set_source_pos / remove_source
 ## preset 是一个字典（见 PRESETS），可以临时覆盖几项：burst(p, 20, PRESETS.dust.merged({"life": Vector2(1, 2)}))。
 ## 一共最多 MAX 颗，超了就丢最老的。
+## 可选两项：floor = 落到这个 y 就停住（土块落地）；hold = 前多少比例的寿命不变淡（土块在空中一直是实的，落地以后才淡）。
 ## 烟和尘土的颜色压得比较暗（2026-10-28）：烟最亮的时候 L 也明显低于晨，不抢主角。
 
 const TEX := preload("res://art/level1/puffs.png")
@@ -36,6 +37,10 @@ const PRESETS := {
 	"ember": {"vx": Vector2(-6, 6), "vy": Vector2(-22, -8), "wind": 3.0, "grav": 0.0, "drag": 0.3,
 		"r0": Vector2(1, 1), "r1": Vector2(1, 1), "life": Vector2(0.6, 1.4),
 		"c0": Color(0.98, 0.72, 0.36, 0.95), "c1": Color(0.85, 0.35, 0.15, 0.0), "spread": Vector2(4, 2), "px": true},
+	# 土块（飞船起飞时从机头、船腹掉下来）：一像素，重重地往下掉，落地停住（burst 时 merged 一个 floor），最后才淡
+	"clod": {"vx": Vector2(-10, 10), "vy": Vector2(-12, 6), "wind": 0.0, "grav": 420.0, "drag": 0.2,
+		"r0": Vector2(1, 1), "r1": Vector2(1, 1), "life": Vector2(1.3, 2.1), "hold": 0.6,
+		"c0": Color(0.23, 0.22, 0.18, 1.0), "c1": Color(0.17, 0.17, 0.14, 0.0), "spread": Vector2(1, 1), "px": true},
 	# 发光木头上的小光点（更慢、更淡）
 	"glint": {"vx": Vector2(-2, 2), "vy": Vector2(-9, -4), "wind": 0.0, "grav": 0.0, "drag": 0.2,
 		"r0": Vector2(1, 1), "r1": Vector2(1, 1), "life": Vector2(1.0, 1.8),
@@ -113,6 +118,9 @@ func _process(delta: float) -> void:
 		v *= exp(-pr.drag * delta)
 		p.vel = v
 		p.pos += v * delta
+		if pr.has("floor") and p.pos.y >= float(pr.floor):
+			p.pos.y = float(pr.floor)
+			p.vel = Vector2.ZERO
 		i += 1
 	queue_redraw()
 
@@ -121,6 +129,8 @@ func _draw() -> void:
 	for p in _p:
 		var pr: Dictionary = p.pr
 		var k: float = p.age / p.life
+		if pr.has("hold"):
+			k = maxf(0.0, (k - float(pr.hold)) / (1.0 - float(pr.hold)))
 		var c: Color = (pr.c0 as Color).lerp(pr.c1, k)
 		var pos: Vector2 = (p.pos as Vector2).round()
 		if pr.get("px", false):

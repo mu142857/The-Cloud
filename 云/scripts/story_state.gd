@@ -13,6 +13,7 @@ static var journal: Array = []
 static var props := {}
 static var used := {}                         # once 的 hotspot 用掉了：id → true
 static var changed := 0                       # 每设一个新 flag 加一（自动玩判断「有进展」用）
+const PHONE := preload("res://scripts/phone_state.gd")   # 通讯器（联系人、记录、未读、草稿）跟着一起 reset / 存档
 
 
 static func reset() -> void:
@@ -22,6 +23,7 @@ static func reset() -> void:
 	props.clear()
 	used.clear()
 	changed = 0
+	PHONE.reset()
 
 
 static func has(f: String) -> bool:
@@ -45,6 +47,28 @@ static func progress() -> int:
 
 static func set_prop(id: String, state: String) -> void:
 	props[id] = state
+
+
+## 飞行段的燃料表（flight1 起；剧本 {"do": "fuel", …} 写，存在 props 的 fuel / fuel_need 里，跟着存档和换章走）。
+## 左上角燃料表有 fuel_need 就显示「fuel / fuel_need」，没有就照旧按背包算（森林）。
+static func fuel_on() -> bool:
+	return props.has("fuel_need")
+
+
+static func fuel() -> int:
+	return int(str(props.get("fuel", "0")))
+
+
+static func fuel_need() -> int:
+	return int(str(props.get("fuel_need", "0")))
+
+
+## 设燃料（夹在 0..需要的量 之间：放进去的东西比缺口多，表也只到满）
+static func set_fuel(have: int, need := -1) -> void:
+	if need >= 0:
+		props["fuel_need"] = str(need)
+	var cap := fuel_need() if props.has("fuel_need") else have
+	props["fuel"] = str(clampi(have, 0, maxi(cap, 0)))
 
 
 static func mark_used(id: String) -> void:
@@ -102,7 +126,7 @@ static func none_of(list) -> bool:
 
 static func to_dict() -> Dictionary:
 	return {"flags": flag_order.duplicate(), "journal": journal.duplicate(true), "props": props.duplicate(),
-		"used": used.keys(), "owned": Inventory.owned.duplicate()}
+		"used": used.keys(), "owned": Inventory.owned.duplicate(), "phone": PHONE.to_dict()}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -116,3 +140,4 @@ static func from_dict(d: Dictionary) -> void:
 	Inventory.owned.clear()
 	for id in d.get("owned", []):
 		Inventory.add(str(id))
+	PHONE.from_dict(d.get("phone", {}))

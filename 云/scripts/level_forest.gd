@@ -4,7 +4,8 @@ extends Node2D
 ## 章节剧情：scripts/story_runner.gd（读 data/story_forest.json，见 docs/forest_chapter.md）。这里只负责：
 ##   开场 / 标题 / 坠毁 / 木头拾取过场（原来的），晨爬起来以后播剧本的 intro，木头过场里播剧本 at = wood 的那个 scene；
 ##   自由走的时候：hotspot 互动（E / 空格 / 回车 / 点那个东西）、走进 trigger:"enter" 的点自动触发、左右不可见的墙；
-##   剧情播放时锁晨、把按键转给对话框；树屋室内镜头固定；背包里所有物品 + 日记；起飞过场；章节结束卡。
+##   剧情播放时锁晨、把按键转给对话框；树屋室内镜头固定；背包里所有物品 + 日记；上船（_board_ship：绕到船后从另一侧舱门进去）；
+##   起飞过场（story_takeoff：预热 → 反重力离地、土留在原地 → 悬停 → 沿机头方向 ease-in 飞走）；剧本让镜头停住 / 移动（camera_*）；章节结束卡。
 ## 开场一起坠毁的外星人同伴（Alien）在森林里不出现（ALIEN_IN_FOREST = false，代码留着，以后河边用）。
 ##
 ## 流程（state）：
@@ -13,6 +14,7 @@ extends Node2D
 ##   TITLE       标题界面：游戏名、正中「开始游戏」、右下角设置齿轮；镜头慢慢左右漂
 ##   CRASH       开场动画（上下黑边）：三次闪电 + 近雷 → 冒烟的飞船从右上斜着坠下 → 撞地（震屏、尘土、浓烟）
 ##               → 晨和另一个外星人（梧桐画的旧主角，npc_alien.gd）先后被甩出来、脸朝下趴着 → 她先爬起来，晨再爬起来
+##               （晨：真抛物线 + 角速度衰减的翻滚、落地弹一下滑一下扬尘轻震，见 _chen_thrown）
 ##               → 对话「啊……糟糕……」。确认键 / 点击按两次可以跳过。她之后一直站在残骸尾巴旁边待机（不说话）。
 ##   PLAY        自由走（←/→、A/D，或者鼠标点地面走过去）。发光木头上方有一个很轻的小箭头。
 ##   CINE        走到木头旁边：黑边滑入、锁操作、晨自己走到木头前捡起来 → 木头飞进背包 → 对话「太好了……」
@@ -197,6 +199,8 @@ var _burn_pop_num: Label
 var _burn_pop_sub: Label
 var _burn_pop_fill: ColorRect
 var _burn_shown := 0.0
+var _fuel_shown := -1.0                  # 飞行段燃料表正在滚的数（-1 = 不在滚，直接读 StoryState）
+var _fuel_tw: Tween
 var _hp_root: Control
 var _hp_label: Label
 var _hp_any: Label
@@ -239,6 +243,12 @@ var _dbg_hide: PackedStringArray = []
 var _dbg_chen_x := NAN
 var _dbg_bag := ""
 var _dbg_bag_line := -1
+# ---- 章节（scripts/chapter_flow.gd）：forest = 森林（默认）；flight1 = 驾驶舱，同一个关卡、不播开场
+const CHAPTER_GD := preload("res://scripts/chapter_flow.gd")
+var chapter := "forest"
+var _story_chain := false          # --story_chain：自动玩 / 测试时也接下一章（平时玩本来就接）
+var _beat_cli := false             # --beat 是命令行给的（测试 / 截图：不接下一章）
+var _engine_hum: AudioStreamPlayer
 
 # ---- 声音
 var _rain: AudioStreamPlayer
@@ -324,6 +334,9 @@ func _ready() -> void:
 			_dbg_bag = a.trim_prefix("--open_bag=")
 		elif a.begins_with("--bag_line="):
 			_dbg_bag_line = int(a.trim_prefix("--bag_line="))
+		elif a == "--story_chain":
+			_story_chain = true
+	_beat_cli = _beat != ""
 	if _shots_dir != "":
 		DirAccess.make_dir_recursive_absolute(_shots_dir)
 	if _story_shots != "":
@@ -334,9 +347,13 @@ func _ready() -> void:
 
 	chen.input_enabled = false
 	cam.position = Vector2(TITLE_CAM_X, 135.0)
-	# 没有存档：每次进第一关都是新游戏
+	# 没有存档：每次进第一关都是新游戏；别的章节（换章 / --chapter=）恢复带过来的状态（chapter_flow.gd）
 	Inventory.owned.clear()
 	StoryState.reset()
+	chapter = CHAPTER_GD.current(_story_path)
+	if chapter != "forest" and _story_path == "":
+		_story_path = str(CHAPTER_GD.info(chapter)["story"])
+	CHAPTER_GD.restore(chapter)
 	# 光柱照到晨身上（lite 档光柱关了就是 0；树屋室内没有光柱）
 	chen.set_env("forest", func(c):
 		if story != null and story.world != null and story.world.in_room():
@@ -369,6 +386,9 @@ func _ready() -> void:
 		_beat = ""
 		Engine.remove_meta(DEV_STAGE_META)
 		Engine.set_meta(DEV_OPEN_META, true)
+	if chapter != "forest":
+		_debug_stage = ""                   # 别的章节没有开场 / 标题 / 坠毁（「重开本章」= 从这一章的开头）
+		_start_chapter(_beat == "")
 	if _debug_stage != "":
 		_jump(_debug_stage)
 	if _beat != "":
@@ -383,6 +403,7 @@ func _build_story() -> void:
 	story = STORY_GD.new()
 	story.name = "Story"
 	story.load_story(_story_path)
+	story.entry_scene = str(CHAPTER_GD.info(chapter).get("start", ""))
 	add_child(story)
 	story.setup(self, root)
 	root.move_child(story.dlg, _dim.get_index())        # 对话框在黑边上面、面板下面
@@ -1014,7 +1035,7 @@ func _build_bag(root: Control) -> void:
 
 func _bag_refresh() -> void:
 	_bag_w["title"].text = I18n.t("bag")
-	_bag_w["total"].text = I18n.t("burn_total") % [Inventory.burn_total(), Inventory.get_launch_burn()]
+	_bag_w["total"].text = I18n.t("burn_total") % hud_fuel()
 	for i in _bag_slots.size():
 		var b := _bag_slots[i]
 		var ic: TextureRect = b.get_meta("icon")
@@ -1057,6 +1078,8 @@ func _bag_refresh() -> void:
 		var use: Button = _bag_w["use"]
 		use.text = I18n.t("use")
 		use.visible = iid != "journal" and state == S.PLAY
+		if iid == story.phone.ITEM_ID:
+			use.text = story.phone.t("view")        # 通讯器：「查看」打开聊天界面
 	else:
 		big.texture = null
 		_bag_w["name"].text = ""
@@ -1119,6 +1142,9 @@ func _on_use_item() -> void:
 	if _bag_sel >= Inventory.owned.size():
 		return
 	var id := Inventory.owned[_bag_sel]
+	if id == story.phone.ITEM_ID:
+		story.phone.open_browse()                     # 通讯器：开在背包上面，关掉回到背包
+		return
 	_close_panels()
 	story.use_item(id)
 
@@ -1262,7 +1288,45 @@ func _center_settings() -> void:
 
 
 func _update_hud() -> void:
-	_hud_burn_label.text = I18n.t("burn_total") % [Inventory.burn_total(), Inventory.get_launch_burn()]
+	_hud_burn_label.text = I18n.t("burn_total") % hud_fuel()
+
+
+## 左上角燃料表的两个数 [现在, 需要]：飞行段（剧本 fuel 步骤设过 fuel_need）用 StoryState 的燃料，森林照旧按背包算
+func hud_fuel() -> Array:
+	if StoryState.fuel_on():
+		var have := StoryState.fuel() if _fuel_shown < 0.0 else int(round(_fuel_shown))
+		return [have, StoryState.fuel_need()]
+	return [Inventory.burn_total(), Inventory.get_launch_burn()]
+
+
+## 剧本 fuel 步骤 / 避碎石撞了一下以后调：燃料表亮起来，数字从旧的滚到新的（tick 声）；需要的量变了闪一下
+func fuel_changed(from: int, need_from: int) -> void:
+	_hud_burn.modulate.a = 1.0
+	var to := StoryState.fuel()
+	if _fuel_tw != null and _fuel_tw.is_valid():
+		_fuel_tw.kill()
+	if story != null and story.ff:
+		_fuel_shown = -1.0
+		_update_hud()
+		return
+	_fuel_tw = create_tween()
+	if need_from != StoryState.fuel_need():
+		_hud_burn_label.modulate = Color(1.7, 1.6, 1.3)
+		_fuel_tw.tween_property(_hud_burn_label, "modulate", Color.WHITE, 0.6)
+	if from != to:
+		_fuel_shown = float(from)
+		_fuel_tw.tween_method(_set_fuel_shown, float(from), float(to), clampf(absf(to - from) * 0.025, 0.2, 1.2))
+	_fuel_tw.tween_callback(func():
+		_fuel_shown = -1.0
+		_update_hud())
+	_update_hud()
+
+
+func _set_fuel_shown(v: float) -> void:
+	if int(round(v)) != int(round(_fuel_shown)) and int(round(v)) % 3 == 0:
+		_sfx("tick", -16.0, 1.0)
+	_fuel_shown = v
+	_update_hud()
 
 
 ## 左上角「当前目标」（剧本顶层 objectives，第一个满足条件的）：show_fuel = 目标 + 燃烧值，不然只有目标。
@@ -1530,6 +1594,9 @@ func _impact() -> void:
 
 func _show_wreck() -> void:
 	wreck.visible = true
+	wreck.texture = WRECK_TEX          # 起飞时换成过土坑（ship_crater.png），重开时换回来
+	wreck.hframes = 1
+	wreck.frame = 0
 	# 主烟柱从喷口（翘起来的那头）冒，船腹破洞和舱门口各冒一点；火星很少，从破洞和喷口出来
 	var tail := wreck.position + WRECK_ENGINE
 	puffs_back.add_source("wreck", tail, 11.0, puffs_back.PRESETS.smoke.merged({"spread": Vector2(5, 3)}))
@@ -1542,46 +1609,160 @@ func _show_wreck() -> void:
 		_fade_db(_crackle, -16.0, 2.0)
 
 
+## 晨被甩出来（10-29 重做，作者：「旋转太生硬」）：
+##   抛物线：初速度来自撞地那一下船尾往上一甩的冲量（往右上），加重力 THROW_G；落点、飞多久定好，初速度反算出来。
+##   旋转：一直用奥斯卡画的「趴着」那帧（身体横着），绕身体中心转；角速度一出舱口最大、按 THROW_TAU 指数衰减，
+##     θ(t) = θ0 + ω0·τ·(1 − e^(−t/τ))：转得越来越慢，落地时脸朝下略往前栽（THROW_LAND_ROT），不匀速、不突然停。
+##     一共只转七十多度（转得少、转得慢）；角度按 THROW_SNAP 一档一档（像素画转小角度出锯齿：整档更干净，0 = 连续）。
+##   落地：一小团尘、镜头轻抖一下、一下很小的弹起（THROW_BOUNCE 像素）+ 往前滑 THROW_SLIDE 像素减速停住，栽下去的角度回正，然后趴着。
+## 位置全部取整到像素；晨的帧不加速（lie 只有一帧）。
+const THROW_T := 0.78              # 飞多久（秒）
+const THROW_G := 640.0             # 重力（像素 / 秒²）
+const THROW_ROT0 := -1.05          # 出舱口时的角度（弧度，负 = 头朝右上翘）
+const THROW_LAND_ROT := 0.16       # 落地那一下（脸往前栽一点）
+const THROW_TAU := 0.42            # 角速度衰减的时间常数
+const THROW_SNAP := PI / 12.0      # 角度一档 15°（0 = 连续转）
+const THROW_SLIDE := 10.0          # 落地后往前滑多远
+const THROW_BOUNCE := 3.0          # 落地弹起多高
+const THROW_SETTLE := 0.36         # 弹起 + 滑行 + 回正用多久
+const LIE_C := Vector2(10, -9)     # 「趴着」那帧身体中心（相对晨的脚底锚点，朝右）
+var _throw_p0 := Vector2.ZERO      # 身体中心的起点（世界）
+var _throw_v0 := Vector2.ZERO
+
+
 func _chen_thrown() -> void:
 	chen.visible = true
 	chen._set_facing(1)
-	# 从舱门口（没了）甩出来，越过另一个外星人，落得远
-	_path_a = wreck.position + WRECK_HATCH + Vector2(0, 20)
-	_path_b = Vector2(CHEN_X, _ground(CHEN_X) + 1)
-	chen.position = _path_a
-	chen.spr.rotation = -0.6
+	if not _has_getup:
+		_chen_thrown_old()
+		return
+	chen.spr.play(&"lie")
+	# 从舱门口（没了）里出来（10-29）：一开始画在船身后面（第一帧被船身挡住），飞到和船身一个像素都不重叠的时候
+	# 再换到船身前面（换的那一下看不出来）。见 _throw_layer
+	_throw_behind_start()
+	# 从舱门口（没了）甩出来：落点 = 趴着的地方往回 THROW_SLIDE（落地后滑过去）
+	_throw_p0 = wreck.position + WRECK_HATCH
+	var p1 := Vector2(CHEN_X - THROW_SLIDE, _ground(CHEN_X) + 1.0) + LIE_C
+	_throw_v0 = Vector2((p1.x - _throw_p0.x) / THROW_T, (p1.y - _throw_p0.y - 0.5 * THROW_G * THROW_T * THROW_T) / THROW_T)
+	puffs_back.burst(_throw_p0 + Vector2(4, 0), 5, puffs_back.PRESETS.smoke_burst.merged({"vx": Vector2(10, 40), "spread": Vector2(3, 3)}))
+	_thrown_step(0.0)
 	var tw := _tw()
-	tw.tween_method(_thrown_step, 0.0, 1.0, 0.72).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_method(_thrown_step, 0.0, THROW_T, THROW_T)          # 线性时间：曲线本身就是物理的，不再套缓动
 	tw.tween_callback(_chen_landed)
 
 
-func _thrown_step(k: float) -> void:
-	# 被甩出来：一道小弧线，转一圈多一点，最后脸朝下
-	var p := _path_a.lerp(_path_b, k)
-	p.y -= sin(k * PI) * 34.0
-	chen.position = p.round()
-	var r := lerpf(-0.6, PI / 2.0 + TAU, k)
-	if _has_getup:
-		# 空中翻滚按 90° 一档一档转（像素一一对应，不出斜着的 mixel），绕身体中间转
-		r = snappedf(r, PI / 2.0)
-		var c := Vector2(0, -26)      # 晨站着约 52 像素高，绕腰转
-		chen.spr.position = (c - c.rotated(r) + Vector2(0, 18.0 * k)).round()
-		chen.spr.rotation = r
-	else:
-		chen.spr.rotation = r
-		chen.spr.position.y = -round(LIE_LIFT * k)
+func _throw_rot(t: float) -> float:
+	var w0 := (THROW_LAND_ROT - THROW_ROT0) / (THROW_TAU * (1.0 - exp(-THROW_T / THROW_TAU)))
+	return THROW_ROT0 + w0 * THROW_TAU * (1.0 - exp(-t / THROW_TAU))
+
+
+## 身体中心在 c、转了 r：晨的节点放在「转回 0 时脚底该在的地方」，精灵绕身体中心转
+func _lie_pose(c: Vector2, r: float) -> void:
+	if THROW_SNAP > 0.0:
+		r = snappedf(r, THROW_SNAP)
+	chen.position = (c - LIE_C).round()
+	chen.spr.rotation = r
+	chen.spr.position = (LIE_C - LIE_C.rotated(r)).round()
+
+
+func _thrown_step(t: float) -> void:
+	var c := _throw_p0 + _throw_v0 * t + Vector2(0, 0.5 * THROW_G * t * t)
+	_lie_pose(c, _throw_rot(t))
+	_throw_layer(c, _throw_rot(t))
+
+
+## 甩出来时晨在船身后面（_throw_idx = 原来在场景树里的位置；-1 = 已经在前面了）
+var _throw_idx := -1
+var _throw_px: PackedVector2Array = []     # 「趴着」那帧不透明像素相对身体中心的偏移（朝右）
+var _wreck_img: Image
+
+
+func _throw_behind_start() -> void:
+	if _throw_idx >= 0:
+		return
+	if _throw_px.is_empty():
+		var ft: Texture2D = chen.spr.sprite_frames.get_frame_texture(&"lie", 0)
+		var img: Image = ft.get_image() if ft != null else null
+		if img != null:
+			var fx: float = -chen.spr.offset.x
+			var fy: float = -chen.spr.offset.y
+			for y in img.get_height():
+				for x in img.get_width():
+					if img.get_pixel(x, y).a > 0.1:
+						_throw_px.append(Vector2(x - fx + 0.5, y - fy + 0.5) - LIE_C)
+	if _wreck_img == null and wreck.texture != null:
+		_wreck_img = wreck.texture.get_image()
+	_throw_idx = chen.get_index()
+	move_child(chen, wreck.get_index())             # 船图前面一格 = 被船身挡住
+
+
+## 每一步：还在船身后面、而且这一帧和船身没有一个像素重叠了 → 换回前面
+func _throw_layer(c: Vector2, r: float) -> void:
+	if _throw_idx < 0:
+		return
+	if _wreck_img != null and not _throw_px.is_empty():
+		if THROW_SNAP > 0.0:
+			r = snappedf(r, THROW_SNAP)
+		var o := wreck.position + wreck.offset
+		var sz := _wreck_img.get_size()
+		var cc := c.round()
+		for p in _throw_px:
+			var q := cc + p.rotated(r) - o
+			for d in [Vector2.ZERO, Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:   # 外扩 1 像素，宁可晚换
+				var qi := Vector2i((q + d).floor())
+				if qi.x >= 0 and qi.y >= 0 and qi.x < sz.x and qi.y < sz.y and _wreck_img.get_pixelv(qi).a > 0.1:
+					return
+	_throw_front()
+
+
+func _throw_front() -> void:
+	if _throw_idx < 0:
+		return
+	if chen.get_parent() == self:
+		move_child(chen, mini(_throw_idx, get_child_count() - 1))
+	_throw_idx = -1
 
 
 func _chen_landed() -> void:
-	if _has_getup:
-		_chen_lying()
-	else:
+	if not _has_getup:
 		chen.spr.rotation = PI / 2.0
-	puffs_front.burst(chen.position + Vector2(18, 0), 10, puffs_front.PRESETS.dust_small)
-	_sfx("ship_impact", -22.0, 1.8)
+		puffs_front.burst(chen.position + Vector2(18, 0), 10, puffs_front.PRESETS.dust_small)
+		_sfx("ship_impact", -22.0, 1.8)
+		return
+	_throw_front()
+	var c0 := Vector2(CHEN_X - THROW_SLIDE, _ground(CHEN_X) + 1.0) + LIE_C
+	var foot := chen.position + Vector2(LIE_C.x, 0)
+	puffs_front.burst(foot + Vector2(4, 0), 9, puffs_front.PRESETS.dust_small.merged({"vx": Vector2(-10, 40)}))
+	puffs_back.burst(foot + Vector2(-6, -1), 5, puffs_back.PRESETS.dust.merged({"vy": Vector2(-26, -8), "vx": Vector2(-30, 50)}))
+	_sfx("ship_impact", -20.0, 1.8)
+	_shake = maxf(_shake, 0.28)
+	_shake_amp = 2.5
+	var tw := _tw()
+	tw.tween_method(func(k: float):
+		var c := c0 + Vector2(THROW_SLIDE * (1.0 - (1.0 - k) * (1.0 - k)), -THROW_BOUNCE * sin(minf(k * 1.8, 1.0) * PI))
+		_lie_pose(c, THROW_LAND_ROT * (1.0 - k) * cos(k * PI * 1.5)), 0.0, 1.0, THROW_SETTLE)
+	tw.tween_callback(func():
+		puffs_front.burst(chen.position + Vector2(24, 0), 3, puffs_front.PRESETS.dust_small)
+		_chen_lying())
+
+
+## 没有 lie / getup 动画时的老办法：站立帧转着飞、落地转 90°
+func _chen_thrown_old() -> void:
+	_path_a = wreck.position + WRECK_HATCH + Vector2(0, 20)
+	_path_b = Vector2(CHEN_X, _ground(CHEN_X) + 1)
+	chen.position = _path_a
+	var tw := _tw()
+	tw.tween_method(func(k: float):
+		var p := _path_a.lerp(_path_b, k)
+		p.y -= sin(k * PI) * 34.0
+		chen.position = p.round()
+		chen.spr.rotation = lerpf(-0.6, PI / 2.0 + TAU, k)
+		chen.spr.position.y = -round(LIE_LIFT * k), 0.0, 1.0, 0.72).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_chen_landed)
 
 
 func _chen_lying() -> void:
+	_throw_front()
 	chen.visible = true
 	chen.position = Vector2(CHEN_X, _ground(CHEN_X) + 1)
 	if _has_getup:
@@ -1708,6 +1889,7 @@ func _skip_crash() -> void:
 		_show_wreck()
 		puffs_back.burst(wreck.position + Vector2(10, -16), 14, puffs_back.PRESETS.smoke_burst)
 	cam.position.x = TITLE_CAM_X
+	_throw_front()
 	chen.visible = true
 	chen._set_facing(1)
 	chen.position = Vector2(CHEN_X, _ground(CHEN_X) + 1)
@@ -2026,8 +2208,10 @@ func _close_panels() -> void:
 
 # ======================================================================= 输入
 func _input(event: InputEvent) -> void:
+	if not is_inside_tree():
+		return                                # 换章 / 重开时这一帧可能已经不在树里了
 	if _autoplay or _shots_dir != "" or _shot != "" or _story_auto != "":
-		get_viewport().set_input_as_handled()
+		_handled()
 		return
 	# 最近一次用的是鼠标还是键盘（互动提示画小鼠标还是「E」）
 	if event is InputEventMouseButton and event.pressed:
@@ -2037,26 +2221,29 @@ func _input(event: InputEvent) -> void:
 	# F8：开发者面板（只在 debug 构建）
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and OS.is_debug_build():
 		toggle_dev()
-		get_viewport().set_input_as_handled()
+		_handled()
 		return
 	# 章节结束卡：3 秒以后按任意键回标题
 	if story.ended:
-		get_viewport().set_input_as_handled()
+		_handled()
 		if _end_t > 3.0 and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
 			_end_t = -100.0                       # 只重开一次
 			if _fuzz > 0.0:
 				_fuzz_t = _fuzz                    # 乱玩：走到结束卡就算玩完
 				return
+			CHAPTER_GD.reset()                     # 回标题 = 新游戏（从森林开始）
 			get_tree().reload_current_scene.call_deferred()
 		return
 	# 剧情在播：按键 / 点击给对话框（确认、点选）；鹿带路时方向键照常走
 	if story.busy and not _settings.visible and not _bag.visible:
 		if story.dlg.handle_input(event):
-			get_viewport().set_input_as_handled()
+			_handled()
 			return
+		if event is InputEventMouseButton and story.dlg.pick_buttons_shown():
+			return                                # 点选按钮自己接（按下和松开都要放过去）
 		if not story.free_walk and (event is InputEventKey or event is InputEventMouseButton):
 			if not (event is InputEventKey and event.keycode == KEY_ESCAPE):
-				get_viewport().set_input_as_handled()
+				_handled()
 				return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var k: int = event.keycode
@@ -2065,21 +2252,27 @@ func _input(event: InputEvent) -> void:
 				_close_panels()
 			elif state in [S.TITLE, S.PLAY]:
 				_open_settings()
-			get_viewport().set_input_as_handled()
+			_handled()
 			return
 		if k in TEST_SCENES and state == S.TITLE and OS.is_debug_build() and not (_settings.visible or _bag.visible):
-			get_viewport().set_input_as_handled()
+			_handled()
 			_open_test_scene(TEST_SCENES[k])
 			return
 		if k in [KEY_TAB, KEY_B, KEY_I]:
 			if not _settings.visible:
 				_toggle_bag()
-			get_viewport().set_input_as_handled()
+			_handled()
 			return
 		# 背包开着、描述比框长：↑↓ 滚描述（不长就照常在格子里移动）
 		if _bag.visible and k in [KEY_UP, KEY_DOWN] and _desc_max_skip() > 0:
 			_desc_scroll(-1 if k == KEY_UP else 1)
-			get_viewport().set_input_as_handled()
+			_handled()
+			return
+		# 背包里选着通讯器：E / 空格 / 回车 / Z = 「查看」
+		if _bag.visible and k in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and _bag_sel < Inventory.owned.size() \
+				and Inventory.owned[_bag_sel] == story.phone.ITEM_ID:
+			_handled()
+			story.phone.open_browse()
 			return
 	if _settings.visible or _bag.visible:
 		return
@@ -2089,23 +2282,23 @@ func _input(event: InputEvent) -> void:
 		S.HEADPHONES:
 			if anykey and _state_t > 0.4:
 				_leave_headphones()
-				get_viewport().set_input_as_handled()
+				_handled()
 		S.TITLE:
 			# 「开始」平时不拿焦点（不然一出来就是高亮的）：Enter / 空格直接开始，方向键才把焦点给它
 			if event.is_action_pressed("ui_accept"):
-				get_viewport().set_input_as_handled()
+				_handled()
 				_on_start()
 			elif get_viewport().gui_get_focus_owner() == null and (event.is_action_pressed("ui_up") \
 					or event.is_action_pressed("ui_down") or event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right")):
-				get_viewport().set_input_as_handled()
+				_handled()
 				_start_btn.grab_focus()
 		S.INTRO:
 			if confirm and _state_t > 0.5:
 				_skip_to_title()
-				get_viewport().set_input_as_handled()
+				_handled()
 		S.CRASH:
 			if confirm:
-				get_viewport().set_input_as_handled()
+				_handled()
 				if _skip_armed > 0.0:
 					_skip_crash()
 				else:
@@ -2114,11 +2307,18 @@ func _input(event: InputEvent) -> void:
 		S.PLAY, S.CINE:
 			if state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
 					and event.keycode in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and not story.hotspots.near.is_empty():
-				get_viewport().set_input_as_handled()
+				_handled()
 				_interact(story.hotspots.near)
 			elif event.is_action_pressed("ui_accept") and _dlg_typing():
 				_dlg_chars = 9999.0
-				get_viewport().set_input_as_handled()
+				_handled()
+
+
+## 这个输入用掉了（乱玩时偶尔在换场景的那一帧，viewport 已经没了：不报错）
+func _handled() -> void:
+	var vp := get_viewport()
+	if vp != null:
+		vp.set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -2128,7 +2328,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _dlg_typing():
 			_dlg_chars = 9999.0
-		var wp: Vector2 = cam_left() + (event as InputEventMouseButton).position     # 用事件自己的位置（乱玩模式的假点击也对）
+		var sp: Vector2 = (event as InputEventMouseButton).position
+		# 点在左上角「当前目标 / 燃烧值」那几个字上（它们不吃鼠标，点击会漏到这里）：不算点地面，晨不动。
+		# （10-29 作者：「为什么我这里强制往左跑」——点了一下左上角的「回树屋」，晨就往画面最左边跑了）
+		if _hud_burn.visible and _hud_burn.modulate.a > 0.05 and _hud_burn.get_global_rect().grow(4.0).has_point(sp):
+			get_viewport().set_input_as_handled()
+			return
+		var wp: Vector2 = cam_left() + sp     # 用事件自己的位置（乱玩模式的假点击也对）
 		var p: Dictionary = story.hotspots.at_point(wp) if state == S.PLAY else {}
 		_pending_hs = {}
 		if not p.is_empty():
@@ -2148,6 +2354,7 @@ func _unhandled_input(event: InputEvent) -> void:
 # ======================================================================= 每帧
 func _process(delta: float) -> void:
 	_t += delta
+	_update_stroll(delta)             # 要在晨自己的 _process 之前（晨是这个节点的子节点，排在后面）
 	_state_t += delta
 	_stage_t += delta
 	_frame += 1
@@ -2232,7 +2439,11 @@ func _update_camera(delta: float) -> void:
 				_cam_hold -= delta
 			else:
 				cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
-	if is_nan(_cam_override.x):
+	var ck: Node2D = story.world.cockpit if story != null and story.world != null and story.world.cockpit != null and story.world.in_cockpit() else null
+	if ck != null and is_nan(_cam_override.x):
+		# 驾驶舱：船上下挪 = 镜头反向偏移（晨、室内、物件一起动；船外背景在 CanvasLayer 里不动）。ship_y() 是整数像素
+		cam.position.y = 135.0 - ck.ship_y()
+	elif is_nan(_cam_override.x):
 		# 平时镜头高度固定；从别处回来时慢慢落回去
 		cam.position.y = 135.0 if absf(cam.position.y - 135.0) < 0.5 else lerpf(cam.position.y, 135.0, 1.0 - exp(-3.0 * delta))
 	if _shake > 0.0:
@@ -2250,15 +2461,37 @@ var _cam_override := Vector2(NAN, NAN)    # 剧本让镜头去别处（树冠缺
 
 ## 镜头移到 to（世界坐标的镜头中心），sec 秒，到了返回
 func camera_pan(to: Vector2, sec: float) -> void:
+	_kill_cam_pan()
 	_cam_override = cam.position
 	var tw := create_tween()
+	_cam_pan_tw = tw
 	tw.tween_property(self, "_cam_override", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	await tw.finished
+	while tw.is_valid() and tw.is_running():          # 被别的镜头指令停掉也会返回（停掉的 tween 不发 finished）
+		if not is_inside_tree():
+			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
+		await get_tree().process_frame
+
+
+var _cam_pan_tw: Tween
+
+
+## 新的镜头指令来了：还在移的那一下停掉（不然它会把镜头拽回去）
+func _kill_cam_pan() -> void:
+	if _cam_pan_tw != null and _cam_pan_tw.is_valid():
+		_cam_pan_tw.kill()
+	_cam_pan_tw = null
 
 
 ## 镜头回去跟着晨（慢慢跟回去，不跳）
 func camera_release() -> void:
+	_kill_cam_pan()
 	_cam_override = Vector2(NAN, NAN)
+
+
+## 镜头直接停在 p 不跟晨（剧本 camera hold / fade_to 的 cam：让人走出 / 走进画面）
+func camera_hold_at(p: Vector2) -> void:
+	_kill_cam_pan()
+	_cam_override = p.round()
 
 
 func cam_hold(sec: float) -> void:
@@ -2270,6 +2503,8 @@ func _cam_target() -> float:
 	var t: float = chen.position.x + chen.facing * LOOK
 	if story != null and story.world.in_room():
 		t = lerpf(t, float(story.world.house["cx"]), 0.55)
+	if story != null and story.world.cockpit != null and story.world.in_cockpit():
+		t = story.world.cockpit.center().x           # 驾驶舱一屏：镜头不动
 	return t
 
 
@@ -2301,6 +2536,8 @@ func _update_world(delta: float) -> void:
 			if keys or absf(d) <= 4.0 + chen.stop_distance():     # 有惯性：提前松手，滑过去正好停住
 				_walk_target = NAN
 				chen.auto_dir = 0.0
+				if keys:
+					_walk_goal = NAN
 			else:
 				chen.auto_dir = signf(d)
 		if state == S.PLAY and wood_available() and absf(chen.position.x - WOOD_X) <= PICK_DIST:
@@ -2333,6 +2570,9 @@ func _update_interact() -> void:
 			_pending_hs = {}            # 走到头了还够不着（被看得见的边挡住）：算了
 	var a: Dictionary = story.hotspots.auto_trigger(chen.position.x)
 	if not a.is_empty():
+		if story.quick.is_quick(a["h"]):
+			story.trigger(a)              # 走过去就捡：不停下、不锁人（story_quick.gd）
+			return
 		_interact(a)
 
 
@@ -2439,31 +2679,55 @@ func _front_covers(n: Node2D) -> bool:
 	return hits >= 3
 
 
-## 树屋段往左走到头（回旧路的入口 house_return）、顶着走一小会儿 → 黑屏回到旧路段（road_return，没有就是布条那里）
+## 两段之间走过去（顶着走一小会儿 → 黑屏换过去）：
+##   树屋段往左走到头（回旧路的入口 house_return）→ 搭了桥就到林间空地右边（wall_glade 左边一点），没搭桥到 road_return / 布条那里；
+##   林间空地往右走到头（wall_glade，搭了桥、去过树屋以后）→ 树屋段左边（treehouse_approach）。
+##   10-29 作者：空地右边原来是空气墙、还看得见树屋；树屋段整体往右挪了 500，两段互相看不见，中间靠这条路连着。
 var _portal_t := 0.0
 var _walk_goal := NAN              # 走去哪（没被墙夹之前的；走过入口用）
 
 
 func _update_portal(delta: float) -> void:
 	var w: Node2D = story.world
-	if not free_play() or not w.markers.has("house_return") or w.area_of(chen.position.x) != "trees":
+	if not free_play() or not w.markers.has("house_return"):
 		_portal_t = 0.0
 		return
 	var dir := Input.get_axis("ui_left", "ui_right")
 	if Input.is_key_pressed(KEY_A):
 		dir -= 1.0
-	var at_edge: bool = chen.position.x <= w.b_start() + 8.0
-	var goal_left: bool = not is_nan(_walk_goal) and _walk_goal < w.b_start()
-	if at_edge and (dir < 0.0 or goal_left):
-		_portal_t += delta
-		if _portal_t > 0.35:
-			_portal_t = 0.0
-			_walk_target = NAN
-			_walk_goal = NAN
-			var to: float = w.mx("road_return") if w.markers.has("road_return") else w.mx("cloth")
-			story.portal_to(to)
-	else:
+	if Input.is_key_pressed(KEY_D):
+		dir += 1.0
+	var area: String = w.area_of(chen.position.x)
+	# 换过去以后晨从 from 走几步到 to（到达，见 story_runner.gd 的 portal_to）：from 就在那一段的入口边上
+	var from := NAN
+	var to := NAN
+	if area == "trees":
+		var at_edge: bool = chen.position.x <= w.b_start() + 8.0
+		var goal_left: bool = not is_nan(_walk_goal) and _walk_goal < w.b_start()
+		if at_edge and (dir < 0.0 or goal_left):
+			if w.bridged() and w.markers.has("wall_glade"):
+				from = w.mx("wall_glade") - 6.0
+				to = from - ARRIVE_DIST
+			elif w.markers.has("road_return"):
+				from = w.mx("road_return")
+				to = w.mx("road_arrive") if w.markers.has("road_arrive") else from - ARRIVE_DIST
+			else:
+				to = w.mx("cloth")
+	elif area == "road" and w.bridged() and w.markers.has("wall_glade") and StoryState.has("at_treehouse"):
+		var edge: float = w.mx("wall_glade")
+		var goal_right: bool = not is_nan(_walk_goal) and _walk_goal > edge
+		if chen.position.x >= edge - 8.0 and (dir > 0.0 or goal_right):
+			to = (w.mx("treehouse_approach") if w.markers.has("treehouse_approach") else w.b_start() + 30.0) + ARRIVE_DIST / 2.0
+			from = maxf(w.b_start() + 4.0, to - ARRIVE_DIST)
+	if is_nan(to):
 		_portal_t = 0.0
+		return
+	_portal_t += delta
+	if _portal_t > 0.35:
+		_portal_t = 0.0
+		_walk_target = NAN
+		_walk_goal = NAN
+		story.portal_to(to, from)
 
 
 ## 自由走（含鹿带路时：剧情没播完但晨能自己走）
@@ -2495,6 +2759,7 @@ func story_begin(bars: bool) -> void:
 	chen.input_enabled = false
 	chen.auto_dir = 0.0
 	_walk_target = NAN
+	_walk_goal = NAN                  # 过场前点的地方作废（不然播完以后走到入口边上会自己换过去）
 	_pending_hs = {}
 	_leave_play_ui()
 	_dlg_hide(0.3)
@@ -2504,15 +2769,34 @@ func story_begin(bars: bool) -> void:
 
 
 func story_end() -> void:
+	camera_release()                  # 剧本停住的镜头（camera / fade_to cam）播完一律放开，免得自由走的时候镜头不跟
 	if _story_bars:
 		_bars_out(0.5)
 	_story_bars = false
 	_enter_play()
 
 
+## 树冠缺口那一屏（story_world.gd 的 treeline_view_in / out 调）：左上角的目标 / 燃料和右上角的背包淡出，
+## 这一屏结束再淡回原来的透明度（藏着的时候背包点不到）
+var _hud_saved := {}
+func hud_fade(hide: bool, sec: float) -> void:
+	for n: Control in [_hud_burn, _bag_btn]:
+		if hide:
+			if not _hud_saved.has(n):
+				_hud_saved[n] = n.modulate.a
+			create_tween().tween_property(n, "modulate:a", 0.0, sec)
+		elif _hud_saved.has(n):
+			create_tween().tween_property(n, "modulate:a", float(_hud_saved[n]), sec)
+	_bag_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE if hide else Control.MOUSE_FILTER_STOP
+	if not hide:
+		_hud_saved.clear()
+
+
 ## 鹿带路：剧情没播完，晨先自己走（黑边收起）
 func story_free(on: bool) -> void:
 	chen.input_enabled = on
+	if on:
+		camera_release()
 	_walk_target = NAN
 	if on and _story_bars:
 		_bars_out(0.4)
@@ -2534,6 +2818,63 @@ func free_play() -> bool:
 func walk_to(x: float) -> void:
 	_walk_target = x
 	_walk_goal = x
+
+
+## 过场里的「到达」（10-29）：晨走几步到 x 停住。走路的速度（STROLL_SPEED，比跑慢得多），慢慢起步、慢慢停；
+## 动画照旧是跑的那几帧、100ms 一帧，只改移动速度。玩家能动的时候（过场播完了）立刻松手，绝不推着玩家走。
+const ARRIVE_DIST := 40.0          # 到达走多远（几步）
+const STROLL_SPEED := 55.0         # 像素 / 秒
+const STROLL_EASE := 0.35          # 起步 / 停下各用多久（秒）
+var _stroll_x := NAN
+var _stroll_t := 0.0
+
+
+func stroll_to(x: float) -> void:
+	var dir := signf(x - chen.position.x)
+	if dir == 0.0 or absf(x - chen.position.x) < 1.0:
+		return
+	_stroll_x = x
+	_stroll_t = 0.0
+	chen._set_facing(int(dir))
+	chen.auto_dir = dir
+	var t := 0.0
+	var limit := absf(x - chen.position.x) / STROLL_SPEED + 2.0
+	while not is_nan(_stroll_x) and t < limit:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	_stroll_x = NAN
+	chen.auto_dir = 0.0
+	t = 0.0
+	while chen._vel > 0.0 and t < 0.5:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+
+
+func strolling() -> bool:
+	return not is_nan(_stroll_x)
+
+
+## 每帧（在晨自己算速度之前）把她的速度按到这一帧该有的走路速度：chen.gd 会再往 RUN_SPEED 加一帧的加速度，这里先减掉
+func _update_stroll(delta: float) -> void:
+	if is_nan(_stroll_x):
+		return
+	var px: float = chen.position.x if is_nan(chen._x) else chen._x
+	var d := _stroll_x - px
+	if player_free() or chen.auto_dir == 0.0 or signf(d) != chen.auto_dir or absf(d) < 0.6:
+		_stroll_x = NAN
+		chen.auto_dir = 0.0
+		chen._vel = minf(chen._vel, 20.0)
+		return
+	_stroll_t += delta
+	var a := STROLL_SPEED / STROLL_EASE
+	var v := STROLL_SPEED * smoothstep(0.0, STROLL_EASE, _stroll_t + delta)
+	v = maxf(minf(v, sqrt(2.0 * a * absf(d))), 8.0)
+	chen._vel = maxf(0.0, v - chen.RUN_SPEED / chen.ACCEL_TIME * delta)
+
+
+## 玩家能自己走了（自由走 / 鹿带路时）：过场里的走位一律松手
+func player_free() -> bool:
+	return state == S.PLAY or (story != null and story.free_walk and chen.input_enabled)
 
 
 func walking() -> bool:
@@ -2596,10 +2937,13 @@ func fade_from_black(sec: float) -> void:
 ## 换了位置：黑屏换地方时镜头直接跳过去、雾直接到位（进出屋不黑屏，镜头照常跟）；屋里雨声小一点
 func on_room_changed(snap := true) -> void:
 	_walk_target = NAN
+	_walk_goal = NAN
 	_pending_hs = {}
 	if snap:
 		_snap_camera()
 		story.world.fog_k = story.world.fog_at(cam.position.x)
+	if chapter != "forest":
+		return                                       # 驾驶舱里没有雨
 	_fade_db(_rain, -16.0 if story.world.in_room() else -9.0, 0.6)
 
 
@@ -2608,27 +2952,21 @@ func _snap_camera() -> void:
 	cam.reset_smoothing()
 
 
-## 剧本里不是图的物件：ship:launch = 点火：晨上船、尾焰火星和烟、尘土、船身抖；鹿往旁边让开（别被船和尘土盖住）
+## 剧本里不是图的物件：ship:launch = 晨上船（_board_ship：绕到船尾、换到飞船后面、走到舱门被船身挡住、淡掉、舱门声）；
+## 鹿往旁边让开（别被船和尘土盖住）。点火、离地都在 story_takeoff 里（剧本 end_chapter 时）。
 func _on_pseudo_prop(id: String, st: String) -> void:
 	if id == "ship" and st == "launch":
-		if chen.visible and not story.ff:
-			puffs_back.burst(chen.position + Vector2(0, -2), 6, puffs_back.PRESETS.dust_small)
-		chen.visible = false
-		if story.ff:
-			return
-		_shake = 1.6
-		_shake_amp = 1.0
-		if not wreck.visible:
-			_show_wreck()
-		puffs_back.add_source("launch", wreck.position + WRECK_ENGINE, 18.0, puffs_back.PRESETS.smoke.merged({"spread": Vector2(6, 3)}))
-		puffs_back.add_source("launch_embers", wreck.position + WRECK_ENGINE + Vector2(-2, 2), 8.0, puffs_back.PRESETS.ember)
 		_deer_clear()
+		if story.ff or not chen.visible:
+			chen.visible = false
+			return
+		_board_ship()
 
 
 ## 鹿站得离船太近：走到船尾右边一点（起飞的船、尘土都别盖住它）
 func _deer_clear() -> void:
 	var deer: Node2D = story.deer
-	var safe := wreck.position.x + 150.0
+	var safe := wreck.position.x + DEER_BOARD_DX
 	if deer.visible and deer.position.x < safe:
 		if deer.has_method("walk_to"):
 			deer.call("walk_to", safe)
@@ -2636,18 +2974,145 @@ func _deer_clear() -> void:
 			deer.run_to(safe)
 
 
-## 起飞（不翻面）：
-##   1. 倒出来：沿着机头扎进土里的方向往后、往上慢慢退出来（船身抖，机头那里带出土块和尘），约 1.4 秒
-##   2. 摆平：小角度分几步转（像素图转大角度会有锯齿，所以每步只转几度），悬停一下
-##   3. 按机头朝向（左上）加速飞出画面 → 黑屏
-## 坠毁图（ship_wreck.png）斜 17°、机头朝左下扎在土里；飞行图（ship_fly.png）斜 16°、同一个朝向，退出来以后换成飞行图（有尾焰两帧）。
-const TAKEOFF_BACK := 1.4          # 倒出来多久
-const TAKEOFF_BACK_DIST := 26.0    # 沿船身往后退多远
-const TAKEOFF_LEVEL_STEPS := [0.07, 0.14, 0.21, 0.28, 0.35, 0.42]   # 摆平再微微抬头：一步步转到这些角度（弧度）
-const TAKEOFF_LEVEL_STEP_T := 0.16
+# ----------------------------------------------------------------------- 上船（10-29 作者：「主角离开时图层改到飞船后面，从这里进入」）
+## 平面侧视里「走到船的另一侧」= 先绕过船尾（船尾右边、和船身不重叠的地方才换图层，换的那一下看不出来），
+## 换到飞船后面，回头往舱门走：腿从船腹底下露出来、上身被船身挡住；最后一小段边走边按 4 档淡掉（从另一侧的舱门进去了），
+## 停一下，舱门「哐」一声，船身轻轻一沉。不黑屏、不突然消失。
+const BOARD_AROUND := 112.0        # 绕到船尾右边哪（相对 wreck.x）：船图最右是 +92（喷口），晨半宽约 13，留几像素
+const BOARD_HATCH := 20.0          # 走到哪停（= WRECK_HATCH.x，舱门正后面）
+const BOARD_FADE := 26.0           # 离舱门还有这么远开始淡
+const DEER_BOARD_DX := 168.0       # 鹿让到哪（相对 wreck.x）= 剧本的 deer_board：晨绕船尾的那段路（到 BOARD_AROUND + 半宽）右边
+const BOARD_CHEN_HALF := 14.0      # 晨站着的半宽
+const BOARD_DEER_HALF := 22.0      # 鹿的半宽（头到尾的一半，留一点）
+var _boarding := false
+var _chen_idx := -1                # 上船前晨在场景树里的位置（起飞完 / 重开时放回去）
+
+
+func _board_ship() -> void:
+	_boarding = true
+	var around := wreck.position.x + BOARD_AROUND
+	var hatch := wreck.position.x + BOARD_HATCH
+	# 鹿还在让开：等它让出晨要走的那段（绕船尾那一下不和鹿交错）。鹿还在往右走的话，晨走过去这 ~0.8 秒里它还会再让出
+	# 一截（WALK_SPEED × 0.8），所以不用等它完全停下
+	var deer: Node2D = story.deer
+	var wt := 0.0
+	while deer.visible and wt < 5.0:
+		var moving: bool = (deer.has_method("is_walking") and bool(deer.call("is_walking"))) or deer.is_running()
+		var need := around + BOARD_CHEN_HALF + BOARD_DEER_HALF + 4.0 - (24.0 if moving else 0.0)
+		if deer.position.x >= need or (not moving and deer.position.x < chen.position.x):
+			break
+		await get_tree().process_frame
+		wt += get_process_delta_time()
+	if absf(around - chen.position.x) > 8.0:
+		await _cine_walk(around)        # 已经站在船尾边上（和鹿道别的地方）就不再挪那几个像素（起步又停，像抽了一下）
+	# 绕过船尾了：换到飞船后面（船图 Wreck 前面一格；这时晨和船身不重叠）
+	_chen_idx = chen.get_index()
+	move_child(chen, wreck.get_index())
+	await get_tree().create_timer(0.15).timeout
+	chen._set_facing(-1)
+	await get_tree().create_timer(0.1).timeout
+	var fade_from := hatch + BOARD_FADE
+	chen.auto_dir = -1.0
+	var t := 0.0
+	while chen.position.x > hatch + 2.0 and t < 4.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var k := clampf((fade_from - chen.position.x) / BOARD_FADE, 0.0, 1.0)
+		chen.modulate.a = 1.0 - floorf(k * 4.0) / 4.0
+	chen.auto_dir = 0.0
+	chen.visible = false
+	chen.modulate.a = 1.0
+	await get_tree().create_timer(0.35).timeout
+	_sfx("metal_clank", -9.0, 0.72)                  # 舱门关上
+	var w0 := wreck.position
+	wreck.position = w0 + Vector2(0, 1)              # 船身轻轻一沉
+	await get_tree().create_timer(0.1).timeout
+	_sfx("small_click", -10.0, 0.8)
+	wreck.position = w0
+	await get_tree().create_timer(0.3).timeout
+	_boarding = false
+
+
+## 过场里让晨自己走到 x（锁着操作；走路动画照常 100ms 一帧，chen.gd 自己管）
+func _cine_walk(x: float) -> void:
+	var dir := signf(x - chen.position.x)
+	if dir == 0.0:
+		return
+	chen.auto_dir = dir
+	var t := 0.0
+	while signf(x - chen.position.x) == dir and absf(x - chen.position.x) > 2.0 + chen.stop_distance() and t < 4.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	chen.auto_dir = 0.0
+	t = 0.0
+	while chen._vel > 0.0 and t < 1.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+
+
+func _restore_chen_order() -> void:
+	if _chen_idx >= 0 and chen.get_parent() == self:
+		move_child(chen, mini(_chen_idx, get_child_count() - 1))
+	_chen_idx = -1
+
+
+# ----------------------------------------------------------------------- 起飞（10-29 重做）
+## 坠毁图拆成两层：船身（_lift：art/level1/ship_lift.png，按角度预先画好的帧，-17°..+10° 每 1° 一帧，硬边像素，
+## 「转」= 换帧，不旋转图片）和留在原地的土（Wreck 节点换成 ship_crater.png：0 帧 = 和坠毁图里一样的土，
+## 1 帧 = 机头拔出来以后的坑）。-17° 那帧 + 土 和坠毁图逐像素一样，换的那一下不跳。
+## 扎在土里的那截机头：_lift 用 shader 按坠毁图的地面线裁掉，船升起来它就从土里「拔」出来。
+##   1. 预热 TAKEOFF_WARM 秒：引擎声；喷口里亮起暗暗的余火（闪两下再亮住），船身 1 像素的抖越来越密，
+##      船底的反重力泛光（scripts/ship_glow.gd，和驾驶舱同一个）慢慢亮到一档，船腹底下的尘土往两边吹
+##   2. 离地 TAKEOFF_LIFT 秒：竖直升 TAKEOFF_RISE 像素（smoothstep，速度先加后减），边升边把机头摆平到 TAKEOFF_LEVEL_ANG；
+##      泛光跟着竖直速度走（ship_glow.drive）；机头拔出土的时候土块往下掉（落到地上停住、慢慢淡掉），坑露出来、扬一小团尘
+##   3. 悬停 TAKEOFF_HOVER 秒：上下 1 像素慢慢起伏，泛光留一点底
+##   4. 走：尾焰点着（两帧 100ms 交替），机头继续慢慢抬到 TAKEOFF_PITCH_ANG；速度从 0 开始 ease-in（v = TAKEOFF_ACC·t²），
+##      方向一直是机头朝向（角度连续变，所以路径是一条往左上弯的平滑曲线），出了画面左边 → 停 0.6 秒 → 淡到黑
+## 镜头：预热那 1.5 秒慢慢摆到 wreck.x + TAKEOFF_CAM_DX，然后不动：船飞出画面，留下土坑和鹿。绝不往后倒，方向一直和机头一致。
+const LIFT_TEX := preload("res://art/level1/ship_lift.png")
+const CRATER_TEX := preload("res://art/level1/ship_crater.png")
+const WRECK_TEX := preload("res://art/level1/ship_wreck.png")
+const SHIP_GLOW := preload("res://scripts/ship_glow.gd")
+const LIFT_META := "res://art/level1/ship_lift.json"
+const LIFT_ANG0 := -17             # ship_lift.png 第 0 列的角度（度；负 = 机头朝左下）
+const LIFT_N := 28                 # 列数（-17..+10）
+const LIFT_FRAME := Vector2i(204, 120)
+const LIFT_ENGINE := Vector2(72, -1)       # 喷口在船自己坐标里（机头朝左、x 往尾巴）
+const LIFT_NOSE_LOW := Vector2(-58, 16)    # 机头下沿（拔出土的那一点）
+const TAKEOFF_WARM := 1.5
+const TAKEOFF_LIFT := 2.3
+const TAKEOFF_RISE := 30.0
+const TAKEOFF_LEVEL_ANG := -4.0
+const TAKEOFF_HOVER := 0.7
+const TAKEOFF_PITCH_ANG := 9.0
+const TAKEOFF_PITCH_T := 1.6       # 从摆平抬到 TAKEOFF_PITCH_ANG 用多久（和加速同时开始）
+const TAKEOFF_ACC := 150.0         # 速度 = TAKEOFF_ACC · t²（像素 / 秒）
+const TAKEOFF_CAM_DX := 70.0       # 起飞时镜头停在哪（相对 wreck.x）：船在画面左半边、鹿在右边，船往左飞有地方
+const CLIP_SHADER := "shader_type canvas_item;\nuniform float clip_y = 100000.0;\nvarying float wy;\n" + \
+	"void vertex() { wy = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).y; }\n" + \
+	"void fragment() { if (wy >= clip_y) { discard; } }\n"
+var _lift: Sprite2D
+var _lift_glow: Node2D
+var _lift_hull := {}               # 角度（整数度）→ [tops, bots]（ship_lift.json）
+var _lift_ang := 0.0               # 现在的角度（度，连续；显示时取最近的整数帧）
+var _lift_row := 0                 # 0 喷口不亮 / 1 余火 / 2、3 尾焰两帧
+var _lift_pos := Vector2.ZERO      # 船身中心（世界，小数；显示取整）
+var _lift_hull_ang := 999
 
 
 func story_takeoff() -> void:
+	if chapter != "forest":
+		# 驾驶舱章节结束：没有起飞过场，黑边 + 淡到黑，再出结束卡
+		_bars_in(0.6)
+		if _engine_hum != null:
+			_fade_db(_engine_hum, -60.0, 1.6)
+		await fade_to_black(1.6)
+		_end_t = 0.0
+		return
+	var t := 0.0
+	while _boarding and t < 6.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
 	chen.visible = false
 	_bars_in(0.6)
 	_deer_clear()
@@ -2657,110 +3122,309 @@ func story_takeoff() -> void:
 		puffs_front.remove_source(k)
 	if not wreck.visible:
 		_show_wreck()
-	# ---- 1. 倒出来：沿船身轴线（机头 → 尾巴 = 右上）往后退，抖、机头那里一直带出土
-	_sfx("ship_whoosh", -10.0, 0.6)
+		for k in ["wreck", "wreck2", "wreck3", "embers", "embers2"]:
+			puffs_back.remove_source(k)
+			puffs_front.remove_source(k)
+	_lift_setup()
+	camera_pan(Vector2(wreck.position.x + TAKEOFF_CAM_DX, 135.0), TAKEOFF_WARM)   # 镜头慢慢摆好、然后不动：船从左边飞出画面
 	var w0 := wreck.position
-	var axis := Vector2(cos(-0.297), sin(-0.297))          # 船身斜 17°，往尾巴那边（右上）
-	var nose0 := w0 + WRECK_NOSE
-	var t := 0.0
-	while t < TAKEOFF_BACK:
+	var c0 := _lift_pos
+	# ---- 1. 预热
+	_sfx("engine_start", -4.0)
+	t = 0.0
+	var ign := [0.15, 0.25, 0.4, 0.5, 0.62]          # 喷口余火：亮、灭、亮、灭、亮住
+	while t < TAKEOFF_WARM:
+		if not is_inside_tree():
+			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		var k := clampf(t / TAKEOFF_BACK, 0.0, 1.0)
-		var sm := k * k * (3.0 - 2.0 * k)
-		var jitter := Vector2(_rng.randi_range(-1, 1), _rng.randi_range(-1, 0)) if k < 0.85 else Vector2.ZERO
-		wreck.position = (w0 + axis * TAKEOFF_BACK_DIST * sm + jitter).round()
-		var nose := wreck.position + WRECK_NOSE
-		if _rng.randf() < dt * 18.0:
-			puffs_back.burst(nose0 + Vector2(_rng.randf_range(-6, 10), 0), 2, puffs_back.PRESETS.dust)
-		if _rng.randf() < dt * 6.0:
-			puffs_back.burst(nose + Vector2(2, 2), 1, puffs_back.PRESETS.dust_small)
-		puffs_back.set_source_pos("launch", wreck.position + WRECK_ENGINE)
-		puffs_back.set_source_pos("launch_embers", wreck.position + WRECK_ENGINE + Vector2(-2, 2))
-	puffs_back.burst(nose0 + Vector2(4, 0), 10, puffs_back.PRESETS.dust.merged({"spread": Vector2(14, 1)}))
-	# ---- 换成飞行图（同一个斜度、同一个中心），尾焰
-	var c := wreck.position + WRECK_CENTER
-	wreck.visible = false
-	puffs_back.remove_source("launch")
-	puffs_back.remove_source("launch_embers")
-	ship.visible = true
-	ship.flip_h = false
-	ship.scale = Vector2.ONE
-	ship.rotation = 0.0
-	ship.frame = 0
-	ship.position = c.round()
-	var eng := _takeoff_engine()
-	puffs_back.add_source("trail", ship.position + eng, 30.0, puffs_back.PRESETS.trail)
-	puffs_back.add_source("trail_sparks", ship.position + eng, 8.0, puffs_back.PRESETS.ember)
-	# ---- 2. 摆平：一步一步转（机头抬起来），边转边往上飘一点
-	for a in TAKEOFF_LEVEL_STEPS:
-		ship.rotation = float(a)
-		ship.position = (ship.position + Vector2(0, -2)).round()
-		_move_trail()
-		await get_tree().create_timer(TAKEOFF_LEVEL_STEP_T).timeout
-	# 悬停一下（上下 1 像素）
-	var hover_y := ship.position.y
+		var k := t / TAKEOFF_WARM
+		var on := 0
+		for a in ign:
+			if t >= a:
+				on = 1 - on
+		_lift_row = on
+		var jit := Vector2.ZERO
+		if _rng.randf() < 0.08 + 0.4 * k:
+			jit.x = _rng.randi_range(-1, 1)
+		_lift_pos = c0 + jit
+		_lift_glow.strength = 0.32 * smoothstep(0.2, 1.0, k)
+		_lift_glow.dir = 0.0
+		_lift_glow.step(dt)
+		_lift_show()
+		if _rng.randf() < dt * (4.0 + 14.0 * k):
+			var gx := c0.x + _rng.randf_range(-40.0, 60.0)
+			puffs_back.burst(Vector2(gx, _ground(gx)), 1, puffs_back.PRESETS.dust_small.merged(
+				{"vx": Vector2(-30, -8) if gx < c0.x else Vector2(8, 30), "vy": Vector2(-8, -2)}))
+	_lift_row = 1
+	# ---- 2. 离地（反重力：竖直往上，机头慢慢摆平）
+	_shake = 0.5
+	_shake_amp = 1.0
+	var popped := false
 	t = 0.0
-	while t < 0.6:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		ship.position.y = hover_y - (1.0 if fmod(t, 0.3) < 0.15 else 0.0)
-		_move_trail()
-	# ---- 3. 按机头朝向加速飞走（左上，出画面）
-	_sfx("ship_whoosh", -4.0, 0.85)
-	_shake = 0.6
-	_shake_amp = 2.0
-	var dir := (Vector2(SHIP_NOSE).rotated(ship.rotation).normalized() + Vector2(0, -0.3)).normalized()
-	var p0 := ship.position
-	t = 0.0
-	var dist := 0.0
-	while t < 3.2:
+	var y_prev := c0.y
+	while t < TAKEOFF_LIFT:
+		if not is_inside_tree():
+			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		dist += (40.0 + 260.0 * t * t) * dt
-		ship.position = (p0 + dir * dist).round()
-		_move_trail()
-		if ship.position.x < cam_left().x - 160.0 or ship.position.y < -90.0:
+		var k := clampf(t / TAKEOFF_LIFT, 0.0, 1.0)
+		var y := c0.y - TAKEOFF_RISE * smoothstep(0.0, 1.0, k)
+		_lift_ang = lerpf(float(LIFT_ANG0), TAKEOFF_LEVEL_ANG, smoothstep(0.25, 1.0, k))
+		_lift_pos = Vector2(c0.x, y)
+		_lift_glow.drive((y - y_prev) / maxf(dt, 0.001), dt)
+		_lift_glow.strength = maxf(_lift_glow.strength, 0.32)
+		y_prev = y
+		_lift_show()
+		# 机头拔出土：那一点还在地面以下时往下掉土块；一出来就露出坑、扬一小团尘
+		var nose := _lift_pos + LIFT_NOSE_LOW.rotated(deg_to_rad(_lift_ang))
+		if not popped:
+			if _rng.randf() < dt * 16.0:
+				_drop_clod(Vector2(nose.x + _rng.randf_range(-4.0, 14.0), minf(nose.y, w0.y) - _rng.randf_range(0.0, 6.0)), w0.y)
+			if nose.y < w0.y - 1.0:
+				popped = true
+				wreck.frame = 1
+				puffs_back.burst(Vector2(nose.x + 6.0, w0.y), 8, puffs_back.PRESETS.dust.merged({"spread": Vector2(12, 1), "vy": Vector2(-30, -8)}))
+				for i in 5:
+					_drop_clod(nose + Vector2(_rng.randf_range(-2.0, 20.0), _rng.randf_range(-3.0, 2.0)), w0.y)
+		elif _rng.randf() < dt * 3.0 and k < 0.75:
+			_drop_clod(nose + Vector2(_rng.randf_range(0.0, 30.0), -2.0), w0.y)   # 船腹上沾的最后几块
+	# ---- 3. 悬停
+	var hover := _lift_pos
+	t = 0.0
+	y_prev = hover.y
+	while t < TAKEOFF_HOVER:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		var y := hover.y - roundf(sin(t / TAKEOFF_HOVER * PI))
+		_lift_pos = Vector2(hover.x, y)
+		_lift_glow.drive(0.0, dt)
+		_lift_glow.strength = maxf(_lift_glow.strength, 0.25)
+		_lift_show()
+	_lift_pos = hover
+	# ---- 4. 尾焰点着，机头抬起，沿机头方向 ease-in 加速飞走
+	_sfx("ship_whoosh", -5.0, 0.85)
+	_sfx("engine_boost", -8.0)
+	_shake = 0.5
+	_shake_amp = 1.5
+	puffs_back.add_source("trail", _lift_engine(), 26.0, puffs_back.PRESETS.trail)
+	puffs_back.add_source("trail_sparks", _lift_engine(), 6.0, puffs_back.PRESETS.ember)
+	t = 0.0
+	var a0 := _lift_ang
+	var p := _lift_pos
+	y_prev = p.y
+	while t < 5.0:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		_lift_row = 2 + int(t / 0.1) % 2
+		_lift_ang = lerpf(a0, TAKEOFF_PITCH_ANG, smoothstep(0.0, 1.0, t / TAKEOFF_PITCH_T))
+		var a := deg_to_rad(_lift_ang)
+		var v := TAKEOFF_ACC * t * t
+		p += Vector2(-cos(a), -sin(a)) * v * dt      # 机头朝向（机头朝左：-x；角度正 = 机头往上）
+		_lift_pos = p
+		_lift_glow.drive((p.y - y_prev) / maxf(dt, 0.001), dt)
+		y_prev = p.y
+		_lift_show()
+		puffs_back.set_source_pos("trail", _lift_engine())
+		puffs_back.set_source_pos("trail_sparks", _lift_engine())
+		if _lift_pos.x < cam_left().x - 120.0 or _lift_pos.y < -80.0:
 			break
 	puffs_back.remove_source("trail")
 	puffs_back.remove_source("trail_sparks")
-	ship.visible = false
+	_lift.visible = false
 	await get_tree().create_timer(0.6).timeout
 	await fade_to_black(1.6)
+	_restore_chen_order()
+	camera_release()
 	_end_t = 0.0
 	_fade_db(_rain, -30.0, 3.0)
 
 
-func _takeoff_engine() -> Vector2:
-	return SHIP_ENGINE.rotated(ship.rotation)
+## 起飞用的船身：Wreck 前面（Wreck 换成土，盖在船身上面：扎进土里那截被土挡住）、带裁地面的 shader 和泛光
+func _lift_setup() -> void:
+	if _lift == null:
+		_lift = Sprite2D.new()
+		_lift.name = "LiftShip"
+		_lift.texture = LIFT_TEX
+		_lift.hframes = LIFT_N
+		_lift.vframes = 4
+		_lift.centered = false
+		_lift.offset = -Vector2(LIFT_FRAME / 2)
+		var sh := Shader.new()
+		sh.code = CLIP_SHADER
+		var m := ShaderMaterial.new()
+		m.shader = sh
+		_lift.material = m
+		add_child(_lift)
+		_lift_glow = SHIP_GLOW.new()
+		_lift_glow.use_parent_material = true          # 泛光也按地面线裁（船还在土里时不画进地里）
+		_lift_glow.full_speed = 20.0                   # 离地最快约 20 像素 / 秒 = 满亮
+		_lift.add_child(_lift_glow)
+		var meta = JSON.parse_string(FileAccess.get_file_as_string(LIFT_META)) if FileAccess.file_exists(LIFT_META) else null
+		if meta is Dictionary:
+			var hull: Dictionary = meta.get("hull", {})
+			for k in hull:
+				var h: Dictionary = hull[k]
+				var tops := PackedInt32Array()
+				var bots := PackedInt32Array()
+				for v in h.get("top", []):
+					tops.append(int(v) - LIFT_FRAME.y / 2 if int(v) >= 0 else -1)
+				for v in h.get("bot", []):
+					bots.append(int(v) - LIFT_FRAME.y / 2 if int(v) >= 0 else -1)
+				_lift_hull[int(k)] = [tops, bots]
+	move_child(_lift, wreck.get_index())
+	_lift.modulate = wreck.modulate
+	(_lift.material as ShaderMaterial).set_shader_parameter("clip_y", wreck.position.y)
+	_lift_pos = wreck.position + WRECK_CENTER
+	_lift_ang = float(LIFT_ANG0)
+	_lift_row = 0
+	_lift_hull_ang = 999
+	_lift_glow.strength = 0.0
+	_lift.visible = true
+	wreck.texture = CRATER_TEX
+	wreck.hframes = 2
+	wreck.frame = 0
+	_lift_show()
 
 
-func _move_trail() -> void:
-	puffs_back.set_source_pos("trail", ship.position + _takeoff_engine())
-	puffs_back.set_source_pos("trail_sparks", ship.position + _takeoff_engine())
+func _lift_show() -> void:
+	var ai := clampi(roundi(_lift_ang), LIFT_ANG0, LIFT_ANG0 + LIFT_N - 1)
+	_lift.frame = _lift_row * LIFT_N + (ai - LIFT_ANG0)
+	_lift.position = _lift_pos.round()
+	if ai != _lift_hull_ang and _lift_hull.has(ai):
+		_lift_hull_ang = ai
+		var h: Array = _lift_hull[ai]
+		_lift_glow.set_hull(-LIFT_FRAME.x / 2, h[0], h[1])
+
+
+func _lift_engine() -> Vector2:
+	return _lift.position + LIFT_ENGINE.rotated(deg_to_rad(_lift_ang))
+
+
+## 一块土：一像素，有重力，落到地面（floor）停住、慢慢淡掉（puffs.gd 的 floor）
+func _drop_clod(p: Vector2, floor_y: float) -> void:
+	puffs_front.burst(p, 1, puffs_front.PRESETS.clod.merged({"floor": floor_y - 1.0}))
+
+
+# ======================================================================= 章节（scripts/chapter_flow.gd）
+## 剧本 end_chapter 演完（森林：起飞、黑屏）以后：有下一章就带着状态换过去（返回 true，不出结束卡）。
+## 测试（自动玩、乱玩、--dev_test、截图、命令行 --beat）默认不接，照旧出结束卡；加 --story_chain 才接。
+func chapter_next() -> bool:
+	var nxt := str(CHAPTER_GD.info(chapter).get("next", ""))
+	if nxt == "" or not FileAccess.file_exists(str(CHAPTER_GD.info(nxt).get("story", ""))):
+		return false
+	var testing := _story_auto != "" or _fuzz > 0.0 or "--dev_test" in OS.get_cmdline_user_args() or _shot != "" \
+		or _shots_dir != "" or _autoplay or _beat_cli
+	if testing and not _story_chain:
+		return false
+	print("CHAPTER %s → %s" % [chapter, nxt])
+	CHAPTER_GD.go(get_tree(), nxt)
+	return true
+
+
+## 进别的章节（不播开场 / 标题 / 坠毁）：森林的图层都藏起来，晨站到驾驶座，黑屏淡入，播这一章的入口 scene（play = false：跳节拍自己播）
+func _start_chapter(play: bool) -> void:
+	var info: Dictionary = CHAPTER_GD.info(chapter)
+	_kill_cine()
+	_hp_root.modulate.a = 0.0
+	_title_root.visible = false
+	for n in ["Sky", "Ridge", "Far", "ForestShadows", "MidFar", "Mid", "Main", "PuffsBack", "Wreck", "Ship", "Alien", "Wood",
+			"PuffsFront", "Front", "StoryProps", "StoryFogProps", "TreehouseFront", "Deer", "Snake"]:
+		var node := get_node_or_null(n)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = false
+		elif node != null and node.has_method("set_visible"):
+			node.call("set_visible", false)
+	shafts.visible = false
+	_rain.stop()
+	_crackle.stop()
+	chen.set_env("")
+	var room := str(info.get("room", "forest"))
+	story.world.set_room(room, true)
+	var x: float = story.world.resolve("cockpit_seat")["x"] if room == "cockpit" else chen.position.x
+	story._place(chen, x, room)
+	chen.visible = true
+	chen._set_facing(-1)                    # 机头在左边，看着前窗
+	_snap_camera()
+	# 驾驶舱里低低的引擎声
+	var hum := "res://audio/sfx/flight_engine_loop.wav"
+	if room == "cockpit" and ResourceLoader.exists(hum):
+		_engine_hum = AudioStreamPlayer.new()
+		_engine_hum.stream = load(hum)
+		_engine_hum.bus = "SFX"
+		_engine_hum.volume_db = -60.0
+		add_child(_engine_hum)
+		_engine_hum.finished.connect(_engine_hum.play)
+		_engine_hum.play()
+		_fade_db(_engine_hum, -20.0, 2.0)
+	fade.color.a = 1.0
+	_enter_play()
+	_hud_burn.modulate.a = 0.0
+	fade_from_black(0.9)
+	var start := str(info.get("start", ""))
+	if play and start != "" and story.has_scene(start):
+		story.play.call_deferred(start)
+
+
+## F8「状态」页点一个还没设的 flag：从现在的样子接着把剧情瞬间过一遍到它（和 --beat 同一套 fast_forward，
+## 前置的 flag、给 / 收的物品、NPC 位置、房间、桥、雾、当前目标都是真播出来的）。剧情在播、不能自由走、或者从现在走不到 → false
+func dev_complete(flag: String) -> bool:
+	if story.busy or not free_play() or StoryState.has(flag):
+		return StoryState.has(flag)
+	story.ff = true
+	story.dlg.instant = true
+	if chapter != "forest":
+		story.ff_stop = true
+		story._ff_target = flag
+	_dlg_hide(0.01)
+	var ok: bool = await story.fast_forward(flag)
+	_ff_done(flag, ok)
+	on_room_changed()
+	_hud_burn.modulate.a = 1.0 if Inventory.burn_total() > Inventory.base_burn or StoryState.fuel_on() else 0.0
+	return ok
+
+
+## 跳节拍 / dev_complete 快进完：收尾（进 PLAY、碰到章节结尾就播起飞、别的章节停在目标后面的接着播）
+func _ff_done(flag: String, ok: bool) -> void:
+	story.ff = false
+	story.dlg.instant = false
+	print("STORY_BEAT %s %s  flags=%s  items=%s  x=%.0f room=%s" % [flag, "ok" if ok else "NOT REACHED",
+		", ".join(StoryState.flag_order), ", ".join(Inventory.owned), chen.position.x, story.world.room])
+	chen.visible = chapter != "forest" or not StoryState.has("launched")
+	if state != S.PLAY:
+		_enter_play()
+	if story.ff_hit_end:
+		story.ff_hit_end = false
+		story.play_end()
+	elif story.ff_resume != "":
+		var rs: String = story.ff_resume         # 别的章节：停在目标后面，剩下的一段正常播
+		story.ff_resume = ""
+		story.play.call_deferred(rs)
+	story.ff_stop = false
 
 
 ## --beat=flag：坠毁跳过，剧情瞬间过一遍到那个 flag
 func _jump_beat(flag: String) -> void:
 	story.ff = true
 	story.dlg.instant = true
-	_skip_to_title()
-	_start_crash()
-	_skip_crash()
+	if chapter == "forest":
+		_skip_to_title()
+		_start_crash()
+		_skip_crash()
+	else:
+		# 别的章节：入口 scene 瞬间播一遍（入口一路 goto 下去的都算，可能比目标多走几步），再按 hotspot 往下跳
+		var st0 := str(CHAPTER_GD.info(chapter).get("start", ""))
+		story.ff_stop = true
+		story._ff_target = flag
+		if st0 != "" and story.has_scene(st0) and not StoryState.has(flag):
+			await story.play(st0, false)
 	_dlg_hide(0.01)
 	var ok: bool = await story.fast_forward(flag)
-	story.ff = false
-	story.dlg.instant = false
-	print("STORY_BEAT %s %s  flags=%s  items=%s  x=%.0f room=%s" % [flag, "ok" if ok else "NOT REACHED",
-		", ".join(StoryState.flag_order), ", ".join(Inventory.owned), chen.position.x, story.world.room])
-	chen.visible = not StoryState.has("launched")
-	if state != S.PLAY:
-		_enter_play()
-	if story.ff_hit_end:
-		story.ff_hit_end = false
-		story.play_end()
+	_ff_done(flag, ok)
 	for n in _dbg_hide:
 		var node := find_child(n, true, false)
 		if node is CanvasItem:
@@ -2780,7 +3444,7 @@ func _jump_beat(flag: String) -> void:
 			if _dbg_bag_line >= 0:
 				(func(): _desc_goto(_dbg_bag_line)).call_deferred()
 	on_room_changed()
-	_hud_burn.modulate.a = 1.0 if Inventory.burn_total() > Inventory.base_burn else 0.0
+	_hud_burn.modulate.a = 1.0 if Inventory.burn_total() > Inventory.base_burn or StoryState.fuel_on() else 0.0
 	_stage_t = 0.0
 
 
@@ -2848,7 +3512,9 @@ func dev_teleport(name: String) -> void:
 	var r: Dictionary = story.world.resolve(name)
 	if not r["ok"]:
 		return
-	var room: String = "treehouse" if name.begins_with("room_") else "forest"
+	var room: String = "treehouse" if name.begins_with("room_") else ("cockpit" if name.begins_with("cockpit_") else "forest")
+	if (room == "cockpit") != (story.world.room == "cockpit"):
+		return                              # 驾驶舱和森林不在同一章：不传送过去
 	story._teleport(room, float(r["x"]), [], true)
 	_walk_target = NAN
 
@@ -2937,7 +3603,7 @@ func _softlock_tick(delta: float) -> void:
 		why = "鹿带路时晨收不到输入"
 	elif state == S.CINE and not story.busy and _seq.is_empty() and is_nan(_cine_target):
 		why = "过场状态但没有剧情在播"
-	elif story.busy and not story.free_walk and not story.dlg.is_open() and not story.dlg.picking() and story.step_t > 20.0:
+	elif story.busy and not story.free_walk and not story.dlg.is_open() and not story.dlg.picking() and not story.phone.waiting() and story.cockpit_ui == null and story.step_t > 20.0:
 		why = "剧情一步停了 20 秒（STUCK_SCENE）"
 	if why == "":
 		_lock_t = 0.0
