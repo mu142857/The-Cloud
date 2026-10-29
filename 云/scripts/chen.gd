@@ -53,7 +53,7 @@ const W := 960.0
 const GROUND := 228.0
 const SINK := 1                    # 脚底那行盖住地面最上面一行
 const FAST := 1.5                  # Shift
-const RUN_SPEED := 110.0           # 跑的速度（像素 / 秒）：动画不变，只改这个
+const RUN_SPEED := 150.0           # 跑的速度（像素 / 秒）：动画不变，只改这个
 const ACCEL_TIME := 0.3            # 从 0 加到 RUN_SPEED 用多久（= 前摇 run_start 3 帧）
 const DECEL_TIME := 0.2            # 从 RUN_SPEED 减到 0 用多久（= 后摇 run_stop 2 帧）
 const BLINK_EVERY := Vector2(2.5, 5.0)   # 隔几秒眨一次眼
@@ -95,6 +95,9 @@ func _ready() -> void:
 func _build_frames() -> SpriteFrames:
 	var sf := SpriteFrames.new()
 	sf.remove_animation(&"default")
+	# 命令行 --chen_sheet=res://….png：用另一张同排布的精灵表代替 SHEET（比斗篷换色候选用）
+	var alt := Array(OS.get_cmdline_user_args()).filter(func(s: String) -> bool: return s.begins_with("--chen_sheet="))
+	var sheet: Texture2D = load(String(alt[0]).trim_prefix("--chen_sheet=")) if not alt.is_empty() else SHEET
 	for name in ANIMS:
 		var a: Dictionary = ANIMS[name]
 		var frames: Array = a["frames"]
@@ -104,7 +107,7 @@ func _build_frames() -> SpriteFrames:
 		var size: Vector2i = a.get("size", FRAME_SIZE)
 		for i in frames.size():
 			var t := AtlasTexture.new()
-			t.atlas = a.get("sheet", SHEET)
+			t.atlas = a.get("sheet", sheet)
 			t.region = Rect2(frames[i] * size.x, 0, size.x, size.y)
 			var ms: float = a["ms"][i] if a["ms"] is Array else a["ms"]
 			sf.add_frame(name, t, ms)
@@ -130,21 +133,19 @@ func _process(delta: float) -> void:
 			_set_facing(f)
 			spr.play(&"run_start" if ANIMS.has("run_start") else &"run")
 		_set_facing(f)
-		spr.speed_scale = FAST if input_enabled and Input.is_key_pressed(KEY_SHIFT) else 1.0
 		if not _moving(spr.animation) or spr.animation == &"run_stop":
 			# 刚停下又按：直接接着跑（速度从还没减完的地方加回去），不再起步一次
 			var again := spr.animation == &"run_stop"
 			spr.play(&"run_start" if ANIMS.has("run_start") and not again else &"run")
-		target = RUN_SPEED * spr.speed_scale
+		# Shift 只让她移动得更快，动画帧不加速（永远 100ms 一帧）
+		target = RUN_SPEED * (FAST if input_enabled and Input.is_key_pressed(KEY_SHIFT) else 1.0)
 	else:
 		var down := input_enabled and (Input.is_action_pressed("ui_down") or Input.is_key_pressed(KEY_S))
 		var want := &"front" if down and ANIMS.has("front") else &"idle"
 		var is_front := String(spr.animation).begins_with("front")
 		if spr.animation in [&"run", &"run_start"] and want == &"idle" and ANIMS.has("run_stop"):
-			spr.speed_scale = 1.0
 			spr.play(&"run_stop")
 		elif _moving(spr.animation) and spr.animation != &"run_stop" or is_front != (want == &"front"):
-			spr.speed_scale = 1.0
 			spr.play(want)
 	# 惯性：加速用 ACCEL_TIME（前摇那 3 帧），减速用 DECEL_TIME（后摇那 2 帧）
 	var rate := RUN_SPEED / (ACCEL_TIME if target > _vel else DECEL_TIME)
@@ -222,6 +223,7 @@ func _snap() -> void:
 ## 光晕改 HALO_A；脚下特效的颜色、数量在 scripts/chen_fx.gd 开头。
 const LIGHT_SHADER := preload("res://scripts/chen_light.gdshader")
 const CHEN_FX := preload("res://scripts/chen_fx.gd")
+const CHEN_IDLE_FX := preload("res://scripts/chen_idle_fx.gd")   # 站着不动时的光点、萤火虫、呵气、气泡、云丝
 const HEADS_JSON := "res://data/chen_heads.json"
 const ENVS := {
 	# 森林：背后的雾光，青绿；斗篷偏墨绿
@@ -233,8 +235,8 @@ const ENVS := {
 	# 水底：头顶的月光，冷蓝
 	"underwater": {"tint": Color(0.36, 0.55, 0.72), "tint_amt": 0.55, "rim": Color(0.5, 0.72, 0.88), "rim_amt": 0.34,
 		"dir": Vector2(0.0, -1.0), "back": 0.0, "halo": Color(0.6, 0.82, 0.96), "fx": "underwater"},
-	# 云星：地平线左边的余晖，暖橙；斗篷偏紫
-	"cloud": {"tint": Color(0.56, 0.45, 0.74), "tint_amt": 0.5, "rim": Color(1.0, 0.64, 0.4), "rim_amt": 0.3,
+	# 云星：地平线左边的余晖，暖橙；斗篷往余晖的暖橙偏一点（以前偏紫 0.5，砖红斗篷会被推成玫瑰粉、和紫背景糊在一起）
+	"cloud": {"tint": Color(1.0, 0.6, 0.42), "tint_amt": 0.2, "rim": Color(1.0, 0.64, 0.4), "rim_amt": 0.4,
 		"dir": Vector2(-1.0, -0.2), "back": 0.0, "halo": Color(0.88, 0.72, 0.96), "fx": "cloud"},
 	# 城市：楼缝漏下来的霾光，冷白，从上偏右；斗篷偏冷灰
 	"city": {"tint": Color(0.5, 0.55, 0.62), "tint_amt": 0.4, "rim": Color(0.78, 0.8, 0.85), "rim_amt": 0.3,
@@ -313,6 +315,11 @@ func _env_ready() -> void:
 	add_child(_fx_front)
 	# 每帧更新放在 FxFront 的 _process 里（子节点在晨自己的 _process 之后跑，拿到的是这一帧的动画帧和朝向）
 	_fx_front.tick = _env_update
+	# 站着不动时的「灵气」（scripts/chen_idle_fx.gd，在精灵前面；它自己再在最后面放一层画绕到身后的）
+	var idle_fx := CHEN_IDLE_FX.new()
+	idle_fx.name = "IdleFx"
+	idle_fx.chen = self
+	add_child(idle_fx)
 	spr.frame_changed.connect(_on_frame_env)
 	spr.animation_changed.connect(_on_frame_env)
 	if FileAccess.file_exists(HEADS_JSON):

@@ -1,7 +1,7 @@
 extends Node2D
 ## 城市小样：晨（scenes/chen.tscn）在街上走，←/→ 或 A/D 走（按住 Shift 快一点），
 ## ↓ / S 转过来正面站着，空格让晨自己一直往右走（展示模式）/ 停下。
-## 镜头水平跟着晨（有一点平滑，往她面朝的方向多看 LOOK 像素），竖直固定 135。
+## 镜头水平跟着晨（有一点平滑，往她面朝的方向多看 LOOK 像素），竖直固定 CAM_Y（175，路沿在屏幕 188，下面是镜子）。
 ## 图层是 tools/city_art.py 画的，场景 scenes/city_test.tscn 也是它写的（各层 scroll_scale 和脚本里的 SCROLL 一样）。
 ## 街面是平的：地面 y = GROUND（路沿那一行受光边）。
 ##
@@ -17,6 +17,8 @@ extends Node2D
 const LOOK := 36.0
 const FOLLOW := 3.0
 const GROUND := 228.0
+## 镜头竖直位置（世界 y）：比画面正中 135 往下挪 40，路沿在屏幕 y = 188，下面 80 行是湿街面的镜子（tools/city_art.py 的 CAM_DY）
+const CAM_Y := 175.0
 
 @onready var cam: Camera2D = $Camera
 @onready var chen: Node2D = $Chen
@@ -63,7 +65,7 @@ func _ready() -> void:
 		_walk = absf(_walk)
 	if _dir != "":
 		DirAccess.make_dir_recursive_absolute(_dir)
-	cam.position = Vector2(_cam_target(), 135.0)
+	cam.position = Vector2(_cam_target(), CAM_Y)
 
 
 func ground_y(_x: float) -> float:
@@ -86,7 +88,7 @@ func _process(delta: float) -> void:
 			_save(_shot)
 			get_tree().quit()
 	cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
-	cam.position.y = 135.0
+	cam.position.y = CAM_Y
 	# 湿街面的倒影按世界列断成竖条、积水跟着地面走：告诉它镜头左边缘在哪
 	var wm := wet.material as ShaderMaterial
 	wm.set_shader_parameter("cam_left", cam.position.x - 240.0)

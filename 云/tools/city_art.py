@@ -55,6 +55,21 @@
 - 人有体积：光从上方偏右来，外套和兜帽每一行右边亮一档、左边暗一档，胯以下整体暗一档，腿、远侧的胳膊腿更暗；
   腰带是暗横条加亮扣，公文包、纸箱、背包有受光面和背光面，伞面亮暗两半。街面那层染色提亮到受光边 L≈0.5，
   外套大面积 0.2~0.33。people_chart(game_bg=…) 再画一版「游戏里真实亮度」的人物表。
+第八版（同一天，作者：「城市还是不够有压迫感……白色的鸟很奇怪，去掉；前景可以有经过的人或者车；中景，也就是主角这一层，
+可以有更密集的人群。焦虑不是城市想表达的，冷漠才是」）：
+- 冷漠 = 整齐、匀速、重复、互不相干（焦虑是乱：快慢不一、超车、成团涌过去、闪烁、急促）。
+- 鸽子全去掉（scripts/city_pigeons.gd 留着不用）。
+- 人群（scripts/city_crowd.gd）：每条道两股人流，一股往右、一股往左；同一股里所有人一样快、一样的步子节奏、间距几乎相等，
+  像流水线，没人超车、停下、回头；不再有成团涌过去的、不再三两成群；速度都按个子的 0.6 倍 / 秒，慢、稳。
+  衣服只在冷灰里有一点点差别。晨那一层（Main）人多到把晨包住（大部分在她身后），另一条很稀的（MainNear）画在她前面，
+  偶尔有人从她身前直直穿过去。原来前景那两个 128 像素的大个子去掉（hood_128 不再生成）。
+- 前景经过的大黑影（scripts/city_passers.gd）：隔七到十二秒，一个很大的路人（art/city/passer.png，470 像素高，只露肩膀到膝盖，
+  头被画面上沿切掉）走过去，或者一辆暗色的车（art/city/car.png，冷灰车窗反光、一盏冷白车头灯，不用暖色）开过去；
+  几乎全暗，压过晨的时间不到一秒。
+- 晨那条街的人群分三排（STREET_ROWS）：远排小一点、浅、往雾里退，中排是晨这个深度，近排最大最暗、在晨前面；
+  排和排用明度分开（scripts/city_crowd_ramp.gdshader 把灰度档映射到这一排的 lo..hi），不透明，同排间距比人宽，
+  一个一个的人读得出来、前后读得出来（原来是一堵同色调的灰墙）。前景大路人的腿加粗（PASSER_LEG）。
+- 日光灯不闪（个别坏的十几二十几秒才换一次亮灭）；信号灯全城一起慢慢亮灭（5 秒一拍）；列车慢一点、隔得久一点，日常的。
 除了天，每层宽 960、左右无缝。所有随机都固定 seed。
 """
 from __future__ import annotations
@@ -76,6 +91,12 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "art" / "city"
 CHEN = ROOT / "art" / "characters" / "chen" / "chen.png"
 SCENE = ROOT / "scenes" / "city_test.tscn"
+
+# 镜头往下挪多少（第十版）：路沿在屏幕上 y = GROUND - CAM_DY = 188，下面 80 行都是湿街面的镜子（原来 40 行）。
+# 世界坐标不变（晨、人群、楼都还在原来的 y），只是镜头竖直位置 135 → 175；最上面那 40 行（本来就冲出画面的楼顶）切掉。
+CAM_DY = 40
+HB = H + CAM_DY                 # 屏幕下沿在世界里的 y：主层、前景层要画到这里
+COLD_L = lambda L, C=0.02, h=220: lch(L, C, h)     # 冷光：冷白偏青，不用暖色
 
 SCROLL = {"sky": 0.0, "ridge": 0.06, "far": 0.18, "midfar": 0.38, "mid": 0.62, "main": 1.0, "front": 1.4}
 
@@ -528,6 +549,7 @@ def far():
     deck(lay, DECKS["far"], 0.24, post=4)
     track(lay, TRACKS["far"], 0.24, th=3)
     lay.info["signals"] = signals(lay, "far", 5, per=1)
+    deck_lamps(lay, DECKS["far"], FAR_LAMPS["far"], 1)
     return finish(lay, 0.6, 168, 212, 0.85, glow_air=0.2, em_air=0.4)
 
 
@@ -535,6 +557,7 @@ def midfar():
     lay = tower_row("midfar", 52, lit_n=1)
     deck(lay, DECKS["midfar"], 0.24, post=5)
     lay.info["signals"] = signals(lay, "midfar", 6, per=2)
+    deck_lamps(lay, DECKS["midfar"], FAR_LAMPS["midfar"], 2)
     return finish(lay, 0.4, 160, 204, 0.85, glow_air=0.24, em_air=0.25)
 
 
@@ -543,22 +566,63 @@ def mid():
     deck(lay, DECKS["mid"], 0.2, post=6)
     track(lay, TRACKS["mid"], 0.2, th=7)
     lay.info["signals"] = signals(lay, "mid", 7, per=2)
+    deck_lamps(lay, DECKS["mid"], FAR_LAMPS["mid"], 3)
+    bus_stop(lay, DECKS["mid"], BUS_X)
     return finish(lay, 0.06, 150, 200, 0.9, glow_air=0.2, em_air=0.0)
 
 
-LAMPS = [60, 300, 540, 780]    # 主层一排一模一样、不亮的路灯
+LAMPS = [60, 300, 540, 780]    # 主层一排一模一样的路灯
+LIT_LAMPS = [60, 540]          # 其中亮着的两盏（隔 480，画面里最多一盏半）：冷白，灯下的湿地上一圈冷光（glow.png，Godot 里叠加）
+SW_BACK = 218                  # 人行道的里沿（墙脚）：人行道是 SW_BACK..GROUND 这一条，后排的人踩在上面，不是走在空中
+VEND_X = 800                   # 人行道里沿靠墙一台自动售货机（冷白的屏、一列青色按钮），离晨开场站的地方远
+VEND_W, VEND_H = 20, 40
+FAR_LAMPS = {"far": [150, 610], "midfar": [380, 860], "mid": [250]}   # 远处步道上几盏小路灯（冷白的一两个像素）
+BUS_X = 700                    # 中景步道上一个公交站牌灯箱（冷白，里面只有几块没有意思的灰块，没有字、没有广告）
+
+
+def deck_lamps(lay, y, xs, size):
+    """步道上的小路灯：一根细杆，顶上一两个像素的冷白灯（自发光，不被霾吃掉太多）。"""
+    post = mat(0.2, 0.005, H_COOL)[2]
+    hgt = {1: 7, 2: 11, 3: 18}[size]
+    for x in xs:
+        lay.rect(x, y - 4 - hgt, x + 1, y - 4, post, yref=y)
+        lay.rect(x, y - 4 - hgt, x + size + 1, y - 3 - hgt, post, yref=y)
+        lay.rect(x + 1, y - 3 - hgt, x + 1 + size, y - 3 - hgt + max(1, size - 1), COLD_L(0.6), yref=y, em=True)
+
+
+def bus_stop(lay, y, x):
+    """中景步道上的公交站牌：一块竖着的灯箱（冷白，里面几块灰块，没有字），一根杆，一片薄顶棚。"""
+    dark = mat(0.16, 0.005, H_COOL)
+    lay.rect(x - 2, y - 26, x + 18, y - 24, dark[3], yref=y)          # 顶棚
+    lay.rect(x + 16, y - 24, x + 17, y - 4, dark[2], yref=y)          # 杆
+    lay.rect(x, y - 22, x + 10, y - 5, dark[1], yref=y)               # 灯箱的框
+    lay.rect(x + 1, y - 21, x + 9, y - 6, COLD_L(0.56), yref=y, em=True)
+    for (bx, by, bw, bh) in ((2, 3, 5, 2), (2, 7, 3, 4), (6, 8, 2, 1), (2, 13, 6, 1)):
+        lay.rect(x + bx, y - 22 + by, x + bx + bw, y - 22 + by + bh, COLD_L(0.44, 0.012), yref=y, em=True)
 
 
 def main_layer():
     """能走的街：路沿一条受光边就是地面（y=228），人行道一块块石板，下面是很暗的路面。
     街上只有一排间距一样、都不亮的路灯。"""
-    lay = Layer()
+    lay = Layer(h=HB)
     curb = lab_col(0.29, _ab(0.006, H_WARM))
     curb2 = lab_col(0.2, _ab(0.006, H_COOL))
     slab = [lab_col(0.13, _ab(0.007, H_COOL)), lab_col(0.145, _ab(0.007, H_COOL))]
     joint = lab_col(0.1, _ab(0.008, H_COOL))
     face = lab_col(0.08, _ab(0.008, H_COOL))
     road = [lab_col(0.075, _ab(0.008, H_COOL)), lab_col(0.09, _ab(0.008, H_COOL))]
+    # 人行道的面（第十版）：墙脚一道受光的边、墙脚下一行最暗，往前一块块石板（每 24 像素一道缝，缝往前斜一点，像透视），
+    # 越往前（越靠路沿）越亮一点点、湿的反光多一点。三排人的脚分别落在 223、226、228（路沿）上
+    sw_wall, sw_dark = lab_col(0.25, _ab(0.006, H_WARM)), lab_col(0.1, _ab(0.008, H_COOL))
+    sw = [lab_col(L, _ab(0.007, H_COOL)) for L in (0.15, 0.17, 0.19)]
+    sw_joint = lab_col(0.12, _ab(0.008, H_COOL))
+    for x in range(W):
+        lay.put(x, SW_BACK, sw_wall)
+        lay.put(x, SW_BACK + 1, sw_dark)
+        for y in range(SW_BACK + 2, GROUND):
+            k = (y - SW_BACK - 2) * 3 // (GROUND - SW_BACK - 2)
+            xx = x + (y - SW_BACK) // 3            # 缝往前斜
+            lay.put(x, y, sw_joint if xx % 24 == 0 else sw[k])
     for x in range(W):
         lay.put(x, GROUND, curb)
         lay.put(x, GROUND + 1, curb2)
@@ -567,7 +631,7 @@ def main_layer():
         lay.put(x, GROUND + 9, curb2)
         for y in range(GROUND + 10, GROUND + 12):
             lay.put(x, y, face)
-        for y in range(GROUND + 12, H):
+        for y in range(GROUND + 12, HB):
             lay.put(x, y, road[1] if (y - GROUND) % 9 == 0 and (x // 30) % 2 == 0 and y < GROUND + 30 else road[0])
     dark = mat(0.11, 0.006, H_COOL, dL=0.03)
     for lx in LAMPS:
@@ -580,7 +644,28 @@ def main_layer():
         lay.rect(lx + 6, top + 1, lx + 11, top + 2, dark[3])
         lay.rect(lx + 7, top + 2, lx + 10, top + 6, dark[1])
         lay.rect(lx + 6, top + 6, lx + 11, top + 7, dark[3])
-    lay.yr[:] = np.arange(H)[:, None]
+        if lx in LIT_LAMPS:      # 亮着的：灯罩下沿一条冷白，灯罩里冷青一点
+            lay.rect(lx + 7, top + 2, lx + 10, top + 6, COLD_L(0.48, 0.025))
+            lay.rect(lx + 6, top + 6, lx + 11, top + 7, COLD_L(0.64, 0.018))
+    # 自动售货机：立在路沿上，正面一块冷白的屏（一排排货架是暗一点的横条），右边一列青色按钮，下面取货口；
+    # 机身近黑，顶上一道受光边；它照亮脚下那一段路沿
+    vx, vt = VEND_X, SW_BACK + 1 - VEND_H
+    body_c = mat(0.13, 0.006, H_COOL, dL=0.03)
+    lay.rect(vx, vt, vx + VEND_W, SW_BACK + 2, body_c[2])
+    lay.rect(vx, vt, vx + 2, SW_BACK + 2, body_c[1])
+    lay.rect(vx, vt, vx + VEND_W, vt + 1, body_c[5])
+    lay.rect(vx + 3, vt + 4, vx + 14, vt + 24, COLD_L(0.6, 0.015))
+    for k in range(5):
+        lay.rect(vx + 3, vt + 7 + k * 4, vx + 14, vt + 8 + k * 4, COLD_L(0.47, 0.015))
+    for k in range(5):
+        lay.rect(vx + 16, vt + 6 + k * 3, vx + 18, vt + 7 + k * 3, COLD_L(0.5, 0.06, 200) if k % 2 == 0 else body_c[4])
+    lay.rect(vx + 4, vt + 29, vx + 14, vt + 33, body_c[0])
+    lay.rect(vx + 4, vt + 29, vx + 14, vt + 30, body_c[4])
+    for y in range(SW_BACK + 2, GROUND):         # 售货机照亮它前面那一块人行道（越往前越淡）
+        for x in range(vx - 6 - (y - SW_BACK), vx + VEND_W + 6 + (y - SW_BACK)):
+            if (y - SW_BACK) < 6 or (x + y) % 2 == 0:
+                lay.put(x, y, COLD_L(0.2 - 0.008 * (y - SW_BACK), 0.012))
+    lay.yr[:] = np.arange(HB)[:, None]
     return lay
 
 
@@ -593,34 +678,35 @@ def front_layer():
     - 一排很细的灯杆（3 像素，不亮），从梁通到地；
     - 底边：一道栏杆、几组闸机、两个立柱底座（都在 y≥242，晨的脚在 228，碰不到她）。
     原来那两根 22 像素宽的方柱经过时会把晨挡住一阵，去掉了。"""
-    lay = Layer()
+    lay = Layer(h=HB)
+    T = CAM_DY       # 镜头往下挪了：头顶的梁、灯杆的横担跟着往下挪，还贴着画面上沿
     c = [lab_col(v, _ab(0.006, H_COOL)) for v in (0.035, 0.05, 0.07, 0.14)]
     # 高架梁
     for (x0, x1, d) in ((0, 560, 12), (620, 930, 8)):
-        lay.rect(x0, 0, x1, d, c[1])
-        lay.rect(x0, d - 1, x1, d, c[3])
-        lay.rect(x0, d - 3, x1, d - 2, c[0])
+        lay.rect(x0, 0, x1, T + d, c[1])
+        lay.rect(x0, T + d - 1, x1, T + d, c[3])
+        lay.rect(x0, T + d - 3, x1, T + d - 2, c[0])
         for x in range(x0 + 6, x1 - 2, 24):      # 梁的加劲肋 + 吊杆
-            lay.rect(x, 0, x + 2, d, c[0])
-            lay.rect(x, d, x + 1, d + 4, c[2])
+            lay.rect(x, T, x + 2, T + d, c[0])
+            lay.rect(x, T + d, x + 1, T + d + 4, c[2])
     # 灯杆
     for px in FRONT_POLES:
-        lay.rect(px, 0, px + 3, H, c[1])
-        lay.rect(px, 0, px + 1, H, c[3])
-        lay.rect(px - 4, 40, px + 7, 42, c[1])
-        lay.rect(px + 5, 42, px + 8, 46, c[2])
+        lay.rect(px, 0, px + 3, HB, c[1])
+        lay.rect(px, 0, px + 1, HB, c[3])
+        lay.rect(px - 4, T + 40, px + 7, T + 42, c[1])
+        lay.rect(px + 5, T + 42, px + 8, T + 46, c[2])
     # 底边只留一组很矮的闸机（y≥260，只露个顶），把湿街面的倒影让出来；以前的栏杆、立柱底座挡掉了 y 250 以下大半的倒影
     for k in range(4):
         x = 470 + k * 18
-        lay.rect(x, 260, x + 8, H, c[0])
-        lay.rect(x, 260, x + 8, 261, c[3])
-    lay.yr[:] = np.arange(H)[:, None]
+        lay.rect(x, HB - 10, x + 8, HB, c[0])
+        lay.rect(x, HB - 10, x + 8, HB - 9, c[3])
+    lay.yr[:] = np.arange(HB)[:, None]
     return lay
 
 
 # ---------------------------------------------------------------- 兜帽人（走路帧）
 
-CROWD_SIZES = (11, 18, 30, 100, 128)
+CROWD_SIZES = (11, 18, 30, 90, 100, 110)
 HOOD_FRAMES = 8
 # 城里的居民：成年人的长比例（头约身高 1/8，胯在身高一半略上），都比晨（52 像素）高一倍左右。
 # 每种体型比例不同、身上至少一样标志物；每种两个小变体（有没有围巾、伞的角度……），Godot 里再按人换一点配色。
@@ -630,20 +716,20 @@ HOOD_FRAMES = 8
 HOOD_TYPES = [
     dict(name="高瘦·立领看表", s=1.0, sh=0.085, hip=0.46, hunch=0.0, lean=0.06, stride=0.42, item="watch", collar=True,
          belt=True, scarf=False),
-    dict(name="高瘦·立领", s=1.0, sh=0.085, hip=0.46, hunch=0.0, lean=0.07, stride=0.44, item="tote", collar=True,
-         belt=True, scarf=True),
+    dict(name="极高极瘦·长大衣·低头看手机", s=1.0, sh=0.068, hip=0.45, hunch=0.035, lean=0.04, stride=0.36, item="phone",
+         collar=True, belt=False, scarf=True, hem=0.86),
     dict(name="宽肩·公文包", s=0.97, sh=0.125, hip=0.47, hunch=0.0, lean=0.05, stride=0.38, item="case", collar=False,
          belt=True, scarf=False),
-    dict(name="宽肩·公文包·围巾", s=0.97, sh=0.125, hip=0.47, hunch=0.0, lean=0.05, stride=0.38, item="case",
-         collar=False, belt=False, scarf=True),
-    dict(name="驼背·拐杖", s=0.92, sh=0.1, hip=0.48, hunch=0.07, lean=0.04, stride=0.3, item="cane", collar=False,
-         belt=False, scarf=True),
+    dict(name="宽肩·公文包·围巾·长大衣", s=0.97, sh=0.125, hip=0.47, hunch=0.0, lean=0.05, stride=0.34, item="case",
+         collar=False, belt=False, scarf=True, hem=0.82),
+    dict(name="重驼背·拐杖", s=0.92, sh=0.1, hip=0.48, hunch=0.13, lean=0.06, stride=0.28, item="cane", collar=False,
+         belt=False, scarf=True, hem=0.76),
     dict(name="驼背·纸箱·低头", s=0.93, sh=0.1, hip=0.48, hunch=0.06, lean=0.06, stride=0.32, item="box", collar=False,
          belt=True, scarf=False),
     dict(name="矮壮·背包·缩肩", s=0.82, sh=0.12, hip=0.49, hunch=0.02, lean=0.06, stride=0.34, item="pack", collar=True,
          belt=False, scarf=False),
-    dict(name="矮壮·背包·围巾", s=0.82, sh=0.12, hip=0.49, hunch=0.02, lean=0.06, stride=0.34, item="pack", collar=False,
-         belt=True, scarf=True),
+    dict(name="矮壮·缩肩·低头看手机", s=0.82, sh=0.12, hip=0.49, hunch=0.05, lean=0.06, stride=0.32, item="phone",
+         collar=True, belt=True, scarf=False),
     dict(name="撑伞", s=0.86, sh=0.1, hip=0.47, hunch=0.0, lean=0.05, stride=0.38, item="umbrella", collar=False,
          belt=True, scarf=False, tilt=0.0),
     dict(name="撑伞·斜", s=0.86, sh=0.1, hip=0.47, hunch=0.0, lean=0.05, stride=0.38, item="umbrella", collar=True,
@@ -744,7 +830,7 @@ def person_frame(hh, tp, ph, stand=False, f=0):
             add("far", m | shoe)
     # ---- 外套：领口到膝，下摆跟着前腿往前、后摆往后飘；背后开衩
     sway = 0.025 * s
-    hem = 0.7 if tp["s"] > 0.85 else 0.72
+    hem = tp.get("hem", 0.7 if tp["s"] > 0.85 else 0.72)
     w0 = sh * (1.0 if tp["sh"] >= 0.12 else 0.9)
     fu = legs[1][1][0] * 0.35
     coat = [(0.0, 0.135), (w0 * 0.55, 0.15), (w0, 0.175 if tp["sh"] >= 0.12 else 0.19), (w0 * 0.85, 0.3),
@@ -755,7 +841,7 @@ def person_frame(hh, tp, ph, stand=False, f=0):
         torso |= ell((-0.05, 0.25), 0.065, 0.08)
     add("body", torso)
     # ---- 兜帽：比头大一圈、有厚度；帽檐压住脸
-    look_down = tp["item"] in ("box", "watch")
+    look_down = tp["item"] in ("box", "watch", "phone")
     hd = (0.025 + (0.025 if look_down else 0.0), 0.07 + (0.02 if look_down else 0.0))
     hood = ell(hd, 0.062, 0.068)
     hood |= poly([(hd[0] - 0.01, hd[1] - 0.065), (hd[0] - 0.07, hd[1] - 0.01), (hd[0] - 0.075, hd[1] + 0.07),
@@ -791,6 +877,9 @@ def person_frame(hh, tp, ph, stand=False, f=0):
         elif items == "umbrella" and side == -1:
             el = (shj[0] + 0.05, shj[1] + ua * 0.85)
             hn = (el[0] + 0.05, el[1] - 0.07)
+        elif items == "phone" and side == -1:            # 近侧这只手端着手机，举在胸口下面，低头看
+            el = (shj[0] + 0.03, shj[1] + ua * 0.88)
+            hn = (el[0] + 0.085, el[1] - 0.04)
         elif items == "watch" and side == 1:            # 远侧那只手抬到胸前，看手腕
             el = (shj[0] + 0.04, shj[1] + ua * 0.9)
             hn = (el[0] + 0.1, el[1] - 0.03)
@@ -837,6 +926,12 @@ def person_frame(hh, tp, ph, stand=False, f=0):
         if big:   # 箱角、封口
             add("fold", seg((bx, by + 0.035), (bx + 0.17, by + 0.035), 0.004) | seg((bx + 0.085, by), (bx + 0.085, by + 0.035), 0.004))
             add("edge", seg((bx, by), (bx + 0.17, by), 0.004) | seg((bx + 0.17, by), (bx + 0.17, by + 0.13), 0.004))
+    elif items == "phone":
+        px_, py_ = hn_near
+        add("phone", poly([(px_ - 0.005, py_ - 0.04), (px_ + 0.03, py_ - 0.045), (px_ + 0.035, py_ + 0.005),
+                           (px_, py_ + 0.01)]))
+        add("screen", poly([(px_ + 0.004, py_ - 0.035), (px_ + 0.026, py_ - 0.038), (px_ + 0.03, py_ - 0.002),
+                            (px_ + 0.006, py_ + 0.002)]) if big else ell((px_ + 0.015, py_ - 0.02), 0.012, 0.012))
     elif items == "pack":
         pk = [(-sh * 0.6, 0.18), (-sh - 0.065, 0.2), (-sh - 0.075, 0.42), (-sh * 0.7, 0.44)]
         add("bag", poly(pk))
@@ -907,92 +1002,147 @@ def person_frame(hh, tp, ph, stand=False, f=0):
         add("face", face)
         if big:
             add("chin", chin)
-    # ---- 上色：光从上方偏右来（楼缝里的霾光）。外套和兜帽按每一行里的左右位置分三档：朝光的右边亮一档、
-    # 中间、背光的左边暗一档；胯以下整体再暗一档（下摆在阴影里）。腿、远侧的胳膊腿更暗。
-    T = dict(lit=138, mid=106, dark=80, low=66, low_lit=88, legs=60, shoe=44, far=44, hand=150, arm=96, arm_lit=118,
-             face=30, chin=54, brim=58, opening=122, collar=130, scarf=118, scarf_lit=146, belt=48, buckle=176,
-             pocket=70, slit=56, edge=150, rim=255)
+    # ---- 上色（第九版，照奥斯卡的帽兜人形：一个光源方向、大块受光面和背光面、斜的衣褶楔子带一道亮棱、不描边）。
+    # 光从右上来（楼缝里的霾）：每个面按「在这一行里的左右位置（圆柱）+ 上下」分 8 档（灰度 40..166），
+    # 胯以下暗一档；外套上几道斜褶（背光那侧暗两档 / 一档，贴着折痕朝光那侧亮一档）；
+    # 腿、远侧的胳膊腿只比外套的背光面暗一点（以前是最暗的档，绕在人边上像一圈黑边）；
+    # 脸是唯一最暗的地方（30）；湿的受光边（255）只在朝光那半边的帽顶、肩上，不绕一圈；手机屏是一点冷光（240）。
+    STEPS = np.array([40, 58, 76, 94, 112, 130, 148, 166])
+    NS = len(STEPS)
+    LX, LY = 0.72, -0.69
     yy_, xx_ = np.mgrid[0:hh, 0:fw]
     vv = 1 - (hh - (yy_ + 0.5)) / H_
+    E = np.zeros((hh, fw), bool)
 
-    def shade_rows(m):
-        """每一行里的左右位置 0..1（只在 m 里有意义）。"""
-        r = np.zeros((hh, fw))
-        for y in range(hh):
+    def get(name):
+        return lay.get(name, E)
+
+    def row_u(m):
+        """每一行里的左右位置 -1..1（圆柱的明暗）。"""
+        u = np.zeros((hh, fw))
+        for y in np.nonzero(m.any(1))[0]:
             xs_ = np.nonzero(m[y])[0]
-            if len(xs_):
-                r[y, xs_] = (xs_ - xs_.min()) / max(1, xs_.max() - xs_.min())
-        return r
+            u[y, xs_] = 2 * (xs_ - xs_.min()) / max(1, xs_.max() - xs_.min()) - 1
+        return u
+
+    def planes(m, ambient, contrast, lift=0.0):
+        """一个面的明暗（档，浮点）：大块受光面 / 背光面。"""
+        if not m.any():
+            return np.zeros((hh, fw))
+        ys_ = np.nonzero(m.any(1))[0]
+        y0_, y1_ = ys_.min(), ys_.max()
+        v = 2 * (yy_ - y0_) / max(1, y1_ - y0_) - 1
+        t = ambient + contrast * 0.5 * (row_u(m) * LX + v * LY)
+        return t * (NS - 1) + lift
+
+    def fold(tone, m, a_, b_, width):
+        """斜的衣褶楔子：折痕背光那侧暗两档 / 一档（越往末端越细），朝光那侧贴着折痕亮一档。"""
+        (fx0, fy0), (fx1, fy1) = P(*a_), P(*b_)
+        dx, dy = fx1 - fx0, fy1 - fy0
+        L = np.hypot(dx, dy) or 1.0
+        nx, ny = -dy / L, dx / L
+        if nx * LX + ny * LY > 0:
+            nx, ny = -nx, -ny
+        sa = ((xx_ + 0.5 - fx0) * dx + (yy_ + 0.5 - fy0) * dy) / (L * L)
+        d = (xx_ + 0.5 - fx0) * nx + (yy_ + 0.5 - fy0) * ny
+        w = width * (1 - 0.5 * np.clip(sa, 0, 1))
+        on = m & (sa >= 0) & (sa <= 1)
+        tone[on & (d >= 0) & (d < w * 0.5)] -= 2
+        tone[on & (d >= w * 0.5) & (d < w)] -= 1
+        tone[on & (d >= -1) & (d < 0)] += 1
+
+    def put_tone(m, tone):
+        if not m.any():
+            return
+        k = np.clip(np.round(tone), 0, NS - 1).astype(int)
+        g = STEPS[k]
+        img[m] = np.stack([g, g, g, np.full_like(g, 255)], -1)[m]
 
     def put(m, g):
         img[m] = (g, g, g, 255)
 
-    put(lay.get("far", np.zeros((hh, fw), bool)), T["far"])
-    put(lay.get("hand_far", np.zeros((hh, fw), bool)), T["far"] + 16)
-    put(lay.get("pants", np.zeros((hh, fw), bool)), T["legs"])
-    put(lay.get("shoe", np.zeros((hh, fw), bool)), T["shoe"])
-    bm = lay.get("body", np.zeros((hh, fw), bool))
-    r = shade_rows(bm)
-    upper = vv < hipv + 0.03
-    put(bm & upper, T["mid"])
-    put(bm & upper & (r > 0.62), T["lit"])
-    put(bm & upper & (r < 0.3), T["dark"])
-    put(bm & ~upper, T["low"])
-    put(bm & ~upper & (r > 0.68), T["low_lit"])
-    put(slit_m, T["slit"])
-    put(pocket_m, T["pocket"])
-    put(belt_m, T["belt"])
-    put(buckle_m, T["buckle"])
-    # 包、伞、纸箱：成块的受光面和背光面
-    for name in ("bag", "box"):
-        m = lay.get(name)
-        if m is None or not m.any():
-            continue
-        ys_, xs_ = np.nonzero(m)
-        x0, x1, y0, y1 = xs_.min(), xs_.max(), ys_.min(), ys_.max()
-        base = 112 if name == "box" else 96
-        put(m, base)
-        if items == "umbrella" and name == "bag":
-            cxp = (x0 + x1) / 2
-            put(m & (xx_ >= cxp), 112)            # 伞面朝光的半边
-            put(m & (xx_ < cxp), 70)              # 背光的半边
-        else:
-            put(m & ((yy_ <= y0 + max(1, (y1 - y0) // 4)) | (xx_ >= x1 - max(0, (x1 - x0) // 5))), base + 40)   # 顶面、朝光的侧面
-            put(m & ((xx_ <= x0) | (yy_ >= y1)), base - 28)                                                     # 背光的边、底
-    arm = lay.get("arm", np.zeros((hh, fw), bool))
-    put(arm, T["arm"])
+    fwid = max(1.6, 0.034 * H_)
+    # 远侧的腿、胳膊：比外套背光面暗一点点，不是最暗
+    put_tone(get("far"), planes(get("far"), 0.22, 0.4))
+    put(get("hand_far"), STEPS[2])
+    # 近侧的腿、鞋
+    legs_m = get("pants")
+    put_tone(legs_m, planes(legs_m, 0.32, 0.6))
+    put(get("shoe"), STEPS[1])
+    sh_top = get("shoe") & ~np.roll(get("shoe"), 1, 0)
+    put(sh_top, STEPS[3])                              # 鞋面湿的一道
+    # 外套 + 兜帽
+    bm = get("body")
+    tone = planes(bm, 0.52, 0.95)
+    tone[bm & (vv > hipv + 0.03)] -= 1                 # 胯以下在阴影里
     if big:
-        up1 = np.zeros_like(arm)
-        up1[1:] = arm[:-1]
-        put(arm & ~up1, T["arm_lit"])             # 胳膊上沿受光
-        dil = arm.copy()
-        dil[1:] |= arm[:-1]
-        dil[:-1] |= arm[1:]
-        dil[:, 1:] |= arm[:, :-1]
-        dil[:, :-1] |= arm[:, 1:]
-        put(dil & ~arm & bm, T["dark"] - 14)      # 胳膊压在外套上：一道暗缝把它和身子分开
-        put(lay.get("cuff", np.zeros_like(arm)), T["edge"] - 20)
-    put(lay.get("hand", np.zeros((hh, fw), bool)), T["hand"])
-    put(lay.get("strap", np.zeros((hh, fw), bool)), T["edge"] - 10)
-    put(lay.get("collar", np.zeros((hh, fw), bool)), T["collar"])
-    sc = lay.get("scarf")
-    if sc is not None:
-        put(sc, T["scarf"])
-        r2 = shade_rows(sc)
-        put(sc & (r2 > 0.55), T["scarf_lit"])
-    put(lay.get("edge", np.zeros((hh, fw), bool)), T["edge"])
-    put(lay.get("opening", np.zeros((hh, fw), bool)), T["opening"])
-    put(lay.get("brim", np.zeros((hh, fw), bool)), T["brim"])
-    put(lay.get("face", np.zeros((hh, fw), bool)), T["face"])
-    put(lay.get("chin", np.zeros((hh, fw), bool)), T["chin"])
-    put(lay.get("rimx", np.zeros((hh, fw), bool)), T["rim"])
-    # 雨水打湿的受光边：肩、兜帽顶（上面是空的那一圈），偏向朝光的右边
+        fold(tone, bm, (0.035, 0.2), (0.05 + fu * 0.6, hem - 0.01), fwid)            # 胸前垂下来的长褶
+        fold(tone, bm, (-0.055, 0.27), (-0.07 - sway, hem), fwid * 0.9)              # 背后那道
+        fold(tone, bm, (0.0, hipv + 0.04), (0.02 - sway * 0.5, hem), fwid * 0.8)      # 下摆中间
+        if hun > 0.05:
+            fold(tone, bm, (-0.09, 0.2), (-0.03, 0.33), fwid * 0.7)                    # 驼背：背上横着的一道
+    elif hh >= 18:
+        fold(tone, bm, (0.02, 0.25), (0.03, hem), max(1.0, fwid * 0.6))
+    put_tone(bm, tone)
+    # 腰带、扣、口袋盖、开衩（成块的明暗，不是线）
+    put_tone(belt_m, tone - 2)
+    put(buckle_m, STEPS[6])
+    put_tone(pocket_m, tone - 1)
+    put_tone(slit_m, tone - 2)
+    # 包、纸箱、伞面：各自的受光面 / 背光面
+    for name, amb, con in (("bag", 0.42, 0.9), ("box", 0.62, 0.8)):
+        m = get(name)
+        if not m.any():
+            continue
+        if items == "umbrella" and name == "bag":
+            t2 = planes(m, 0.36, 1.1)
+            put_tone(m, t2)
+            put_tone(get("fold") & m, t2 - 1)          # 伞骨
+        else:
+            put_tone(m, planes(m, amb, con))
+            put_tone(get("fold") & m, planes(m, amb, con) - 1)
+    put_tone(get("fold") & ~get("bag") & ~get("box"), tone - 1)
+    # 近侧的胳膊：自己一个圆柱，上沿受光；和外套靠明暗分开，不靠暗缝
+    arm = get("arm")
+    at = planes(arm, 0.6, 0.8)
+    up1 = np.zeros_like(arm)
+    up1[1:] = arm[:-1]
+    at[arm & ~up1] += 1
+    put_tone(arm, at)
+    put_tone(get("cuff"), at - 1)
+    put(get("hand"), STEPS[6])
+    put(get("strap"), STEPS[4])
+    put_tone(get("collar"), planes(get("collar"), 0.66, 0.8))
+    sc = get("scarf")
+    if sc.any():
+        st_ = planes(sc, 0.6, 0.9)
+        if big:
+            fold(st_, sc, (0.0, 0.15), (0.05, 0.3), max(1.2, fwid * 0.5))
+        put_tone(sc, st_)
+    put(get("edge"), STEPS[6])
+    # 兜帽里：开口一圈暗（比兜帽暗两档），帽檐压住的那一道再暗，脸最暗；开口上沿受光亮一档
+    put_tone(get("opening"), tone - 2)
+    put(get("brim"), STEPS[1])
+    put(get("face"), 30)
+    ch = get("chin")
+    put(ch, STEPS[1])
+    # 手机：机身暗，屏幕一点冷光（240，Godot 里另外上色），下巴被屏幕照亮一档
+    put(get("phone"), STEPS[1])
+    put(get("screen"), 240)
+    if items == "phone" and ch.any():
+        put(ch, STEPS[4])
+    rx = get("rimx")
+    if rx.any():     # 伞面的湿边也只在朝光那一半（以前沿着伞顶画满一圈，像描边）
+        cm = rx | get("bag")
+        xs_ = np.nonzero(cm.any(0))[0]
+        put(rx & (xx_ >= xs_.min() + 0.45 * (xs_.max() - xs_.min())), 255)
+    # 雨水打湿的受光边：只在朝光那半边的帽顶、肩（上面是空的那一行），不绕一圈
     allm = img[..., 3] > 0
     up = np.zeros_like(allm)
     up[1:] = allm[:-1]
-    shoulder_rows = vv < 0.24
-    rim = allm & ~up & shoulder_rows & ~lay.get("face", np.zeros_like(allm))
-    put(rim, T["rim"])
+    ub = row_u(allm)
+    rim = allm & ~up & (vv < 0.24) & (ub > -0.15) & ~get("face") & ~get("screen")
+    put(rim, 255)
     return img, fw
 
 
@@ -1057,6 +1207,170 @@ def people_chart(path, hh=100, game_bg=None, tint_L=None):
     Image.fromarray(sheet).resize((sheet.shape[1] * 4, sheet.shape[0] * 4), Image.NEAREST).save(path)
 
 
+# ---------------------------------------------------------------- 前景经过的大黑影（路人、车）
+
+PASSER_H = 470              # 路人的身高（像素）：约晨的 9 倍，离镜头很近
+PASSER_TYPES = (1, 2)       # 用 HOOD_TYPES 里的哪几种（高瘦立领提袋、宽肩公文包）
+PASSER_CROP = (96, 366)     # 帧图只留这几行（画面上沿切在肩膀上，头和小腿都在画面外）；这几行正好是屏幕的 0..270
+PASSER_L = (0.09, 0.16)     # 身子的亮度范围（灰度档 30..176 线性映射过来）；几乎全暗
+PASSER_RIM = 0.24           # 肩上那道湿的受光边
+PASSER_LEG = 4              # 腿（裤子、远侧的腿）往左右各加粗几像素：兜帽人的腿是按 100 像素的个子画的，放到 470 太细，像竹竿
+CAR_W, CAR_H = 560, 160     # 车：只画画面里露出来的那一截（车顶到画面下沿）
+CAR_TOP = 110               # 车顶在屏幕的哪一行
+
+
+def passer_sheet():
+    """art/city/passer.png：每行一种人、每列一帧（8 帧走路、朝右），已经裁掉头和脚、左右裁到所有帧的并集。
+    颜色直接画好（几乎全暗的冷灰），Godot 里不再染色。"""
+    rows, fr_all = [], []
+    for i in PASSER_TYPES:
+        frs, fw = hood_frames(PASSER_H, HOOD_TYPES[i])
+        fr_all.append(frs)
+    a = np.zeros((PASSER_H, fw), bool)
+    # 腿加粗：灰度档 60（裤子）、44（远侧的腿、鞋），只在胯以下（v > 0.55），只往透明的地方长，颜色跟着腿
+    v_leg = int(PASSER_H * 0.55)
+    for frs in fr_all:
+        for im in frs:
+            g = im[..., 0]
+            leg = (im[..., 3] > 0) & ((g == 60) | (g == 44))
+            leg[:v_leg] = False
+            src = im.copy()
+            for k in range(1, PASSER_LEG + 1):
+                for d in (k, -k):
+                    sh = np.roll(leg, d, 1)
+                    col = np.roll(src, d, 1)
+                    m = sh & (im[..., 3] == 0)
+                    im[m] = col[m]
+    for frs in fr_all:
+        for im in frs:
+            a |= im[..., 3] > 0
+    xs = np.nonzero(a.any(0))[0]
+    x0, x1 = int(xs.min()), int(xs.max()) + 1
+    y0, y1 = PASSER_CROP
+    lut = np.zeros((256, 4), np.uint8)
+    for g in range(256):
+        if g >= 248:
+            L = PASSER_RIM
+        elif g >= 225:
+            L = 0.42                              # 手机屏：一点冷光
+        else:
+            L = PASSER_L[0] + (PASSER_L[1] - PASSER_L[0]) * min(1.0, max(0.0, (g - 30) / (176 - 30)))
+            L = round(L / 0.01) * 0.01          # 分档，别出几十种近黑
+        lut[g] = lab_col(L, _ab(0.03 if 225 <= g < 248 else 0.008, 220 if 225 <= g < 248 else H_COOL)) + (255,)
+    for frs in fr_all:
+        row = []
+        for im in frs:
+            c = im[y0:y1, x0:x1]
+            out = np.zeros_like(c)
+            m = c[..., 3] > 0
+            out[m] = lut[c[..., 0][m]]
+            row.append(out)
+        rows.append(np.concatenate(row, 1))
+    sheet = np.concatenate(rows, 0)
+    Image.fromarray(sheet).save(OUT / "passer.png")
+    return x1 - x0, y1 - y0
+
+
+def car_image():
+    """art/city/car.png：一辆暗色轿车的侧面（朝右开，车头在右），只画露出来的那一截（车顶到画面下沿，轮子下半截在画面外）。
+    车身近黑的冷灰，车顶和腰线一道湿的冷灰反光，车窗是冷灰玻璃上几道斜的反光（映着楼缝的霾），
+    前窗里一个戴兜帽的司机剪影（看前面，不看晨），车头一盏冷白的灯，车尾灯不亮（不用暖色）。"""
+    w, h = CAR_W, CAR_H
+    img = np.zeros((h, w, 4), np.uint8)
+    C = lambda L, c=0.008, hh=H_COOL: lab_col(L, _ab(c, hh)) + (255,)
+    body, body_lo, seam = C(0.11), C(0.095), C(0.08)
+    roof_hi, belt_hi, sill = C(0.24), C(0.17), C(0.13)
+    glass, glass_dk = C(0.14, 0.012, 240), C(0.115, 0.012, 240)
+    refl, refl2 = C(0.27, 0.012, 230), C(0.21, 0.012, 230)
+    driver = C(0.085)
+    head_l, head_l2 = C(0.62, 0.02, 230), C(0.42, 0.016, 230)
+    tail = C(0.15)
+    tire, rim_c = C(0.09), C(0.15)
+    yy, xx = np.mgrid[0:h, 0:w] + 0.5
+    from matplotlib.path import Path as MPath
+    pts = np.c_[xx.ravel(), yy.ravel()]
+
+    def poly(ps):
+        return MPath(ps).contains_points(pts).reshape(h, w)
+
+    # 车身：后备箱、车舱、引擎盖
+    lower = poly([(6, 74), (40, 64), (128, 62), (440, 62), (536, 70), (556, 86), (558, 160), (2, 160), (2, 88)])
+    cabin = poly([(96, 64), (168, 10), (190, 4), (350, 4), (372, 10), (448, 64)])
+    car = lower | cabin
+    img[car] = body
+    img[car & (yy > 112)] = body_lo
+    # 车窗（车舱里面缩一圈），一根 B 柱
+    win = poly([(110, 60), (174, 14), (192, 9), (346, 9), (364, 14), (432, 60)])
+    img[win] = glass
+    img[win & (yy > 46)] = glass_dk
+    for bx in (262,):
+        img[win & (xx > bx) & (xx < bx + 9)] = body
+    # 斜的反光（映着楼缝的霾），跟着窗走
+    for k, (x0r, wd, col) in enumerate(((150, 16, refl), (196, 6, refl2), (300, 22, refl), (338, 5, refl2), (392, 10, refl2))):
+        band = (xx - x0r + (yy - 9) * 0.9 >= 0) & (xx - x0r + (yy - 9) * 0.9 < wd)
+        img[win & band] = col
+    # 司机：前窗里一个戴兜帽的剪影，脸朝前
+    drv = poly([(290, 60), (292, 34), (300, 24), (312, 21), (324, 25), (330, 36), (334, 60)]) & win
+    img[drv] = driver
+    # 车顶受光边、腰线反光、门缝、门把手、门槛
+    top = car & ~np.roll(car, 1, 0)
+    img[top & (yy < 66)] = roof_hi
+    img[(yy > 66) & (yy < 68) & car & (xx > 20) & (xx < 548)] = belt_hi
+    for sx in (262, 408):
+        img[(xx > sx) & (xx < sx + 1.5) & (yy > 64) & (yy < 132) & car] = seam
+    for hx in (222, 370):
+        img[(xx > hx) & (xx < hx + 10) & (yy > 76) & (yy < 78.5)] = sill
+    img[(yy > 128) & (yy < 130) & car & (xx > 120) & (xx < 450)] = sill
+    # 车身侧面一道断断续续的反光（湿的）
+    side = (yy > 96) & (yy < 97.5) & car & (((xx // 23) % 3) != 1) & (xx > 30) & (xx < 530)
+    img[side] = sill
+    # 轮拱 + 轮子（下半截在画面外）
+    for cx in (120, 448):
+        arch = (xx - cx) ** 2 + (yy - 170) ** 2 <= 50 ** 2
+        img[arch & car] = C(0.07)
+        wheel = (xx - cx) ** 2 + (yy - 172) ** 2 <= 44 ** 2
+        img[wheel] = tire
+        hub = (xx - cx) ** 2 + (yy - 172) ** 2 <= 26 ** 2
+        img[hub] = rim_c
+        img[(xx - cx) ** 2 + (yy - 172) ** 2 <= 20 ** 2] = tire
+        img[wheel & ((xx - cx) ** 2 + (yy - 172) ** 2 > 42 ** 2) & (yy < 140)] = C(0.13)
+    # 车头灯（冷白）、尾灯（不亮）
+    img[(xx > 546) & (xx < 557) & (yy > 76) & (yy < 86)] = head_l2
+    img[(xx > 549) & (xx < 557) & (yy > 78) & (yy < 84)] = head_l
+    img[(xx > 3) & (xx < 9) & (yy > 80) & (yy < 94)] = tail
+    # 车窗上几颗雨滴
+    rng = np.random.default_rng(7)
+    ys_, xs_ = np.nonzero(win & ~drv)
+    for i in rng.choice(len(ys_), 26, replace=False):
+        img[ys_[i], xs_[i]] = refl
+    img[..., 3] = np.where(img[..., 3] > 0, 255, 0)
+    Image.fromarray(img).save(OUT / "car.png")
+
+
+# ---------------------------------------------------------------- 街面冷光源的光晕（Godot 里叠加混合）
+
+def glow_images():
+    """art/city/glow_halo.png：灯头周围一圈冷光（三档同心的硬边圆，叠加上去）；
+    art/city/glow_pool.png：灯下湿地上一摊冷光（扁椭圆，三档，最外一档隔行断开，像被雨打碎的水面）。
+    颜色就是要加上去的量（叠加混合），是特效，所以只有这两张不是「暗的不透明美术」。"""
+    def ring_img(w, h, rx, ry, steps, broken=False):
+        yy, xx = np.mgrid[0:h, 0:w] + 0.5
+        r = np.hypot((xx - w / 2) / rx, (yy - h / 2) / ry)
+        img = np.zeros((h, w, 4), np.uint8)
+        for k, (rr, add) in enumerate(steps):
+            m = r <= rr
+            if broken and k == 0:
+                m &= (np.arange(h)[:, None] % 2 == 0)
+            col = np.array(add) * 255
+            img[m] = tuple(int(v) for v in col) + (255,)
+        return img
+    halo = ring_img(25, 25, 12, 12, [(1.0, (0.035, 0.045, 0.055)), (0.62, (0.06, 0.075, 0.09)), (0.3, (0.08, 0.095, 0.11))])
+    Image.fromarray(halo).save(OUT / "glow_halo.png")
+    pool = ring_img(96, 18, 48, 9, [(1.0, (0.045, 0.06, 0.075)), (0.66, (0.09, 0.11, 0.13)), (0.36, (0.15, 0.18, 0.2))],
+                    broken=True)
+    Image.fromarray(pool).save(OUT / "glow_pool.png")
+
+
 # ---------------------------------------------------------------- 组装
 
 def build():
@@ -1079,7 +1393,7 @@ def check_alpha(layers):
     for k, v in layers.items():
         u = set(np.unique(v.a[..., 3]).tolist())
         assert u <= {0, 255}, (k, u)
-        assert v.a.shape[:2] == ((H, 480) if k == "sky" else (H, W)), (k, v.a.shape)
+        assert v.a.shape[:2] == ((H, 480) if k == "sky" else ((HB, W) if k in ("main", "front") else (H, W))), (k, v.a.shape)
 
 
 def components(mask, wrap=False):
@@ -1156,7 +1470,7 @@ def chen_frame(i=3):
 def compose(layers, cam_x, chen_sx=204, chen=True):
     out = np.zeros((H, 480, 4), np.uint8)
     for k in SCROLL:
-        a = layers[k].a
+        a = layers[k].a[:H]
         if a.shape[1] == 480:
             src = a
         else:
@@ -1178,22 +1492,38 @@ def preview(layers, cam_x, path):
 
 # ---------------------------------------------------------------- 场景
 
-SHAFTS = [(70, 10, 0.07), (300, 6, 0.09), (520, 14, 0.06), (760, 8, 0.08)]   # 远处层的 x、宽、最亮的 alpha
+SHAFTS = [(70, 10, 0.11), (300, 6, 0.14), (520, 14, 0.1), (760, 8, 0.12)]   # 远处层的 x、宽、最亮的 alpha（第十版亮了一半：头顶来的光，像水底那样有个方向）
 SHAFT_END = 176
 SHAFT_SLANT = 0.32        # 光从左上来：每往下 1 像素往右 0.32
 
-# 每条人行道上的人群：层、脚底 y、个子（像素）、人数、速度（像素/秒，这一层的坐标）、染色（受光边的颜色；身子是它的 70/255）
+# 每条人行道上的人群：层、脚底 y、个子（像素）、人数（两股人流加起来）、速度（像素/秒，这一层的坐标；每股人流在这个很窄的
+# 范围里取一个，同一股里所有人一样快）、染色（受光边的颜色；身子是它的 70/255）、
+# 间距抖动（占一格间距的几分之几，0 = 绝对等距）、步子对齐（1 = 同一股里齐步走，0 = 只是节奏一样）
+WALK = 0.6        # 人走路的速度 = 个子的 0.6 倍 / 秒（慢、稳；以前是 0.55~0.95 倍、还有涌过去的）
 CROWD = [
-    ("Far", DECKS["far"] - 1, 11, 40, (9, 17), 0.58),
-    ("MidFar", DECKS["midfar"] - 1, 18, 30, (16, 30), 0.54),
-    ("Mid", DECKS["mid"] - 1, 30, 20, (28, 50), 0.5),
-    ("Main", GROUND - 1, 100, 9, (55, 95), 0.5),      # 晨身后一排高大的人（约 100 像素）；受光边 L≈0.5，外套大面积 0.15~0.3
-    ("Front", H - 6, 128, 2, (150, 190), 0.3),        # 比晨近一点、从她面前快速划过的大个子（更暗，一闪而过）
+    ("Far", DECKS["far"] - 1, 11, 40, (11 * WALK, 11 * WALK * 1.03), 0.58, 0.15, 0.5),
+    ("MidFar", DECKS["midfar"] - 1, 18, 30, (18 * WALK, 18 * WALK * 1.03), 0.54, 0.15, 0.5),
+    ("Mid", DECKS["mid"] - 1, 30, 22, (30 * WALK, 30 * WALK * 1.03), 0.5, 0.12, 0.6),
 ]
+# 晨那条街拆成三排（作者：「分出层次」——原来一堵同色调的灰墙，分不出一个一个的人、看不出前后）。
+# 每排一个方向、同排一样快（个子 × WALK）、同排间距比人宽（相邻的人不叠）；排和排用明度分开，全不透明，近排盖住远排：
+#   远排：略小、脚底高两像素、往雾里浅（lo/hi 都靠近楼腰的霾，对比小）
+#   中排：晨这个深度，细节最多，肩上的受光边最清楚 —— 一个一个的人主要靠这一排读出来
+#   近排：最大、脚底比晨还低、近黑，很稀，画在晨前面，从她身前直直穿过去（不绕开、不停）
+# 明度是 OKLab L：lo = 灰度档 30（最暗的档：远侧的胳膊腿、脸），hi = 灰度档 176（最亮的档：扣子、手），rim = 255（湿的受光边）
+#   name, 父节点, 脚底 y, 个子, 人数, 方向, lo, hi, rim, 间距抖动, 步子对齐, seed
+STREET_ROWS = [
+    ("CrowdBack", "Main", GROUND - 5, 90, 16, -1, 0.23, 0.33, 0.36, 0.08, 0.75, 11),
+    ("CrowdMid", "Main", GROUND - 2, 100, 12, 1, 0.1, 0.35, 0.47, 0.08, 0.75, 14),
+    ("Crowd", "MainNear", GROUND, 110, 3, -1, 0.08, 0.24, 0.32, 0.1, 0.75, 12),
+]
+# 前景经过的大黑影（scripts/city_passers.gd）：隔多少秒来一个（从上一个走出画面算起）、第一个等几秒、
+# 路人和车轮流来、路人 / 车的速度（像素/秒，屏幕上）
+PASSERS = dict(interval=(7.0, 12.0), first_wait=2.5, walker_speed=260.0, car_speed=820.0)
 # 高架列车：层、轨道 y、车厢数、车厢长、车高、速度（像素/秒）、间隔（秒）、方向
 TRAINS = [
-    ("Mid", TRACKS["mid"], 8, 46, 13, 760.0, (4.0, 8.0), 1),
-    ("Far", TRACKS["far"], 7, 20, 5, 300.0, (6.0, 11.0), -1),
+    ("Mid", TRACKS["mid"], 8, 46, 13, 420.0, (10.0, 16.0), 1),
+    ("Far", TRACKS["far"], 7, 20, 5, 200.0, (12.0, 20.0), -1),
 ]
 
 
@@ -1213,7 +1543,7 @@ def shafts():
     return out
 
 
-def write_scene(layers, hood_w):
+def write_scene(layers, hood_w, passer_fs=(150, 270)):
     def region(name):
         a = layers[name].a[..., 3] > 0
         r = np.nonzero(a.any(1))[0]
@@ -1232,17 +1562,22 @@ def write_scene(layers, hood_w):
         ('Script', 'res://scripts/city_crowd.gd', '22_crowd'),
         ('Script', 'res://scripts/city_train.gd', '23_train'),
         ('Script', 'res://scripts/city_signals.gd', '24_signals'),
-        ('Script', 'res://scripts/city_pigeons.gd', '26_pigeons'),
+        ('Script', 'res://scripts/city_passers.gd', '26_passers'),
         ('Script', 'res://scripts/city_rain.gd', '27_rain'),
         ('Script', 'res://scripts/city_flicker.gd', '28_flicker'),
         ('Shader', 'res://scripts/city_wet.gdshader', '29_wet'),
         ('PackedScene', 'res://scenes/chen.tscn', '40_chen'),
+        ('Texture2D', 'res://art/city/passer.png', '51_passer'),
+        ('Texture2D', 'res://art/city/car.png', '52_car'),
+        ('Texture2D', 'res://art/city/glow_halo.png', '53_halo'),
+        ('Texture2D', 'res://art/city/glow_pool.png', '54_pool'),
     ] + [('Texture2D', f'res://art/city/hood_{hh}.png', f'50_hood{hh}') for hh in CROWD_SIZES]
     s = [f"[gd_scene load_steps={len(ext) + 4} format=3]", ""]
     for t, p, i in ext:
         s.append(f'[ext_resource type="{t}" path="{p}" id="{i}"]')
     s += ["", '[sub_resource type="CanvasItemMaterial" id="add"]', "blend_mode = 1", "",
-          '[sub_resource type="ShaderMaterial" id="wet"]', 'shader = ExtResource("29_wet")', "",
+          '[sub_resource type="ShaderMaterial" id="wet"]', 'shader = ExtResource("29_wet")',
+          f"shader_parameter/ground = {GROUND - CAM_DY}.0", "",
           '[sub_resource type="ShaderMaterial" id="vig"]', 'shader = ExtResource("21_vig")',
           "shader_parameter/strength = 0.55", "shader_parameter/tint = Color(0.92, 0.93, 0.95, 1)", "",
           '[node name="CityTest" type="Node2D"]', 'script = ExtResource("20_script")', ""]
@@ -1259,15 +1594,32 @@ def write_scene(layers, hood_w):
                 f"region_rect = Rect2(0, {y0}, {layers[key].a.shape[1]}, {y1 - y0 + 1})", ""]
         return out
 
-    def crowd(parent, feet, hh, n, sp, Lt, seed):
+    def crowd(parent, key, seed):
+        _, feet, hh, n, sp, Lt, jit, sync = cr[key]
         r, g, b = (v / 255 for v in lab_col(Lt, _ab(0.006, H_COOL)))
         return [f'[node name="Crowd" type="Node2D" parent="{parent}"]', 'script = ExtResource("22_crowd")',
                 f'texture = ExtResource("50_hood{hh}")', f"frame_size = Vector2i({hood_w[hh]}, {hh})",
                 f"types = {len(HOOD_TYPES)}", f"frames = {HOOD_FRAMES}",
-                f"count = {n}", f"feet_y = {feet}", f"speed = Vector2({sp[0]}, {sp[1]})",
-                f"tint = Color({r:.3f}, {g:.3f}, {b:.3f}, 1)", f"seed = {seed}", ""]
+                f"count = {n}", f"feet_y = {feet}", f"speed = Vector2({sp[0]:.2f}, {sp[1]:.2f})",
+                f"tint = Color({r:.3f}, {g:.3f}, {b:.3f}, 1)", f"seed = {seed}", f"jitter = {jit}", f"sync = {sync}", ""]
 
     cr = {c[0]: c for c in CROWD}
+
+    def street_row(row):
+        name, parent, feet, hh, n, d, lo, hi, rim_, jit, sync, seed = row
+        def c(L):
+            r, g, b = (v / 255 for v in lab_col(L, _ab(0.007, H_COOL)))
+            return f"Color({r:.3f}, {g:.3f}, {b:.3f}, 1)"
+
+        def glow(lo_):   # 手机屏的冷光：近排暗一点（远排的人本来就浅），都比晨的白发暗得多
+            r, g, b = (v / 255 for v in lab_col(0.5 + (0.2 - lo_) * 0.5, _ab(0.035, 220)))
+            return f"Color({r:.3f}, {g:.3f}, {b:.3f}, 1)"
+        return [f'[node name="{name}" type="Node2D" parent="{parent}"]', 'script = ExtResource("22_crowd")',
+                f'texture = ExtResource("50_hood{hh}")', f"frame_size = Vector2i({hood_w[hh]}, {hh})",
+                f"types = {len(HOOD_TYPES)}", f"frames = {HOOD_FRAMES}",
+                f"count = {n}", f"direction = {d}", f"feet_y = {feet}", f"speed = Vector2({hh * WALK:.2f}, {hh * WALK:.2f})",
+                f"seed = {seed}", f"jitter = {jit}", f"sync = {sync}",
+                "ramp = true", f"lo = {c(lo)}", f"hi = {c(hi)}", f"rim = {c(rim_)}", f"glow = {glow(lo)}", ""]
 
     def train(parent):
         for (par, ty, n, cl, ch, v, iv, d) in TRAINS:
@@ -1284,14 +1636,16 @@ def write_scene(layers, hood_w):
                 f"ground = Vector2({ground[0]}, {ground[1]})", f"splash = {'true' if splash else 'false'}",
                 f"seed = {seed}", ""]
 
-    def pigeons(parent, name, n, size, c, r, sp, seed, perch=None, light=0.47):
-        out = [f'[node name="{name}" type="Node2D" parent="{parent}"]', 'script = ExtResource("26_pigeons")',
-               f"count = {n}", f"size = {size}", f"center = Vector2({c[0]}, {c[1]})", f"radius = Vector2({r[0]}, {r[1]})",
-               f"orbit_speed = {sp}", f"light = Color({light}, {light}, {light + 0.02}, 1)",
-               f"dark = Color({light - 0.17:.2f}, {light - 0.165:.3f}, {light - 0.15:.2f}, 1)", f"seed = {seed}"]
-        if perch:
-            out += ["perch = true", f"perch_y = {perch}", 'train = NodePath("../Train")']
-        return out + [""]
+    def passers():
+        P = PASSERS
+        return ['[node name="Passers" type="CanvasLayer" parent="."]', "layer = 1", "",
+                '[node name="Passers" type="Node2D" parent="Passers"]', 'script = ExtResource("26_passers")',
+                'walker = ExtResource("51_passer")', f"walker_frame = Vector2i({passer_fs[0]}, {passer_fs[1]})",
+                f"walker_frames = {HOOD_FRAMES}", f"walker_types = {len(PASSER_TYPES)}", "walker_top = 0.0",
+                f"walker_speed = {P['walker_speed']}", f"walker_stride = {PASSER_H * 1.1:.1f}",
+                'car = ExtResource("52_car")', f"car_top = {CAR_TOP}.0", f"car_speed = {P['car_speed']}",
+                f"interval = Vector2({P['interval'][0]}, {P['interval'][1]})", f"first_wait = {P['first_wait']}",
+                "alternate = true", f"parallax = {SCROLL['front']}", ""]
 
     def flicker(parent, key, seed, share):
         rng = np.random.default_rng(seed)
@@ -1308,41 +1662,48 @@ def write_scene(layers, hood_w):
     s += para("Sky", "sky", "1_sky")
     s += para("Ridge", "ridge", "2_ridge")
     s += para("Far", "far", "3_far")
-    _, feet, hh, n, sp, Lt = cr["Far"]
-    s += crowd("Far", feet, hh, n, sp, Lt, 3)
+    s += crowd("Far", "Far", 3)
     s += train("Far")
     s += sig("Far", "far", 2)
-    s += pigeons("Far", "Pigeons", 34, 0, (330, 70), (130, 20), 0.3, 31, light=0.5)
     s += rain("Far", 240, 3, 110, (0.33, 0.34, 0.36), 41, ground=(150, 236), dim=(0.2, 0.205, 0.22))
     s += shafts()
     s += para("MidFar", "midfar", "4_midfar")
-    _, feet, hh, n, sp, Lt = cr["MidFar"]
-    s += crowd("MidFar", feet, hh, n, sp, Lt, 5)
+    s += crowd("MidFar", "MidFar", 5)
     s += flicker("MidFar", "midfar", 8, 0.35)
-    s += pigeons("MidFar", "Pigeons", 36, 1, (420, 94), (130, 24), 0.36, 32, light=0.49)
     s += sig("MidFar", "midfar", 4)
     s += para("Mid", "mid", "5_mid")
-    _, feet, hh, n, sp, Lt = cr["Mid"]
-    s += crowd("Mid", feet, hh, n, sp, Lt, 7)
+    s += crowd("Mid", "Mid", 7)
     s += sig("Mid", "mid", 6)
     s += flicker("Mid", "mid", 9, 0.3)
     s += train("Mid")
-    s += pigeons("Mid", "Pigeons", 30, 3, (330, 108), (150, 30), 0.35, 33)
-    s += pigeons("Mid", "Perched", 18, 3, (0, 0), (110, 26), 0.6, 34, perch=TRACKS["mid"] - 1)
     s += rain("Mid", 150, 5, 220, (0.34, 0.35, 0.37), 42, ground=(170, 236))
     s += para("Main", "main", "6_main")
-    _, feet, hh, n, sp, Lt = cr["Main"]
-    s += crowd("Main", feet, hh, n, sp, Lt, 11)
+    s += street_row(STREET_ROWS[0])
+    s += street_row(STREET_ROWS[1])
     s += rain("Main", 80, 7, 380, (0.38, 0.39, 0.41), 43, ground=(229, 268), splash=True)
     s += ['[node name="Chen" parent="." instance=ExtResource("40_chen")]', f"position = Vector2(204, {GROUND + 1})", ""]
+    # 晨同一条街、画在她前面的那几个人（同一个深度、同一个视差）
+    s += ['[node name="MainNear" type="Parallax2D" parent="."]', f"scroll_scale = Vector2({SCROLL['main']}, 1)",
+          "repeat_size = Vector2(960, 0)", "repeat_times = 2", ""]
+    s += street_row(STREET_ROWS[2])
     s += ['[node name="Wet" type="Parallax2D" parent="."]', "scroll_scale = Vector2(0, 0)", "",
           '[node name="Rect" type="ColorRect" parent="Wet"]', 'material = SubResource("wet")',
-          "offset_top = 230.0", "offset_right = 480.0", "offset_bottom = 270.0", "mouse_filter = 2", ""]
+          f"offset_top = {GROUND - CAM_DY + 1}.0", "offset_right = 480.0", "offset_bottom = 270.0", "mouse_filter = 2", ""]
+    # 冷光源的光晕：灯头一圈、灯下湿地上一摊（叠加；画在镜子后面，所以不会在倒影里再被照一次）
+    s += ['[node name="Glow" type="Parallax2D" parent="."]', f"scroll_scale = Vector2({SCROLL['main']}, 1)",
+          "repeat_size = Vector2(960, 0)", "repeat_times = 2", ""]
+    glows = []
+    for lx in LIT_LAMPS:
+        glows += [("halo", lx + 8, 166), ("pool", lx + 8, GROUND + 8)]
+    glows += [("halo", VEND_X + 9, SW_BACK + 1 - VEND_H + 14), ("pool", VEND_X + 10, GROUND + 7)]
+    for i, (kind, gx, gy) in enumerate(glows):
+        tex = "53_halo" if kind == "halo" else "54_pool"
+        s += [f'[node name="G{i}" type="Sprite2D" parent="Glow"]', 'material = SubResource("add")',
+              f'texture = ExtResource("{tex}")', f"position = Vector2({gx}, {gy})", ""]
     s += para("Front", "front", "7_front")
-    _, feet, hh, n, sp, Lt = cr["Front"]
-    s += crowd("Front", feet, hh, n, sp, Lt, 13)
     s += rain("Front", 14, 12, 620, (0.3, 0.31, 0.33), 44, ground=(240, 290), dim=(0.3, 0.31, 0.33), area_y=-40)
-    s += ['[node name="Camera" type="Camera2D" parent="."]', "position = Vector2(240, 135)", "",
+    s += passers()
+    s += ['[node name="Camera" type="Camera2D" parent="."]', f"position = Vector2(240, {135 + CAM_DY})", "",
           '[node name="Overlay" type="CanvasLayer" parent="."]', "layer = 10", "",
           '[node name="Vignette" type="ColorRect" parent="Overlay"]', 'material = SubResource("vig")',
           "offset_right = 480.0", "offset_bottom = 270.0", "mouse_filter = 2", ""]
@@ -1355,7 +1716,10 @@ if __name__ == "__main__":
     args = ap.parse_args()
     ls = build()
     hood_w = write_hoods()
-    write_scene(ls, hood_w)
+    passer_fs = passer_sheet()
+    car_image()
+    glow_images()
+    write_scene(ls, hood_w, passer_fs)
     check_alpha(ls)
     print("亮度：")
     check_brightness(ls)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Texture2D" path="res://art/forest/sky.png" id="1_sky"]
 [ext_resource type="Texture2D" path="res://art/forest/ridge.png" id="2_ridge"]
@@ -12,6 +12,8 @@
 [ext_resource type="PackedScene" path="res://scenes/forest_shadows.tscn" id="30_shadows"]
 [ext_resource type="Script" path="res://scripts/fireflies.gd" id="31_fireflies"]
 [ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
+[ext_resource type="Script" path="res://scripts/npc_snake.gd" id="41_snake"]
+[ext_resource type="Script" path="res://scripts/npc_deer.gd" id="42_deer"]
 
 [sub_resource type="CanvasItemMaterial" id="add"]
 blend_mode = 1
@@ -101,6 +103,14 @@ vertex_colors = PackedColorArray(0.8, 0.92, 0.83, 0, 0.8, 0.92, 0.83, 0, 0.8, 0.
 [node name="Fireflies" type="Node2D" parent="Main"]
 material = SubResource("add")
 script = ExtResource("31_fireflies")
+
+[node name="Snake" type="Node2D" parent="."]
+position = Vector2(530, 229)
+script = ExtResource("41_snake")
+
+[node name="Deer" type="Node2D" parent="."]
+position = Vector2(860, 229)
+script = ExtResource("42_deer")
 
 [node name="Chen" parent="." instance=ExtResource("40_chen")]
 position = Vector2(204, 229)

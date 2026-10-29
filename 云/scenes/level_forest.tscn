@@ -18,6 +18,8 @@
 [ext_resource type="Texture2D" path="res://art/level1/wood_glow.png" id="54_glow"]
 [ext_resource type="Texture2D" path="res://art/level1/hint_arrow.png" id="55_hint"]
 [ext_resource type="Script" path="res://scripts/npc_alien.gd" id="60_alien"]
+[ext_resource type="Script" path="res://scripts/npc_snake.gd" id="61_snake"]
+[ext_resource type="Script" path="res://scripts/npc_deer.gd" id="62_deer"]
 
 [sub_resource type="CanvasItemMaterial" id="add"]
 blend_mode = 1
@@ -144,6 +146,14 @@ offset = Vector2(-9, -6)
 visible = false
 position = Vector2(0, -16)
 texture = ExtResource("55_hint")
+
+[node name="Snake" type="Node2D" parent="."]
+position = Vector2(530, 229)
+script = ExtResource("61_snake")
+
+[node name="Deer" type="Node2D" parent="."]
+position = Vector2(860, 229)
+script = ExtResource("62_deer")
 
 [node name="Chen" parent="." instance=ExtResource("40_chen")]
 visible = false
