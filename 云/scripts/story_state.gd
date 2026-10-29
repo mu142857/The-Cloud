@@ -51,6 +51,33 @@ static func mark_used(id: String) -> void:
 	used[id] = true
 
 
+## 日记加一条：{zh, en, tag?, struck?}
+static func add_journal(e: Dictionary) -> void:
+	journal.append(e)
+
+
+## 日记里含这段文字（任一语言）的条目划掉；返回划掉了几条
+static func strike(text: String) -> int:
+	var n := 0
+	for e in journal:
+		var d: Dictionary = e
+		if text != "" and (str(d.get("zh", "")).contains(text) or str(d.get("en", "")).contains(text)) and not d.get("struck", false):
+			d["struck"] = true
+			n += 1
+	return n
+
+
+## 日记里含这段文字的条目加下划线（之后被划掉的话删除线盖在上面）
+static func mark(text: String) -> int:
+	var n := 0
+	for e in journal:
+		var d: Dictionary = e
+		if text != "" and (str(d.get("zh", "")).contains(text) or str(d.get("en", "")).contains(text)):
+			d["marked"] = true
+			n += 1
+	return n
+
+
 static func clear_flag(f: String) -> void:
 	flags.erase(f)
 

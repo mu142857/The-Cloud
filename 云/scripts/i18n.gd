@@ -59,6 +59,11 @@ const STR := {
 	"journal_empty": ["Nothing written yet.", "还什么都没写。"],
 	"to_be_continued": ["To be continued", "未完待续"],
 	"to_be_continued_sub": ["未完待续", "To be continued"],
+	"just_look": ["Just look", "只是看看"],
+	"use": ["Use", "使用"],
+	"use_nothing": ["I don't think this helps here.", "这个好像用不上。"],
+	"use_here_nothing": ["Nothing around here to use it on.", "这附近用不上。"],
+	"journal_struck": ["Crossed out a line in the journal", "划掉了日记里的一句"],
 }
 
 

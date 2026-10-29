@@ -14,8 +14,12 @@ extends Node2D
 ##       {"size": [w, h], "floor": 地板那一行的 dy, "walk": [左 dx, 右 dx], "door": 门的 dx,
 ##        "props": {"radio": [dx, dy], "pipe_a": [dx, dy], …}}   （floor_y / walk_range / door_x / objects / spots 也认；
 ##        物件的点 = 那件东西底边中点；值可以是 [dx, dy]、{"x", "y"} 或只给 dx（y 就在地板上））
-##   剧本里 room_* 的 marker 原来是按 480 宽一屏写的房间内 x：json 里有同名物件（去掉 room_）就用 json 的位置，
-##   没有就按比例压进屋内可走范围（占位）。treehouse 和 room_door 这两个 marker 都改成门的 x（在门口互动、进出屋不跳）。
+##   剧本里 room_* 的 marker：第四版起是「相对树屋锚点的 x」（有负数就按这个算：树屋 x + 值）；第一版是 480 宽一屏的房间内 x
+##   （按比例压进屋内可走范围）。两种都是：json 的 hotspots 里有同名的点（去掉 room_；kettle = stove 等别名）就用 json 的。
+##   json objects 里有、PROPS 表里没有的东西（油灯 lamp、灯下的痕迹 lamp_mark、明信片 postcard、零件包装 part_pack、工具墙 toolwall……）
+##   自动当成物件（图 = art/forest_story/<objects 里的名字>.png）。剧本 prop 步骤用 room_<名字> 也认（去掉 room_）。
+##   剧本里给过 shown 状态的物件一开始藏着（明信片：弥洛最后才拿出来）。taken = 拿走了（藏起来）。
+##   图旁边 json 的 "states": [..] = 同一张图里按状态换帧（gramophone old/new）。treehouse 和 room_door 这两个 marker 都改成门的 x（在门口互动、进出屋不跳）。
 ##   进屋 / 出屋（剧本 fade_to room=treehouse / 从屋里 fade_to forest 到屋子附近）不黑屏：前墙淡出 / 淡入 0.5 秒，
 ##   晨的左右范围限制在屋内，镜头照常跟随、往屋子中心收一点（level_forest.gd）。
 ## 不是图的「物件」（剧本 prop 步骤也能用）：fog（thick = 旧路的雾更浓）、ship（launch = 飞船要起飞了，关卡处理）、
@@ -29,6 +33,16 @@ extends Node2D
 ##     FogFront 在角色前面、Front 层后面，只在画面下半部、越往下越浓，很淡（晨的头和身子基本不被盖，她还是最亮）。
 ##   浓淡 = fog_at(x)：坠毁现场一点点（好看），旧路慢慢起雾，fog_start 以后很快变浓，hollow 最浓；树屋那一段回到淡；
 ##   靠近左右不可见的墙时也变浓（墙那边是一片雾，看得见的边）。远处坡地那堵雾是 fog_bank 图。
+## 地面贴片（图旁边 json 有 ground_row 的：塌陷口 hollow、蹄印 hoofprints、凹陷 depressions）：按「列」画，每一列各自对齐到
+##   那一列的地面（ground_fn 不是平的，±3 像素起伏），图里 ground_row 那一行正好压在地面最上面一行，严丝合缝。
+##   凹陷（TERRAIN_PROPS）还改地形：凹下去的地方，晨和 NPC 的脚跟着凹下去（踩在图里凹陷的底上，从图里每一列读出来）。
+## 坡地远处那堵雾（fog_bank.png）：底边压进地面以下（主层的地面盖住它的下沿，不露直边），左右两头分档淡掉。
+## 区域（第三版）：森林分两段，按 x 分：旧路段 A = wall_left .. A 的右边，树屋段 B = B 的左边 .. wall_right。
+##   A 的右边：倒木推开之前到倒木为止；塌陷口没搭桥之前停在坑边；木板搭成桥（prop plank:bridge）以后一直到 wall_glade
+##   （林间空地 glade：岩画、信号箱、路标底座），没有 wall_glade 就到 wall_road。
+##   B 的左边：有 house_return（回旧路的入口）就是它，不然 wall_house。晨在 B 往左走到入口（顶着走一小会儿）→
+##   黑屏换到旧路段的 road_return（没有就是布条 cloth 那里），见 level_forest.gd 的 _update_portal。双向都能走。
+## 远处有东西走过（elephant_call，sway_canopy）：中远景层上一段树冠从一侧到另一侧依次轻晃 1 像素，不露面。
 ## 看得见的边（不用台词推人）：倒木没推开之前，旧路到倒木为止（倒木右边一点）；塌陷口（hollow）是个坑，晨走到坑边就停住，
 ##   像碰到边（不自动往回走）。
 ##   布条：在雾里每隔 CLOTH_GUST 秒被风吹一下（换帧），同时周围亮一点点（加法的小光晕），让人注意到。
@@ -42,6 +56,8 @@ const DEFAULT_MARKERS := {
 	"wall_left": -160, "scrap": -60, "wreck": 120, "luggage": 190, "chen_start": 250, "wood": 372,
 	"resin": 520, "deer_appear": 560, "branch": 690, "road_start": 900, "stall": 1100, "log": 1400,
 	"fog_start": 1550, "cloth": 1780, "hollow": 1900, "wall_road": 1960,
+	"road_house": 1250, "glade_rock": 2080, "glade_sign_base": 2130, "signal_box": 2180, "wall_glade": 2260,
+	"pine": 3200, "shop_plank": 3140,
 	"wall_house": 2380, "treehouse": 2600, "empty_house": 2900, "shop": 3120, "slope": 3400, "wall_right": 3600,
 	# 屋内（剧本原来按 480 宽一屏写的 x，换算进树屋，见上）
 	"room_door": 40, "room_chairs": 100, "room_kettle": 145, "room_radio": 195, "room_sign": 235,
@@ -56,6 +72,10 @@ const ROOM_ANCHOR := {
 	"cups": ["room_kettle", 24], "pipe_steam": ["room_pipes", 0],
 }
 const PSEUDO_PROPS := ["fog", "ship", "pipes"]
+const TERRAIN_PROPS := ["depressions"]   # 凹下去的地方晨的脚跟着凹（见文件头）
+const EDGE_FADE_SHADER := "shader_type canvas_item;\nuniform float fade = 0.12;\nvoid fragment() {\n" + \
+	"\tvec4 c = texture(TEXTURE, UV) * COLOR;\n\tfloat e = min(UV.x, 1.0 - UV.x) / fade;\n" + \
+	"\tc.a *= floor(clamp(e, 0.0, 1.0) * 4.0) / 4.0;\n\tCOLOR = c;\n}\n"
 
 ## 物件。tex = art/forest_story/ 下的文件名；at / dx / dy = 放在哪；size = 没图时色块多大；color = 色块颜色；
 ## room = treehouse 就在树屋里（at 是剧本原来那间 480 宽屋子的 x，换算进树屋；dy 从地板往上为负）；
@@ -80,8 +100,26 @@ const PROPS := {
 	"pump": {"tex": "pump.png", "at": "empty_house", "dx": -34, "size": [16, 16], "color": "#5d6b66", "hidden": true,
 		"states": {"at_door": {"visible": true, "dx": 26}, "placed": {"visible": true}, "carried": {"visible": false}}},
 	"shop": {"tex": "shop.png", "at": "shop", "size": [100, 80], "color": "#36332b"},
+	# ---- 第三版：小空屋、林间空地、松树、木板、闹钟、送还以后摆回原处的东西
+	"road_house": {"tex": "road_house.png", "at": "road_house", "size": [80, 60], "color": "#312e28"},
+	"glade_rock": {"tex": "glade_rock.png", "at": "glade_rock", "size": [120, 70], "color": "#3a3d38"},
+	"signal_box": {"tex": "signal_box.png", "at": "signal_box", "size": [30, 50], "color": "#3d4440"},
+	"sign_base": {"tex": "sign_base.png", "at": "glade_sign_base", "size": [14, 8], "color": "#4a4136"},
+	"pine_sap": {"tex": "pine_sap.png", "at": "pine", "size": [40, 90], "color": "#2e2a20", "frames": 2, "anim": 900},
+	"plank": {"tex": "plank.png", "at": "shop_plank", "size": [30, 5], "color": "#6b5638",
+		"states": {"bridge": {"tex": "plank_bridge.png", "at": "hollow", "dx": 0, "size": [70, 8], "visible": true},
+			"taken": {"visible": false}}},
+	"clock_window": {"tex": "clock_window.png", "at": "empty_house", "dx": 22, "dy": -36, "size": [8, 8], "color": "#7a6d55"},
+	"shop_jar": {"tex": "shop_jar.png", "at": "shop", "dx": -31, "dy": -25, "size": [8, 9], "color": "#7d8a80"},
+	"shop_photo": {"tex": "shop_photo.png", "at": "shop", "dx": 36, "dy": -32, "size": [9, 7], "color": "#8a8070"},
+	"placed_radio": {"tex": "placed_radio.png", "at": "stall", "dx": 18, "dy": -30, "size": [12, 9], "color": "#6a5e4c", "hidden": true,
+		"states": {"placed": {"visible": true}}},
+	"placed_sign": {"tex": "placed_sign.png", "at": "glade_sign_base", "dy": -6, "size": [8, 24], "color": "#6b5a40", "hidden": true,
+		"states": {"placed": {"visible": true}}},
+	"placed_lamp": {"tex": "placed_lamp.png", "at": "road_house", "dx": 14, "dy": -20, "size": [6, 10], "color": "#8a7244", "hidden": true,
+		"states": {"placed": {"visible": true}}},
 	"depressions": {"tex": "depressions.png", "at": "slope", "size": [220, 14], "color": "#1f2723", "sink": 10},
-	"fog_bank": {"tex": "fog_bank.png", "at": "slope", "dx": 180, "dy": -20, "size": [480, 120], "layer": "fog", "fog": true},
+	"fog_bank": {"tex": "fog_bank.png", "at": "slope", "dx": 180, "size": [480, 120], "layer": "fog", "fog": true, "sink": 4, "edge_fade": true},
 	# ---- 树屋里
 	"chairs": {"tex": "room_chairs.png", "room": "treehouse", "at": 100, "size": [22, 16], "color": "#5a4632",
 		"states": {"pushed": {"dx": 5}}},
@@ -116,7 +154,7 @@ const FOG_BACK_BASE := 0.1               # 平时（坠毁现场）也有一点�
 const FOG_FRONT_A := 0.34                # 前面那层最浓时的 density（只在下半屏、越往下越浓）
 const FOG_FRONT_BASE := 0.04
 const LOG_BLOCK := 40.0                  # 倒木推开之前，晨最远走到倒木中心右边这么多（够得着树枝和倒木的互动点）
-const HOLLOW_EDGE := 18.0                # 塌陷口：晨最远走到它中心左边这么多（坑边）
+const HOLLOW_EDGE := 12.0                # 塌陷口：晨最远走到它中心左边这么多（坑边）
 const EDGE_FOG := 160.0                  # 离不可见的墙这么近就开始变浓
 const CLOTH_GUST := 3.2                  # 布条每隔几秒被风吹一下
 const CLOTH_GUST_T := 0.5                # 吹一下多久
@@ -130,7 +168,8 @@ var house := {}
 var house_back: Sprite2D
 var house_front: Sprite2D
 var _front_tw: Tween
-var forest_ground: Callable
+var forest_ground: Callable             # 主层原来的地面（物件按它摆）
+var _terrain: Array = []                 # [{x0, x1, top: PackedFloat32Array 每列地面那一行}]：凹陷改过的地形
 var props := {}                          # id → Sprite2D
 var _cfg := {}                           # id → 合并后的配置
 var _anim_t := 0.0
@@ -145,9 +184,21 @@ var extra_rects := {}                    # 不归这里管、但 hotspot 要用�
 var on_pseudo: Callable                  # ship 这种伪物件交给关卡：func(id, state)
 
 
-func setup(lv: Node2D, script_markers: Dictionary, steam_at := "") -> void:
+var _script_markers := {}
+var _room_relative := false          # 剧本的 room_* 是相对树屋锚点的 x（第四版）
+var _start_hidden := {}              # 剧本里给过 shown 状态的物件：一开始藏着
+var _lit_t := 0.0                    # fog:lit：雾里被照亮一下
+
+
+func setup(lv: Node2D, script_markers: Dictionary, steam_at := "", shown_ids: Array = []) -> void:
 	level = lv
 	chen = lv.chen
+	_script_markers = script_markers
+	for k in script_markers:
+		if str(k).begins_with("room_") and (script_markers[k] is float or script_markers[k] is int) and float(script_markers[k]) < 0.0:
+			_room_relative = true
+	for id in shown_ids:
+		_start_hidden[str(id).trim_prefix("room_")] = true
 	forest_ground = chen.ground_fn
 	markers = DEFAULT_MARKERS.duplicate()
 	for k in script_markers:
@@ -173,7 +224,9 @@ func setup(lv: Node2D, script_markers: Dictionary, steam_at := "") -> void:
 	_build_house()
 	for id in PROPS:
 		_make_prop(id)
+	_make_house_objects()
 	_add_room_light()
+	chen.ground_fn = walk_ground
 	_add_cloth_glow()
 	var objs: Dictionary = house["objects"]
 	if steam_at != "" and objs.has(steam_at) and (objs[steam_at] as Dictionary).has("leak"):
@@ -229,6 +282,18 @@ func ground_at(x: float, r := "") -> float:
 		r = room
 	if r == "treehouse":
 		return float(house["floor"])
+	return walk_ground(x)
+
+
+## 晨 / NPC 在森林里踩的地面：主层地面，凹陷那里换成凹陷的底
+func walk_ground(x: float) -> float:
+	for t in _terrain:
+		var td: Dictionary = t
+		if x >= float(td["x0"]) and x < float(td["x1"]):
+			var col := int(floor(x - float(td["x0"])))
+			var arr: PackedFloat32Array = td["top"]
+			if col >= 0 and col < arr.size() and arr[col] > -9000.0:
+				return arr[col]
 	return float(forest_ground.call(x))
 
 
@@ -239,7 +304,7 @@ func set_room(r: String, instant := false) -> void:
 		var gy: float = house["floor"]
 		chen.ground_fn = func(_x: float) -> float: return gy
 	else:
-		chen.ground_fn = forest_ground
+		chen.ground_fn = walk_ground
 	var a := 0.0 if r == "treehouse" else 1.0
 	if _front_tw != null and _front_tw.is_valid():
 		_front_tw.kill()
@@ -268,33 +333,65 @@ func near_house(x: float) -> bool:
 func walls(x: float) -> Vector2:
 	if in_room():
 		return house["walk"]
-	var split := (mx("wall_road") + mx("wall_house")) / 2.0
-	if x < split:
-		# 看得见的边：倒木推开之前到倒木为止；塌陷口是个坑，坑边停住
-		var r := minf(mx("wall_road"), mx("hollow") - HOLLOW_EDGE)
+	if x < area_split():
+		# 看得见的边：倒木推开之前到倒木为止；塌陷口是个坑，没搭桥就停在坑边；搭了桥一直到林间空地的尽头
+		var r := a_end()
+		if bridged():
+			r = maxf(r, mx("wall_glade") if markers.has("wall_glade") else mx("wall_road"))
+		else:
+			r = minf(r, mx("hollow") - HOLLOW_EDGE)
 		if prop_state("log") != "moved" and not StoryState.has("log_cleared"):
 			r = minf(r, mx("log") + LOG_BLOCK)
 		return Vector2(mx("wall_left"), r)
-	return Vector2(mx("wall_house"), mx("wall_right"))
+	return Vector2(b_start(), mx("wall_right"))
+
+
+func bridged() -> bool:
+	return prop_state("plank") == "bridge"
+
+
+## 旧路段最右能到哪（不算倒木 / 塌陷口）
+func a_end() -> float:
+	return mx("wall_road")
+
+
+## 树屋段最左（回旧路的入口）
+func b_start() -> float:
+	return mx("house_return") if markers.has("house_return") else mx("wall_house")
+
+
+## 两段的分界（x 小于它就是旧路段）
+func area_split() -> float:
+	var a := maxf(mx("wall_road"), mx("wall_glade") if markers.has("wall_glade") else 0.0)
+	return (a + b_start()) / 2.0
+
+
+func area_of(x: float) -> String:
+	if in_room():
+		return "house"
+	return "road" if x < area_split() else "trees"
 
 
 # ======================================================================= 物件
 func _make_prop(id: String) -> void:
-	var c: Dictionary = (PROPS[id] as Dictionary).duplicate(true)
+	var c: Dictionary = _base_cfg(id)
 	_merge_meta(c)
 	_anchor_cfg(id, c)
 	_cfg[id] = c
 	var s := Sprite2D.new()
 	s.name = "P_" + id
 	s.centered = false
+	s.set_meta("ground_row", int(c.get("ground_row", 0)))
 	if c.get("layer", "") == "fog":
 		_fog_layer.add_child(s)
 	else:
 		_forest_layer.add_child(s)
 	props[id] = s
 	_apply_look(id, c)
-	s.visible = not c.get("hidden", false)
+	s.visible = not c.get("hidden", false) and not _start_hidden.has(id)
 	_place(id)
+	if id in TERRAIN_PROPS:
+		_build_terrain(id)
 
 
 ## 剧本的 markers 里有这个物件的点就放那；树屋里的东西：treehouse.json 里有就用它的点（spot），没有就跟着 room_* marker
@@ -332,13 +429,29 @@ func _merge_meta(c: Dictionary) -> void:
 	if j.has("frames"):
 		c["frames"] = int(j["frames"])
 	if j.has("ms") and not c.has("anim_fixed"):
-		c["anim"] = float(j["ms"])
+		if j["ms"] is Array:
+			# 每帧不一样长（松脂：平时 1.6 秒，闪一下 0.2 秒）
+			var seq: Array = j["ms"]
+			var total := 0.0
+			for m in seq:
+				total += float(m)
+			c["anim_seq"] = seq
+			c["anim"] = total
+		else:
+			c["anim"] = float(j["ms"])
+	if j.has("states") and j["states"] is Array:
+		c["state_frames"] = j["states"]
+	if j.has("host") and j.has("offset"):
+		# 叠在另一个物件上：位置 = 那个物件的锚点 + offset（底边中点）
+		c["host"] = str(j["host"])
+		c["host_off"] = _vec(j["offset"])
 	if j.has("ground_row") and c.get("room", "forest") == "forest":
 		c["ground_row"] = int(j["ground_row"])
 
 
 func _apply_look(id: String, c: Dictionary) -> void:
 	var s: Sprite2D = props[id]
+	s.set_meta("ground_row", int(c.get("ground_row", 0)))
 	var path := ART + str(c.get("tex", ""))
 	var frames := int(c.get("frames", 1))
 	if ResourceLoader.exists(path):
@@ -356,11 +469,81 @@ func _apply_look(id: String, c: Dictionary) -> void:
 	s.offset = Vector2(-floor(fw / 2.0), -fh)
 	if c.has("ground_row") and not s.get_meta("placeholder", false):
 		c["sink"] = fh - 1 - int(c["ground_row"])
+		_column_draw(s, true)
+	else:
+		_column_draw(s, false)
+	if c.get("edge_fade", false) and not s.get_meta("placeholder", false):
+		var sh := Shader.new()
+		sh.code = EDGE_FADE_SHADER
+		var m := ShaderMaterial.new()
+		m.shader = sh
+		s.material = m
+
+
+## 地面贴片按列画：精灵本身不画（self_modulate 透明），子节点每列一条、各自对齐到那一列的地面
+func _column_draw(s: Sprite2D, on: bool) -> void:
+	var cols: Node2D = s.get_node_or_null("Cols")
+	if not on:
+		if cols != null:
+			cols.queue_free()
+			s.self_modulate.a = 1.0
+		return
+	s.self_modulate.a = 0.0
+	if cols == null:
+		cols = Node2D.new()
+		cols.name = "Cols"
+		s.add_child(cols)
+		cols.draw.connect(_draw_columns.bind(s, cols))
+	cols.queue_redraw()
+
+
+func _draw_columns(s: Sprite2D, cols: Node2D) -> void:
+	var gr: int = int(s.get_meta("ground_row", 0))
+	var fw := s.texture.get_width() / s.hframes
+	var fh := s.texture.get_height()
+	var fx := (s.frame % s.hframes) * fw
+	for cx in fw:
+		var wx := s.position.x + s.offset.x + cx
+		var gy := roundf(float(forest_ground.call(wx)))
+		var top := gy - gr - s.position.y                  # 这一列图的顶在精灵坐标里的 y
+		cols.draw_texture_rect_region(s.texture, Rect2(s.offset.x + cx, top, 1, fh), Rect2(fx + cx, 0, 1, fh))
+
+
+## 凹陷改地形：每一列从 ground_row 往下找第一个「亮」的像素（凹陷的底那条亮边），那一行就是脚踩的地面
+func _build_terrain(id: String) -> void:
+	var s: Sprite2D = props[id]
+	if s.get_meta("placeholder", false) or not s.visible:
+		return
+	var img := s.texture.get_image()
+	if img == null:
+		return
+	if img.is_compressed():
+		img.decompress()
+	var gr: int = int(s.get_meta("ground_row", 0))
+	var fw := img.get_width() / s.hframes
+	var x0 := s.position.x + s.offset.x
+	var top := PackedFloat32Array()
+	top.resize(fw)
+	for cx in fw:
+		top[cx] = -9999.0
+		if img.get_pixel(cx, gr).a < 0.5:
+			continue                                  # 这一列不是凹陷（两个坑中间的地面）
+		var gy := roundf(float(forest_ground.call(x0 + cx)))
+		for r in range(gr, img.get_height()):
+			var p := img.get_pixel(cx, r)
+			if p.a > 0.5 and p.get_luminance() > 0.2:
+				top[cx] = gy + float(r - gr)
+				break
+	_terrain.append({"x0": x0, "x1": x0 + fw, "top": top})
 
 
 func _place(id: String) -> void:
 	var c: Dictionary = _cfg[id]
 	var s: Sprite2D = props[id]
+	if c.has("host") and props.has(str(c["host"])) and str(c["host"]) != id:
+		var hs: Sprite2D = props[str(c["host"])]
+		s.position = (hs.position + (c["host_off"] as Vector2)).round()
+		return
 	if c.has("spot"):
 		var sp: Vector2 = c["spot"]
 		s.position = Vector2(round(sp.x + float(c.get("dx", 0))), round(sp.y) + 1.0)
@@ -378,10 +561,14 @@ func _place(id: String) -> void:
 
 
 func set_prop(id: String, state: String, save := true) -> void:
+	id = prop_id(id)
 	if save:
 		StoryState.set_prop(id, state)
 	if id == "fog":
-		thick = state == "thick"
+		if state == "lit":
+			_lit_t = 1.6                   # 发光木头举起来：雾里亮一下，布条、蹄印被照到
+		else:
+			thick = state == "thick"
 		return
 	if id == "ship":
 		if on_pseudo.is_valid():
@@ -396,13 +583,13 @@ func set_prop(id: String, state: String, save := true) -> void:
 	if not props.has(id):
 		return
 	var s: Sprite2D = props[id]
-	var base: Dictionary = (PROPS[id] as Dictionary).duplicate(true)
+	var base: Dictionary = _base_cfg(id)
 	_merge_meta(base)
 	_anchor_cfg(id, base)
 	if id == "pipe_steam":
 		base = (_cfg[id] as Dictionary).duplicate(true)
 	var c: Dictionary = base.duplicate(true)
-	if state in ["hidden", "hide", "gone"]:
+	if state in ["hidden", "hide", "gone", "taken"]:
 		s.visible = false
 		return
 	if state in ["show", "shown", "default", ""]:
@@ -419,11 +606,18 @@ func set_prop(id: String, state: String, save := true) -> void:
 		var alt := str(base.get("tex", "")).get_basename() + "_" + state + ".png"
 		if ResourceLoader.exists(ART + alt):
 			c["tex"] = alt
+	if str(c.get("tex", "")) != str(base.get("tex", "")):
+		for k in ["host", "host_off", "ground_row", "frames", "anim", "anim_seq"]:
+			c.erase(k)
+		_merge_meta(c)                     # 换了图：读新图自己的 json（木板搭成桥：和塌陷口同位置、同 ground_row）
 	_cfg[id] = c
 	_apply_look(id, c)
 	s.visible = bool(c.get("visible", true))
 	var fs: Dictionary = FRAME_STATES.get(id, {})
-	if fs.has(state) and s.hframes > int(fs[state]):
+	var sf: Array = c.get("state_frames", [])
+	if sf.has(state) and s.hframes > sf.find(state):
+		s.frame = sf.find(state)
+	elif fs.has(state) and s.hframes > int(fs[state]):
 		s.frame = int(fs[state])
 	elif s.get_meta("placeholder", false) and not st.has("tex"):
 		s.self_modulate = Color(1.25, 1.2, 1.1)     # 色块：亮一档，看得出换了状态
@@ -431,7 +625,7 @@ func set_prop(id: String, state: String, save := true) -> void:
 
 
 func prop_state(id: String) -> String:
-	return str(StoryState.props.get(id, ""))
+	return str(StoryState.props.get(prop_id(id), ""))
 
 
 ## 物件在世界里的矩形（点选、提示箭头放哪）
@@ -546,6 +740,8 @@ func _build_house() -> void:
 			markers[name] = float(house["spots"][alias])
 		elif (house["objects"] as Dictionary).has(pid):
 			markers[name] = (house["objects"][pid]["spot"] as Vector2).x
+		elif _room_relative and _script_markers.has(name):
+			markers[name] = float(house["cx"]) + float(_script_markers[name])
 		else:
 			markers[name] = room_x(float(markers[name]))
 	# 门：treehouse（屋外互动的点）和 room_door 都在门口
@@ -587,6 +783,35 @@ func _add_cloth_glow() -> void:
 	_cloth_glow.material = add
 	_cloth_glow.modulate = Color(0.85, 0.95, 0.88, 0.0)
 	_forest_layer.add_child(_cloth_glow)
+
+
+## treehouse.json objects 里有、PROPS 里没有的东西：自动当成屋里的物件
+var _extra_props := {}
+
+
+func _make_house_objects() -> void:
+	for k in house.get("objects", {}):
+		var id := str(k)
+		if props.has(id) or id == "steam":
+			continue
+		_extra_props[id] = {"tex": "room_" + id + ".png" if ResourceLoader.exists(ART + "room_" + id + ".png") else id + ".png",
+			"room": "treehouse", "at": 240, "size": [10, 10], "color": "#6a5e4c"}
+		_make_prop(id)
+
+
+func _base_cfg(id: String) -> Dictionary:
+	if PROPS.has(id):
+		return (PROPS[id] as Dictionary).duplicate(true)
+	return (_extra_props.get(id, {}) as Dictionary).duplicate(true)
+
+
+## 剧本的物件 id：room_<名字> 也认
+func prop_id(id: String) -> String:
+	if props.has(id):
+		return id
+	if props.has(id.trim_prefix("room_")):
+		return id.trim_prefix("room_")
+	return id
 
 
 ## 屋里的灯光（room_light.png，半透明，和树屋同尺寸同锚点）：在屋内物件上面、人物下面
@@ -680,8 +905,11 @@ func fog_at(x: float) -> float:
 	var rs := mx("road_start")
 	var fs := mx("fog_start")
 	var ho := mx("hollow")
-	var split := (mx("wall_road") + mx("wall_house")) / 2.0
-	if x < split:
+	if x < area_split():
+		if x > ho + 20.0:
+			# 塌陷口后面的林间空地：雾慢慢散开一点（空地）
+			var g := mx("glade_rock") if markers.has("glade_rock") else ho + 180.0
+			return maxf(clampf(1.0 - 0.6 * (x - ho) / maxf(1.0, g - ho), 0.4, 1.0), _edge_fog(x))
 		if x < rs:
 			return 0.0
 		if x < fs:
@@ -706,6 +934,65 @@ func _edge_fog(x: float) -> float:
 	return 0.75 * clampf(1.0 - d / EDGE_FOG, 0.0, 1.0)
 
 
+# ======================================================================= 远处有东西走过（elephant_call）
+const SWAY_LAYER := "Far"           # 在哪一层的树冠上晃（远景）
+const SWAY_Y := 60.0                # 树冠下沿那一带（和雾交界、看得出晃）
+const SWAY_H := 70.0
+const SWAY_COL := 4                 # 一次晃几列像素
+const SWAY_EACH := 0.6              # 每一列晃多久
+var _sway_t := -1.0
+var _sway_dur := 3.0
+var _sway_dir := 1
+var _sway_x0 := 0.0
+var _sway_x1 := 480.0
+var _sway_node: Node2D
+
+
+## 一排树冠从一侧到另一侧依次轻晃（像有很大的东西在雾后走过，不露面）。dir = 1 从左到右
+func sway_canopy(dir := 1, dur := 3.0) -> void:
+	var layer: Node2D = level.get_node(SWAY_LAYER)
+	var spr: Sprite2D = layer.get_node("Sprite")
+	if _sway_node == null:
+		_sway_node = Node2D.new()
+		_sway_node.name = "Sway"
+		layer.add_child(_sway_node)
+		_sway_node.draw.connect(_draw_sway)
+	var inv := spr.get_global_transform_with_canvas().affine_inverse()
+	_sway_x0 = (inv * Vector2(0, 0)).x
+	_sway_x1 = (inv * Vector2(480, 0)).x
+	_sway_t = 0.0
+	_sway_dur = dur
+	_sway_dir = dir
+
+
+func swaying() -> bool:
+	return _sway_t >= 0.0
+
+
+func _draw_sway() -> void:
+	if _sway_t < 0.0:
+		return
+	var spr: Sprite2D = level.get_node(SWAY_LAYER).get_node("Sprite")
+	var tex := spr.texture
+	var tw := float(tex.get_width())
+	var span := _sway_x1 - _sway_x0
+	var front := _sway_t / _sway_dur
+	var offs := [1, 0, -1, 0]
+	for col in range(0, int(span), SWAY_COL):
+		var u := float(col) / span
+		if _sway_dir < 0:
+			u = 1.0 - u
+		var age := (front - u) * _sway_dur
+		if age < 0.0 or age > SWAY_EACH:
+			continue
+		var off: int = offs[int(age / (SWAY_EACH / 4.0)) % 4]
+		if off == 0:
+			continue
+		var lx := _sway_x0 + col
+		var tx := fposmod(lx, tw)
+		_sway_node.draw_texture_rect_region(tex, Rect2(lx + off, SWAY_Y, SWAY_COL, SWAY_H), Rect2(tx, SWAY_Y, SWAY_COL, SWAY_H))
+
+
 ## 布条：平时静止，每隔 CLOTH_GUST 秒被风吹一下（换到第 2 帧），雾里同时周围亮一点点
 func _update_cloth() -> void:
 	var s: Sprite2D = props["cloth"]
@@ -721,6 +1008,8 @@ func _update_cloth() -> void:
 	if gust and s.visible:
 		k = sin(t / CLOTH_GUST_T * PI)                        # 亮起来再暗下去
 	var a := 0.32 * k * clampf((fog_k - 0.3) / 0.4, 0.0, 1.0)
+	if _lit_t > 0.0:
+		a = maxf(a, 0.4 * clampf(_lit_t / 0.6, 0.0, 1.0))
 	_cloth_glow.modulate.a = floorf(a * 16.0) / 16.0          # 分档变，不平滑闪
 
 
@@ -733,9 +1022,26 @@ func update(delta: float, cam_center: Vector2) -> void:
 		if id == "cloth":
 			continue
 		if float(c.get("anim", 0)) > 0.0 and s.hframes > 1 and s.visible:
-			s.frame = int(_anim_t * 1000.0 / float(c["anim"])) % s.hframes
+			if c.has("anim_seq"):
+				var seq: Array = c["anim_seq"]
+				var tm := fmod(_anim_t * 1000.0, float(c["anim"]))
+				var fi := 0
+				while fi < seq.size() - 1 and tm >= float(seq[fi]):
+					tm -= float(seq[fi])
+					fi += 1
+				s.frame = fi % s.hframes
+			else:
+				s.frame = int(_anim_t * 1000.0 / float(c["anim"])) % s.hframes
 	_update_cloth()
+	if _sway_t >= 0.0:
+		_sway_t += delta
+		if _sway_t > _sway_dur + SWAY_EACH:
+			_sway_t = -1.0
+		_sway_node.queue_redraw()
 	var want := fog_at(cam_center.x)
+	if _lit_t > 0.0:
+		_lit_t -= delta
+		want *= 0.55                         # 被照亮：雾淡一下
 	fog_k = move_toward(fog_k, want, delta * 0.5)
 	if absf(want - fog_k) < 0.002:
 		fog_k = want

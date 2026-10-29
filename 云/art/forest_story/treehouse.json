@@ -10,7 +10,7 @@
  "door_x": -112,
  "layers": [
   "treehouse_back",
-  "objects (room_*, pipe_*, tool_*)",
+  "objects (room_*, pipe_*, tool_*；room_lamp_mark 一直显示、在 room_lamp 下面)",
   "room_light（半透明）",
   "人物",
   "treehouse_front（进屋淡出 / 出屋淡入）"
@@ -22,6 +22,20 @@
    "y": -36,
    "w": 19,
    "h": 12,
+   "frames": 1
+  },
+  "room_lamp_mark": {
+   "x": 20,
+   "y": -24,
+   "w": 11,
+   "h": 1,
+   "frames": 1
+  },
+  "room_lamp": {
+   "x": 22,
+   "y": -38,
+   "w": 11,
+   "h": 14,
    "frames": 1
   },
   "room_sign": {
@@ -46,7 +60,7 @@
    "frames": 2
   },
   "room_cups": {
-   "x": -38,
+   "x": -36,
    "y": -28,
    "w": 15,
    "h": 6,
@@ -60,7 +74,7 @@
    "frames": 1
   },
   "room_gramophone": {
-   "x": -61,
+   "x": -63,
    "y": -45,
    "w": 22,
    "h": 23,
@@ -70,11 +84,32 @@
     "new"
    ]
   },
+  "room_part_pack": {
+   "x": -42,
+   "y": -28,
+   "w": 6,
+   "h": 6,
+   "frames": 1
+  },
   "room_box": {
-   "x": -68,
+   "x": -72,
    "y": -69,
    "w": 11,
    "h": 7,
+   "frames": 1
+  },
+  "room_postcard": {
+   "x": -61,
+   "y": -69,
+   "w": 8,
+   "h": 7,
+   "frames": 1
+  },
+  "room_toolwall": {
+   "x": 61,
+   "y": -61,
+   "w": 62,
+   "h": 25,
    "frames": 1
   },
   "pipe_a": {
@@ -143,11 +178,15 @@
  "hotspots": {
   "door": -112,
   "stove": -85,
-  "box": -63,
+  "box": -67,
+  "postcard": -57,
+  "lamp": 25,
+  "part_pack": -39,
+  "toolwall": 92,
   "chairs": -14,
   "chair_free": -70,
-  "cups": -31,
-  "gramophone": -50,
+  "cups": -29,
+  "gramophone": -52,
   "radio": 6,
   "shelf": 13,
   "sign": 46,

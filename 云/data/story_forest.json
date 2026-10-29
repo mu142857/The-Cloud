@@ -1,5 +1,5 @@
 {
-	"_comment": "森林章节剧本（剧情姐《云层之中的大象》第一章）。格式见 docs/forest_chapter.md。开场：坠毁动画播完、晨爬起来以后播 scene \"intro\"。markers 里 room_* 是树屋室内的 x（房间左边 = 0，480 宽）。带 \"added\": true 的是补写的（不是剧情姐原文），给作者和剧情姐审。flag 一览：crashed tried_parts got_luggage got_wood got_scrap got_resin got_branch fuel_full deer_met road_stall log_started branch_a branch_b log_cleared fog_on at_treehouse met_miluo tea_done tools_started tools_ok ship_fixed musicbox_fixed gramophone_talk pump_trip pump_placed shop_done slope_talked drew_hollows revisit_done farewell_done ready_to_launch launched。",
+	"_comment": "森林章节剧本。主线 = 剧情姐新稿 forest_v2.txt（第四版），第三版自由度（A 道具、B 三样东西、C 姓名牌、glade、D 岩画）叠加。格式见 docs/forest_chapter.md。开场：坠毁动画播完、晨爬起来以后播 scene \"intro\"。markers 里 room_* 是相对树屋锚点的 x（和 art/forest_story/treehouse.json 的 hotspots 一致）。带 \"added\": true 的是补写的（不是剧情姐原句），游戏里显示成蓝色给她审。hints：玩家 20 秒没推进主线时，按当前 flag 取第一个满足条件的条目，随机说一句。",
 	"speakers": {
 		"chen": {"zh": "晨", "en": "Chen"},
 		"deer": {"zh": "鹿", "en": "Deer"},
@@ -28,83 +28,161 @@
 		"shop": 3120,
 		"slope": 3400,
 		"wall_right": 3600,
+		"road_house": 1250,
+		"wall_glade": 2260,
+		"glade_rock": 2080,
+		"signal_box": 2180,
+		"glade_sign_base": 2130,
+		"pine": 3200,
+		"shop_plank": 3178,
+		"house_return": 2400,
+		"wreck_front": 138,
 		"deer_ship": 170,
+		"stall_arrive": 1020,
 		"deer_stall": 1060,
+		"deer_peek": 1042,
+		"log_arrive": 1300,
 		"deer_log": 1330,
 		"branch_a": 1372,
 		"branch_b": 1432,
 		"hoofprints": 1650,
 		"fog_branch": 1710,
+		"hollow_edge": 1880,
 		"treehouse_arrive": 2520,
 		"deer_door": 2560,
-		"deer_empty": 2830,
-		"miluo_empty": 2860,
-		"empty_item": 2940,
-		"miluo_shop": 3085,
-		"deer_shop": 3165,
+		"deer_empty": 2815,
+		"miluo_empty": 2850,
+		"empty_item": 2878,
+		"clock_window": 2927,
+		"shop_arrive": 3060,
+		"deer_shop": 3040,
+		"shop_jar": 3089,
+		"miluo_shop": 3112,
+		"shop_photo": 3156,
 		"depressions": 3320,
+		"deer_slope_aside": 3360,
 		"fog_bank": 3520,
-		"room_door": 40,
-		"room_chairs": 100,
-		"room_kettle": 145,
-		"room_radio": 195,
-		"room_sign": 235,
-		"room_tools": 275,
-		"room_miluo": 305,
-		"room_dish": 330,
-		"room_gramophone": 360,
-		"room_box": 390,
-		"room_pipes": 440
+		"room_door": -112,
+		"room_miluo_stove": -106,
+		"room_kettle": -85,
+		"room_chair_free": -70,
+		"room_box": -67,
+		"room_postcard": -57,
+		"room_gramophone": -52,
+		"room_part_pack": -39,
+		"room_cups": -29,
+		"room_chairs": -14,
+		"room_radio": 6,
+		"room_lamp": 13,
+		"room_sign": 46,
+		"room_dish": 63,
+		"room_chen_bench": 76,
+		"room_pipes": 83,
+		"room_toolwall": 92,
+		"room_tools": 98,
+		"room_miluo": 112
 	},
+	"hints": [
+		{"need": ["ready_to_launch"], "not": ["launched"], "lines": [{"zh": "……该走了。", "en": "", "added": true}, {"zh": "飞机修好了。", "en": "", "added": true}]},
+		{"need": ["farewell_done"], "not": ["ready_to_launch"], "lines": [{"zh": "门在左边。", "en": "", "added": true}, {"zh": "……鹿还在外面吧。", "en": "", "added": true}]},
+		{"need": ["slope_talked"], "not": ["revisit_done"], "lines": [{"zh": "……弥洛还在树屋里。", "en": "", "added": true}, {"zh": "回去看看吧。", "en": "", "added": true}]},
+		{"need": ["shop_done"], "not": ["slope_talked"], "lines": [{"zh": "鹿在坡上等我。", "en": "", "added": true}, {"zh": "……坡上有什么？", "en": "", "added": true}]},
+		{"need": ["pump_placed"], "not": ["shop_done"], "lines": [{"zh": "她们往商店那边去了。", "en": "", "added": true}, {"zh": "……跟上去吧。", "en": "", "added": true}]},
+		{"need": ["parts_all"], "not": ["tools_started"], "lines": [{"zh": "三样都齐了。", "en": "", "added": true}, {"zh": "……回树屋。", "en": "", "added": true}]},
+		{"need": ["parts_needed"], "not": ["got_sap"], "lines": [{"zh": "罐子还空着。", "en": "", "added": true}, {"zh": "松脂……哪棵树在流松脂？", "en": "", "added": true}, {"zh": "门口那只鹿，也许知道。", "en": "", "added": true}]},
+		{"need": ["parts_needed"], "not": ["got_spring"], "lines": [{"zh": "还差一根弹簧。", "en": "", "added": true}, {"zh": "空屋的窗台上，好像有个闹钟。", "en": "", "added": true}, {"zh": "门口那只鹿，也许知道。", "en": "", "added": true}]},
+		{"need": ["parts_needed", "bridge_built"], "not": ["got_valve"], "lines": [{"zh": "空地上那个信号箱……", "en": "", "added": true}, {"zh": "阀门也许还在上面。", "en": "", "added": true}]},
+		{"need": ["parts_needed", "got_plank"], "not": ["got_valve", "bridge_built"], "lines": [{"zh": "木板也许能搭在塌陷口上。", "en": "", "added": true}, {"zh": "……回旧路去试试。", "en": "", "added": true}]},
+		{"need": ["parts_needed"], "not": ["got_valve"], "lines": [{"zh": "阀门……塌陷口那边过不去。", "en": "", "added": true}, {"zh": "得找块木板。", "en": "", "added": true}, {"zh": "商店里的货架好像塌了。", "en": "", "added": true}]},
+		{"need": ["fog_on"], "not": ["at_treehouse"], "lines": [{"zh": "敲树的声音……从哪边来？", "en": "", "added": true}, {"zh": "……水声最响的地方别去。", "en": "", "added": true}, {"zh": "树枝上好像挂着什么。", "en": "", "added": true}]},
+		{"need": ["log_started"], "not": ["log_cleared"], "lines": [{"zh": "底下那两根树枝，先拖开。", "en": "", "added": true}, {"zh": "……鹿在等我。", "en": "", "added": true}]},
+		{"need": ["log_cleared"], "not": ["fog_on"], "lines": [{"zh": "……那只鹿还在前面等我。", "en": "", "added": true}]},
+		{"need": ["road_stall"], "not": ["log_started"], "lines": [{"zh": "……那只鹿还在前面等我。", "en": "", "added": true}, {"zh": "前面好像被什么挡住了。", "en": "", "added": true}]},
+		{"need": ["road_1"], "not": ["road_stall"], "lines": [{"zh": "鹿走得好慢……在等我？", "en": "", "added": true}, {"zh": "往前走吧。", "en": "", "added": true}]},
+		{"need": ["deer_met"], "not": ["road_1"], "lines": [{"zh": "……那只鹿还在前面等我。", "en": "", "added": true}, {"zh": "旧路，在右边。", "en": "", "added": true}]},
+		{"need": ["fuel_full"], "not": ["deer_met"], "lines": [{"zh": "燃料够了。", "en": "", "added": true}, {"zh": "……回飞机试试。", "en": "", "added": true}]},
+		{"need": ["crashed"], "not": ["fuel_full"], "lines": [{"zh": "燃料还不够。", "en": "", "added": true}, {"zh": "附近应该还有能烧的东西。", "en": "", "added": true}, {"zh": "左边好像有什么在反光。", "en": "", "added": true}]}
+	],
 	"hotspots": [
-		{"id": "wreck_launch", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": ""}, "need": ["ready_to_launch"], "not": [], "once": false, "scene": "launch_go"},
-		{"id": "wreck_need_luggage", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": ""}, "need": ["fuel_full"], "not": ["got_luggage", "deer_met"], "once": false, "scene": "wreck_need_luggage"},
-		{"id": "wreck_launch_fail", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": ""}, "need": ["fuel_full", "got_luggage"], "not": ["deer_met"], "once": false, "scene": "launch_fail"},
-		{"id": "wreck_broken", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": ""}, "need": ["deer_met"], "not": ["ready_to_launch"], "once": false, "scene": "wreck_broken"},
-		{"id": "wreck_tinker", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": ""}, "need": ["crashed"], "not": ["tried_parts", "fuel_full"], "once": false, "scene": "wreck_tinker"},
-		{"id": "wreck_tinker_again", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": ""}, "need": ["tried_parts"], "not": ["fuel_full"], "once": false, "scene": "wreck_tinker_again"},
+		{"id": "wreck_launch", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": ""}, "need": ["ready_to_launch"], "not": [], "once": false, "scene": "launch_go"},
+		{"id": "wreck_launch_fail", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": ""}, "need": ["fuel_full"], "not": ["deer_met"], "once": false, "scene": "launch_fail"},
+		{"id": "wreck_broken", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": ""}, "need": ["deer_met"], "not": ["ready_to_launch"], "once": false, "scene": "wreck_broken"},
+		{"id": "wreck_wait", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": ""}, "need": ["crashed"], "not": ["fuel_full"], "once": false, "scene": "wreck_wait"},
 		{"id": "luggage", "at": "luggage", "room": "forest", "label": {"zh": "行李", "en": ""}, "need": ["crashed"], "not": ["got_luggage"], "once": true, "scene": "luggage", "sprite": "res://art/forest_story/luggage.png", "hide_after": "got_luggage"},
 		{"id": "wood", "at": "wood", "room": "forest", "label": {"zh": "发光的木头", "en": ""}, "need": ["crashed"], "not": ["got_wood"], "once": true, "scene": "wood_pickup"},
 		{"id": "scrap", "at": "scrap", "room": "forest", "label": {"zh": "金属碎片", "en": ""}, "need": ["crashed"], "not": ["got_scrap"], "once": true, "scene": "mat_scrap", "sprite": "res://art/forest_story/mat_scrap.png", "hide_after": "got_scrap"},
 		{"id": "resin", "at": "resin", "room": "forest", "label": {"zh": "树脂", "en": ""}, "need": ["crashed"], "not": ["got_resin"], "once": true, "scene": "mat_resin", "sprite": "res://art/forest_story/mat_resin.png", "hide_after": "got_resin"},
 		{"id": "branch", "at": "branch", "room": "forest", "label": {"zh": "干枝", "en": ""}, "need": ["crashed"], "not": ["got_branch"], "once": true, "scene": "mat_branch", "sprite": "res://art/forest_story/mat_branch.png", "hide_after": "got_branch"},
-		{"id": "stall", "at": "stall", "room": "forest", "label": {"zh": "小吃棚", "en": ""}, "need": ["road_stall"], "not": [], "once": false, "scene": "stall_look"},
+		{"id": "road_1", "at": "road_start", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["deer_met"], "not": ["road_1"], "once": false, "scene": "road_1", "trigger": "enter", "range": 60},
+		{"id": "stall_arrive", "at": "stall_arrive", "room": "forest", "label": {"zh": "小吃棚", "en": ""}, "need": ["road_1"], "not": ["road_stall"], "once": false, "scene": "stall_intro", "trigger": "enter", "range": 40},
 		{"id": "deer_stall", "at": "deer_stall", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["road_stall"], "not": ["log_started"], "once": false, "scene": "deer_chat_stall"},
-		{"id": "log_intro", "at": "log", "room": "forest", "label": {"zh": "倒木", "en": ""}, "need": ["road_stall"], "not": ["log_started"], "once": false, "scene": "log_intro"},
+		{"id": "stall_after", "at": "stall", "room": "forest", "label": {"zh": "小吃棚", "en": ""}, "need": ["returned_radio"], "not": [], "once": false, "scene": "stall_after"},
+		{"id": "stall", "at": "stall", "room": "forest", "label": {"zh": "小吃棚", "en": ""}, "need": ["road_1"], "not": [], "once": false, "scene": "stall_look", "accepts": {"return_radio": "radio_return", "_default": "stall_default"}},
+		{"id": "road_house_after", "at": "road_house", "room": "forest", "label": {"zh": "小屋", "en": ""}, "need": ["returned_lamp"], "not": [], "once": false, "scene": "road_house_after"},
+		{"id": "road_house", "at": "road_house", "room": "forest", "label": {"zh": "小屋", "en": ""}, "need": ["deer_met"], "not": [], "once": false, "scene": "road_house_look", "accepts": {"return_lamp": "lamp_return", "_default": "road_house_default"}},
+		{"id": "log_arrive", "at": "log_arrive", "room": "forest", "label": {"zh": "倒木", "en": ""}, "need": ["road_stall"], "not": ["log_started"], "once": false, "scene": "log_intro", "trigger": "enter", "range": 40},
 		{"id": "log_heavy", "at": "log", "room": "forest", "label": {"zh": "倒木", "en": ""}, "need": ["log_started"], "not": ["log_cleared"], "once": false, "scene": "log_heavy"},
 		{"id": "deer_log", "at": "deer_log", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["log_started"], "not": ["log_cleared"], "once": false, "scene": "deer_chat_log"},
-		{"id": "branch_a", "at": "branch_a", "room": "forest", "label": {"zh": "树枝", "en": ""}, "need": ["log_started"], "not": ["branch_a"], "once": false, "scene": "branch_a_drag", "sprite": "res://art/forest_story/branch_a.png", "hide_after": "branch_a"},
-		{"id": "branch_b", "at": "branch_b", "room": "forest", "label": {"zh": "树枝", "en": ""}, "need": ["log_started"], "not": ["branch_b"], "once": false, "scene": "branch_b_drag", "sprite": "res://art/forest_story/branch_b.png", "hide_after": "branch_b"},
-		{"id": "fog_call", "at": "fog_start", "room": "forest", "label": {"zh": "鹿？", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "fog_call"},
-		{"id": "hoofprints", "at": "hoofprints", "room": "forest", "label": {"zh": "蹄印", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "hoofprints", "sprite": "res://art/forest_story/hoofprints.png", "hide_after": "at_treehouse"},
-		{"id": "fog_branch", "at": "fog_branch", "room": "forest", "label": {"zh": "树枝", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "fog_branch"},
+		{"id": "branch_a", "at": "branch_a", "room": "forest", "label": {"zh": "拖开树枝", "en": ""}, "need": ["log_started"], "not": ["branch_a"], "once": false, "scene": "branch_a_drag", "sprite": "res://art/forest_story/branch_a.png", "hide_after": "branch_a"},
+		{"id": "branch_b", "at": "branch_b", "room": "forest", "label": {"zh": "拖开树枝", "en": ""}, "need": ["log_started"], "not": ["branch_b"], "once": false, "scene": "branch_b_drag", "sprite": "res://art/forest_story/branch_b.png", "hide_after": "branch_b"},
+		{"id": "fog_intro", "at": "fog_start", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["log_cleared"], "not": ["fog_on"], "once": false, "scene": "fog_intro", "trigger": "enter", "range": 60},
+		{"id": "fog_call", "at": "fog_start", "room": "forest", "label": {"zh": "鹿？", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "fog_call", "accepts": {"glowing_wood": "fog_wood_light", "_default": "fog_default"}},
+		{"id": "hoofprints", "at": "hoofprints", "room": "forest", "label": {"zh": "蹄印", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "hoofprints", "accepts": {"glowing_wood": "fog_wood_light", "_default": "fog_default"}, "sprite": "res://art/forest_story/hoofprints.png", "hide_after": "at_treehouse"},
+		{"id": "fog_branch", "at": "fog_branch", "room": "forest", "label": {"zh": "树枝", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "fog_branch", "accepts": {"glowing_wood": "fog_wood_light", "_default": "fog_default"}},
 		{"id": "cloth", "at": "cloth", "room": "forest", "label": {"zh": "布条", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "cloth_enter", "sprite": "res://art/forest_story/cloth.png"},
-		{"id": "hollow", "at": "hollow", "room": "forest", "label": {"zh": "水声", "en": ""}, "need": ["fog_on"], "not": ["at_treehouse"], "once": false, "scene": "hollow_back", "trigger": "enter", "sprite": "res://art/forest_story/hollow.png"},
+		{"id": "cloth_back", "at": "cloth", "room": "forest", "label": {"zh": "去树屋", "en": ""}, "need": ["at_treehouse"], "not": [], "once": false, "scene": "to_treehouse"},
+		{"id": "hollow_edge_plank", "at": "hollow_edge", "room": "forest", "label": {"zh": "水声", "en": ""}, "need": ["got_plank"], "not": ["plank_hint", "bridge_built"], "once": false, "scene": "hollow_edge_plank", "trigger": "enter", "range": 20},
+		{"id": "hollow_edge", "at": "hollow_edge", "room": "forest", "label": {"zh": "水声", "en": ""}, "need": ["fog_on"], "not": ["seen_hollow", "bridge_built"], "once": false, "scene": "hollow_edge", "trigger": "enter", "range": 20},
+		{"id": "hollow", "at": "hollow", "room": "forest", "label": {"zh": "塌陷口", "en": ""}, "need": ["fog_on"], "not": ["bridge_built"], "once": false, "scene": "hollow_look", "accepts": {"plank": "plank_bridge", "_default": "hollow_default"}, "sprite": "res://art/forest_story/hollow.png"},
+		{"id": "glade_rock_again", "at": "glade_rock", "room": "forest", "label": {"zh": "岩石", "en": ""}, "need": ["saw_rock"], "not": [], "once": false, "scene": "glade_rock_again"},
+		{"id": "glade_rock", "at": "glade_rock", "room": "forest", "label": {"zh": "岩石", "en": ""}, "need": ["bridge_built"], "not": [], "once": false, "scene": "glade_rock"},
+		{"id": "signal_box_after", "at": "signal_box", "room": "forest", "label": {"zh": "信号箱", "en": ""}, "need": ["got_valve"], "not": [], "once": false, "scene": "signal_box_after"},
+		{"id": "signal_box", "at": "signal_box", "room": "forest", "label": {"zh": "信号箱", "en": ""}, "need": ["bridge_built", "parts_needed"], "not": [], "once": false, "scene": "signal_box"},
+		{"id": "sign_base_after", "at": "glade_sign_base", "room": "forest", "label": {"zh": "底座", "en": ""}, "need": ["returned_sign"], "not": [], "once": false, "scene": "sign_base_after"},
+		{"id": "sign_base", "at": "glade_sign_base", "room": "forest", "label": {"zh": "底座", "en": ""}, "need": ["bridge_built"], "not": [], "once": false, "scene": "sign_base_look", "accepts": {"return_sign": "sign_return", "_default": "sign_base_default"}},
+		{"id": "house_return", "at": "house_return", "room": "forest", "label": {"zh": "回旧路", "en": ""}, "need": ["at_treehouse"], "not": [], "once": false, "scene": "to_road"},
 		{"id": "treehouse_revisit", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": ""}, "need": ["slope_talked"], "not": ["revisit_done"], "once": false, "scene": "revisit"},
-		{"id": "treehouse_out", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": ""}, "need": ["pump_trip"], "not": ["slope_talked"], "once": false, "scene": "door_miluo_out"},
+		{"id": "miluo_home", "at": "treehouse", "room": "forest", "label": {"zh": "弥洛", "en": ""}, "need": ["shop_done"], "not": ["slope_talked"], "once": false, "scene": "miluo_home"},
+		{"id": "treehouse_out", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": ""}, "need": ["pump_trip"], "not": ["shop_done"], "once": false, "scene": "door_miluo_out"},
+		{"id": "treehouse_parts", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": ""}, "need": ["parts_all"], "not": ["tools_started"], "once": false, "scene": "parts_return"},
+		{"id": "treehouse_enter", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": ""}, "need": ["parts_needed"], "not": ["parts_all"], "once": false, "scene": "enter_room"},
+		{"id": "deer_door", "at": "deer_door", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["parts_needed"], "not": ["pump_trip"], "once": false, "scene": "deer_hint"},
 		{"id": "miluo_empty", "at": "miluo_empty", "room": "forest", "label": {"zh": "弥洛", "en": ""}, "need": ["pump_placed"], "not": ["shop_done"], "once": false, "scene": "miluo_chat_empty"},
-		{"id": "empty_door", "at": "empty_house", "room": "forest", "label": {"zh": "门槛", "en": ""}, "need": ["pump_placed"], "not": [], "once": false, "scene": "door_dust"},
-		{"id": "empty_item", "at": "empty_item", "room": "forest", "label": {"zh": "门边的东西", "en": ""}, "need": ["pump_placed"], "not": [], "once": false, "scene": "empty_item", "sprite": "res://art/forest_story/empty_item.png"},
 		{"id": "deer_empty", "at": "deer_empty", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["pump_placed"], "not": ["shop_done"], "once": false, "scene": "deer_chat_empty"},
-		{"id": "shop", "at": "shop", "room": "forest", "label": {"zh": "商店", "en": ""}, "need": ["pump_placed"], "not": ["shop_done"], "once": false, "scene": "shop"},
-		{"id": "shop_after", "at": "shop", "room": "forest", "label": {"zh": "商店", "en": ""}, "need": ["shop_done"], "not": [], "once": false, "scene": "shop_after"},
-		{"id": "depressions", "at": "depressions", "room": "forest", "label": {"zh": "凹陷", "en": ""}, "need": ["slope_talked"], "not": ["drew_hollows"], "once": false, "scene": "draw_hollows", "sprite": "res://art/forest_story/depressions.png"},
-		{"id": "depressions_again", "at": "depressions", "room": "forest", "label": {"zh": "凹陷", "en": ""}, "need": ["drew_hollows"], "not": [], "once": false, "scene": "hollows_again"},
+		{"id": "empty_item", "at": "empty_item", "room": "forest", "label": {"zh": "门边的包裹", "en": ""}, "need": ["pump_placed"], "not": [], "once": false, "scene": "empty_item", "sprite": "res://art/forest_story/empty_item.png"},
+		{"id": "empty_door", "at": "empty_house", "room": "forest", "label": {"zh": "门槛", "en": ""}, "need": ["pump_placed"], "not": [], "once": false, "scene": "door_dust"},
+		{"id": "clock_after", "at": "clock_window", "room": "forest", "label": {"zh": "窗台上的闹钟", "en": ""}, "need": ["got_spring"], "not": [], "once": false, "scene": "clock_after"},
+		{"id": "clock", "at": "clock_window", "room": "forest", "label": {"zh": "窗台上的闹钟", "en": ""}, "need": ["parts_needed"], "not": ["got_spring"], "once": false, "scene": "clock"},
+		{"id": "shop_arrive", "at": "shop_arrive", "room": "forest", "label": {"zh": "商店", "en": ""}, "need": ["pump_placed"], "not": ["shop_done"], "once": false, "scene": "shop", "trigger": "enter", "range": 40},
+		{"id": "shop_window", "at": "shop_jar", "room": "forest", "label": {"zh": "橱窗", "en": ""}, "need": ["pump_placed"], "not": [], "once": false, "scene": "shop_window"},
+		{"id": "shop_window_b", "at": "shop_jar", "room": "forest", "label": {"zh": "橱窗", "en": ""}, "need": ["at_treehouse"], "not": [], "once": false, "scene": "shop_window_b"},
+		{"id": "shop_photo", "at": "shop_photo", "room": "forest", "label": {"zh": "半张合影", "en": ""}, "need": ["at_treehouse"], "not": [], "once": false, "scene": "shop_photo"},
+		{"id": "shop_plank", "at": "shop_plank", "room": "forest", "label": {"zh": "木板", "en": ""}, "need": ["at_treehouse"], "not": ["got_plank"], "once": true, "scene": "plank_take", "sprite": "res://art/forest_story/plank.png", "hide_after": "got_plank"},
+		{"id": "pine_after", "at": "pine", "room": "forest", "label": {"zh": "老松树", "en": ""}, "need": ["got_sap"], "not": [], "once": false, "scene": "pine_after"},
+		{"id": "pine", "at": "pine", "room": "forest", "label": {"zh": "老松树", "en": ""}, "need": ["at_treehouse"], "not": [], "once": false, "scene": "pine_look", "accepts": {"jar": "pine_sap", "_default": "pine_default"}},
+		{"id": "slope_truth", "at": "depressions", "room": "forest", "label": {"zh": "凹陷", "en": ""}, "need": ["shop_done"], "not": ["slope_talked"], "once": false, "scene": "slope_truth", "trigger": "enter", "range": 40},
+		{"id": "depressions_again", "at": "depressions", "room": "forest", "label": {"zh": "凹陷", "en": ""}, "need": ["slope_talked"], "not": [], "once": false, "scene": "hollows_again", "sprite": "res://art/forest_story/depressions.png"},
 		{"id": "fog_bank", "at": "fog_bank", "room": "forest", "label": {"zh": "雾", "en": ""}, "need": ["slope_talked"], "not": [], "once": false, "scene": "fog_bank"},
-		{"id": "deer_slope", "at": "slope", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["slope_talked"], "not": ["revisit_done"], "once": false, "scene": "deer_chat_slope"},
+		{"id": "deer_slope", "at": "deer_slope_aside", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["slope_talked"], "not": ["revisit_done"], "once": false, "scene": "deer_chat_slope"},
 		{"id": "deer_ship", "at": "deer_ship", "room": "forest", "label": {"zh": "鹿", "en": ""}, "need": ["ready_to_launch"], "not": [], "once": false, "scene": "deer_chat_bye"},
 		{"id": "room_door_home", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": ""}, "need": ["farewell_done"], "not": [], "once": false, "scene": "go_home"},
-		{"id": "room_door_wait", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": ""}, "need": ["met_miluo"], "not": ["ship_fixed"], "once": false, "scene": "room_door_wait"},
-		{"id": "miluo_help", "at": "room_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": ""}, "need": ["tea_done"], "not": ["tools_started"], "once": false, "scene": "help"},
+		{"id": "room_door_out", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": ""}, "need": ["parts_needed"], "not": ["tools_started"], "once": false, "scene": "exit_room"},
 		{"id": "miluo_bye", "at": "room_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": ""}, "need": ["farewell_done"], "not": [], "once": false, "scene": "miluo_chat_bye"},
-		{"id": "radio_b", "at": "room_radio", "room": "treehouse", "label": {"zh": "收音机", "en": ""}, "need": ["ship_fixed"], "not": [], "once": false, "scene": "radio_b"},
-		{"id": "radio_a", "at": "room_radio", "room": "treehouse", "label": {"zh": "收音机", "en": ""}, "need": ["met_miluo"], "not": [], "once": false, "scene": "radio_a"},
-		{"id": "sign_b", "at": "room_sign", "room": "treehouse", "label": {"zh": "路标", "en": ""}, "need": ["revisit_done"], "not": [], "once": false, "scene": "sign_b"},
-		{"id": "sign_a", "at": "room_sign", "room": "treehouse", "label": {"zh": "路标", "en": ""}, "need": ["met_miluo"], "not": [], "once": false, "scene": "sign_a"},
-		{"id": "chairs", "at": "room_chairs", "room": "treehouse", "label": {"zh": "椅子", "en": ""}, "need": ["tea_done"], "not": [], "once": false, "scene": "chairs"},
+		{"id": "miluo_b", "at": "room_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": ""}, "need": ["parts_needed"], "not": ["tools_started"], "once": false, "scene": "miluo_b"},
+		{"id": "radio", "at": "room_radio", "room": "treehouse", "label": {"zh": "收音机", "en": ""}, "need": ["parts_needed"], "not": ["took_radio", "revisit_done"], "once": false, "scene": "radio_look"},
+		{"id": "radio_b", "at": "room_radio", "room": "treehouse", "label": {"zh": "收音机", "en": ""}, "need": ["revisit_done"], "not": ["took_radio"], "once": false, "scene": "radio_b"},
+		{"id": "sign", "at": "room_sign", "room": "treehouse", "label": {"zh": "路标", "en": ""}, "need": ["parts_needed"], "not": ["took_sign", "revisit_done"], "once": false, "scene": "sign_look"},
+		{"id": "sign_b", "at": "room_sign", "room": "treehouse", "label": {"zh": "路标", "en": ""}, "need": ["revisit_done"], "not": ["took_sign"], "once": false, "scene": "sign_b"},
+		{"id": "lamp", "at": "room_lamp", "room": "treehouse", "label": {"zh": "油灯", "en": ""}, "need": ["parts_needed"], "not": ["took_lamp", "revisit_done"], "once": false, "scene": "lamp_look"},
+		{"id": "toolwall", "at": "room_toolwall", "room": "treehouse", "label": {"zh": "工具墙", "en": ""}, "need": ["met_miluo"], "not": [], "once": false, "scene": "toolwall"},
+		{"id": "coat_chair_late", "at": "room_chairs", "room": "treehouse", "label": {"zh": "旧外套", "en": ""}, "need": ["revisit_done"], "not": [], "once": false, "scene": "coat_chair_late"},
+		{"id": "coat_chair", "at": "room_chairs", "room": "treehouse", "label": {"zh": "旧外套", "en": ""}, "need": ["met_miluo"], "not": [], "once": false, "scene": "coat_chair"},
+		{"id": "cups_note", "at": "room_cups", "room": "treehouse", "label": {"zh": "杯子", "en": ""}, "need": ["tea_done"], "not": [], "once": false, "scene": "cups_note"},
+		{"id": "part_pack", "at": "room_part_pack", "room": "treehouse", "label": {"zh": "新零件的包装", "en": ""}, "need": ["gramophone_talk"], "not": [], "once": false, "scene": "part_pack"},
+		{"id": "postcard_look", "at": "room_postcard", "room": "treehouse", "label": {"zh": "明信片", "en": ""}, "need": ["revisit_done"], "not": ["farewell_done"], "once": false, "scene": "postcard_look"},
 		{"id": "dish", "at": "room_dish", "room": "treehouse", "label": {"zh": "小碟子", "en": ""}, "need": ["met_miluo"], "not": [], "once": false, "scene": "dish"},
-		{"id": "kettle_b", "at": "room_kettle", "room": "treehouse", "label": {"zh": "水壶", "en": ""}, "need": ["revisit_done"], "not": [], "once": false, "scene": "kettle_b"},
-		{"id": "kettle_a", "at": "room_kettle", "room": "treehouse", "label": {"zh": "水壶", "en": ""}, "need": ["tea_done"], "not": [], "once": false, "scene": "kettle_a"},
+		{"id": "kettle_b", "at": "room_kettle", "room": "treehouse", "label": {"zh": "炉子", "en": ""}, "need": ["revisit_done"], "not": [], "once": false, "scene": "kettle_b", "accepts": {"mat_resin": "stove_resin", "_default": "stove_default"}},
+		{"id": "kettle_a", "at": "room_kettle", "room": "treehouse", "label": {"zh": "炉子", "en": ""}, "need": ["tea_done"], "not": [], "once": false, "scene": "kettle_a", "accepts": {"mat_resin": "stove_resin", "_default": "stove_default"}},
 		{"id": "gramophone_b", "at": "room_gramophone", "room": "treehouse", "label": {"zh": "留声机", "en": ""}, "need": ["farewell_done"], "not": [], "once": false, "scene": "gramophone_b"},
 		{"id": "gramophone_a", "at": "room_gramophone", "room": "treehouse", "label": {"zh": "留声机", "en": ""}, "need": ["met_miluo"], "not": ["gramophone_talk"], "once": false, "scene": "gramophone_a"},
 		{"id": "box_b", "at": "room_box", "room": "treehouse", "label": {"zh": "盒子", "en": ""}, "need": ["farewell_done"], "not": [], "once": false, "scene": "box_b"},
@@ -113,36 +191,41 @@
 		{"id": "pipes_a", "at": "room_pipes", "room": "treehouse", "label": {"zh": "管道", "en": ""}, "need": ["met_miluo"], "not": ["tools_started"], "once": false, "scene": "pipes_a"}
 	],
 	"scenes": {
+		"noop": [
+			{"do": "wait", "sec": 0}
+		],
 		"intro": [
-			{"say": "chen", "zh": "啊……糟糕……坠毁了。早知道就给飞船买上保险了。", "en": ""},
+			{"say": "chen", "zh": "啊……糟糕。早知道就买保险了。", "en": ""},
+			{"do": "face", "who": "chen", "to": "wreck"},
+			{"say": "chen", "zh": "不过你也别太得意。还没到报废的时候。", "en": ""},
+			{"do": "elephant_call", "variant": 1},
+			{"do": "give", "item": "elephant_drawing"},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "face", "who": "chen", "to": "road_start"},
+			{"say": "chen", "zh": "等一下！", "en": ""},
+			{"do": "wait", "sec": 2.0},
+			{"do": "face", "who": "chen", "to": "wreck"},
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "sfx", "name": "metal_clank"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "sfx", "name": "metal_clank"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "give", "item": "journal"},
+			{"do": "journal", "zh": "我一定要找到大象，因为", "en": ""},
 			{"do": "flag", "set": "crashed"}
 		],
-		"wreck_tinker": [
-			{"do": "anim", "who": "chen", "name": "pickup"},
-			{"say": "chen", "zh": "这个……装这里？", "en": "", "added": true},
-			{"do": "sfx", "name": "metal_clank"},
-			{"say": "chen", "zh": "不对。", "en": "", "added": true},
-			{"do": "sfx", "name": "metal_clank"},
-			{"say": "chen", "zh": "那这里……也不对。", "en": "", "added": true},
-			{"say": "chen", "zh": "先放着吧。", "en": "", "added": true},
-			{"do": "flag", "set": "tried_parts"}
-		],
-		"wreck_tinker_again": [
-			{"say": "chen", "zh": "零件还是对不上。", "en": "", "added": true},
-			{"say": "chen", "zh": "先把燃料凑够再说。", "en": "", "added": true}
-		],
-		"wreck_need_luggage": [
-			{"say": "chen", "zh": "等等，行李还散在那边。", "en": "", "added": true},
-			{"say": "chen", "zh": "画还在里面。", "en": "", "added": true}
+		"wreck_wait": [
+			{"say": "chen", "zh": "燃料还不够。", "en": "", "added": true},
+			{"say": "chen", "zh": "……还没到报废的时候。", "en": "", "added": true}
 		],
 		"wreck_broken": [
 			{"say": "chen", "zh": "推进器坏了。", "en": "", "added": true},
-			{"say": "chen", "zh": "先跟鹿去找人修。", "en": "", "added": true}
+			{"say": "chen", "zh": "先跟鹿去找会修的。", "en": "", "added": true}
 		],
 		"luggage": [
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"say": "chen", "zh": "行李都摔出来了。", "en": "", "added": true},
-			{"do": "give", "item": "elephant_drawing"},
 			{"do": "give", "item": "species_query"},
 			{"do": "give", "item": "commute_card"},
 			{"say": "chen", "zh": "几百次，都是同一个站。", "en": "", "added": true},
@@ -150,23 +233,33 @@
 			{"say": "chen", "zh": "这句后面，我也不知道该写什么。", "en": "", "added": true},
 			{"do": "give", "item": "music_box"},
 			{"do": "sfx", "name": "musicbox_stuck"},
-			{"say": "chen", "zh": "……还是只响一半。", "en": "", "added": true},
+			{"do": "sfx", "name": "tap"},
+			{"do": "wait", "sec": 0.3},
+			{"do": "sfx", "name": "tap"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "sfx", "name": "tap"},
+			{"do": "wait", "sec": 0.3},
+			{"do": "sfx", "name": "tap"},
+			{"say": "chen", "zh": "在家不是挺会唱的吗。", "en": ""},
+			{"do": "give", "item": "blue_stone"},
 			{"do": "give", "item": "travel_map"},
-			{"do": "give", "item": "journal"},
 			{"do": "flag", "set": "got_luggage"}
 		],
 		"wood_pickup": [
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"do": "give", "item": "glowing_wood"},
-			{"say": "chen", "zh": "太好了，有了这个，飞船就能再次起飞了。", "en": ""},
+			{"say": "chen", "zh": "太好了，有了这个，你总该肯动了吧。", "en": ""},
 			{"narr": {"zh": "启动所需：200", "en": ""}},
+			{"do": "face", "who": "chen", "to": "road_start"},
+			{"do": "wait", "sec": 0.8},
+			{"say": "chen", "zh": "行。再找一点。", "en": ""},
 			{"do": "flag", "set": "got_wood"},
 			{"do": "goto", "scene": "fuel_check"}
 		],
 		"mat_scrap": [
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"do": "give", "item": "mat_scrap"},
-			{"say": "chen", "zh": "飞船上掉下来的碎片。也能烧。", "en": "", "added": true},
+			{"say": "chen", "zh": "飞机上掉下来的碎片。也能烧。", "en": "", "added": true},
 			{"do": "flag", "set": "got_scrap"},
 			{"do": "goto", "scene": "fuel_check"}
 		],
@@ -185,24 +278,19 @@
 			{"do": "goto", "scene": "fuel_check"}
 		],
 		"fuel_check": [
-			{"do": "if", "flag": "got_wood", "then": "fuel_check_scrap", "else": "fuel_more"}
+			{"do": "if", "flag": "got_wood", "then": "fuel_check_scrap", "else": "noop"}
 		],
 		"fuel_check_scrap": [
-			{"do": "if", "flag": "got_scrap", "then": "fuel_check_resin", "else": "fuel_more"}
+			{"do": "if", "flag": "got_scrap", "then": "fuel_check_resin", "else": "noop"}
 		],
 		"fuel_check_resin": [
-			{"do": "if", "flag": "got_resin", "then": "fuel_check_branch", "else": "fuel_more"}
+			{"do": "if", "flag": "got_resin", "then": "fuel_check_branch", "else": "noop"}
 		],
 		"fuel_check_branch": [
-			{"do": "if", "flag": "got_branch", "then": "fuel_full", "else": "fuel_more"}
-		],
-		"fuel_more": [
-			{"say": "chen", "zh": "……再找一点。", "en": ""}
+			{"do": "if", "flag": "got_branch", "then": "fuel_full", "else": "noop"}
 		],
 		"fuel_full": [
-			{"narr": {"zh": "燃烧值：200 / 200", "en": ""}},
-			{"say": "chen", "zh": "够了。", "en": "", "added": true},
-			{"say": "chen", "zh": "回飞船试试。", "en": "", "added": true},
+			{"say": "chen", "zh": "够了……回飞机试试。", "en": "", "added": true},
 			{"do": "flag", "set": "fuel_full"}
 		],
 		"launch_fail": [
@@ -214,40 +302,89 @@
 			{"do": "give", "item": "broken_part"},
 			{"say": "chen", "zh": "你能不能一次说完。", "en": ""},
 			{"do": "show", "who": "deer", "at": "deer_appear"},
+			{"do": "face", "who": "deer", "to": "wreck"},
 			{"say": "deer", "zh": "它掉下来以前就坏了。", "en": ""},
 			{"do": "face", "who": "chen", "to": "deer"},
-			{"say": "chen", "zh": "你怎么知道？", "en": ""},
-			{"say": "deer", "zh": "声音不对。", "en": ""},
-			{"say": "chen", "zh": "哪里能修？", "en": ""},
+			{"do": "anim", "who": "deer", "name": "ear"},
+			{"say": "chen", "zh": "你怎么知道？", "en": "", "added": true},
+			{"say": "deer", "zh": "咱听着就不对。", "en": ""},
+			{"say": "deer", "zh": "你从上头过去的时候，那动静，比这儿打雷还难听。", "en": ""},
+			{"do": "walk", "who": "chen", "to": "wreck_front"},
+			{"do": "face", "who": "chen", "to": "deer"},
+			{"say": "chen", "zh": "降落出了点偏差。", "en": ""},
+			{"do": "face", "who": "deer", "to": "branch"},
+			{"say": "deer", "zh": "偏得挺远。", "en": ""},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"do": "choice", "options": [{"zh": "你知道哪里能修吗？", "en": "", "scene": "ch1_fix"}, {"zh": "我平时开得没这么差。", "en": "", "scene": "ch1_pilot"}, {"zh": "刚才树林里的声音，你听见了吗？", "en": "", "scene": "ch1_sound"}]}
+		],
+		"ch1_fix": [
+			{"say": "deer", "zh": "这你问咱就对了。", "en": ""},
+			{"do": "goto", "scene": "launch_b"}
+		],
+		"ch1_pilot": [
+			{"say": "deer", "zh": "咱信。树不一定信。", "en": "", "added": true},
+			{"do": "goto", "scene": "launch_b"}
+		],
+		"ch1_sound": [
+			{"do": "anim", "who": "deer", "name": "ear"},
+			{"say": "deer", "zh": "……林子里，声音多。", "en": "", "added": true},
+			{"do": "goto", "scene": "launch_b"}
+		],
+		"launch_b": [
 			{"do": "face", "who": "deer", "to": "road_start"},
-			{"say": "deer", "zh": "跟我来。", "en": ""},
-			{"say": "chen", "zh": "等等！", "en": ""},
+			{"say": "deer", "zh": "先把你这铁家伙弄好吧。跟咱来，咱认识个会修的。", "en": ""},
 			{"do": "show_item", "item": "elephant_drawing"},
-			{"say": "chen", "zh": "你认识这个吗？", "en": ""},
+			{"say": "chen", "zh": "你认识这个吗？", "en": "", "added": true},
 			{"do": "face", "who": "deer", "to": "chen"},
 			{"do": "anim", "who": "deer", "name": "look"},
-			{"say": "deer", "zh": "是大象。", "en": ""},
-			{"say": "deer", "zh": "旧路那边有。", "en": ""},
+			{"say": "deer", "zh": "大象。旧路那边有。", "en": ""},
+			{"say": "chen", "zh": "你再说一遍，叫什么？", "en": ""},
+			{"say": "deer", "zh": "大象。", "en": ""},
+			{"do": "journal", "zh": "大象", "en": "", "tag": "elephant"},
 			{"do": "flag", "set": "deer_met"},
-			{"do": "guide", "to": "road_start"},
-			{"do": "goto", "scene": "road_1"}
+			{"do": "guide", "to": "road_start", "wait": false}
 		],
 		"road_1": [
-			{"say": "chen", "zh": "你对这里很熟？", "en": ""},
-			{"say": "deer", "zh": "很熟。哪里有水，哪里有矿石，我都知道。", "en": ""},
-			{"say": "chen", "zh": "那修飞船的人呢？", "en": ""},
-			{"say": "deer", "zh": "弥洛。她住在树屋里。", "en": ""},
-			{"say": "chen", "zh": "大象呢？长什么样？", "en": ""},
-			{"say": "deer", "zh": "鼻子很长。", "en": ""},
-			{"say": "chen", "zh": "对，就是长鼻子。", "en": "", "added": true},
-			{"do": "journal", "zh": "鹿什么都知道：水、矿石、弥洛的树屋。它说大象的鼻子很长。", "en": "", "added": true},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "chen", "zh": "附近有水吗？", "en": "", "added": true},
+			{"say": "deer", "zh": "这你问咱就对了。", "en": ""},
+			{"say": "deer", "zh": "前头往左，有条小溪，水甜。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "deer", "zh": "旧路以前，还有很大的脚印。", "en": "", "added": true},
+			{"say": "chen", "zh": "脚印？", "en": "", "added": true},
+			{"do": "journal", "zh": "旧路以前有很大的脚印。", "en": "", "tag": "elephant", "added": true},
+			{"say": "chen", "zh": "它长什么样？", "en": "", "added": true},
+			{"say": "deer", "zh": "鼻子很长。", "en": "", "added": true},
+			{"say": "deer", "zh": "左边的耳朵会动。", "en": "", "added": true},
+			{"say": "deer", "zh": "走过去的时候，树枝都在晃。", "en": "", "added": true},
+			{"say": "chen", "zh": "你亲眼见过？", "en": "", "added": true},
+			{"say": "deer", "zh": "见过。", "en": "", "added": true},
+			{"do": "journal", "zh": "鹿亲眼见过大象。", "en": "", "tag": "elephant", "added": true},
+			{"do": "journal", "zh": "鼻子很长，左边的耳朵会动，走过去的时候树枝都在晃。", "en": "", "tag": "elephant"},
 			{"do": "anim", "who": "deer", "name": "ear"},
-			{"do": "guide", "to": "deer_stall", "speed": 45},
-			{"say": "deer", "zh": "这里以前卖吃的。", "en": ""},
-			{"say": "deer", "zh": "下雨的时候，大家都挤在下面。", "en": ""},
-			{"say": "chen", "zh": "卖什么？", "en": ""},
-			{"say": "deer", "zh": "不记得了。", "en": ""},
-			{"say": "deer", "zh": "反正很好吃。", "en": ""},
+			{"do": "flag", "set": "road_1"},
+			{"do": "guide", "to": "deer_stall", "wait": false, "speed": 45}
+		],
+		"stall_intro": [
+			{"do": "walk", "who": "deer", "to": "deer_stall"},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "deer", "zh": "这儿以前卖吃的。", "en": ""},
+			{"say": "deer", "zh": "一下雨，大家全挤到棚子底下。", "en": ""},
+			{"say": "deer", "zh": "咱小时候钻进去，角还会勾着人家的布。", "en": ""},
+			{"say": "chen", "zh": "卖什么？", "en": "", "added": true},
+			{"say": "deer", "zh": "不记得了。", "en": "", "added": true},
+			{"say": "deer", "zh": "反正好吃。咱吃过，不骗你。", "en": ""},
+			{"say": "deer", "zh": "说不定它以前还从这儿经过呢。", "en": ""},
+			{"say": "chen", "zh": "什么时候？", "en": "", "added": true},
+			{"do": "face", "who": "deer", "to": "log"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "页角：一只顶着棚布的鹿。", "en": "", "added": true},
+			{"do": "walk", "who": "deer", "to": "deer_peek"},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "chen", "zh": "还没画好。", "en": ""},
+			{"do": "face", "who": "deer", "to": "log"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "给那只鹿添了一对过大的角。", "en": "", "added": true},
 			{"do": "flag", "set": "road_stall"}
 		],
 		"stall_look": [
@@ -255,30 +392,40 @@
 			{"say": "chen", "zh": "下雨的时候，车站也这么挤。", "en": "", "added": true},
 			{"say": "chen", "zh": "挤在一起，谁也不看谁。", "en": "", "added": true}
 		],
+		"stall_default": [
+			{"say": "chen", "zh": "这个不是这里的东西。", "en": "", "added": true}
+		],
 		"deer_chat_stall": [
-			{"say": "deer", "zh": "前面那棵歪的树，打雷劈过。", "en": "", "added": true},
-			{"say": "deer", "zh": "那天我就在它下面躲雨。", "en": "", "added": true},
-			{"say": "deer", "zh": "往前走，就是去树屋的路。", "en": "", "added": true},
+			{"say": "deer", "zh": "前头那棵歪树，打雷劈过。", "en": "", "added": true},
+			{"say": "deer", "zh": "那天咱就在它底下躲雨。", "en": "", "added": true},
 			{"say": "chen", "zh": "大象也在前面？", "en": "", "added": true},
-			{"say": "deer", "zh": "在前面。", "en": "", "added": true}
+			{"say": "deer", "zh": "在前面。说不定还更近。", "en": "", "added": true}
+		],
+		"road_house_look": [
+			{"say": "chen", "zh": "一间很小的空屋。", "en": "", "added": true},
+			{"say": "chen", "zh": "窗台上空着一块，像以前放过什么。", "en": "", "added": true}
+		],
+		"road_house_default": [
+			{"say": "chen", "zh": "这个不是这间屋子的。", "en": "", "added": true}
 		],
 		"log_intro": [
 			{"do": "walk", "who": "deer", "to": "deer_log"},
-			{"say": "deer", "zh": "从这里走，更近。", "en": ""},
-			{"say": "chen", "zh": "这条路是不是很久没人走了？", "en": ""},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "deer", "zh": "从这儿走，更近。", "en": "", "added": true},
+			{"say": "chen", "zh": "这条路是不是很久没人走了？", "en": "", "added": true},
 			{"do": "anim", "who": "deer", "name": "look"},
-			{"do": "wait", "sec": 1.0},
-			{"say": "deer", "zh": "下面那两根轻的，你拖开。", "en": ""},
-			{"say": "deer", "zh": "大的我来顶。", "en": ""},
+			{"do": "wait", "sec": 1.2},
+			{"say": "deer", "zh": "底下那几根轻的，你拖开。", "en": "", "added": true},
+			{"say": "deer", "zh": "大的咱来顶。", "en": "", "added": true},
+			{"do": "journal", "zh": "问鹿这条路是不是很久没人走了。它没有回答。", "en": "", "added": true},
 			{"do": "flag", "set": "log_started"}
 		],
 		"log_heavy": [
-			{"say": "chen", "zh": "太重了。先拖下面的树枝。", "en": "", "added": true}
+			{"say": "chen", "zh": "太重了。先拖底下的树枝。", "en": "", "added": true}
 		],
 		"deer_chat_log": [
-			{"say": "deer", "zh": "别从上面爬，树皮会滑。", "en": "", "added": true},
-			{"say": "deer", "zh": "拖开就行，不用拖很远。", "en": "", "added": true},
-			{"say": "chen", "zh": "大象也从这里走过？", "en": "", "added": true},
+			{"say": "deer", "zh": "别从上头爬，树皮滑。", "en": "", "added": true},
+			{"say": "chen", "zh": "大象也从这儿走过？", "en": "", "added": true},
 			{"say": "deer", "zh": "……以前吧。", "en": "", "added": true}
 		],
 		"branch_a_drag": [
@@ -286,7 +433,6 @@
 			{"do": "sfx", "name": "branch_drag"},
 			{"do": "prop", "id": "branch_a", "state": "moved"},
 			{"do": "flag", "set": "branch_a"},
-			{"say": "chen", "zh": "嘿……拖开了。", "en": "", "added": true},
 			{"do": "if", "flag": "branch_b", "then": "branches_done", "else": "branches_one"}
 		],
 		"branch_b_drag": [
@@ -294,14 +440,22 @@
 			{"do": "sfx", "name": "branch_drag"},
 			{"do": "prop", "id": "branch_b", "state": "moved"},
 			{"do": "flag", "set": "branch_b"},
-			{"say": "chen", "zh": "这根轻一点。", "en": "", "added": true},
 			{"do": "if", "flag": "branch_a", "then": "branches_done", "else": "branches_one"}
 		],
 		"branches_one": [
-			{"say": "chen", "zh": "还有一根。", "en": "", "added": true}
+			{"say": "chen", "zh": "这个我来就行。", "en": ""},
+			{"do": "wait", "sec": 0.6},
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "sfx", "name": "branch_shift"}
 		],
 		"branches_done": [
-			{"say": "chen", "zh": "好了。", "en": "", "added": true},
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "sfx", "name": "branch_shift"},
+			{"say": "deer", "zh": "要不要少拿一点？", "en": "", "added": true},
+			{"say": "chen", "zh": "不用。", "en": "", "added": true},
+			{"do": "face", "who": "deer", "to": "log"},
+			{"do": "sfx", "name": "branch_drop"},
+			{"do": "wait", "sec": 0.8},
 			{"do": "goto", "scene": "log_push"}
 		],
 		"log_push": [
@@ -311,18 +465,16 @@
 			{"do": "wait", "sec": 0.6},
 			{"say": "deer", "zh": "走吧。", "en": "", "added": true},
 			{"do": "walk", "who": "deer", "to": 1470},
-			{"say": "chen", "zh": "你见到大象的时候，离它多近？", "en": ""},
+			{"say": "chen", "zh": "你见到它的时候，离多近？", "en": "", "added": true},
 			{"do": "anim", "who": "deer", "name": "look"},
-			{"say": "deer", "zh": "……离得太远了。", "en": ""},
-			{"do": "journal", "zh": "问鹿这条路是不是很久没人走了。它没有回答。", "en": "", "added": true},
-			{"do": "journal", "zh": "鹿说，那时候离大象太远了。", "en": "", "added": true},
+			{"say": "deer", "zh": "……离得太远了。", "en": "", "added": true},
+			{"do": "journal", "zh": "鹿说：离得太远了。", "en": "", "tag": "elephant", "added": true},
 			{"do": "flag", "set": "log_cleared"},
-			{"do": "guide", "to": "fog_start"},
-			{"say": "chen", "zh": "那它的脸长什么样？", "en": ""},
-			{"do": "anim", "who": "deer", "name": "look"},
-			{"say": "deer", "zh": "……我只看到了背影。", "en": ""},
-			{"do": "journal", "zh": "鹿说，它只看到了背影。", "en": "", "added": true},
-			{"say": "deer", "zh": "往这边。别去水声最响的地方，那里下面是空的。", "en": ""},
+			{"do": "guide", "to": "fog_start", "wait": false}
+		],
+		"fog_intro": [
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "deer", "zh": "往这边。水声最响的地方别去，底下是空的，咱上过当。", "en": ""},
 			{"do": "walk", "who": "deer", "to": "cloth"},
 			{"do": "hide", "who": "deer"},
 			{"do": "prop", "id": "fog", "state": "thick"},
@@ -341,12 +493,45 @@
 		],
 		"fog_branch": [
 			{"say": "chen", "zh": "只是一根树枝。", "en": "", "added": true},
-			{"say": "chen", "zh": "什么也没挂。", "en": "", "added": true}
+			{"say": "chen", "zh": "什么也没挂。", "en": "", "added": true},
+			{"do": "if", "flag": "went_wrong", "then": "noop", "else": "went_wrong_first"}
 		],
-		"hollow_back": [
-			{"say": "chen", "zh": "水声好响……", "en": ""},
-			{"say": "chen", "zh": "下面是空的。往回走。", "en": "", "added": true},
-			{"do": "walk", "who": "chen", "to": 1820}
+		"went_wrong_first": [
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "雾里跟错了一次。先听，再走。", "en": "", "added": true},
+			{"do": "flag", "set": "went_wrong"}
+		],
+		"fog_wood_light": [
+			{"do": "show_item", "item": "glowing_wood"},
+			{"do": "prop", "id": "fog", "state": "lit"},
+			{"say": "chen", "zh": "蹄印一直通到前面……", "en": "", "added": true},
+			{"say": "chen", "zh": "那根树枝上挂着布条。", "en": "", "added": true}
+		],
+		"fog_default": [
+			{"say": "chen", "zh": "这个照不亮雾。", "en": "", "added": true}
+		],
+		"hollow_edge": [
+			{"say": "chen", "zh": "……下面是空的。", "en": "", "added": true},
+			{"do": "flag", "set": "seen_hollow"},
+			{"do": "if", "flag": "went_wrong", "then": "noop", "else": "went_wrong_first"}
+		],
+		"hollow_edge_plank": [
+			{"say": "chen", "zh": "……那块木板，也许能搭过去。", "en": "", "added": true},
+			{"do": "flag", "set": "plank_hint"}
+		],
+		"hollow_look": [
+			{"say": "chen", "zh": "下面是空的，水声从底下来。", "en": "", "added": true},
+			{"say": "chen", "zh": "得找个东西搭过去。", "en": "", "added": true}
+		],
+		"hollow_default": [
+			{"say": "chen", "zh": "这个搭不过去。", "en": "", "added": true}
+		],
+		"plank_bridge": [
+			{"do": "take", "item": "plank"},
+			{"do": "sfx", "name": "plank_drop"},
+			{"do": "prop", "id": "plank", "state": "bridge"},
+			{"say": "chen", "zh": "……过得去了。", "en": "", "added": true},
+			{"do": "flag", "set": "bridge_built"}
 		],
 		"cloth_enter": [
 			{"do": "face", "who": "chen", "to": "cloth"},
@@ -360,357 +545,422 @@
 			{"do": "flag", "set": "at_treehouse"},
 			{"do": "goto", "scene": "treehouse_outside"}
 		],
+		"to_road": [
+			{"do": "fade_to", "room": "forest", "at": "cloth"},
+			{"do": "ambient", "name": "water_hollow", "at": "hollow", "on": true}
+		],
+		"to_treehouse": [
+			{"do": "fade_to", "room": "forest", "at": "treehouse_arrive"},
+			{"do": "ambient", "name": "water_hollow", "at": "hollow", "on": false}
+		],
 		"treehouse_outside": [
-			{"say": "voice", "zh": "你这次又跟人说自己见过了？", "en": ""},
+			{"do": "face", "who": "deer", "to": "chen"},
+			{"say": "chen", "zh": "你看清它的样子了吗？", "en": "", "added": true},
+			{"do": "anim", "who": "deer", "name": "look"},
+			{"say": "deer", "zh": "……咱只看到了背影。", "en": "", "added": true},
+			{"do": "journal", "zh": "鹿说：只看到了背影。", "en": "", "tag": "elephant", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "对照前面：鼻子很长，后来离得太远，现在只看到了背影。", "en": "", "added": true},
+			{"do": "journal", "zh": "在「亲眼见过」下面画了一条线。", "en": "", "added": true},
+			{"say": "voice", "zh": "喂，你这次又跟谁说自己见过了？", "en": ""},
+			{"say": "voice", "zh": "隔着窗都听见你在吹。", "en": ""},
 			{"do": "anim", "who": "deer", "name": "graze_down"},
-			{"do": "wait", "sec": 1.2},
+			{"say": "deer", "zh": "咱这回是带人来修东西的。", "en": ""},
 			{"do": "anim", "who": "deer", "name": "graze_up"},
 			{"do": "walk", "who": "chen", "to": "treehouse"},
-			{"say": "chen", "zh": "请问……能修飞船吗？", "en": ""},
+			{"say": "chen", "zh": "请问……能修飞机吗？", "en": "", "added": true},
 			{"say": "voice", "zh": "不能。", "en": ""},
 			{"do": "wait", "sec": 1.2},
-			{"say": "voice", "zh": "坏的那块呢？", "en": ""},
+			{"say": "voice", "zh": "喂，坏的那块呢？", "en": ""},
+			{"say": "voice", "zh": "你打算站在门口，用眼神把它修好？", "en": ""},
 			{"do": "fade_to", "room": "treehouse", "at": "room_door"},
 			{"do": "show", "who": "miluo", "at": "room_miluo"},
-			{"do": "face", "who": "miluo", "to": "chen"},
 			{"do": "show_item", "item": "broken_part"},
-			{"say": "miluo", "zh": "我是说，你站那么远，我不能。", "en": ""},
-			{"do": "walk", "who": "chen", "to": "room_tools"},
 			{"do": "take", "item": "broken_part"},
 			{"do": "sfx", "name": "rattle"},
-			{"say": "miluo", "zh": "你给它加的什么燃料？", "en": ""},
-			{"say": "chen", "zh": "便宜的。", "en": ""},
-			{"say": "miluo", "zh": "难怪。它能坚持到这里，已经很给你面子了。", "en": ""},
+			{"say": "miluo", "zh": "你给它吃的什么？", "en": ""},
+			{"say": "chen", "zh": "燃料。", "en": "", "added": true},
+			{"say": "miluo", "zh": "谢谢，我还以为是午饭。", "en": ""},
+			{"say": "miluo", "zh": "我问你，哪一种？", "en": ""},
+			{"say": "chen", "zh": "便宜的。", "en": "", "added": true},
+			{"say": "miluo", "zh": "哈？你敢开着这个飞那么远，就为了省这点钱？", "en": ""},
+			{"say": "miluo", "zh": "真有你的。", "en": ""},
+			{"say": "chen", "zh": "卖家保证过能用。", "en": "", "added": true},
+			{"say": "miluo", "zh": "那你让卖家坐上来，带他飞一圈。", "en": ""},
+			{"say": "miluo", "zh": "坐副驾驶还不算，让他坐这儿。", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "笑什么？很好笑吗？等我修好，你才有资格笑。", "en": ""},
+			{"do": "face", "who": "miluo", "to": "room_tools"},
+			{"do": "prop", "id": "room_dish", "state": "pushed"},
+			{"do": "face", "who": "miluo", "to": "chen"},
+			{"say": "miluo", "zh": "过来。站那么远，怕我连你一块儿拆了？", "en": ""},
+			{"do": "walk", "who": "chen", "to": "room_chen_bench"},
 			{"do": "flag", "set": "met_miluo"},
 			{"do": "face", "who": "chen", "to": "room_radio"},
-			{"say": "chen", "zh": "这些东西上都挂着名字。", "en": "", "added": true},
-			{"say": "chen", "zh": "为什么没有人来拿？", "en": ""},
-			{"say": "miluo", "zh": "搬走了。", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "为什么没有人来拿修好的东西？", "en": "", "added": true},
+			{"say": "miluo", "zh": "搬走了。", "en": "", "added": true},
 			{"say": "chen", "zh": "都搬走了？", "en": ""},
 			{"say": "miluo", "zh": "差不多。", "en": ""},
 			{"say": "chen", "zh": "那你还留着？", "en": ""},
 			{"do": "sfx", "name": "screw_dish"},
-			{"say": "miluo", "zh": "又没坏。", "en": ""},
-			{"do": "wait", "sec": 2.0},
+			{"say": "miluo", "zh": "又没坏。修好的东西扔掉，你不觉得浪费吗？", "en": ""},
+			{"do": "wait", "sec": 1.5},
 			{"do": "face", "who": "miluo", "to": "chen"},
-			{"do": "prop", "id": "chairs", "state": "pushed"},
-			{"say": "miluo", "zh": "坐。别用那把，那把不是给你坐的。", "en": ""},
+			{"say": "miluo", "zh": "坐。喂，不是那把！你面前这把，看不见啊？", "en": ""},
+			{"do": "walk", "who": "chen", "to": "room_chair_free"},
 			{"do": "sfx", "name": "kettle_whistle"},
-			{"do": "walk", "who": "chen", "to": "room_chairs", "wait": false},
-			{"do": "walk", "who": "miluo", "to": "room_kettle"},
-			{"do": "prop", "id": "kettle", "state": "off"},
-			{"do": "prop", "id": "cups", "state": "two"},
+			{"do": "walk", "who": "miluo", "to": "room_miluo_stove"},
+			{"do": "prop", "id": "room_kettle", "state": "off"},
+			{"do": "prop", "id": "room_cups", "state": "two"},
+			{"do": "sfx", "name": "sugar"},
 			{"do": "wait", "sec": 0.8},
 			{"do": "face", "who": "miluo", "to": "chen"},
 			{"say": "miluo", "zh": "喝不喝？", "en": ""},
-			{"say": "chen", "zh": "喝。", "en": ""},
-			{"say": "miluo", "zh": "烫。别等会儿又说杯子有问题。", "en": ""},
-			{"do": "walk", "who": "miluo", "to": "room_miluo"},
-			{"do": "journal", "zh": "弥洛的水煮过头了，很烫。她拿了两个杯子。", "en": "", "added": true},
-			{"do": "flag", "set": "tea_done"}
-		],
-		"help": [
-			{"say": "chen", "zh": "我留下帮忙吧。", "en": ""},
-			{"say": "miluo", "zh": "不用。", "en": ""},
-			{"do": "face", "who": "miluo", "to": "room_tools"},
-			{"do": "wait", "sec": 1.0},
-			{"say": "miluo", "zh": "……工具呢？", "en": ""},
-			{"say": "miluo", "zh": "你，递一下。", "en": ""},
-			{"say": "miluo", "zh": "拧螺丝的那把。", "en": "", "added": true},
-			{"do": "flag", "set": "tools_started"},
-			{"do": "goto", "scene": "tools_pick"}
-		],
-		"tools_pick": [
-			{"do": "pick", "options": [{"id": "tool_a", "label": {"zh": "锤子", "en": ""}, "scene": "tool_wrong_a"}, {"id": "tool_b", "label": {"zh": "扳手", "en": ""}, "scene": "tool_right"}, {"id": "tool_c", "label": {"zh": "汤勺", "en": ""}, "scene": "tool_wrong_c"}]}
-		],
-		"tool_wrong_a": [
-			{"do": "sfx", "name": "sigh"},
-			{"say": "miluo", "zh": "旁边那把。", "en": ""},
-			{"do": "goto", "scene": "tools_pick"}
-		],
-		"tool_wrong_c": [
-			{"say": "miluo", "zh": "那是汤勺。", "en": "", "added": true},
-			{"say": "miluo", "zh": "也是我修的。现在不用。", "en": "", "added": true},
-			{"say": "miluo", "zh": "汤勺旁边那把。", "en": "", "added": true},
-			{"do": "goto", "scene": "tools_pick"}
-		],
-		"tool_right": [
-			{"say": "miluo", "zh": "你自己的船，总得会修一点。", "en": ""},
-			{"do": "flag", "set": "tools_ok"},
-			{"do": "goto", "scene": "pipes_intro"}
-		],
-		"pipes_intro": [
-			{"do": "walk", "who": "chen", "to": "room_pipes"},
-			{"say": "miluo", "zh": "听。", "en": "", "added": true},
-			{"say": "miluo", "zh": "哪一段在漏气。", "en": "", "added": true},
-			{"do": "goto", "scene": "pipes_pick"}
-		],
-		"pipes_pick": [
-			{"do": "pick", "options": [{"id": "pipe_a", "label": {"zh": "左边那段", "en": ""}, "scene": "pipe_a"}, {"id": "pipe_b", "label": {"zh": "中间那段", "en": ""}, "scene": "pipe_b"}, {"id": "pipe_c", "label": {"zh": "右边那段", "en": ""}, "scene": "pipe_c"}]}
-		],
-		"pipe_a": [
-			{"do": "sfx", "name": "pipe_clear"},
-			{"say": "chen", "zh": "清清脆脆的，像敲空瓶子。", "en": "", "added": true},
-			{"say": "miluo", "zh": "这段没事。", "en": "", "added": true},
-			{"do": "goto", "scene": "pipes_pick"}
-		],
-		"pipe_b": [
-			{"do": "sfx", "name": "pipe_dull"},
-			{"say": "chen", "zh": "闷闷的，像隔着一层被子。", "en": "", "added": true},
-			{"say": "miluo", "zh": "里面积了灰。不漏。", "en": "", "added": true},
-			{"do": "goto", "scene": "pipes_pick"}
-		],
-		"pipe_c": [
-			{"do": "sfx", "name": "pipe_hiss"},
-			{"say": "chen", "zh": "有一点很细的尖响……", "en": "", "added": true},
-			{"say": "chen", "zh": "是这段。", "en": "", "added": true},
-			{"say": "miluo", "zh": "嗯。你来拧。", "en": "", "added": true},
-			{"say": "chen", "zh": "闭着眼也能听出来？", "en": ""},
-			{"say": "miluo", "zh": "你现在先把眼睛睁着。", "en": ""},
-			{"say": "miluo", "zh": "手还在往反方向拧。", "en": ""},
-			{"do": "anim", "who": "chen", "name": "pickup"},
-			{"do": "sfx", "name": "wrench"},
-			{"do": "prop", "id": "pipes", "state": "fixed"},
-			{"do": "sfx", "name": "engine_test"},
-			{"do": "wait", "sec": 1.0},
-			{"do": "flag", "set": "ship_fixed"},
-			{"say": "miluo", "zh": "没什么难的。", "en": "", "added": true},
-			{"do": "wait", "sec": 1.0},
-			{"do": "face", "who": "chen", "to": "room_door"},
-			{"do": "walk", "who": "chen", "to": "room_gramophone", "wait": false},
-			{"do": "walk", "who": "miluo", "to": "room_pipes"},
-			{"do": "sfx", "name": "small_click"},
-			{"do": "wait", "sec": 1.0},
-			{"do": "journal", "zh": "今天修好了管道。漏气的那段有很细的尖响。我拧反了两次。", "en": "", "added": true},
-			{"do": "goto", "scene": "gramophone"}
-		],
-		"gramophone": [
-			{"do": "walk", "who": "miluo", "to": "room_box"},
-			{"do": "sfx", "name": "gramophone_stuck"},
-			{"do": "wait", "sec": 0.8},
-			{"do": "show_item", "item": "music_box"},
-			{"say": "chen", "zh": "我的也这样。", "en": ""},
-			{"do": "sfx", "name": "musicbox_stuck"},
-			{"say": "miluo", "zh": "给我。", "en": "", "added": true},
-			{"do": "wait", "sec": 1.0},
-			{"do": "sfx", "name": "scrape"},
-			{"do": "sfx", "name": "musicbox_full"},
-			{"do": "flag", "set": "musicbox_fixed"},
-			{"say": "chen", "zh": "你怎么不把留声机也修好？", "en": ""},
-			{"say": "miluo", "zh": "零件不合适。", "en": ""},
-			{"say": "chen", "zh": "旁边那一个不行吗？", "en": ""},
-			{"say": "miluo", "zh": "能用。", "en": ""},
-			{"say": "chen", "zh": "那为什么不换？", "en": ""},
-			{"do": "sfx", "name": "box_close"},
-			{"say": "miluo", "zh": "声音会变。", "en": ""},
-			{"do": "flag", "set": "gramophone_talk"},
+			{"say": "chen", "zh": "我不太爱甜的。", "en": "", "added": true},
+			{"say": "miluo", "zh": "那就放着，要求还挺多。", "en": ""},
 			{"do": "wait", "sec": 1.5},
-			{"do": "goto", "scene": "pump_out"}
+			{"do": "prop", "id": "room_cups", "state": "swapped"},
+			{"say": "miluo", "zh": "这杯没放。再挑就没有了。", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "「别拿去装螺丝。」", "en": ""},
+			{"do": "journal", "zh": "杯底贴着纸条：别拿去装螺丝。旁边画了一个歪歪的生气脸。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "tap"},
+			{"say": "miluo", "zh": "杯子有什么好研究的？你不是急着走吗？", "en": ""},
+			{"do": "flag", "set": "tea_done"},
+			{"say": "miluo", "zh": "要走，推进器还缺三样。", "en": "", "added": true},
+			{"say": "miluo", "zh": "松脂，堵漏用的。", "en": "", "added": true},
+			{"say": "miluo", "zh": "一根弹簧。一个阀门零件。", "en": "", "added": true},
+			{"say": "chen", "zh": "去哪里找？", "en": "", "added": true},
+			{"say": "miluo", "zh": "问门口那只鹿。它不是什么都知道吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "这个拿着，装松脂用。别弄洒了。", "en": "", "added": true},
+			{"do": "give", "item": "jar"},
+			{"do": "journal", "zh": "修推进器要三样东西：松脂、弹簧、阀门零件。", "en": "", "added": true},
+			{"do": "walk", "who": "miluo", "to": "room_miluo", "wait": false},
+			{"do": "flag", "set": "parts_needed"}
 		],
-		"pump_out": [
-			{"do": "sfx", "name": "deer_steps", "pan": -0.7},
-			{"say": "miluo", "zh": "还得出去一趟。", "en": ""},
-			{"say": "miluo", "zh": "你拿着这个。", "en": "", "added": true},
-			{"do": "give", "item": "pump"},
-			{"do": "fade_to", "room": "forest", "at": "treehouse", "with": ["miluo"]},
-			{"do": "flag", "set": "pump_trip"},
-			{"do": "walk", "who": "miluo", "to": "miluo_empty", "wait": false},
-			{"do": "walk", "who": "deer", "to": "deer_empty", "wait": false},
-			{"do": "walk", "who": "chen", "to": "empty_house"},
-			{"do": "goto", "scene": "empty_house"}
+		"enter_room": [
+			{"do": "fade_to", "room": "treehouse", "at": "room_door"},
+			{"do": "show", "who": "miluo", "at": "room_miluo"}
+		],
+		"exit_room": [
+			{"do": "fade_to", "room": "forest", "at": "treehouse"}
 		],
 		"door_miluo_out": [
 			{"say": "chen", "zh": "她不在屋里。", "en": "", "added": true}
 		],
-		"miluo_chat_empty": [
-			{"say": "miluo", "zh": "看什么。", "en": "", "added": true},
-			{"say": "miluo", "zh": "走了，天快黑了。", "en": "", "added": true}
+		"miluo_b": [
+			{"do": "if", "flag": "returned_any", "then": "miluo_b_ret", "else": "miluo_b_plain"}
 		],
-		"empty_house": [
-			{"do": "take", "item": "pump"},
-			{"do": "prop", "id": "pump", "state": "at_door"},
-			{"do": "sfx", "name": "knock"},
-			{"do": "wait", "sec": 0.4},
-			{"do": "sfx", "name": "knock"},
-			{"do": "wait", "sec": 2.0},
-			{"say": "deer", "zh": "上次来就没人了。", "en": ""},
-			{"say": "miluo", "zh": "我知道。", "en": ""},
-			{"do": "prop", "id": "pump", "state": "placed"},
-			{"do": "flag", "set": "pump_placed"}
+		"miluo_b_plain": [
+			{"say": "miluo", "zh": "三样，找齐了再来。", "en": "", "added": true},
+			{"say": "miluo", "zh": "罐子别弄洒了，洗起来麻烦。", "en": "", "added": true}
 		],
-		"door_dust": [
-			{"say": "chen", "zh": "门槛上的灰好厚。", "en": "", "added": true},
-			{"say": "chen", "zh": "很久没人跨过去了。", "en": "", "added": true}
+		"miluo_b_ret": [
+			{"say": "miluo", "zh": "送回去了？", "en": "", "added": true},
+			{"say": "chen", "zh": "嗯。", "en": "", "added": true},
+			{"say": "miluo", "zh": "……放着也没人拿，随你。", "en": "", "added": true}
 		],
-		"empty_item": [
-			{"say": "chen", "zh": "门边早就放着一样东西。", "en": "", "added": true},
-			{"say": "chen", "zh": "上面也落了灰。", "en": "", "added": true},
-			{"say": "miluo", "zh": "放着就行。别碰。", "en": "", "added": true}
+		"deer_hint": [
+			{"say": "deer", "zh": "这你问咱就对了。", "en": ""},
+			{"do": "if", "flag": "got_sap", "then": "deer_hint_2", "else": "deer_hint_sap"}
 		],
-		"deer_chat_empty": [
-			{"say": "deer", "zh": "那户人家以前养过一只鸟，很凶。", "en": ""},
-			{"say": "deer", "zh": "这块泥踩上去容易打滑。", "en": ""},
-			{"say": "deer", "zh": "从后面绕过去更快。", "en": ""}
+		"deer_hint_2": [
+			{"do": "if", "flag": "got_spring", "then": "deer_hint_3", "else": "deer_hint_spring"}
 		],
-		"shop": [
-			{"do": "walk", "who": "miluo", "to": "miluo_shop", "wait": false},
-			{"do": "walk", "who": "deer", "to": "deer_shop"},
-			{"do": "face", "who": "miluo", "to": "shop"},
-			{"do": "sfx", "name": "door_touch"},
-			{"do": "wait", "sec": 1.0},
-			{"say": "chen", "zh": "你在看什么？", "en": ""},
-			{"say": "miluo", "zh": "这里以前的饼难吃。", "en": ""},
-			{"say": "miluo", "zh": "太甜。", "en": ""},
-			{"say": "chen", "zh": "那为什么还来？", "en": ""},
-			{"say": "miluo", "zh": "要你管。", "en": ""},
-			{"say": "deer", "zh": "她又想那个人了。", "en": ""},
-			{"do": "face", "who": "miluo", "to": "deer"},
-			{"do": "wait", "sec": 1.0},
-			{"say": "miluo", "zh": "我先回去了。", "en": "", "added": true},
-			{"do": "walk", "who": "miluo", "to": "miluo_empty", "wait": false},
-			{"say": "deer", "zh": "她每次都先回去。", "en": "", "added": true},
-			{"say": "deer", "zh": "我带你去坡上看看。", "en": "", "added": true},
-			{"do": "flag", "set": "shop_done"},
-			{"do": "goto", "scene": "slope_truth"}
+		"deer_hint_3": [
+			{"do": "if", "flag": "got_valve", "then": "deer_hint_done", "else": "deer_hint_valve"}
 		],
-		"shop_after": [
-			{"say": "chen", "zh": "饼太甜……", "en": "", "added": true},
-			{"say": "chen", "zh": "可她还是会来。", "en": "", "added": true}
+		"deer_hint_sap": [
+			{"say": "deer", "zh": "松脂？商店旁边那棵老松，一直在哭。", "en": "", "added": true}
 		],
-		"slope_truth": [
-			{"do": "guide", "to": "slope"},
-			{"do": "hide", "who": "miluo"},
-			{"say": "chen", "zh": "你就是在这里看见大象的吗？", "en": ""},
-			{"do": "wait", "sec": 1.5},
-			{"say": "deer", "zh": "……我没有真的见过。", "en": ""},
-			{"say": "deer", "zh": "小时候，妈妈带我走过这里。", "en": ""},
-			{"say": "deer", "zh": "她指着雾里，说那边有大象。", "en": ""},
-			{"say": "deer", "zh": "我太矮了。", "en": ""},
-			{"say": "deer", "zh": "只记得她在那里站了很久。", "en": ""},
-			{"say": "deer", "zh": "后来她不在了。", "en": ""},
-			{"say": "deer", "zh": "我还是带别人走这条路。", "en": ""},
-			{"say": "deer", "zh": "讲得多了，就说成了自己见过。", "en": ""},
-			{"say": "chen", "zh": "那你为什么一开始不说？", "en": ""},
-			{"do": "anim", "who": "deer", "name": "graze_down"},
-			{"do": "sfx", "name": "pebbles"},
-			{"say": "deer", "zh": "我要是说不知道，你还会跟我来吗？", "en": ""},
-			{"do": "anim", "who": "deer", "name": "graze_up"},
-			{"do": "wait", "sec": 2.0},
-			{"do": "journal", "zh": "鹿没有见过大象。小时候，它的妈妈指着雾里，说那边有大象。", "en": "", "added": true},
-			{"do": "flag", "set": "slope_talked"}
+		"deer_hint_spring": [
+			{"say": "deer", "zh": "弹簧？空屋窗台上有个闹钟，早不走了。", "en": "", "added": true},
+			{"say": "deer", "zh": "空地那个信号箱里，也有一根。", "en": "", "added": true}
 		],
-		"draw_hollows": [
-			{"do": "face", "who": "chen", "to": "depressions"},
-			{"say": "chen", "zh": "好大的凹陷……", "en": "", "added": true},
-			{"do": "journal", "zh": "坡地上有几处很大的凹陷。还不知道是什么。", "en": ""},
-			{"say": "chen", "zh": "还不知道是什么。", "en": ""},
-			{"do": "face", "who": "deer", "to": "chen"},
-			{"do": "wait", "sec": 2.0},
-			{"do": "flag", "set": "drew_hollows"}
+		"deer_hint_valve": [
+			{"say": "deer", "zh": "阀门？塌陷口那边，有个旧信号箱。", "en": "", "added": true},
+			{"do": "if", "flag": "bridge_built", "then": "noop", "else": "deer_hint_plank"}
 		],
-		"hollows_again": [
-			{"say": "chen", "zh": "已经画进日记了。", "en": "", "added": true},
-			{"say": "chen", "zh": "是什么都行，先画下来。", "en": "", "added": true}
+		"deer_hint_plank": [
+			{"say": "deer", "zh": "底下是空的，得搭块板子。", "en": "", "added": true},
+			{"say": "deer", "zh": "商店里的货架烂了，木板一碰就掉。", "en": "", "added": true}
 		],
-		"fog_bank": [
-			{"say": "chen", "zh": "雾一直没有散。", "en": "", "added": true},
-			{"say": "chen", "zh": "那边什么都看不见。", "en": "", "added": true}
+		"deer_hint_done": [
+			{"say": "deer", "zh": "都齐了？那快进去。", "en": "", "added": true}
 		],
-		"deer_chat_slope": [
-			{"say": "chen", "zh": "大象的事，我先记着。", "en": "", "added": true},
-			{"say": "deer", "zh": "……嗯。", "en": "", "added": true},
-			{"say": "deer", "zh": "回去吧，弥洛该等了。", "en": "", "added": true},
-			{"say": "deer", "zh": "……她不会说她在等。", "en": "", "added": true}
+		"parts_check": [
+			{"do": "count", "flags": ["got_sap", "got_spring", "got_valve"], "set": "parts_all", "at_least": 3},
+			{"do": "if", "flag": "parts_all", "then": "parts_all_line", "else": "noop"}
 		],
-		"revisit": [
-			{"do": "fade_to", "room": "treehouse", "at": "room_door"},
-			{"do": "show", "who": "miluo", "at": "room_gramophone"},
-			{"do": "flag", "set": "revisit_done"},
-			{"do": "prop", "id": "gramophone", "state": "new"},
-			{"say": "miluo", "zh": "旧的实在不能用了。", "en": ""},
-			{"do": "wait", "sec": 1.5},
-			{"do": "sfx", "name": "gramophone_full"},
-			{"do": "wait", "sec": 2.0},
-			{"say": "miluo", "zh": "太慢了。", "en": ""},
-			{"say": "miluo", "zh": "那个人总嫌这首歌太慢。", "en": ""},
-			{"say": "miluo", "zh": "自己把机器调坏，还非说这样好听。", "en": ""},
-			{"say": "chen", "zh": "那个人是谁？", "en": ""},
-			{"say": "miluo", "zh": "一个很烦的人。", "en": ""},
-			{"say": "chen", "zh": "她去哪里了？", "en": ""},
-			{"say": "miluo", "zh": "不知道。", "en": ""},
-			{"say": "chen", "zh": "没有告诉你？", "en": ""},
-			{"say": "miluo", "zh": "说过。", "en": ""},
-			{"say": "chen", "zh": "你没听？", "en": ""},
-			{"do": "walk", "who": "miluo", "to": "room_box"},
-			{"say": "miluo", "zh": "都说很烦了，我为什么要听她说话？", "en": ""},
-			{"say": "miluo", "zh": "你是来修船的，还是来问这个的？", "en": ""},
-			{"do": "wait", "sec": 2.0},
-			{"say": "miluo", "zh": "那时候在吵架。", "en": ""},
-			{"say": "miluo", "zh": "她想走，我不想走。", "en": ""},
-			{"say": "miluo", "zh": "她说这里已经没有谁会回来取东西了。", "en": ""},
-			{"say": "miluo", "zh": "我说想走就走，最好别再回来。", "en": ""},
-			{"do": "wait", "sec": 1.0},
-			{"say": "miluo", "zh": "然后她真的走了。", "en": ""},
-			{"say": "chen", "zh": "你已经不生气了吗？", "en": ""},
-			{"say": "miluo", "zh": "谁说的？", "en": ""},
-			{"do": "wait", "sec": 2.0},
-			{"do": "sfx", "name": "gramophone_quiet"},
-			{"say": "miluo", "zh": "不过也不用真就一点消息都没有。", "en": ""},
-			{"do": "prop", "id": "box", "state": "open"},
-			{"say": "miluo", "zh": "这是她走之前留下的。", "en": ""},
-			{"say": "miluo", "zh": "说在云层下面，可能会发芽。", "en": ""},
-			{"say": "miluo", "zh": "我当时说不稀罕。", "en": ""},
-			{"say": "miluo", "zh": "你既然要去，就带着。", "en": ""},
-			{"do": "give", "item": "clear_seed"},
-			{"do": "give", "item": "miluo_note"},
-			{"say": "chen", "zh": "要我替你种下吗？", "en": ""},
-			{"say": "miluo", "zh": "随便。", "en": ""},
-			{"say": "miluo", "zh": "不要埋得太深。先浇一点水。", "en": ""},
-			{"say": "miluo", "zh": "别隔两天就挖出来看。", "en": ""},
-			{"say": "chen", "zh": "你挖过？", "en": ""},
-			{"do": "walk", "who": "miluo", "to": "room_tools"},
-			{"say": "miluo", "zh": "你的船已经修好了。", "en": ""},
-			{"say": "chen", "zh": "种子长出来，我就回来告诉你。", "en": ""},
-			{"say": "miluo", "zh": "我又不是每天都在这里等。", "en": ""},
-			{"do": "face", "who": "chen", "to": "room_radio"},
-			{"do": "wait", "sec": 1.2},
-			{"do": "face", "who": "chen", "to": "miluo"},
-			{"say": "chen", "zh": "那我来的时候，会先敲门。", "en": ""},
-			{"do": "wait", "sec": 1.5},
-			{"say": "miluo", "zh": "没长出来，也不是不能来。", "en": ""},
-			{"do": "journal", "zh": "弥洛的留声机终于放完了。她说太慢了。", "en": "", "added": true},
-			{"do": "flag", "set": "farewell_done"}
+		"parts_all_line": [
+			{"say": "chen", "zh": "三样都齐了。回树屋。", "en": "", "added": true}
 		],
-		"radio_a": [
+		"plank_take": [
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "give", "item": "plank"},
+			{"say": "chen", "zh": "一块木板，还算结实。", "en": "", "added": true},
+			{"do": "flag", "set": "got_plank"}
+		],
+		"pine_look": [
+			{"say": "chen", "zh": "老松树的伤口在流松脂。", "en": "", "added": true},
+			{"say": "chen", "zh": "……真的像在哭。", "en": "", "added": true}
+		],
+		"pine_default": [
+			{"say": "chen", "zh": "这个装不了松脂。", "en": "", "added": true}
+		],
+		"pine_sap": [
+			{"do": "show_item", "item": "jar"},
+			{"do": "take", "item": "jar"},
+			{"do": "sfx", "name": "sap_drip"},
+			{"do": "give", "item": "sap"},
+			{"say": "chen", "zh": "装满了。", "en": "", "added": true},
+			{"do": "flag", "set": "got_sap"},
+			{"do": "goto", "scene": "parts_check"}
+		],
+		"pine_after": [
+			{"say": "chen", "zh": "伤口还在流。", "en": "", "added": true}
+		],
+		"clock": [
+			{"say": "chen", "zh": "窗台上有个闹钟，停了。", "en": "", "added": true},
+			{"say": "chen", "zh": "里面应该有弹簧。", "en": "", "added": true},
+			{"say": "chen", "zh": "……可这是别人家的东西。", "en": "", "added": true},
+			{"do": "pick", "options": [{"id": "note", "label": {"zh": "留张字条，借走弹簧", "en": ""}, "scene": "clock_take", "added": true}, {"id": "leave", "label": {"zh": "先不拿，找找别的", "en": ""}, "scene": "clock_leave", "added": true}]}
+		],
+		"clock_take": [
+			{"do": "sfx", "name": "clock_open"},
+			{"do": "give", "item": "spring"},
+			{"say": "chen", "zh": "「借走一根弹簧。晨。」", "en": "", "added": true},
+			{"do": "journal", "zh": "空屋窗台的闹钟里借了一根弹簧，留了字条。", "en": "", "added": true},
+			{"do": "flag", "set": "got_spring"},
+			{"do": "flag", "set": "spring_from_clock"},
+			{"do": "goto", "scene": "parts_check"}
+		],
+		"clock_leave": [
+			{"say": "chen", "zh": "先找找别的。", "en": "", "added": true},
+			{"do": "flag", "set": "clock_hesitated"}
+		],
+		"clock_after": [
+			{"do": "if", "flag": "spring_from_clock", "then": "clock_after_note", "else": "clock_after_plain"}
+		],
+		"clock_after_note": [
+			{"say": "chen", "zh": "字条还压在闹钟底下。", "en": "", "added": true}
+		],
+		"clock_after_plain": [
+			{"say": "chen", "zh": "闹钟还停着。", "en": "", "added": true}
+		],
+		"signal_box": [
+			{"say": "chen", "zh": "一台废弃的信号箱。", "en": "", "added": true},
+			{"do": "sfx", "name": "metal_clank"},
+			{"do": "give", "item": "valve"},
+			{"say": "chen", "zh": "阀门还拧得下来。", "en": "", "added": true},
+			{"do": "flag", "set": "got_valve"},
+			{"do": "if", "flag": "got_spring", "then": "parts_check", "else": "signal_spring"}
+		],
+		"signal_spring": [
+			{"say": "chen", "zh": "旁边还有一根备用的弹簧。", "en": "", "added": true},
+			{"do": "give", "item": "spring"},
+			{"do": "flag", "set": "got_spring"},
+			{"do": "goto", "scene": "parts_check"}
+		],
+		"signal_box_after": [
+			{"say": "chen", "zh": "里面已经空了。", "en": "", "added": true}
+		],
+		"radio_look": [
 			{"say": "chen", "zh": "收音机上也挂着名牌。", "en": "", "added": true},
 			{"say": "miluo", "zh": "能响。没人听而已。", "en": "", "added": true},
-			{"say": "chen", "zh": "我们那边的广播，只报站名。", "en": "", "added": true}
+			{"say": "chen", "zh": "我们那边的广播，只报站名。", "en": "", "added": true},
+			{"say": "chen", "zh": "牌子上写着：小吃棚。", "en": "", "added": true},
+			{"do": "pick", "options": [{"id": "take", "label": {"zh": "带去还给主人", "en": ""}, "scene": "radio_take", "added": true}, {"id": "leave", "label": {"zh": "先放着", "en": ""}, "scene": "noop", "added": true}]}
+		],
+		"radio_take": [
+			{"do": "if", "flag": "asked_return", "then": "radio_give", "else": "radio_ask"}
+		],
+		"radio_ask": [
+			{"say": "chen", "zh": "这个，我能带去还给主人吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "随便。反正也没人来拿。", "en": "", "added": true},
+			{"do": "flag", "set": "asked_return"},
+			{"do": "goto", "scene": "radio_give"}
+		],
+		"radio_give": [
+			{"do": "prop", "id": "room_radio", "state": "taken"},
+			{"do": "give", "item": "return_radio"},
+			{"do": "flag", "set": "took_radio"}
+		],
+		"sign_look": [
+			{"say": "chen", "zh": "这个路标自己在转。", "en": "", "added": true},
+			{"say": "miluo", "zh": "它在找路。", "en": "", "added": true},
+			{"say": "miluo", "zh": "找不到，就一直转。", "en": "", "added": true},
+			{"say": "chen", "zh": "底下的牌子写着：空地。", "en": "", "added": true},
+			{"do": "pick", "options": [{"id": "take", "label": {"zh": "带去还给主人", "en": ""}, "scene": "sign_take", "added": true}, {"id": "leave", "label": {"zh": "先放着", "en": ""}, "scene": "noop", "added": true}]}
+		],
+		"sign_take": [
+			{"do": "if", "flag": "asked_return", "then": "sign_give", "else": "sign_ask"}
+		],
+		"sign_ask": [
+			{"say": "chen", "zh": "这个，我能带去还给主人吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "随便。反正也没人来拿。", "en": "", "added": true},
+			{"do": "flag", "set": "asked_return"},
+			{"do": "goto", "scene": "sign_give"}
+		],
+		"sign_give": [
+			{"do": "prop", "id": "room_sign", "state": "taken"},
+			{"do": "give", "item": "return_sign"},
+			{"do": "flag", "set": "took_sign"}
+		],
+		"lamp_look": [
+			{"say": "chen", "zh": "一盏油灯。", "en": "", "added": true},
+			{"say": "miluo", "zh": "灯芯换过了。油没了。", "en": "", "added": true},
+			{"say": "chen", "zh": "牌子上写着：路边的小屋。", "en": "", "added": true},
+			{"do": "pick", "options": [{"id": "take", "label": {"zh": "带去还给主人", "en": ""}, "scene": "lamp_take", "added": true}, {"id": "leave", "label": {"zh": "先放着", "en": ""}, "scene": "noop", "added": true}]}
+		],
+		"lamp_take": [
+			{"do": "if", "flag": "asked_return", "then": "lamp_give", "else": "lamp_ask"}
+		],
+		"lamp_ask": [
+			{"say": "chen", "zh": "这个，我能带去还给主人吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "随便。反正也没人来拿。", "en": "", "added": true},
+			{"do": "flag", "set": "asked_return"},
+			{"do": "goto", "scene": "lamp_give"}
+		],
+		"lamp_give": [
+			{"do": "prop", "id": "room_lamp", "state": "taken"},
+			{"do": "give", "item": "return_lamp"},
+			{"do": "flag", "set": "took_lamp"}
+		],
+		"return_check": [
+			{"do": "count", "flags": ["returned_radio", "returned_sign", "returned_lamp"], "set": "returned_any", "at_least": 1},
+			{"do": "count", "flags": ["returned_radio", "returned_sign", "returned_lamp"], "set": "returned_all", "at_least": 3}
+		],
+		"radio_return": [
+			{"do": "take", "item": "return_radio"},
+			{"do": "prop", "id": "placed_radio", "state": "on"},
+			{"do": "sfx", "name": "radio_static"},
+			{"say": "chen", "zh": "只有沙沙的声音。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "雨棚下面压着一张纸条。", "en": "", "added": true},
+			{"say": "chen", "zh": "「收摊了。往云那边走。」", "en": "", "added": true},
+			{"say": "chen", "zh": "……字被雨泡开了一半。", "en": "", "added": true},
+			{"do": "journal", "zh": "小吃棚的雨棚下压着一张纸条：收摊了，往云那边走。", "en": "", "added": true},
+			{"do": "flag", "set": "returned_radio"},
+			{"do": "goto", "scene": "return_check"}
+		],
+		"lamp_return": [
+			{"do": "take", "item": "return_lamp"},
+			{"do": "prop", "id": "placed_lamp", "state": "on"},
+			{"say": "chen", "zh": "没有油了。放回窗台上也好。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "门框上刻着几道线，一道比一道高。", "en": "", "added": true},
+			{"say": "chen", "zh": "最后一道旁边，刻着一朵小小的云。", "en": "", "added": true},
+			{"do": "journal", "zh": "路边小屋的门框上刻着身高线。最后一道旁边，刻着一朵云。", "en": "", "added": true},
+			{"do": "flag", "set": "returned_lamp"},
+			{"do": "goto", "scene": "return_check"}
+		],
+		"sign_return": [
+			{"do": "take", "item": "return_sign"},
+			{"do": "prop", "id": "placed_sign", "state": "on"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "它不转了。", "en": "", "added": true},
+			{"say": "chen", "zh": "……指着云那边。", "en": "", "added": true},
+			{"say": "chen", "zh": "底座旁边，压着半张车票。", "en": "", "added": true},
+			{"say": "chen", "zh": "终点那一栏，被雨泡没了。", "en": "", "added": true},
+			{"do": "journal", "zh": "空地的路标放回去了，它不转了，指着云那边。底座旁压着半张车票，终点看不清。", "en": "", "added": true},
+			{"do": "flag", "set": "returned_sign"},
+			{"do": "goto", "scene": "return_check"}
+		],
+		"stall_after": [
+			{"say": "chen", "zh": "收音机还在沙沙地响。", "en": "", "added": true}
+		],
+		"road_house_after": [
+			{"say": "chen", "zh": "那朵云刻得很浅。", "en": "", "added": true}
+		],
+		"sign_base_look": [
+			{"say": "chen", "zh": "一个空的底座。", "en": "", "added": true},
+			{"say": "chen", "zh": "像是少了什么。", "en": "", "added": true}
+		],
+		"sign_base_default": [
+			{"say": "chen", "zh": "底座上放不下这个。", "en": "", "added": true}
+		],
+		"sign_base_after": [
+			{"say": "chen", "zh": "它还是指着那边。", "en": "", "added": true}
+		],
+		"glade_rock": [
+			{"say": "chen", "zh": "岩石上刻着一头……", "en": "", "added": true},
+			{"say": "chen", "zh": "长鼻子，四条腿。", "en": "", "added": true},
+			{"say": "chen", "zh": "像小孩画的。", "en": "", "added": true},
+			{"say": "chen", "zh": "比这里所有的路都旧。", "en": "", "added": true},
+			{"do": "pick", "options": [{"id": "believe", "label": {"zh": "很久以前，就有人见过它。", "en": ""}, "scene": "el4_believe", "added": true}, {"id": "doubt", "label": {"zh": "画得像小孩画的。也许谁都没见过。", "en": ""}, "scene": "el4_doubt", "added": true}, {"id": "fact", "label": {"zh": "岩石上刻着长鼻子、四条腿。很旧了。", "en": ""}, "scene": "el4_fact", "added": true}]}
+		],
+		"el4_believe": [
+			{"do": "journal", "zh": "很久以前，就有人见过它。", "en": "", "tag": "elephant", "added": true},
+			{"do": "flag", "set": "saw_rock"}
+		],
+		"el4_doubt": [
+			{"do": "journal", "zh": "画得像小孩画的。也许谁都没见过。", "en": "", "tag": "elephant", "added": true},
+			{"do": "flag", "set": "saw_rock"}
+		],
+		"el4_fact": [
+			{"do": "journal", "zh": "岩石上刻着长鼻子、四条腿。很旧了。", "en": "", "tag": "elephant", "added": true},
+			{"do": "flag", "set": "saw_rock"}
+		],
+		"glade_rock_again": [
+			{"say": "chen", "zh": "它一直在这里。", "en": "", "added": true}
+		],
+		"toolwall": [
+			{"say": "chen", "zh": "工具墙上画着两套轮廓，一高一低。", "en": "", "added": true},
+			{"say": "chen", "zh": "低的那排，空着。", "en": "", "added": true},
+			{"say": "chen", "zh": "「用完放回来，我够不到。」", "en": ""},
+			{"say": "chen", "zh": "「那就长高一点。」", "en": ""},
+			{"do": "wait", "sec": 1.0}
+		],
+		"coat_chair": [
+			{"say": "chen", "zh": "这把椅子不让坐。", "en": "", "added": true},
+			{"say": "chen", "zh": "椅背上搭着一件旧外套，褪色了。", "en": "", "added": true},
+			{"say": "chen", "zh": "座面上，一点灰都没有。", "en": "", "added": true}
+		],
+		"coat_chair_late": [
+			{"say": "chen", "zh": "外套还搭在那儿。", "en": "", "added": true}
+		],
+		"cups_note": [
+			{"say": "chen", "zh": "「别拿去装螺丝。」", "en": ""},
+			{"say": "chen", "zh": "旁边画了一个歪歪的生气脸。", "en": "", "added": true}
+		],
+		"part_pack": [
+			{"say": "chen", "zh": "新零件的包装拆过。", "en": "", "added": true},
+			{"say": "chen", "zh": "纸边重新折了好几次。", "en": "", "added": true},
+			{"say": "chen", "zh": "旧零件上，全是修补的痕迹。", "en": "", "added": true}
+		],
+		"postcard_look": [
+			{"say": "chen", "zh": "玻璃下面压着半张明信片。", "en": "", "added": true},
+			{"say": "chen", "zh": "邮戳是河流城市的。", "en": "", "added": true}
+		],
+		"stove_resin": [
+			{"do": "show_item", "item": "mat_resin"},
+			{"do": "sfx", "name": "fire_flare"},
+			{"do": "prop", "id": "room_kettle", "state": "flare"},
+			{"say": "chen", "zh": "只放一小块。", "en": "", "added": true},
+			{"say": "miluo", "zh": "……别往我炉子里乱塞东西。", "en": "", "added": true},
+			{"say": "miluo", "zh": "不过挺香。", "en": "", "added": true}
+		],
+		"stove_default": [
+			{"say": "chen", "zh": "这个不能往炉子里放。", "en": "", "added": true}
 		],
 		"radio_b": [
 			{"say": "chen", "zh": "名牌上的字，被灰盖住了一半。", "en": "", "added": true},
 			{"say": "miluo", "zh": "擦了也会再落。", "en": "", "added": true}
 		],
-		"sign_a": [
-			{"say": "chen", "zh": "这个路标自己在转。", "en": "", "added": true},
-			{"say": "miluo", "zh": "它在找路。", "en": "", "added": true},
-			{"say": "miluo", "zh": "找不到，就一直转。", "en": "", "added": true}
-		],
 		"sign_b": [
 			{"say": "chen", "zh": "它还在转。", "en": "", "added": true},
 			{"say": "miluo", "zh": "又不碍事。", "en": "", "added": true}
-		],
-		"chairs": [
-			{"say": "chen", "zh": "每把椅子的椅脚都换过。", "en": "", "added": true},
-			{"say": "chen", "zh": "那把是谁的？", "en": "", "added": true},
-			{"say": "miluo", "zh": "……坐你的。", "en": "", "added": true}
 		],
 		"dish": [
 			{"say": "chen", "zh": "碟子里全是螺丝。", "en": "", "added": true},
 			{"say": "miluo", "zh": "拆下来的。都还能用。", "en": "", "added": true}
 		],
 		"kettle_a": [
-			{"say": "chen", "zh": "水还是很烫。", "en": "", "added": true},
-			{"say": "miluo", "zh": "说了烫。", "en": "", "added": true},
+			{"say": "chen", "zh": "水是温的。", "en": "", "added": true},
+			{"say": "miluo", "zh": "……糖罐别动。", "en": "", "added": true},
 			{"say": "chen", "zh": "以前早上，都来不及烧水。", "en": "", "added": true}
 		],
 		"kettle_b": [
@@ -723,7 +973,7 @@
 		],
 		"gramophone_b": [
 			{"say": "chen", "zh": "它终于放完了。", "en": "", "added": true},
-			{"say": "miluo", "zh": "太慢了。", "en": "", "added": true}
+			{"say": "miluo", "zh": "慢死了。", "en": ""}
 		],
 		"box_a": [
 			{"say": "chen", "zh": "桌上有个盒子。", "en": "", "added": true},
@@ -741,30 +991,440 @@
 			{"say": "chen", "zh": "这段是我拧的。", "en": "", "added": true},
 			{"say": "miluo", "zh": "拧反过两次。", "en": "", "added": true}
 		],
-		"room_door_wait": [
-			{"say": "chen", "zh": "船还没修好，先别走。", "en": "", "added": true}
-		],
 		"miluo_chat_bye": [
-			{"say": "miluo", "zh": "还不走？", "en": "", "added": true},
-			{"say": "miluo", "zh": "门在左边。", "en": "", "added": true},
+			{"say": "miluo", "zh": "还不走？门在左边。", "en": "", "added": true},
 			{"say": "miluo", "zh": "……别再加便宜燃料了。", "en": "", "added": true}
+		],
+		"parts_return": [
+			{"do": "fade_to", "room": "treehouse", "at": "room_door"},
+			{"do": "show", "who": "miluo", "at": "room_miluo"},
+			{"do": "walk", "who": "chen", "to": "room_chen_bench"},
+			{"do": "take", "item": "sap"},
+			{"do": "take", "item": "spring"},
+			{"do": "take", "item": "valve"},
+			{"say": "miluo", "zh": "……还挺快。", "en": "", "added": true},
+			{"say": "chen", "zh": "我留下帮忙。", "en": "", "added": true},
+			{"say": "miluo", "zh": "不用。", "en": "", "added": true},
+			{"do": "face", "who": "miluo", "to": "room_toolwall"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "face", "who": "miluo", "to": "chen"},
+			{"say": "miluo", "zh": "左边第二把。", "en": ""},
+			{"do": "flag", "set": "tools_started"},
+			{"do": "goto", "scene": "tools_pick"}
+		],
+		"tools_pick": [
+			{"do": "pick", "options": [{"id": "tool_a", "label": {"zh": "左边第一把", "en": ""}, "scene": "tool_wrong_a", "added": true}, {"id": "tool_b", "label": {"zh": "左边第二把", "en": ""}, "scene": "tool_right", "added": true}, {"id": "tool_c", "label": {"zh": "最大的那把", "en": ""}, "scene": "tool_wrong_c", "added": true}]}
+		],
+		"tool_wrong_a": [
+			{"say": "miluo", "zh": "那是第一把。数数。", "en": "", "added": true},
+			{"do": "goto", "scene": "tools_pick"}
+		],
+		"tool_wrong_c": [
+			{"say": "miluo", "zh": "不是那个！那把比你的手还大，你觉得能伸进去？", "en": ""},
+			{"do": "goto", "scene": "tools_pick"}
+		],
+		"tool_right": [
+			{"do": "flag", "set": "tools_ok"},
+			{"say": "miluo", "zh": "先松开这里，再——", "en": "", "added": true},
+			{"say": "chen", "zh": "我明白。", "en": "", "added": true},
+			{"do": "sfx", "name": "wrench"},
+			{"do": "wait", "sec": 0.8},
+			{"say": "miluo", "zh": "明白了？", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "不是说，明白了？", "en": ""},
+			{"say": "chen", "zh": "……我只看过说明书。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.2},
+			{"say": "miluo", "zh": "那就看着这里，别看窗户。", "en": ""},
+			{"say": "miluo", "zh": "学不会可以问，弄坏了我可要骂人的。", "en": ""},
+			{"do": "goto", "scene": "pipes_intro"}
+		],
+		"pipes_intro": [
+			{"do": "walk", "who": "chen", "to": "room_pipes"},
+			{"say": "miluo", "zh": "听。", "en": "", "added": true},
+			{"say": "chen", "zh": "闭着眼也能听出来吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "你先把眼睛睁着。手还在往反方向拧。", "en": ""},
+			{"do": "goto", "scene": "pipes_pick"}
+		],
+		"pipes_pick": [
+			{"do": "pick", "options": [{"id": "pipe_a", "label": {"zh": "左边那段", "en": ""}, "scene": "pipe_a", "added": true}, {"id": "pipe_b", "label": {"zh": "中间那段", "en": ""}, "scene": "pipe_b", "added": true}, {"id": "pipe_c", "label": {"zh": "右边那段", "en": ""}, "scene": "pipe_c", "added": true}]}
+		],
+		"pipe_a": [
+			{"do": "sfx", "name": "pipe_clear"},
+			{"say": "chen", "zh": "清清脆脆的，像敲空瓶子。", "en": "", "added": true},
+			{"say": "miluo", "zh": "这段没事。", "en": "", "added": true},
+			{"do": "goto", "scene": "pipes_pick"}
+		],
+		"pipe_b": [
+			{"do": "sfx", "name": "pipe_dull"},
+			{"say": "chen", "zh": "闷闷的，像隔着一层被子。", "en": "", "added": true},
+			{"say": "miluo", "zh": "里面积了灰。不漏。", "en": "", "added": true},
+			{"do": "goto", "scene": "pipes_pick"}
+		],
+		"pipe_c": [
+			{"do": "sfx", "name": "pipe_hiss"},
+			{"say": "chen", "zh": "有一点很细的尖响……是这段。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……对了吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "不然呢？我教到这个份上，", "en": ""},
+			{"say": "miluo", "zh": "你再听不出来，我才要生气。", "en": ""},
+			{"do": "journal", "zh": "右边那段管道，细小的尖响。", "en": "", "added": true},
+			{"do": "journal", "zh": "这次没猜", "en": ""},
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "sfx", "name": "wrench"},
+			{"do": "prop", "id": "pipe_c", "state": "fixed"},
+			{"do": "sfx", "name": "engine_test"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "flag", "set": "ship_fixed"},
+			{"say": "chen", "zh": "还挺结实。", "en": ""},
+			{"say": "miluo", "zh": "当然结实。谁在旁边盯着你装的？", "en": ""},
+			{"say": "chen", "zh": "谢谢。", "en": "", "added": true},
+			{"do": "wait", "sec": 0.6},
+			{"say": "miluo", "zh": "知道就好。下次别人教你的时候，少抢两句。", "en": ""},
+			{"do": "face", "who": "chen", "to": "room_door"},
+			{"do": "walk", "who": "chen", "to": "room_chairs", "wait": false},
+			{"do": "walk", "who": "miluo", "to": "room_pipes"},
+			{"do": "sfx", "name": "small_click"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "今天修好了管道。漏气的那段有很细的尖响。", "en": "", "added": true},
+			{"do": "goto", "scene": "gramophone"}
+		],
+		"gramophone": [
+			{"do": "walk", "who": "miluo", "to": "room_gramophone"},
+			{"do": "sfx", "name": "gramophone_stuck"},
+			{"do": "wait", "sec": 0.8},
+			{"do": "show_item", "item": "music_box"},
+			{"say": "chen", "zh": "我的也这样。", "en": "", "added": true},
+			{"do": "sfx", "name": "musicbox_stuck"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "scrape"},
+			{"do": "sfx", "name": "musicbox_full"},
+			{"do": "flag", "set": "musicbox_fixed"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "sfx", "name": "chen_hum"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "下次别老拍它。", "en": ""},
+			{"say": "miluo", "zh": "你以为它不唱，是在跟你闹脾气？", "en": ""},
+			{"say": "chen", "zh": "你怎么不把留声机也修好？", "en": "", "added": true},
+			{"say": "miluo", "zh": "零件不合适。", "en": "", "added": true},
+			{"do": "face", "who": "chen", "to": "room_part_pack"},
+			{"say": "chen", "zh": "这个呢？", "en": ""},
+			{"say": "miluo", "zh": "能用。", "en": "", "added": true},
+			{"say": "chen", "zh": "那为什么不换？", "en": ""},
+			{"do": "sfx", "name": "box_close"},
+			{"say": "miluo", "zh": "换了，声音就不一样了。", "en": ""},
+			{"do": "wait", "sec": 1.2},
+			{"do": "flag", "set": "gramophone_talk"},
+			{"do": "choice", "options": [{"zh": "我还以为，只要响了就算修好。", "en": "", "scene": "ch2_fixed"}, {"zh": "那先这样放着吧。", "en": "", "scene": "ch2_leave"}, {"zh": "我的音乐盒，谢谢你。", "en": "", "scene": "ch2_thanks"}]}
+		],
+		"ch2_fixed": [
+			{"say": "miluo", "zh": "响了就算？那你的飞机早修好了。", "en": "", "added": true},
+			{"do": "goto", "scene": "gramophone_b2"}
+		],
+		"ch2_leave": [
+			{"say": "miluo", "zh": "本来就放着。用不着你同意。", "en": "", "added": true},
+			{"do": "goto", "scene": "gramophone_b2"}
+		],
+		"ch2_thanks": [
+			{"do": "wait", "sec": 0.8},
+			{"say": "miluo", "zh": "……谢什么。", "en": "", "added": true},
+			{"do": "goto", "scene": "gramophone_b2"}
+		],
+		"gramophone_b2": [
+			{"say": "miluo", "zh": "拿稳。刚修好就摔了，我可不管第二次。", "en": ""},
+			{"do": "goto", "scene": "pump_out"}
+		],
+		"pump_out": [
+			{"do": "sfx", "name": "deer_steps", "pan": -0.7},
+			{"say": "miluo", "zh": "还得出去一趟。", "en": "", "added": true},
+			{"say": "miluo", "zh": "你拿着这个。", "en": "", "added": true},
+			{"do": "give", "item": "pump"},
+			{"do": "fade_to", "room": "forest", "at": "treehouse", "with": ["miluo"]},
+			{"do": "face", "who": "deer", "to": "miluo"},
+			{"say": "deer", "zh": "咱就说你肯定修得好。", "en": ""},
+			{"say": "miluo", "zh": "少来。每次把麻烦领过来，你都这么说。", "en": ""},
+			{"do": "flag", "set": "pump_trip"},
+			{"do": "walk", "who": "miluo", "to": "miluo_empty", "wait": false},
+			{"do": "walk", "who": "deer", "to": "deer_empty", "wait": false},
+			{"do": "walk", "who": "chen", "to": "empty_house"},
+			{"do": "goto", "scene": "empty_house"}
+		],
+		"empty_house": [
+			{"do": "take", "item": "pump"},
+			{"do": "prop", "id": "pump", "state": "at_door"},
+			{"do": "sfx", "name": "knock"},
+			{"do": "wait", "sec": 0.4},
+			{"do": "sfx", "name": "knock"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "deer", "zh": "上次来就没人了。", "en": "", "added": true},
+			{"say": "miluo", "zh": "我知道。还用你提醒？", "en": ""},
+			{"do": "prop", "id": "pump", "state": "placed"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "flag", "set": "pump_placed"},
+			{"do": "if", "flag": "spring_from_clock", "then": "empty_note", "else": "noop"}
+		],
+		"empty_note": [
+			{"say": "miluo", "zh": "窗台上的字条，你写的？", "en": "", "added": true},
+			{"say": "chen", "zh": "嗯。", "en": "", "added": true},
+			{"say": "miluo", "zh": "……留着吧。", "en": "", "added": true}
+		],
+		"door_dust": [
+			{"say": "chen", "zh": "门槛上的灰好厚。", "en": "", "added": true},
+			{"say": "chen", "zh": "很久没人跨过去了。", "en": "", "added": true}
+		],
+		"empty_item": [
+			{"say": "chen", "zh": "门边早就放着一件东西。", "en": "", "added": true},
+			{"say": "chen", "zh": "包装纸褪了色。", "en": "", "added": true},
+			{"say": "chen", "zh": "绳结却像最近重新系过。", "en": "", "added": true}
+		],
+		"deer_chat_empty": [
+			{"say": "deer", "zh": "这家门口，下雨积水。", "en": "", "added": true},
+			{"say": "deer", "zh": "往后头绕，走得快。", "en": "", "added": true}
+		],
+		"miluo_chat_empty": [
+			{"say": "miluo", "zh": "看什么。", "en": "", "added": true},
+			{"say": "miluo", "zh": "走了，天快黑了。", "en": "", "added": true}
+		],
+		"shop": [
+			{"do": "walk", "who": "miluo", "to": "miluo_shop", "wait": false},
+			{"do": "walk", "who": "deer", "to": "deer_shop"},
+			{"do": "face", "who": "miluo", "to": "shop"},
+			{"do": "sfx", "name": "door_touch"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "你在看什么？", "en": "", "added": true},
+			{"say": "miluo", "zh": "这家的饼，甜得要命。吃一次就够了。", "en": ""},
+			{"say": "deer", "zh": "咱记得你以前天天来。", "en": ""},
+			{"do": "face", "who": "miluo", "to": "deer"},
+			{"say": "miluo", "zh": "你今天的话是不是太多了？", "en": ""},
+			{"do": "face", "who": "miluo", "to": "shop_photo"},
+			{"do": "prop", "id": "shop_photo", "state": "pressed"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "deer", "zh": "她又想那个人了——", "en": ""},
+			{"do": "face", "who": "miluo", "to": "deer"},
+			{"say": "miluo", "zh": "有空盯着我，不如看看你角上的破布，挂一路了。", "en": ""},
+			{"do": "anim", "who": "deer", "name": "graze_down"},
+			{"do": "anim", "who": "deer", "name": "graze_up"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "我先回去了。", "en": "", "added": true},
+			{"do": "walk", "who": "miluo", "to": "treehouse", "wait": false},
+			{"say": "deer", "zh": "这块泥，踩上去容易打滑。", "en": "", "added": true},
+			{"say": "deer", "zh": "那户人家养过一只鸟，很凶。", "en": "", "added": true},
+			{"say": "deer", "zh": "从后头绕过去，更快。", "en": "", "added": true},
+			{"do": "journal", "zh": "鹿说：那块泥容易打滑；那户人家养过很凶的鸟；从后头绕更快。", "en": "", "added": true},
+			{"say": "chen", "zh": "你的名字，应该怎么记？", "en": "", "added": true},
+			{"say": "deer", "zh": "叫咱鹿就行，这儿也没第二个。", "en": ""},
+			{"do": "journal", "zh": "页角那只大角鹿旁边，补上名字：鹿。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "deer", "zh": "角还可以再大一点。", "en": "", "added": true},
+			{"do": "flag", "set": "shop_done"},
+			{"do": "guide", "to": "slope", "wait": false}
+		],
+		"shop_window": [
+			{"say": "chen", "zh": "玻璃后面有一只空点心罐。", "en": "", "added": true},
+			{"say": "chen", "zh": "「少糖的留两块」", "en": ""},
+			{"say": "chen", "zh": "「她说难吃也要留」", "en": ""}
+		],
+		"shop_window_b": [
+			{"say": "chen", "zh": "玻璃后面有一只空点心罐。", "en": "", "added": true},
+			{"say": "chen", "zh": "里面的货架都塌了。", "en": "", "added": true}
+		],
+		"shop_photo": [
+			{"say": "chen", "zh": "半张合影，被雨泡皱了。", "en": "", "added": true},
+			{"say": "chen", "zh": "一只手从边上伸过来，往她头上扣纸帽。", "en": "", "added": true}
+		],
+		"miluo_home": [
+			{"say": "miluo", "zh": "鹿在坡上等你。", "en": "", "added": true},
+			{"say": "miluo", "zh": "……看完再回来。", "en": "", "added": true}
+		],
+		"slope_truth": [
+			{"do": "hide", "who": "miluo"},
+			{"do": "face", "who": "chen", "to": "depressions"},
+			{"say": "chen", "zh": "你是在这里见过大象的吗？", "en": "", "added": true},
+			{"do": "anim", "who": "deer", "name": "graze_down"},
+			{"do": "sfx", "name": "pebbles"},
+			{"say": "deer", "zh": "咱得跟你说个事。", "en": ""},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "deer", "name": "graze_up"},
+			{"say": "deer", "zh": "咱没真正见过。", "en": ""},
+			{"say": "deer", "zh": "小时候，咱娘带咱走过这儿。", "en": "", "added": true},
+			{"say": "deer", "zh": "她指着雾里，说那边有大象。", "en": "", "added": true},
+			{"say": "deer", "zh": "咱太矮了，只记得她在那儿站了很久。", "en": "", "added": true},
+			{"say": "deer", "zh": "后来她不在了。", "en": "", "added": true},
+			{"say": "deer", "zh": "咱还是带别人走这条路。", "en": "", "added": true},
+			{"say": "deer", "zh": "讲得多了，就说成自己见过了。", "en": "", "added": true},
+			{"do": "face", "who": "chen", "to": "deer"},
+			{"say": "chen", "zh": "鼻子很长，左边的耳朵会动，走过去的时候树枝都在晃。", "en": ""},
+			{"say": "chen", "zh": "这些也是你编的？", "en": ""},
+			{"do": "anim", "who": "deer", "name": "ear"},
+			{"say": "deer", "zh": "有些是听来的。咱……记混了。", "en": ""},
+			{"say": "chen", "zh": "你知道我为了来这里——", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"say": "deer", "zh": "咱要是一开始说不知道，你还会跟咱来吗？", "en": ""},
+			{"do": "wait", "sec": 2.5},
+			{"do": "journal_strike", "match": "亲眼见过"},
+			{"do": "choice", "options": [{"zh": "你可以带错路，但别骗我。", "en": "", "scene": "ch3_lie"}, {"zh": "我刚才真的很高兴。", "en": "", "scene": "ch3_glad"}, {"zh": "以后不知道，就说不知道。", "en": "", "scene": "ch3_dontknow"}]}
+		],
+		"ch3_lie": [
+			{"say": "deer", "zh": "……路咱认得。这个不骗。", "en": "", "added": true},
+			{"do": "goto", "scene": "slope_b"}
+		],
+		"ch3_glad": [
+			{"do": "wait", "sec": 0.8},
+			{"say": "deer", "zh": "……咱也是。", "en": "", "added": true},
+			{"do": "goto", "scene": "slope_b"}
+		],
+		"ch3_dontknow": [
+			{"say": "deer", "zh": "这句好记。", "en": "", "added": true},
+			{"do": "goto", "scene": "slope_b"}
+		],
+		"slope_b": [
+			{"say": "deer", "zh": "嗯。咱这回记住了。", "en": ""},
+			{"do": "walk", "who": "deer", "to": "deer_slope_aside"},
+			{"do": "face", "who": "chen", "to": "depressions"},
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "凹陷：最靠近坡边的那处被雨冲过，另外几处能看出连续的落点。", "en": "", "tag": "elephant", "added": true},
+			{"say": "chen", "zh": "哪一处最近？", "en": "", "added": true},
+			{"do": "face", "who": "deer", "to": "depressions"},
+			{"say": "deer", "zh": "这一块，咱前几天过来，还没这么深。", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"do": "elephant_call", "variant": 2},
+			{"do": "face", "who": "chen", "to": "fog_bank"},
+			{"do": "face", "who": "deer", "to": "fog_bank"},
+			{"do": "walk", "who": "chen", "to": 3335},
+			{"say": "deer", "zh": "咱也听见了。", "en": ""},
+			{"do": "wait", "sec": 3.0},
+			{"do": "journal", "zh": "还不知道是什么", "en": "", "tag": "elephant"},
+			{"do": "journal", "zh": "低鸣从坡地东边的雾里来，只响了一声。", "en": "", "tag": "elephant", "added": true},
+			{"do": "flag", "set": "slope_talked"}
+		],
+		"hollows_again": [
+			{"say": "chen", "zh": "已经画进日记了。", "en": "", "added": true},
+			{"say": "chen", "zh": "是什么都行，先画下来。", "en": "", "added": true}
+		],
+		"fog_bank": [
+			{"say": "chen", "zh": "雾一直没有散。", "en": "", "added": true},
+			{"say": "chen", "zh": "那边什么都看不见。", "en": "", "added": true}
+		],
+		"deer_chat_slope": [
+			{"say": "chen", "zh": "大象的事，我先记着。", "en": "", "added": true},
+			{"say": "deer", "zh": "嗯。", "en": "", "added": true},
+			{"say": "deer", "zh": "回去吧，她该等急了。", "en": "", "added": true},
+			{"say": "deer", "zh": "……她不会说她在等。", "en": "", "added": true}
+		],
+		"revisit": [
+			{"do": "fade_to", "room": "treehouse", "at": "room_door"},
+			{"do": "show", "who": "miluo", "at": "room_gramophone"},
+			{"do": "flag", "set": "revisit_done"},
+			{"do": "prop", "id": "room_gramophone", "state": "new"},
+			{"say": "miluo", "zh": "旧的实在不能用了。", "en": ""},
+			{"say": "miluo", "zh": "别多想，我又不是听了你一句话才换的。", "en": ""},
+			{"do": "wait", "sec": 1.5},
+			{"do": "sfx", "name": "gramophone_full"},
+			{"do": "wait", "sec": 2.0},
+			{"say": "miluo", "zh": "慢死了。", "en": ""},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "以前不是这样吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "她嫌慢，自己调快了。", "en": ""},
+			{"say": "miluo", "zh": "调坏了还不认，非说是我听不懂。", "en": ""},
+			{"do": "wait", "sec": 0.8},
+			{"say": "miluo", "zh": "你笑什么，你又没听过她唱。", "en": ""},
+			{"say": "miluo", "zh": "跑得比机器还快。", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"do": "walk", "who": "miluo", "to": "room_box"},
+			{"do": "prop", "id": "room_box", "state": "straight"},
+			{"do": "prop", "id": "room_postcard", "state": "shown"},
+			{"say": "chen", "zh": "那个人去哪里了？", "en": "", "added": true},
+			{"say": "miluo", "zh": "不知道。", "en": "", "added": true},
+			{"do": "face", "who": "chen", "to": "room_postcard"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "只知道去过河流城市。", "en": ""},
+			{"say": "miluo", "zh": "后来呢？后来谁知道。", "en": ""},
+			{"say": "chen", "zh": "她走的时候，没有说吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "说了。", "en": ""},
+			{"say": "chen", "zh": "那你……", "en": ""},
+			{"say": "miluo", "zh": "那时候在吵架，听不懂吗？", "en": ""},
+			{"say": "miluo", "zh": "她收东西，我说想走就走。", "en": ""},
+			{"say": "miluo", "zh": "她站在门口还磨蹭，我又说了一遍。", "en": ""},
+			{"do": "wait", "sec": 2.0},
+			{"say": "miluo", "zh": "我就是气不过。", "en": ""},
+			{"say": "miluo", "zh": "这里又不是只剩坏东西，", "en": ""},
+			{"say": "miluo", "zh": "她说走就走，好像我留在这儿才奇怪。", "en": ""},
+			{"do": "wait", "sec": 1.5},
+			{"say": "miluo", "zh": "以前迟到十分钟都要解释半天。", "en": ""},
+			{"say": "miluo", "zh": "这次倒省事，连借口都不找了。", "en": ""},
+			{"do": "prop", "id": "room_box", "state": "open"},
+			{"say": "miluo", "zh": "你不是正好要去吗？带着。", "en": ""},
+			{"do": "give", "item": "clear_seed"},
+			{"do": "give", "item": "miluo_note"},
+			{"say": "chen", "zh": "要我替你种下吗？", "en": "", "added": true},
+			{"say": "miluo", "zh": "随便。", "en": "", "added": true},
+			{"say": "miluo", "zh": "别埋太深，先浇一点水。", "en": ""},
+			{"say": "miluo", "zh": "还有，不许隔两天就挖出来看。", "en": ""},
+			{"say": "miluo", "zh": "没动静就再等等，哪有那么快。", "en": ""},
+			{"say": "chen", "zh": "你挖过？", "en": "", "added": true},
+			{"say": "miluo", "zh": "你管我！给你讲有用的，你倒会挑重点。", "en": ""},
+			{"say": "chen", "zh": "我会记下来。", "en": "", "added": true},
+			{"do": "journal", "zh": "种子：别埋太深，先浇一点水。不许隔两天就挖出来看。", "en": "", "added": true},
+			{"say": "miluo", "zh": "也不用每句话都记。", "en": ""},
+			{"say": "chen", "zh": "河流城市的地址，能抄一份吗？", "en": "", "added": true},
+			{"do": "wait", "sec": 1.5},
+			{"do": "prop", "id": "room_postcard", "state": "taken"},
+			{"do": "give", "item": "postcard"},
+			{"say": "miluo", "zh": "字不好看，认不出来就问。", "en": ""},
+			{"say": "miluo", "zh": "别抄错了还怪我。", "en": ""},
+			{"do": "if", "flag": "returned_all", "then": "farewell_all", "else": "farewell_check_some"}
+		],
+		"farewell_check_some": [
+			{"do": "if", "flag": "returned_any", "then": "farewell_some", "else": "farewell"}
+		],
+		"farewell_all": [
+			{"say": "miluo", "zh": "三件都送回去了？", "en": "", "added": true},
+			{"say": "chen", "zh": "嗯。路标不转了，指着云那边。", "en": "", "added": true},
+			{"do": "wait", "sec": 1.0},
+			{"say": "miluo", "zh": "……我知道它指哪边。", "en": "", "added": true},
+			{"do": "goto", "scene": "farewell"}
+		],
+		"farewell_some": [
+			{"say": "miluo", "zh": "那只鹿说，你把东西送回去了。", "en": "", "added": true},
+			{"say": "miluo", "zh": "……多事。", "en": "", "added": true},
+			{"do": "goto", "scene": "farewell"}
+		],
+		"farewell": [
+			{"say": "chen", "zh": "种子长出来，我就回来告诉你。", "en": "", "added": true},
+			{"say": "miluo", "zh": "行啊，到时候可别拿一棵随便哪儿拔的草来糊弄我，", "en": ""},
+			{"say": "miluo", "zh": "我认得。", "en": ""},
+			{"say": "chen", "zh": "不会。", "en": "", "added": true},
+			{"say": "miluo", "zh": "还有，先敲门。", "en": ""},
+			{"say": "miluo", "zh": "不是每个人都像我这么好说话，", "en": ""},
+			{"say": "miluo", "zh": "让你砸坏一片树林，还给你修飞机。", "en": ""},
+			{"say": "chen", "zh": "谢谢你。", "en": "", "added": true},
+			{"do": "walk", "who": "chen", "to": "room_door"},
+			{"say": "miluo", "zh": "没长出来，也可以回来。又没说非得长出来。", "en": ""},
+			{"do": "flag", "set": "farewell_done"}
 		],
 		"go_home": [
 			{"do": "fade_to", "room": "forest", "at": "chen_start", "with": ["deer"]},
 			{"do": "show", "who": "deer", "at": "deer_ship"},
+			{"do": "face", "who": "chen", "to": "wreck"},
+			{"do": "anim", "who": "chen", "name": "pickup"},
+			{"do": "wait", "sec": 1.0},
+			{"do": "journal", "zh": "改正：鼻子很长、左边的耳朵会动、树枝在晃——是鹿听来的。", "en": "", "added": true},
 			{"do": "face", "who": "chen", "to": "deer"},
+			{"say": "chen", "zh": "我能找到大象吗？", "en": "", "added": true},
 			{"do": "show_item", "item": "travel_map"},
-			{"say": "chen", "zh": "我能找到大象吗？", "en": ""},
 			{"do": "anim", "who": "deer", "name": "look"},
 			{"do": "wait", "sec": 1.5},
-			{"say": "deer", "zh": "不知道。我只认得这里的路。", "en": ""},
+			{"say": "deer", "zh": "不知道。咱只认得这里的路。", "en": ""},
+			{"do": "wait", "sec": 1.0},
+			{"say": "deer", "zh": "下次来，旧路不一定还是今天这样。", "en": "", "added": true},
+			{"say": "deer", "zh": "先到路口找咱。", "en": "", "added": true},
+			{"say": "chen", "zh": "嗯。", "en": "", "added": true},
 			{"do": "flag", "set": "ready_to_launch"}
 		],
 		"deer_chat_bye": [
 			{"say": "deer", "zh": "路上小心。", "en": "", "added": true},
-			{"say": "deer", "zh": "云层下面的路，我不认得。", "en": "", "added": true},
-			{"say": "deer", "zh": "你回来的话，我在路口等。", "en": "", "added": true},
-			{"say": "chen", "zh": "那我回来的时候，讲给你听。", "en": "", "added": true}
+			{"say": "deer", "zh": "云层底下的路，咱不认得。", "en": "", "added": true},
+			{"say": "chen", "zh": "回来的时候，讲给你听。", "en": "", "added": true}
 		],
 		"launch_go": [
 			{"say": "chen", "zh": "云层下面是什么样，到了再看。", "en": "", "added": true},

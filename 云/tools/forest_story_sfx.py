@@ -1,4 +1,4 @@
-"""森林章节剧本（data/story_forest.json）里的 29 个音效（全部程序生成，以后可以换正式的，文件名不变即可）。
+"""森林章节剧本（data/story_forest.json）里的音效（第一批 29 个 + 第二批 12 个 + 第三批 10 个，全部程序生成，以后可以换正式的，文件名不变即可）。
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/forest_story_sfx.py
 
@@ -10,6 +10,15 @@
   deer_knock   3.6 秒：鹿角敲树两下 + 一段安静；首尾都是精确的 0。
   water_hollow 6.0 秒：塌陷口下面空洞里的水声；尾巴和开头交叉淡化，再把起点挪到过零点。
   两个的 .import 里设了 edit/loop_mode=2（和 rain_loop 一样），播放器不会在接缝处停一帧。
+  alarm_broken 4.0 秒：坏掉的警报，首尾都是 0、接缝在安静处。.import 保持 loop_mode=0（还不知道
+  引擎用 ambient 还是普通 sfx 播它；普通 sfx 设了循环会永远不结束），用 ambient 播就是无缝的。
+
+第二批（剧本补充）：elephant_call_1/2（同一个合成的低鸣，2 更远、被风盖住、回声沿山谷滚走）、
+tree_sway、alarm_broken、musicbox_pat、pen_write、pen_strike、page_turn、cup_set、sugar_drop、
+tool_tap、paper_slide。都加在 JOBS 最后，前 29 个的随机数顺序不变。
+
+第三批（剧本第四版）：tap、sugar、chen_hum（合成的闭口哼，E4→D4，第二个音偏高后断掉）、
+branch_shift、branch_drop、plank_drop、sap_drip、clock_open、radio_static、fire_flare。同样加在最后。
 
 旋律（音乐盒和留声机是同一首，原创）：A 小调五声（A C D E G），3/4 拍，8 小节 24 拍。
   旋律  | E5 - D5 | C5 A4 - | G4 A4 C5 | D5 - - | E5 - G5 | E5 D5 - | C5 A4 G4 | A4 - - |
@@ -819,6 +828,414 @@ def pebbles():
     return wet_forest(band(x, 80, 4500), 0.25)
 
 
+# ================================================================== 剧本补充（第二批）
+def elephant_voice(sec=4.2, seed=0):
+    """大象的低鸣（不是真大象）：很低的一口长音，先往上挑再慢慢落下，像「呜——啊——呜」，
+    元音（共振峰）跟着音量慢慢开合；没有粗糙的颤（不吓人），只有很慢的颤音。
+    基频 58~92Hz，但力气在 2~6 次泛音（150~500Hz），手机喇叭也听得到。"""
+    r = np.random.default_rng(seed)
+    t = tt(sec)
+    n = len(t)
+    f0 = np.interp(t, [0, 0.5, 1.3, 2.4, 3.4, sec], [66, 78, 92, 88, 72, 58])
+    f0 = lp(np.concatenate([np.full(SR, f0[0]), f0]), 3)[SR:]
+    vib = 1 + 0.011 * np.sin(2 * np.pi * 4.2 * t) * np.clip((t - 0.8) / 0.8, 0, 1)
+    vib *= 1 + 0.004 * unit(lp(r.standard_normal(n), 1.5))
+    f0 = f0 * vib
+    env = np.sin(np.pi / 2 * np.clip(t / 0.7, 0, 1)) ** 2 * np.clip((sec - t) / 1.4, 0, 1) ** 1.5
+    env *= 1 + 0.12 * np.sin(np.pi * np.clip(t / sec, 0, 1))
+    F1 = 320 + 200 * np.sin(np.pi * np.clip((t - 0.3) / (sec - 0.8), 0, 1)) ** 1.5
+    F2 = 760 + 260 * np.sin(np.pi * np.clip((t - 0.3) / (sec - 0.8), 0, 1)) ** 1.5
+    ph = 2 * np.pi * np.cumsum(f0) / SR
+    x = np.zeros(n)
+    for k in range(1, 32):
+        fk = k * f0
+        a = (1 / k ** 0.7) * (0.3 + np.exp(-0.5 * ((fk - F1) / 130) ** 2) + 0.55 * np.exp(-0.5 * ((fk - F2) / 210) ** 2))
+        a *= np.clip(env, 1e-4, None) ** (0.06 * (k - 1))       # 越响越亮
+        a *= fk < 2600
+        x += a * np.sin(k * ph + r.uniform(0, 6.28))
+    breath = band(r.standard_normal(n), 150, 1000)
+    x = unit(x) + unit(breath) * 0.05
+    return x * env
+
+
+def elephant_call_1():
+    """开场那次：森林深处一声低鸣，比较清楚，林子里回两下。"""
+    sec = 6.0
+    v = elephant_voice(4.2, seed=4)
+    x = np.zeros(int(sec * SR))
+    add(x, 0.15, v)
+    x = band(x, 40, 1800)
+    dry = x.copy()
+    for d, g, c in ((0.42, 0.30, 1000), (0.95, 0.17, 700)):     # 林间回声
+        add(x, d, lp(dry, c, 2), g)
+    x = reverb(x, decay=2.8, wet=0.45, lo=60, hi=1200, pre=0.04, seed=31)
+    t = tt(sec)
+    return x * np.clip((sec - t) / 0.8, 0, 1)
+
+
+def elephant_call_2():
+    """坡地上那次：同一个声音，更远，被风盖住一半，回声沿山谷一节一节滚过去，越来越暗，没了。"""
+    sec = 8.0
+    v = elephant_voice(4.2, seed=4)
+    x = np.zeros(int(sec * SR))
+    add(x, 0.3, v)
+    x = band(x, 40, 800)
+    dry = x.copy()
+    for d, g, c in ((0.5, 0.45, 700), (1.1, 0.36, 550), (1.8, 0.26, 420), (2.6, 0.16, 330)):
+        add(x, d, lp(dry, c, 2), g)
+    x = reverb(x, decay=3.5, wet=0.6, lo=60, hi=800, pre=0.05, seed=37)
+    t = tt(sec)
+    x = unit(x) * np.clip((sec - t) / 1.2, 0, 1)
+    r = np.random.default_rng(38)
+    gust = 0.55 + 0.45 * unit(lp(r.standard_normal(len(t)), 0.6))
+    wind = unit(band(r.standard_normal(len(t)), 120, 1400)) * gust
+    wind *= np.clip(t / 0.8, 0, 1) * np.clip((sec - t) / 1.5, 0, 1)
+    return x + wind * 0.22
+
+
+def tree_sway():
+    """远处一排树冠依次被推了一下：一阵一阵的沙沙接力过去（先近后远，亮度先升后降）。约 3 秒。
+    文件是单声道；「从一侧移到另一侧」要靠播放时的 pan（或者引擎里把 pan 补间过去）。"""
+    sec = 3.4
+    x = np.zeros(int(sec * SR))
+    r = np.random.default_rng(71)
+    for i in range(6):
+        L = 1.3
+        t = tt(L)
+        u = i / 5
+        cut = 1300 + 1000 * np.sin(np.pi * u)
+        leaf = band(r.standard_normal(len(t)), 350, cut)
+        flutter = 0.35 + unit(lp(np.abs(r.standard_normal(len(t))), 25)) ** 2
+        g = unit(leaf * flutter) * np.sin(np.pi * t / L) ** 1.5 * (0.55 + 0.45 * np.sin(np.pi * (0.2 + 0.8 * u)))
+        add(x, 0.05 + i * 0.38, g)
+    x += unit(band(r.standard_normal(len(x)), 80, 500)) * 0.12 * np.sin(np.pi * np.clip(tt(sec) / sec, 0, 1))   # 一口风
+    return wet_forest(band(x, 150, 2600), 0.3)
+
+
+def alarm_beep(f, dur, amp, sag=1.0):
+    t = tt(dur + 0.05)
+    ff = f * (1 - (1 - sag) * np.clip(t / dur, 0, 1))
+    ph = 2 * np.pi * np.cumsum(ff) / SR
+    x = np.sin(ph) + 0.22 * np.sin(3 * ph) + 0.08 * np.sin(5 * ph)
+    e = np.clip(t / 0.012, 0, 1) * np.clip((dur - t) / 0.03, 0, 1)
+    return x * e * amp
+
+
+def alarm_broken():
+    """飞机里坏掉的警报（循环 4 秒）：闷在机舱里的「嘀—嘟」，一会儿正常，一会儿断一半、
+    一会儿没电似的往下掉，中间有一点电流噼啪。首尾都是 0，接缝在安静处。"""
+    sec = 4.0
+    x = np.zeros(int(sec * SR))
+    HI, LO = 740, 620
+    add(x, 0.20, alarm_beep(HI, 0.18, 1.0))
+    add(x, 0.42, alarm_beep(LO, 0.18, 1.0))
+    add(x, 1.05, alarm_beep(HI, 0.18, 0.85))
+    add(x, 1.27, alarm_beep(LO, 0.06, 0.85))              # 断了
+    add(x, 1.33, burst(0.05, 0.01, 800, 3000) * 0.12)
+    add(x, 1.36, burst(0.03, 0.006, 800, 3000) * 0.08)
+    add(x, 2.15, alarm_beep(HI, 0.30, 0.45, sag=0.93))    # 没电似的往下掉
+    add(x, 2.90, alarm_beep(HI, 0.11, 0.7))               # 匆匆又来一下
+    add(x, 3.05, alarm_beep(LO, 0.11, 0.6))
+    add(x, 3.17, burst(0.04, 0.008, 800, 3000) * 0.08)
+    x = band(x, 250, 1500)                                # 隔着机壳
+    x = wet_room(x, 0.15)
+    x[: int(0.1 * SR)] *= np.linspace(0, 1, int(0.1 * SR)) ** 2
+    x[-int(0.25 * SR):] *= np.linspace(1, 0, int(0.25 * SR)) ** 2
+    x[0] = x[-1] = 0.0
+    return x
+
+
+def musicbox_pat():
+    """在音乐盒的木盒底轻拍两下：手掌软软的「噗、噗」，里面一根簧片被震得很轻地响了一点。"""
+    sec = 1.0
+    x = np.zeros(int(sec * SR))
+    for at, a in ((0.0, 1.0), (0.3, 0.8)):
+        add(x, at, mix(modal([(190, 0.05, 0.6), (450, 0.03, 0.3), (900, 0.015, 0.1)], 0.4),
+                       burst(0.08, 0.018, 60, 600) * 0.35), a)
+    add(x, 0.31, mb_note(76, 0.035))
+    return wet_room(band(x, 60, 3500), 0.15)
+
+
+def pen_strokes(strokes, lo, hi, seed, body=0.25):
+    r = np.random.default_rng(seed)
+    n = int((max(s + d for s, d, _ in strokes) + 0.1) * SR)
+    x = np.zeros(n)
+    for s0, d, a in strokes:
+        t = tt(d)
+        grain = 0.3 + unit(lp(np.abs(r.standard_normal(len(t))), 180)) ** 2
+        g = unit(band(r.standard_normal(len(t)), lo, hi)) * grain
+        g += unit(band(r.standard_normal(len(t)), 200, 800)) * body
+        add(x, s0, g * np.sin(np.pi * t / d) ** 0.6, a)
+    return x
+
+
+def pen_write():
+    """在本子上写几个字：几笔很轻的沙沙。"""
+    x = pen_strokes([(0.0, 0.12, 0.8), (0.15, 0.07, 0.6), (0.25, 0.16, 1.0), (0.45, 0.09, 0.7), (0.57, 0.15, 0.85)],
+                    1300, 4000, 81)
+    return wet_room(band(x, 300, 4500), 0.08)
+
+
+def pen_strike():
+    """用笔划掉一行：落笔一点、一道干脆的长划，越划越快、收笔。"""
+    sec = 0.55
+    t = tt(sec)
+    x = np.zeros(len(t))
+    add(x, 0.0, modal([(1900, 0.006, 0.2), (700, 0.01, 0.2)], 0.04))
+    d = 0.38
+    tl = tt(d)
+    r = np.random.default_rng(83)
+    grain = 0.4 + unit(lp(np.abs(r.standard_normal(len(tl))), 250)) ** 2
+    s = lp_tv(band(r.standard_normal(len(tl)), 900, None), 2200 + 1600 * tl / d)
+    g = unit(s) * grain * np.clip(tl / 0.03, 0, 1) * np.clip((d - tl) / 0.06, 0, 1)
+    g += unit(band(r.standard_normal(len(tl)), 200, 700)) * 0.3 * np.clip((d - tl) / 0.06, 0, 1)
+    add(x, 0.02, g)
+    return wet_room(band(x, 300, 4500), 0.08)
+
+
+def page_turn():
+    """翻一页：纸被掀起来的一点脆响，一口带风的「呼」，落下去轻轻一拍。"""
+    sec = 0.9
+    t = tt(sec)
+    r = np.random.default_rng(87)
+    x = np.zeros(len(t))
+    crink = np.zeros(int(0.35 * SR))
+    for _ in range(40):
+        p = r.integers(0, len(crink) - 400)
+        L = int(r.integers(40, 300))
+        crink[p:p + L] += r.standard_normal(L) * np.exp(-np.arange(L) / (L / 3)) * r.uniform(0.2, 1.0)
+    crink = band(crink, 1500, 4200) * np.linspace(1, 0.3, len(crink))
+    add(x, 0.0, unit(crink) * 0.5)
+    air = unit(band(r.standard_normal(len(t)), 200, 1300)) * np.sin(np.pi * np.clip((t - 0.08) / 0.45, 0, 1)) ** 2
+    x += air * 0.45
+    add(x, 0.5, burst(0.1, 0.022, 150, 900) * 0.6)
+    return wet_room(band(x, 120, 4500), 0.1)
+
+
+def cup_set():
+    """杯子放在木桌上：木头一声闷「嗒」，瓷杯底一点点亮。"""
+    x = mix(modal([(160, 0.04, 0.6), (390, 0.03, 0.35), (820, 0.015, 0.15)], 0.5),
+            modal([(2350, 0.06, 0.16), (3480, 0.035, 0.07)], 0.5),
+            burst(0.02, 0.003, 300, 3000) * 0.25)
+    return wet_room(band(x, 70, 4500), 0.14)
+
+
+def sugar_drop():
+    """一小块糖落进杯子：很小的「扑通」——一个往上挑的小水泡，一点点水花。"""
+    sec = 0.6
+    x = np.zeros(int(sec * SR))
+    for at, f0, f1, a in ((0.0, 900, 1500, 1.0), (0.05, 1250, 1900, 0.4)):
+        tb = tt(0.08)
+        f = f0 + (f1 - f0) * np.clip(tb / 0.03, 0, 1)
+        add(x, at, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tb / 0.016) * np.clip(tb / 0.001, 0, 1), a)
+    add(x, 0.002, burst(0.04, 0.008, 1000, 4000) * 0.25)
+    add(x, 0.0, modal([(2350, 0.03, 0.05)], 0.1))        # 杯子被碰了一下
+    return wet_room(band(x, 300, 4500), 0.15)
+
+
+def tool_tap():
+    """工具柄敲木桌两下：「笃、笃」。"""
+    x = np.zeros(int(0.65 * SR))
+    for at, a in ((0.0, 1.0), (0.2, 0.85)):
+        add(x, at, mix(modal([(260, 0.035, 0.6), (610, 0.025, 0.35), (1250, 0.012, 0.15)], 0.4),
+                       burst(0.012, 0.0018, 800, 3500) * 0.25), a)
+    return wet_room(band(x, 80, 4000), 0.15)
+
+
+def paper_slide():
+    """把明信片推到桌子对面：一道顺滑的纸擦木头的「嘶——」，停住时一点点轻碰。"""
+    sec = 0.85
+    t = tt(sec)
+    r = np.random.default_rng(97)
+    d = 0.6
+    tl = tt(d)
+    grain = 0.6 + 0.4 * unit(lp(np.abs(r.standard_normal(len(tl))), 60))
+    g = unit(band(r.standard_normal(len(tl)), 500, 2600)) * grain
+    g *= np.clip(tl / 0.08, 0, 1) * np.clip((d - tl) / 0.15, 0, 1) ** 1.2
+    x = np.zeros(len(t))
+    add(x, 0.02, g)
+    add(x, 0.6, mix(modal([(700, 0.012, 0.25), (1500, 0.006, 0.1)], 0.05), burst(0.02, 0.004, 200, 1500) * 0.15))
+    return wet_room(band(x, 200, 3500), 0.1)
+
+
+# ================================================================== 剧本第四版（第三批）
+def tap():
+    """指尖轻敲一下木盒（剧本里一下一下地敲不唱的音乐盒）：比 musicbox_pat 小、硬一点，只是「嗒」。"""
+    x = mix(modal([(330, 0.03, 0.5), (760, 0.02, 0.3), (1480, 0.008, 0.12)], 0.3),
+            burst(0.01, 0.0015, 700, 3000) * 0.2)
+    return wet_room(band(x, 100, 3800), 0.12)
+
+
+def sugar():
+    """一小块糖放进杯里：先碰一下瓷杯沿「叮」（小小的、短），再轻轻落进去。和 sugar_drop 的区别是这个主要是杯沿那一下。"""
+    sec = 0.7
+    x = np.zeros(int(sec * SR))
+    add(x, 0.0, mix(modal([(2350, 0.11, 0.5), (3480, 0.06, 0.22), (5100, 0.025, 0.06)], 0.5),
+                    burst(0.008, 0.0012, 1500, 4500) * 0.2))
+    add(x, 0.09, modal([(2350, 0.05, 0.12)], 0.2))          # 在杯沿上又磕一下
+    tb = tt(0.08)
+    f = 800 + 500 * np.clip(tb / 0.03, 0, 1)
+    add(x, 0.2, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tb / 0.014) * np.clip(tb / 0.001, 0, 1), 0.35)
+    return wet_room(band(x, 300, 5000), 0.14)
+
+
+def hum_note(m, dur, cents_fn=None, seed=0, cut_at=None):
+    """闭着嘴的哼（合成，不是人声）：陡降的谐波 + 低的鼻腔共振（约 260Hz），1k 以上压掉，带一点气声。"""
+    r = np.random.default_rng(seed)
+    t = tt(dur)
+    n = len(t)
+    c = np.zeros(n) if cents_fn is None else cents_fn(t)
+    f0 = mtof(m) * 2 ** (c / 1200) * (1 + 0.006 * np.sin(2 * np.pi * 5.0 * t) * np.clip((t - 0.15) / 0.2, 0, 1))
+    ph = 2 * np.pi * np.cumsum(f0) / SR
+    x = np.zeros(n)
+    for k in range(1, 12):
+        fk = k * f0
+        a = (1 / k ** 1.8) * (0.4 + 1.2 * np.exp(-0.5 * ((fk - 260) / 90) ** 2)) * (1 / (1 + (fk / 900) ** 4))
+        x += a * np.sin(k * ph + k)
+    breath = unit(band(r.standard_normal(n), 300, 2200)) * 0.07
+    e = np.sin(np.pi / 2 * np.clip(t / 0.07, 0, 1)) ** 2
+    if cut_at is None:
+        e *= np.clip((dur - t) / 0.12, 0, 1)
+    else:   # 哼到一半断掉：很快收掉，只剩一点气
+        e *= np.clip((cut_at - t) / 0.035, 0, 1)
+        breath = breath * (1 + 2.5 * np.exp(-((t - cut_at - 0.05) / 0.06) ** 2))
+    return unit(x) * e + breath * np.maximum(e, np.exp(-np.clip(t - (cut_at or dur), 0, None) / 0.08) * (t > (cut_at or dur) - 0.05) * 0.8)
+
+
+def chen_hum():
+    """晨跟着音乐盒哼两个音：旋律开头的 E→D（低八度，E4→D4）。第一个音还算准；第二个一出来就偏高
+    （约 +60 音分、还往上飘），哼了一下自己听出不对，断掉，剩一口气。很轻。"""
+    sec = 1.5
+    x = np.zeros(int(sec * SR))
+    add(x, 0.05, hum_note(64, 0.6, lambda t: -8 + 6 * np.clip(t / 0.15, 0, 1), seed=1))
+    add(x, 0.66, hum_note(62, 0.6, lambda t: 55 + 30 * np.clip(t / 0.3, 0, 1) - 20 * np.clip((t - 0.15) / 0.2, 0, 1), seed=2,
+                          cut_at=0.36), 0.7)          # 没把握的音：轻一点
+    return wet_room(band(x, 120, 2500), 0.12)
+
+
+def twig_clicks(sec, count, seed, lo=900, hi=2600):
+    r = np.random.default_rng(seed)
+    x = np.zeros(int(sec * SR))
+    for _ in range(count):
+        f = r.uniform(lo, hi)
+        add(x, r.uniform(0, sec - 0.08), modal([(f, r.uniform(0.006, 0.015), 1.0), (f * 0.52, 0.02, 0.6)], 0.06), r.uniform(0.15, 0.5))
+    return x
+
+
+def branch_shift():
+    """抱着一捆树枝换手：一阵木棍互相磕碰的咔啦、一点干叶子沙沙。"""
+    sec = 0.8
+    t = tt(sec)
+    e = np.sin(np.pi * np.clip(t / 0.6, 0, 1)) ** 0.8
+    x = twig_clicks(sec, 14, 101) * np.clip(1.2 * e, 0, 1)
+    x += unit(drag_grains(sec, 220, 500, 2600, 102)) * 0.18 * e
+    add(x, 0.12, modal([(240, 0.04, 0.3), (520, 0.025, 0.15)], 0.2))     # 整捆在怀里一沉
+    return wet_forest(band(x, 100, 3500), 0.2)
+
+
+def branch_drop():
+    """把最上面那根树枝放到地上：一头先着地「嗒」，另一头再落下、在湿地上弹一下，带点小枝的碰响。"""
+    sec = 0.9
+    x = np.zeros(int(sec * SR))
+    for at, a in ((0.0, 0.8), (0.12, 1.0), (0.24, 0.35)):
+        add(x, at, mix(modal([(300, 0.04, 0.6), (690, 0.025, 0.3), (1300, 0.01, 0.1)], 0.3),
+                       burst(0.05, 0.01, 80, 900) * 0.4), a)
+    add(x, 0.13, twig_clicks(0.3, 5, 103) * 0.6)
+    add(x, 0.13, unit(drag_grains(0.25, 200, 400, 2000, 104)) * 0.1)
+    return wet_forest(band(x, 60, 3500), 0.22)
+
+
+def plank_drop():
+    """木板搭上塌陷口：厚木板落下一声闷「咚」，下面是空的所以有一点空腔的回响，再「嗒」地一下放稳。"""
+    sec = 1.6
+    x = np.zeros(int(sec * SR))
+    hit = mix(modal([(118, 0.12, 0.7), (265, 0.08, 0.4), (520, 0.04, 0.2), (980, 0.015, 0.06)], 0.8),
+              tone(70, 0.4, 0.08, 0.5), burst(0.08, 0.015, 60, 1200) * 0.4)
+    add(x, 0.0, hit)
+    add(x, 0.22, hit, 0.35)                                  # 另一头落稳
+    D = int(0.007 * SR)                                      # 和 water_hollow 一样的空腔（143Hz）
+    y = x.copy()
+    for k in range(1, 8):
+        y[k * D:] += (0.5 ** k) * x[:-k * D] * 0.8
+    y = reverb(band(y, 50, 2500), decay=1.2, wet=0.3, lo=80, hi=1000, pre=0.025, seed=41)
+    return wet_forest(y, 0.15)
+
+
+def sap_drip():
+    """松脂慢慢滴进罐子：几滴很稠的、慢慢拉断的「嗒…」，打在罐底，罐子轻轻地亮一下；一滴比一滴快一点。"""
+    sec = 2.8
+    x = np.zeros(int(sec * SR))
+    at = 0.15
+    r = np.random.default_rng(109)
+    for k in range(5):
+        tb = tt(0.12)
+        f = r.uniform(380, 460) * (1 + 0.5 * np.clip(tb / 0.05, 0, 1))      # 比水滴低、慢、钝
+        d = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tb / 0.03) * np.clip(tb / 0.004, 0, 1)
+        d = mix(d, modal([(1650, 0.08, 0.12), (2900, 0.04, 0.05)], 0.3), burst(0.03, 0.008, 150, 900) * 0.25)
+        add(x, at, d, 0.8 + 0.05 * k)
+        at += 0.62 - 0.06 * k
+    return wet_room(band(x, 120, 4000), 0.14)
+
+
+def clock_open():
+    """撬开旧闹钟的后盖：卡扣「咔」一下松开，盖子刮着边被掀起，里面的铃和弹簧被震得很轻地「叮」了一下。"""
+    sec = 1.0
+    x = np.zeros(int(sec * SR))
+    add(x, 0.0, mix(modal([(1700, 0.008, 0.5), (2900, 0.004, 0.2), (650, 0.015, 0.3)], 0.06),
+                    burst(0.008, 0.0012, 1000, 4500) * 0.25))
+    tl = tt(0.18)
+    sc = unit(band(noise(len(tl)), 1200, 3500)) * (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(70 + 0 * tl) / SR) ** 4)
+    add(x, 0.07, sc * np.sin(np.pi * tl / 0.18) * 0.3)
+    add(x, 0.28, modal([(420, 0.04, 0.35), (980, 0.02, 0.15)], 0.2))      # 盖子放下
+    add(x, 0.3, modal([(2640, 0.35, 0.06), (3960, 0.2, 0.025)], 0.7))     # 铃很轻地一声
+    add(x, 0.3, modal([(820, 0.15, 0.05), (1230, 0.1, 0.03)], 0.5))       # 弹簧嗡一下
+    return wet_room(band(x, 150, 5000), 0.12)
+
+
+def radio_static():
+    """旧收音机：短短一段沙沙，忽大忽小，偶尔噼啪；底下若有若无飘过一点远处电台的残音（说不清是人声还是音乐）。"""
+    sec = 2.0
+    t = tt(sec)
+    n = len(t)
+    r = np.random.default_rng(113)
+    sw = 0.65 + 0.35 * unit(lp(r.standard_normal(n), 2.5))
+    st = unit(band(r.standard_normal(n), 350, 2800, order=4)) * sw
+    cr = np.zeros(n)
+    for p in r.integers(0, n, 30):
+        cr[p] = r.uniform(-1, 1)
+    st += unit(band(cr, 500, 3000)) * 0.35
+    # 残音：很远的一点和弦 + 按音节一开一合的「人声」共振，忽隐忽现
+    fade = np.clip(0.5 + 0.8 * np.sin(2 * np.pi * 0.7 * t + 1.0), 0, 1) ** 2
+    chord = sum(np.sin(2 * np.pi * mtof(m) * t * (1 + 0.003 * np.sin(2 * np.pi * 0.4 * t))) for m in (57, 64, 69))
+    syl = (0.5 + 0.5 * np.sin(2 * np.pi * 3.7 * t)) ** 2
+    voice = peak_eq(band(r.standard_normal(n), 400, 1800), 700, 8, 1.5) * syl
+    ghost = band(unit(chord) * 0.6 + unit(voice) * 0.5, 450, 1800) * fade
+    x = st * 0.75 + ghost * 0.22
+    x *= np.clip(t / 0.04, 0, 1) * np.clip((sec - t) / 0.25, 0, 1)
+    return wet_room(x, 0.08)
+
+
+def fire_flare():
+    """炉子里加了一块树脂：「呼」地亮一下（噪声一下变亮再落回去），几下油脂的噼啪，底下一口暖的低音。"""
+    sec = 2.0
+    t = tt(sec)
+    n = len(t)
+    w = noise(n)
+    cut = 250 + 1500 * np.exp(-((t - 0.3) / 0.22) ** 2) * (t > 0.08) + 500 * np.clip((t - 0.08) / 0.15, 0, 1) * np.exp(-np.clip(t - 0.5, 0, None) / 0.5)
+    roar = lp_tv(lp_tv(band(w, 60, None), cut), cut)
+    roar = unit(roar) * np.clip((t - 0.06) / 0.12, 0, 1) * (0.35 + 0.65 * np.exp(-np.clip(t - 0.35, 0, None) / 0.45)) * np.clip((sec - t) / 0.5, 0, 1)
+    cr = np.zeros(n)
+    r = np.random.default_rng(127)
+    for _ in range(18):
+        p = int(r.uniform(0.15, 1.6) * SR)
+        L = int(r.integers(80, 400))
+        cr[p:p + L] += r.standard_normal(L) * np.exp(-np.arange(L) / (L / 4)) * r.uniform(0.2, 0.8)
+    cr = band(cr, 300, 3000)
+    body = unit(band(noise(n), 40, 180)) * 0.5 * np.exp(-((t - 0.35) / 0.35) ** 2)
+    x = roar * 0.75 + unit(cr) * 0.35 + body
+    return wet_room(band(x, 40, 3200), 0.12)
+
+
 # ================================================================== 主程序
 JOBS = [
     ("metal_clank", metal_clank, 0.55),
@@ -850,8 +1267,32 @@ JOBS = [
     ("gramophone_full", lambda: gramophone_full(False), 0.5),
     ("gramophone_quiet", lambda: gramophone_full(True), 0.24),
     ("engine_start", engine_start, 0.8),
+    # 第二批（剧本补充）：加在最后，前面 29 个的随机数顺序不变，重跑结果一样
+    ("elephant_call_1", elephant_call_1, 0.7),
+    ("elephant_call_2", elephant_call_2, 0.5),
+    ("tree_sway", tree_sway, 0.4),
+    ("alarm_broken", alarm_broken, 0.3),
+    ("musicbox_pat", musicbox_pat, 0.4),
+    ("pen_write", pen_write, 0.18),
+    ("pen_strike", pen_strike, 0.24),
+    ("page_turn", page_turn, 0.3),
+    ("cup_set", cup_set, 0.42),
+    ("sugar_drop", sugar_drop, 0.28),
+    ("tool_tap", tool_tap, 0.42),
+    ("paper_slide", paper_slide, 0.24),
+    # 第三批（剧本第四版）
+    ("tap", tap, 0.32),
+    ("sugar", sugar, 0.26),
+    ("chen_hum", chen_hum, 0.24),
+    ("branch_shift", branch_shift, 0.38),
+    ("branch_drop", branch_drop, 0.45),
+    ("plank_drop", plank_drop, 0.65),
+    ("sap_drip", sap_drip, 0.32),
+    ("clock_open", clock_open, 0.32),
+    ("radio_static", radio_static, 0.22),
+    ("fire_flare", fire_flare, 0.5),
 ]
-LOOPS = {"deer_knock", "water_hollow"}
+LOOPS = {"deer_knock", "water_hollow", "alarm_broken"}
 
 
 def report():

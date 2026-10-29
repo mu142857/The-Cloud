@@ -204,7 +204,7 @@ def _step_table():
     """颜色 -> (色阶, 下标)：tint 先在自己那条色阶里往暗走，色数不会因为阴影翻倍。"""
     if not _STEP:
         for pal in (BARK, WOOD, WOOD_C, PAINT, TIN, MOSS, SOIL, STONE, DRY, DUST, GLOW, COPPER, CLOTH, AWN, AWN_W,
-                    RESIN, WATER, TAG):
+                    RESIN, WATER, TAG, ROCK, RUST):
             for i, c in enumerate(pal):
                 _STEP.setdefault(tuple(int(v) for v in c), (pal, i))
     return _STEP
@@ -224,6 +224,16 @@ def tint(s, m, target, t):
             c = pal[0]
             t = t * (n - i) / n
         s.a[y, x, :3] = mixc(c, target, t)
+
+
+def step_tone(s, m, k):
+    """把 m 里每个像素在它自己那条色阶里挪 k 档（负 = 暗）；不认识的颜色不动。"""
+    tab = _step_table()
+    for y, x in zip(*np.nonzero(m)):
+        c = tuple(int(v) for v in s.a[y, x, :3])
+        if c in tab:
+            pal, i = tab[c]
+            s.a[y, x, :3] = pal[int(np.clip(i + k, 0, len(pal) - 1))]
 
 
 def sink_bottom(s, rows=4, amount=0.45, target=GROUND_DARK):
@@ -748,17 +758,22 @@ def empty_house():
 
 
 def empty_item():
-    """门边早就放好的东西：一个用布包好、细绳十字捆着的小包，挂着一张小纸牌；顶上也落了灰。"""
+    """门边早就放好的东西：一个纸包，包装纸褪了色（发灰、发白，顶上落了灰，边角泡过水），
+    但捆它的细绳比纸新一档——颜色还实、没落灰，顶上一个刚系过的结，两个绳头翘着。挂一张小纸牌。"""
     s = Spr(12, 10)
     box = s.rect(1, 3, 9, 9)
     u, v = bbox_uv(s, box)
-    s.fill(box, WOOD_C, 2.8 - 1.4 * u - 0.6 * (s.yy == 9))
-    s.fill(s.rect(1, 3, 9, 3), DUST, 1.4 - 0.8 * (s.xx > 6))          # 灰
-    s.fill(s.rect(5, 3, 5, 9) | s.rect(1, 6, 9, 6), WOOD, 4)           # 细绳
-    s.put(5, 2, WOOD[4])
-    s.put(4, 2, WOOD[3])
-    s.put(6, 2, WOOD[3])
-    s.put(10, 7, WOOD[3])
+    s.fill(box, DUST, 1.6 - 1.2 * u - 0.6 * (s.yy == 9))             # 褪了色的包装纸
+    s.fill(s.rect(1, 3, 9, 3), DUST, 2 - 0.8 * (s.xx > 6))             # 顶上的灰
+    s.fill(s.rect(1, 8, 3, 9) | s.rect(8, 9, 9, 9), DUST, 0)            # 泡过水的边角，发暗
+    s.fill(s.rect(5, 3, 5, 9) | s.rect(1, 6, 9, 6), WOOD, 1.2)          # 新一点的细绳：颜色实、压在灰上面
+    s.put(5, 6, WOOD[0])
+    s.put(5, 2, WOOD[3])                                                # 绳结和两个翘起来的绳头
+    s.put(4, 2, WOOD[1])
+    s.put(6, 2, WOOD[1])
+    s.put(3, 1, WOOD[2])
+    s.put(7, 1, WOOD[2])
+    s.put(10, 7, WOOD[1])
     s.fill(s.rect(10, 8, 11, 9), TAG, 1)                              # 纸牌
     s.put(11, 9, TAG[0])
     return s
@@ -1425,9 +1440,641 @@ def mat_branch():
     return s
 
 
+# ================================================================ 第三版：新地方和新物件
+# 林间空地 glade（岩画、信号箱、路标底座）、旧路上的小空屋 road_house、老松树、木板和木板桥、
+# 空屋窗台上的闹钟、送还以后摆回原处的收音机 / 路标 / 油灯。
+# 「叠在宿主上」的图（闹钟、placed_*）在同名 json 里写 host 和 offset：
+#   offset = 这张图的锚点（底边中点）相对宿主锚点（宿主底边中点）的像素偏移，y 往上是负。
+#   锚点的像素约定：底边中点 = 第 w//2 列、最后一行。
+
+ROCK = R("#2c3430", 7, 0.3)            # 空地的大岩石：冷灰绿
+RUST = H("#2c2421", "#3e2f2a", "#4e3a31", "#5b4638")   # 铁锈（暗、灰，不跳）
+
+
+def anchor_offset(host_w, host_h, px, py):
+    """宿主图里的像素 (px, py) 相对宿主锚点的偏移。"""
+    return [int(px - host_w // 2), int(py - (host_h - 1))]
+
+
+# ---------------------------------------------------------------- 林间空地的岩画
+
+def glade_rock():
+    """林间空地的大岩石（正侧面）：一块风化的大石头，顶面朝天受光、左面朝光、右面背光，几道自然裂缝，
+    顶上长苔、往下垂；正面刻着一只很古老的、画得不准的大象——像小孩画的：身子一个圈，头一个圈，
+    头上两只耳朵，长鼻子一直拖到地上还卷了一下，四条腿长短不齐，一截小尾巴，一个点当眼睛；
+    旁边一个很小的小人，举着手指着它。刻痕是凹下去的线：线本身暗，线的右下沿接到光亮一档。
+    苔藓和风化把一条后腿、一段背和小人的半边吃掉了，所以看得出是「刻上去的画」，但不清楚。"""
+    W, Hh = 124, 72
+    s = Spr(W, Hh)
+    gy = Hh - 1
+    # 轮廓：一块有棱有角的大石头，左高右低，顶上崩掉一个缺口，右下压着一块小石头
+    outline = [(2, 72), (1, 58), (4, 46), (7, 36), (12, 26), (19, 18), (31, 13), (46, 11), (57, 8), (63, 4),
+               (70, 8), (84, 9), (98, 12), (108, 17), (113, 25), (117, 37), (121, 50), (123, 60), (123, 72)]
+    sil = s.poly(outline)
+    # 顶面：沿着上沿往下 7~10 格的一条带（朝天，最亮）
+    top_pts = outline[3:17]
+    top = s.poly(top_pts + [(x + (4 if x < 60 else -3), y + (8 if 20 < x < 100 else 6)) for x, y in reversed(top_pts)])
+    top &= sil
+    left = s.poly([(1, 58), (4, 46), (7, 36), (12, 26), (16, 30), (13, 44), (11, 58), (12, 72), (2, 72)])
+    right = s.poly([(98, 12), (108, 17), (113, 25), (117, 37), (121, 50), (123, 60), (123, 72), (106, 72), (108, 56),
+                    (104, 40), (103, 26), (96, 19)])
+    face = sil & ~top & ~left & ~right
+    face_hi = face & (s.xx + 0.9 * s.yy < 80)
+    s.fill(sil, ROCK, 3)
+    s.fill(face, ROCK, 2.6)
+    s.fill(face_hi, ROCK, 3.2)
+    s.fill(top, ROCK, 5.2 - 0.8 * (s.xx > 90))
+    s.fill(left, ROCK, 3.8)
+    s.fill(right, ROCK, 1.4)
+    s.fill(right & (s.xx > 116), ROCK, 0.8)
+    # 顶上崩掉的缺口：露出新一点的断面（亮一档）
+    chip = s.poly([(58, 8), (63, 4), (70, 8), (67, 13), (60, 12)]) & sil
+    s.fill(chip, ROCK, 5.4 - 1.2 * (s.xx > 66))
+    # 顶面下沿那条棱：朝光的地方亮一线
+    tb = edges(top)[1] & ~edges(sil)[1]
+    s.fill(shift(tb, 0, 1) & face, ROCK, 1.6)
+    # 风化的面：几大片比周围暗一档（不规则的块，不是网格）
+    for cx_, cy_, rx_, ry_ in ((98, 34, 5, 9), (18, 50, 5, 6)):
+        m = s.poly([(cx_ - rx_, cy_), (cx_ - rx_ // 2, cy_ - ry_), (cx_ + rx_, cy_ - ry_ // 2), (cx_ + rx_ // 2, cy_ + ry_),
+                    (cx_ - rx_ + 2, cy_ + ry_ // 2)]) & face
+        s.fill(m, ROCK, 1.9)
+    # 右下压着的一块小石头
+    pebble = s.poly([(102, 72), (105, 64), (112, 60), (120, 62), (123, 72)])
+    s.fill(pebble, ROCK, 2.4 - 1.2 * (s.xx > 115) + 1.4 * edges(pebble)[0])
+    # 自然裂缝：粗细不匀、走向乱、两头尖（和刻痕区分开）
+    for pts in (((99, 13), (101, 20), (99, 27), (102, 37), (100, 46)), ((72, 8), (73, 13))):
+        cm = s.line(*pts) & sil
+        s.fill(cm, ROCK, 0.4)
+        s.fill(shift(cm, -1, 0) & sil & ~cm, ROCK, 1.6)
+
+    # ---- 凿刻的大象（坐标是石头上的像素）：没有连续的线，只有一下下敲出来的浅凹坑。
+    # 每个坑 = 那块岩石本身的颜色暗一档；坑的下沿 / 右下一像素接到光，亮一档——读出来是「凹进去」。
+    # 只靠坑的疏密排出大致轮廓：圆滚的身子、一只大耳朵的弧、一条往下垂再往外卷的鼻子；腿只是几列往下排的坑。
+    ox, oy = 4, 2
+    prng = np.random.default_rng(83)
+    pits = np.zeros((Hh, W), bool)
+    keep_lines = np.zeros((Hh, W), bool)          # 鼻子、耳朵：苔不准盖
+    SHAPES = ((1, 1), (2, 1), (1, 2), (2, 2), (2, 1), (2, 2))
+
+    def pit_at(x, y, big=False, keep=False):
+        w_, h_ = ((2, 2) if prng.random() < 0.6 else (2, 1)) if big else SHAPES[int(prng.integers(0, len(SHAPES)))]
+        x = int(round(x + ox + prng.uniform(-0.6, 0.6)))
+        y = int(round(y + oy + prng.uniform(-0.6, 0.6)))
+        m = s.rect(x, y, x + w_ - 1, y + h_ - 1)
+        nonlocal_pits[0] |= m
+        if keep:
+            nonlocal_keep[0] |= m
+    nonlocal_pits, nonlocal_keep = [pits], [keep_lines]
+
+    def along(pts, step, skip=0.0, **kw):
+        """沿折线每隔 step 敲一个坑；skip 的概率漏掉一个（风化 / 没敲到）。"""
+        P = np.array(pts, float)
+        seg = np.hypot(*np.diff(P, axis=0).T)
+        total = seg.sum()
+        t = prng.uniform(0, step * 0.5)
+        while t < total:
+            k = int(np.searchsorted(np.cumsum(seg), t, side="right"))
+            k = min(k, len(seg) - 1)
+            t0 = np.cumsum(seg)[k] - seg[k]
+            f = (t - t0) / seg[k]
+            x, y = P[k] + (P[k + 1] - P[k]) * f
+            if prng.random() >= skip:
+                pit_at(x, y, **kw)
+            t += step * prng.uniform(0.8, 1.25)
+
+    def arc(cx, cy, rx, ry, a0, a1, n=48):
+        aa = np.radians(np.linspace(a0, a1, n))
+        return list(zip(cx + rx * np.cos(aa), cy + ry * np.sin(aa)))
+
+    along(arc(63, 41, 18, 11, -150, 150), 2.9, skip=0.15)                     # 身子（左前方被耳朵挡住的那截不敲）
+    along(arc(47, 37, 7, 10, -115, 115), 2.2, big=True, keep=True)            # 大耳朵的弧
+    along(arc(38, 36, 6.5, 6, 150, 300), 3.0, skip=0.1)                       # 头顶和脸
+    along([(33, 40), (30, 45), (29, 50), (29, 55), (27, 58), (24, 58), (22, 56), (23, 53)], 2.1, big=True, keep=True)  # 鼻子：垂下来，往外卷
+    for x0, y1 in ((51, 60), (58, 59), (71, 60), (78, 58)):                   # 腿：几列往下排的坑
+        along([(x0, 53), (x0 + prng.uniform(-0.5, 0.5), y1)], 3.0, skip=0.25)
+    along([(82, 38), (86, 42), (87, 46)], 3.0)                                # 小尾巴
+    pit_at(35, 34)                                                            # 眼睛
+    for _ in range(9):                                                        # 身子里零星几个坑（人为凿过的一片）
+        a_ = prng.uniform(0, 2 * np.pi)
+        r_ = np.sqrt(prng.uniform(0.05, 0.6))
+        pit_at(63 + 16 * r_ * np.cos(a_), 41 + 9 * r_ * np.sin(a_))
+    # 小人：也是凿坑，头一个大坑，身子、腿、举起来指着大象的手几个小坑
+    pit_at(90.5, 43.5, big=True)
+    along([(91, 47), (91, 54)], 2.6)
+    along([(91, 55), (89, 59)], 2.5)
+    along([(92, 55), (93, 59)], 2.5)
+    along([(90, 49), (86, 45)], 2.4)
+    pits = nonlocal_pits[0] & (face | face_hi | left)
+    keep_lines = nonlocal_keep[0] & pits
+    lip = (shift(pits, 0, 1) | shift(pits, 1, 1)) & ~pits & sil
+    step_tone(s, pits, -1)
+    step_tone(s, lip, +1)
+    step_tone(s, lip & ((shift(keep_lines, 0, 1) | shift(keep_lines, 1, 1))), +1)   # 鼻子和耳朵敲得深一点，下沿的光也亮一点
+
+    # ---- 苔：长在顶上、往下垂成一道道帘子；从地上往上爬；背光的右面一大片。
+    # 一道帘子正好垂过大象的背，地上的苔吃掉一条后腿的脚，右边那片吃掉小人的半边身子。
+    mrng = np.random.default_rng(85)
+    moss = top & (noise(s, 85, (7, 2)) > 0.1)
+    top_y = np.array([np.nonzero(sil[:, x])[0].min() if sil[:, x].any() else Hh for x in range(W)])
+    for x0, x1, ln0 in ((61, 75, 34), (26, 33, 9), (88, 95, 14)):          # 从顶上垂下来的帘子
+        for x in range(x0, x1 + 1):
+            edge = 1 - abs((x - (x0 + x1) / 2) / ((x1 - x0) / 2 + 1))
+            ln_ = int(ln0 * (0.35 + 0.65 * edge) * mrng.uniform(0.6, 1.0))
+            moss[top_y[x]:top_y[x] + 6 + ln_, x] = True
+    for x0, x1, h0 in ((64, 80, 8), (4, 22, 7), (40, 52, 3)):              # 从地上往上爬
+        for x in range(x0, x1 + 1):
+            edge = 1 - abs((x - (x0 + x1) / 2) / ((x1 - x0) / 2 + 1))
+            hh = int(h0 * (0.3 + 0.7 * edge) * mrng.uniform(0.6, 1.0))
+            moss[gy - hh:gy + 1, x] = True
+    moss |= s.poly([(103, 22), (110, 26), (114, 40), (112, 58), (104, 64), (96, 60), (99, 50), (100, 36)])   # 背光面那一大片
+    moss = clean(clean(moss & sil & ~dilate(keep_lines, 2)))
+    mt, _, _, _ = edges(moss)
+    s.fill(moss, MOSS, 1.2 + 1.0 * (s.xx < 90) + 0.6 * (s.yy < 24) - 0.6 * (s.yy > gy - 10))
+    s.fill(mt & (s.xx < 100), MOSS, 3.2)
+    # 地衣：几小块浅的
+    for x, y in ((24, 44), (25, 44), (24, 45), (84, 26), (85, 26), (16, 52), (102, 30), (103, 30)):
+        s.put(x, y, mixc(ROCK[4], from_hex("#6f7a62"), 0.4))
+    # 石脚：贴地那几行压暗，长几丛蕨和草
+    rng = np.random.default_rng(87)
+    for x in range(0, W):
+        if sil[gy, x] and rng.random() < 0.3:
+            for k in range(int(rng.integers(1, 4))):
+                s.put(x, gy - k, MOSS[1 + (k > 0)])
+    despeckle(s)
+    sink_bottom(s, 5, 0.5)
+    return s
+
+
+# ---------------------------------------------------------------- 信号箱、路标底座
+
+def signal_box():
+    """废弃的信号箱：一根铁杆撑着一只铁皮箱，斜顶，顶上一只灭了的信号灯；锈一片片往下淌；
+    门往左半开着（侧着看只剩一条窄的门板，露出门里那面），箱里看得到零件：一只阀门手轮、一根弹簧、几根线。"""
+    W, Hh = 32, 52
+    s = Spr(W, Hh)
+    gy = Hh - 1
+    # 底座和杆
+    s.fill(s.rect(11, gy - 3, 22, gy), STONE, 2.0 + 1.0 * (s.yy == gy - 3) - 0.8 * (s.xx > 20))
+    pole = s.rect(15, 30, 18, gy - 4)
+    s.fill(pole, TIN, 1.6 + 1.2 * (s.xx == 15) - 0.8 * (s.xx == 18))
+    s.fill(pole & (noise(s, 91, (2, 4)) > 0.15), RUST, 1)
+    # 箱子
+    bx0, bx1, by0, by1 = 10, 29, 9, 31
+    box = s.rect(bx0, by0, bx1, by1)
+    s.fill(box, TIN, 2.3 - 1.4 * ((s.xx - bx0) / (bx1 - bx0)) + 0.6 * (s.xx == bx0))
+    roof = s.poly([(bx0 - 2, by0), (bx1 + 2, by0), (bx1 + 1, by0 - 3), (bx0 - 1, by0 - 4)])
+    s.fill(roof, TIN, 3.2 - 1.2 * (s.xx > 24) - 1.0 * (s.yy == by0))
+    # 门洞（门开着）：里面暗
+    cav = s.rect(bx0 + 3, by0 + 3, bx1 - 3, by1 - 3)
+    s.fill(cav, BARK, 0.5)
+    s.fill(s.rect(bx0 + 3, by0 + 3, bx1 - 3, by0 + 4), BARK, 0.1)       # 门洞顶上那道影
+    # 里面的零件：阀门手轮（亮一点的铜）、一根弹簧、几根线、一只小表
+    vx, vy = 22, 17
+    wheel = s.ell(vx, vy, 3.6, 3.6) & ~s.ell(vx, vy, 2.2, 2.2)
+    s.fill(wheel, COPPER, 1.4 + round_tone(s, vx, vy, 3.6, 3.6))
+    s.fill(s.rect(vx - 1, vy - 1, vx - 1, vy - 1) | s.line((vx - 3, vy - 1), (vx + 1, vy - 1)), COPPER, 1)
+    s.fill(s.rect(vx - 1, vy + 3, vx - 1, by1 - 4), TIN, 1.4)           # 手轮下面的管
+    for k in range(5):                                                  # 弹簧：一圈一圈
+        y = by0 + 12 + 2 * k
+        s.fill(s.line((14, y), (17, y + 1)), TIN, 3)
+    s.fill(s.rect(14, by0 + 10, 14, by0 + 11) | s.rect(17, by0 + 21, 17, by0 + 22), TIN, 2)
+    for pts, t in ((((14, by0 + 4), (15, by0 + 7), (13, by0 + 9)), 1), (((26, by0 + 4), (25, by0 + 12), (26, by1 - 4)), 0.6)):
+        s.fill(s.line(*pts) & cav, RUST, t)
+    s.fill(s.ell(16, by0 + 6, 1.6, 1.6), TAG, 0)
+    s.put(16, by0 + 6, TIN[0])
+    # 门：往左半开，看到门里那面（暗），门边亮一线；一个铰链
+    door = s.poly([(bx0 - 7, by0 + 2), (bx0, by0 + 1), (bx0, by1), (bx0 - 7, by1 - 2)])
+    s.fill(door, TIN, 1.0 + 0.8 * edges(door)[0])
+    s.fill(s.line((bx0 - 7, by0 + 2), (bx0 - 7, by1 - 2)), TIN, 2.6)
+    s.fill(door & (noise(s, 93, (2, 3)) > 0.1), RUST, 0.8)
+    s.put(bx0, by0 + 5, TIN[3])
+    s.put(bx0, by1 - 4, TIN[3])
+    # 锈：从顶上和铆钉往下淌的竖条
+    rust = box & ~cav & (((s.xx * 7) % 5 == 0) & (s.yy < by0 + 3 + (s.xx * 13) % 9) | (noise(s, 95, (3, 4)) > 0.3))
+    s.fill(rust, RUST, 2 - 1.0 * (s.xx > 24))
+    for x in (bx0 + 1, bx1 - 1):
+        for y in (by0 + 1, by1 - 1):
+            s.put(x, y, TIN[3] if x < 20 else TIN[1])
+    # 顶上的信号灯（灭的）
+    s.fill(s.rect(17, 1, 21, 5), TIN, 1.6 + (s.xx == 17))
+    s.fill(s.rect(18, 2, 20, 4), BARK, 0.8)
+    s.put(18, 2, WATER[1])
+    s.fill(s.rect(16, 0, 22, 0), TIN, 2.6)
+    s.fill(s.rect(19, 6, 19, by0 - 4), TIN, 1.4)
+    # 杆脚的草
+    for x, h_ in ((12, 2), (13, 3), (19, 2), (21, 4), (22, 2)):
+        for k in range(h_):
+            s.put(x, gy - 2 - k, MOSS[1 + (k > 0)])
+    despeckle(s)
+    sink_bottom(s, 3, 0.4)
+    return s
+
+
+SIGN_BASE_TOP = 11          # 底座顶上插杆的那一行离底边多高（placed_sign 的偏移用）
+
+
+def sign_base():
+    """路标原来的底座：一截断掉的粗木桩，顶上参差的断茬，中间一道铁箍（锈，两颗铆钉），顶上留着插杆的方孔。"""
+    W, Hh = 16, 15
+    s = Spr(W, Hh)
+    gy = Hh - 1
+    post = s.rect(3, 3, 12, gy)
+    s.fill(post, WOOD, 3.0 - 1.8 * ((s.xx - 3) / 9) + 0.8 * (s.xx == 3) - 0.9 * (((s.xx - 3) % 4) == 3))
+    # 断茬：几根尖
+    for x, h_ in ((3, 1), (4, 3), (5, 2), (10, 3), (11, 1), (12, 2)):
+        for k in range(h_):
+            s.put(x, 2 - k, DRY[2 if x < 8 else 1])
+    s.fill(s.rect(6, 2, 9, 3), DRY, 3)           # 断口的浅木头
+    s.fill(s.rect(7, 3, 8, 3), BARK, 0.2)        # 插杆的方孔
+    # 铁箍
+    band = s.rect(2, 7, 13, 9)
+    s.fill(band, RUST, 2 - (s.yy == 9) - 0.8 * (s.xx > 10) + 0.8 * (s.yy == 7))
+    s.put(4, 8, TIN[3])
+    s.put(11, 8, TIN[1])
+    s.fill(s.rect(2, 10, 13, 10), RUST, 0.5)     # 锈往下淌一道
+    for x, h_ in ((1, 2), (2, 3), (13, 2), (14, 3), (15, 1)):
+        for k in range(h_):
+            s.put(x, gy - k, MOSS[1 + (k > 0)])
+    s.put(5, 12, MOSS[2])
+    s.put(5, 13, MOSS[2])
+    sink_bottom(s, 2, 0.35)
+    return s
+
+
+# ---------------------------------------------------------------- 老松树
+
+def pine_sap():
+    """商店旁边的老松树，下半截（树干从画面外下来）：一片片龟裂的厚树皮，底下板根撑开；
+    齐胸高有一道很老的伤口，露出里面的木头，松脂顺着往下淌成几道「眼泪」，挂着两滴。
+    帧 0 平常，帧 1 松脂上的反光闪一下（亮两三个像素）。"""
+    W, Hh = 60, 232
+    gy = Hh - 1
+    frames = []
+    base = Spr(W, Hh)
+    s = base
+    cx = 30
+    rng = np.random.default_rng(101)
+    sy = s.yy + (GROUND - gy)
+    jit = np.repeat(np.random.default_rng(102).integers(-9, 10, W // 3 + 2), 3)[:W]
+    canopy_dark = np.clip(np.floor((124 - sy + jit[None, :]) / 20), 0, 4) * 0.5
+    trunk = np.zeros((Hh, W), bool)
+    left = np.zeros(Hh)
+    right = np.zeros(Hh)
+    for y in range(Hh):
+        half = 13 + 2 * (y / Hh)
+        fl = max(0, y - (Hh - 30))
+        half += (fl / 30) ** 2.4 * 14
+        left[y] = cx - half + 0.8 * np.sin(y / 19)
+        right[y] = cx + half + 0.8 * np.sin(y / 23 + 1)
+        trunk[y, int(round(left[y])):int(round(right[y])) + 1] = True
+    u = np.clip((s.xx - left[:, None]) / (right - left)[:, None], 0, 1)
+    tone = 0.9 + 4.4 * np.clip(1 - np.abs(u - 0.2) / 0.8, 0, 1) ** 1.2
+    tone[u < 0.04] -= 0.8
+    # 松树皮：不规则的大鳞片，竖着偏长，大小形状都乱；块和块之间是又深又曲折的裂沟。
+    # 做法：在「树干展开」的坐标里撒点（竖向压扁的距离 = 鳞片竖长），每个像素归最近的点；
+    # 最近和次近差不多远的地方就是裂沟。坐标先用两层正弦扭一下，沟就弯弯曲曲、不成行。
+    uu = u * 5.0                                            # 横向：一面看过去约 4~5 块鳞片
+    vv = s.yy / 13.0                                        # 竖向：鳞片高约是宽的 2 倍多
+    wu = uu + 0.22 * np.sin(s.yy / 6.0 + uu * 1.3) + 0.1 * np.sin(s.yy / 2.7 + 2.0)
+    wv = vv + 0.25 * np.sin(uu * 2.3 + s.yy / 9.0)
+    pts = []
+    for k in range(int(5 * Hh / 13.0 * 0.8)):
+        pts.append((rng.uniform(-0.3, 5.3), rng.uniform(-1, Hh / 13.0 + 1), rng.uniform(0.7, 1.4)))
+    d1 = np.full((Hh, W), 1e9)
+    d2 = np.full((Hh, W), 1e9)
+    cid = np.zeros((Hh, W), int)
+    for k, (pu, pv, sc) in enumerate(pts):
+        d = np.hypot(wu - pu, (wv - pv) * 0.9) / sc          # sc：有的块大、有的块小
+        closer = d < d1
+        d2 = np.where(closer, d1, np.minimum(d2, d))
+        cid = np.where(closer, k, cid)
+        d1 = np.where(closer, d, d1)
+    crack = trunk & ((d2 - d1) < 0.16)
+    deep = trunk & ((d2 - d1) < 0.07)
+    plate_off = np.array([rng.choice([-0.5, 0, 0, 0.4, 0.8]) for _ in pts])[cid]
+    tone = tone + plate_off
+    tone[crack] -= 1.8
+    tone[deep] -= 0.8
+    # 鳞片是凸起来的：每块左上沿（挨着沟）接到光，右下沿掉进沟里那一线暗
+    plate = trunk & ~crack
+    rim_lit = plate & (shift(crack, 1, 0) | shift(crack, 0, 1)) & (u < 0.75)
+    rim_dark = plate & (shift(crack, -1, 0) | shift(crack, 0, -1))
+    tone[rim_lit] += 0.8
+    tone[rim_dark & ~rim_lit] -= 0.5
+    tone -= canopy_dark * 1.2
+    s.fill(trunk, BARK, tone)
+    # 板根顶上受光、长苔
+    rt = edges(trunk)[0]
+    s.fill(clean(dilate(rt, 1) & trunk & (s.yy > gy - 28) & (noise(s, 104, (4, 2)) > -0.1)), MOSS, 2.2)
+    # 伤口：一道竖长的、边缘卷起来的口子，里面是浅的木头
+    wy0, wy1 = gy - 52, gy - 30
+    wcx = cx - 3
+    wound = s.ell(wcx, (wy0 + wy1) / 2, 4.5, (wy1 - wy0) / 2) & trunk
+    lipm = dilate(wound, 1) & ~wound & trunk
+    s.fill(lipm, BARK, np.where(s.xx < wcx, 5.2, 2.4))
+    s.fill(wound, DRY, 2.2 + 1.0 * (s.xx < wcx - 1) - 1.0 * (s.yy > wy1 - 6))
+    s.fill(wound & (s.xx == wcx + 1) & (s.yy > wy0 + 3) & (s.yy < wy1 - 3), DRY, 1)   # 木头的纹
+    # 松脂：从伤口里往下淌，几道「眼泪」，末端挂一滴
+    sap = np.zeros((Hh, W), bool)
+    for x0, y0, ln_ in ((wcx - 2, wy0 + 5, 18), (wcx + 1, wy0 + 10, 30), (wcx + 3, wy1 - 6, 12), (wcx - 1, wy1 - 2, 8)):
+        for k in range(ln_):
+            sap[y0 + k, x0 + (1 if k > ln_ * 0.6 and x0 % 2 else 0)] = True
+        sap[y0 + ln_, x0 + (1 if x0 % 2 else 0)] = True
+        drop = s.rect(x0 - 1 + (1 if x0 % 2 else 0), y0 + ln_ - 1, x0 + (1 if x0 % 2 else 0), y0 + ln_ + 1)
+        sap |= drop
+    sap |= s.ell(wcx, wy0 + 8, 2.5, 3) & wound
+    s.fill(sap, RESIN, 1.6 - 0.8 * (s.xx > wcx + 1) - 0.6 * edges(sap)[3])
+    s.fill(edges(sap)[2] & sap, RESIN, 2.4)
+    despeckle(s)
+    sink_bottom(s, 4, 0.45)
+    for f in range(2):
+        fr = Spr(W, Hh)
+        fr.a = base.a.copy()
+        glints = ((wcx - 1, wy0 + 7), (wcx + 1, wy0 + 31), (wcx + 2, wy0 + 40))
+        for k, (x, y) in enumerate(glints):
+            if f == 1:
+                fr.put(x, y, RESIN[3])
+                if k == 0:
+                    fr.put(x, y + 1, RESIN[3])
+            else:
+                fr.put(x, y, RESIN[2])
+        frames.append(fr)
+    return frames
+
+
+# ---------------------------------------------------------------- 木板、木板桥
+
+def plank():
+    """地上的一块木板（正侧面）：烂货架上拆下来的，一头断得参差，两颗弯钉子还在。"""
+    s = Spr(34, 5)
+    gy = 4
+    b = s.rect(0, 2, 33, 4) & ~s.rect(31, 2, 33, 2) & ~s.rect(33, 3, 33, 3)
+    s.fill(b, WOOD, 3.4 + 0.9 * (s.yy == 2) - 0.8 * (s.yy == 4) - 0.6 * (s.xx > 26))
+    s.fill(s.rect(9, 3, 15, 3), WOOD, 2.6)
+    for x in (4, 22):
+        s.put(x, 1, TIN[3])
+        s.put(x + 1, 0, TIN[2])
+    sink_bottom(s, 1, 0.3)
+    return s
+
+
+def plank_bridge():
+    """搭在塌陷口上的木板：和 hollow.png 一样大、一样的 ground_row，直接叠在它上面。
+    木板两头搭在口子两边的地面上，中间稍微往下压一点；口子还在底下看得见。"""
+    W, Hh = 60, 18
+    gr = 4
+    s = Spr(W, Hh)
+    sag = np.round(1.0 * np.sin(np.pi * np.clip((s.xx - 6) / 48, 0, 1))).astype(int)
+    b = (s.xx >= 6) & (s.xx <= 54) & (s.yy >= gr - 3 + sag) & (s.yy <= gr - 1 + sag)
+    rel = s.yy - (gr - 3 + sag)
+    s.fill(b, WOOD, 3.4 + 0.9 * (rel == 0) - 1.4 * (rel == 2) - 0.6 * (s.xx > 44) + 0.4 * (s.xx < 14))
+    s.fill(b & (s.xx >= 18) & (s.xx <= 24) & (rel == 1), WOOD, 2.6)
+    for x in (9, 27):
+        s.put(x, gr - 4 + sag[0, x], TIN[3])
+    # 两头压在地上：底下各压出一点土
+    for x0 in (5, 52):
+        s.fill(s.rect(x0, gr, x0 + 3, gr), SOIL, 2.6)
+    return s
+
+
+# ---------------------------------------------------------------- 叠在宿主上的东西
+
+CLOCK_SILL = (82, 54)        # empty_house 里右窗窗台上面那一行、闹钟中线所在的像素
+
+
+def clock_window():
+    """空屋窗台上一只停了的旧闹钟：两只铃、一个小锤、圆表盘、两只小脚；表盘发灰，指针停着；顶上落灰。"""
+    s = Spr(9, 10)
+    face_m = s.ell(4.5, 5.5, 3.5, 3.5)
+    s.fill(face_m, TIN, 2.2 + 1.2 * round_tone(s, 4.5, 5.5, 3.5, 3.5))
+    dial = s.ell(4.5, 5.5, 2.4, 2.4)
+    s.fill(dial, DUST, 1.4 - 0.6 * (s.xx > 5))
+    s.put(4, 4, TIN[0])
+    s.put(4, 5, TIN[0])
+    s.put(5, 5, TIN[0])
+    for x in (1, 7):                       # 铃
+        s.fill(s.rect(x - 1 + (x > 4), 0, x + (x > 4), 1), TIN, 3 - (x > 4))
+    s.put(4, 1, TIN[2])
+    s.fill(s.rect(2, 9, 2, 9) | s.rect(6, 9, 6, 9), TIN, 1)
+    s.put(1, 0, DUST[2])
+    s.put(8, 0, DUST[1])
+    return s
+
+
+HOOK = (33, 40)              # road_house 里门右边挂钩的钩尖（油灯的环挂在这里）
+
+
+def road_house():
+    """旧路上的小空屋：比 empty_house 小、更破、更久没人。屋顶右半边塌进去了，墙板掉了几块露出里面的黑，
+    门只挂着一个铰链、歪着；窗户没有玻璃；藤从墙角爬上来，屋顶的破洞里长出一棵小云杉。
+    门右边钉着一只空的铁挂钩——油灯原来挂在这里。"""
+    W, Hh = 86, 64
+    s = Spr(W, Hh)
+    gy = Hh - 1
+    wall = s.rect(8, 22, 77, gy)
+    u, v = bbox_uv(s, wall)
+    wt = 2.2 - 1.4 * u - 1.0 * ((s.yy - 22) % 5 == 4) + 0.4 * ((s.yy - 22) % 5 == 0)
+    s.fill(wall, WOOD_C, wt - 0.3)
+    # 掉了的墙板：露出里面的黑，边上的板头参差
+    for x0, x1, y0 in ((12, 22, 42), (16, 26, 47), (60, 71, 32), (52, 58, 52)):
+        m = s.rect(x0, y0, x1, y0 + 3)
+        s.fill(m, BARK, 0.2)
+        s.put(x0, y0 + 1, WOOD_C[2])
+        s.put(x1, y0 + 2, WOOD_C[1])
+    s.fill(s.rect(8, 22, 9, gy), WOOD_C, 2.8)
+    s.fill(s.rect(76, 22, 77, gy), WOOD_C, 0.6)
+    # 屋顶：左半边还在（苔很厚），右半边塌进去，只剩几根椽子斜着
+    roof_l = s.poly([(1, 24), (44, 24), (44, 3), (13, 3)])
+    sag = np.round(1.5 * np.sin(np.pi * np.clip((s.xx - 13) / 31, 0, 1))).astype(int)
+    roof_l &= s.yy >= 3 + sag
+    rr = s.yy - 3 - sag
+    rt = 2.8 - 1.0 * (s.xx / W) - 1.1 * (rr % 5 == 4) - 1.0 * (((s.xx + (rr // 5) * 3) % 7) == 0)
+    s.fill(roof_l, WOOD_C, rt - 0.3)
+    mz = noise(s, 111, (4, 3))
+    s.fill(clean(roof_l & (mz > 0.05)), MOSS, 1.4 + 0.8 * (s.xx < 26) + 0.6 * (rr < 6))
+    s.fill(edges(roof_l)[0], MOSS, 2.6)
+    # 塌下去的右半：一块屋面歪着压进屋里，椽子露在外面
+    slab = s.poly([(44, 12), (60, 20), (78, 26), (76, 30), (58, 25), (44, 18)])
+    s.fill(slab, WOOD_C, 1.6 - 0.8 * edges(slab)[1] + 0.8 * edges(slab)[0])
+    s.fill(clean(slab & (noise(s, 113, (3, 2)) > 0.1), 1), MOSS, 1.6)
+    for a, b in (((45, 4), (52, 15)), ((52, 8), (62, 20)), ((60, 13), (70, 23))):
+        s.fill(s.stroke([a, b], 1.6, 1.4), WOOD_C, 1.2)
+    s.fill(s.rect(44, 3, 45, 24), WOOD_C, 1.0)
+    s.fill(s.rect(1, 23, 44, 24), WOOD_C, 0.8)
+    # 屋顶破洞里长出来的一棵小云杉
+    for k, (y, hw) in enumerate(((2, 0), (4, 1), (6, 2), (8, 2), (10, 3), (12, 4))):
+        s.fill(s.rect(54 - hw, y + 2, 54 + hw, y + 3), MOSS, 1.4 + (k < 2) * 0.8 - 0.6 * (s.xx > 54))
+    s.fill(s.rect(54, 15, 54, 18), BARK, 2)
+    # 门：只挂一个铰链，歪着往外倒，露出门洞的黑
+    dx0, dx1, dtop = 18, 31, 29
+    s.fill(s.rect(dx0, dtop, dx1, gy), BARK, 0.2)
+    s.fill(dilate(s.rect(dx0, dtop, dx1, gy), 1) & ~s.rect(dx0, dtop, dx1, gy), WOOD_C, 2.6)
+    door = s.poly([(dx0, dtop + 1), (dx0 + 12, dtop + 3), (dx0 + 10, gy + 1), (dx0 - 2, gy - 1)])
+    s.fill(door, WOOD_C, 1.4 + 0.6 * (((s.xx - dx0) // 4) % 2) - 0.8 * edges(door)[1])
+    s.fill(s.line((dx0, dtop + 9), (dx0 + 11, dtop + 11)) | s.line((dx0 - 1, gy - 9), (dx0 + 10, gy - 7)), WOOD_C, 2.4)
+    s.put(dx0, dtop + 4, TIN[2])
+    # 门槛：灰更厚，压着落叶
+    s.fill(s.rect(dx0 - 3, gy - 1, dx1 + 3, gy), WOOD_C, 1.4)
+    s.fill(s.rect(dx0 - 2, gy - 2, dx1 + 2, gy - 2), DUST, 1)
+    s.put(dx0 + 2, gy - 2, DUST[0])
+    s.put(dx1 - 1, gy - 2, mixc(DUST[0], from_hex("#3b2f26"), 0.5))
+    # 挂钩：门右边一块小铁板 + 往外弯的钩
+    hx, hy = HOOK
+    s.fill(s.rect(hx - 1, hy - 5, hx, hy - 2), TIN, 1.6 + (s.xx == hx - 1))
+    s.fill(s.line((hx + 1, hy - 3), (hx + 2, hy - 3), (hx + 2, hy - 1)), TIN, 2.6)
+    s.put(hx + 1, hy, TIN[3])
+    s.put(hx - 1, hy - 1, RUST[1])
+    s.put(hx - 1, hy, RUST[0])
+    # 窗：没有玻璃，只剩框；里面黑
+    wm = s.rect(48, 34, 60, 45)
+    s.fill(wm, WOOD_C, 2.6 - 1.2 * ((s.xx == 60) | (s.yy == 45)))
+    s.fill(s.rect(49, 35, 59, 44), BARK, 0.2)
+    s.fill(s.line((49, 44), (55, 38)), WOOD_C, 1.4)      # 掉下来斜着的一根窗棂
+    s.fill(s.rect(47, 46, 61, 46), WOOD_C, 3.0)
+    # 藤：从左墙角爬上来
+    vr = np.random.default_rng(115)
+    x = 10
+    for y in range(gy, 26, -1):
+        if vr.random() < 0.3:
+            x += int(vr.choice([-1, 1]))
+        x = int(np.clip(x, 8, 14))
+        s.put(x, y, MOSS[1 + (y < 40)])
+        if y % 3 == 0:
+            s.put(x + 1, y, MOSS[3])
+    for x in range(8, 78):
+        if vr.random() < 0.5:
+            for k in range(int(vr.integers(1, 4 if x < 18 or x > 66 else 3))):
+                s.put(x, gy - k, MOSS[1 + (k > 0)])
+    despeckle(s)
+    sink_bottom(s, 3, 0.4)
+    return s
+
+
+def placed_lamp():
+    """挂回 road_house 门口挂钩上的油灯：顶上一个提环，铁皮灯帽，玻璃罩（灭着，里面一点点暖色的反光），
+    黄铜的油壶，挂着弥洛的姓名牌。"""
+    s = Spr(9, 15)
+    s.fill(s.ell(4.5, 1.5, 2, 1.6) & ~s.ell(4.5, 1.5, 1, 0.7), TIN, 2.4)
+    cap = s.rect(2, 3, 6, 4)
+    s.fill(cap, TIN, 2.4 + (s.yy == 3) - 0.8 * (s.xx == 6))
+    glass = s.rect(2, 5, 6, 10)
+    s.fill(glass, BARK, 1.0 + 0.6 * (s.xx < 4))
+    s.fill(s.rect(4, 7, 4, 9), GLOW, 0)
+    s.put(4, 7, GLOW[1])
+    s.put(2, 6, WATER[1])
+    s.fill(s.rect(1, 11, 7, 13), COPPER, 1.4 + (s.yy == 11) - 0.8 * (s.xx > 5))
+    s.fill(s.rect(2, 14, 6, 14), COPPER, 0.6)
+    s.put(8, 12, TAG[1])
+    s.put(8, 13, TAG[0])
+    s.put(7, 11, TAG[0])
+    return s
+
+
+def _from_room(name):
+    p = OUT / f"{name}.png"
+    if not p.exists():
+        print(f"  （没找到 {name}.png，placed 版先跳过）")
+        return None
+    return np.array(Image.open(p).convert("RGBA"))
+
+
+def _outdoors(arr, t=0.18):
+    """屋里那件东西搬到屋外：形状、像素一模一样，只往林下的冷暗里压一点（屋里是暖光）。"""
+    out = arr.copy()
+    m = out[..., 3] > 0
+    for y, x in zip(*np.nonzero(m)):
+        out[y, x, :3] = mixc(out[y, x, :3], from_hex("#1f2e27"), t)
+    return out
+
+
+RADIO_ON_STALL = (41, 47)    # stall 里收音机底边中点踩的像素（台面上面那一行）
+
+
+def placed_radio():
+    """送回小吃棚的收音机：就是树屋里 room_radio 那一台（同一张像素），放在柜台台面左边。"""
+    a = _from_room("room_radio")
+    if a is None:
+        return None
+    s = Spr(a.shape[1], a.shape[0])
+    s.a = _outdoors(a)
+    return s
+
+
+def placed_sign():
+    """立回底座上的路标：就是树屋里 room_sign 那一块（同样 4 帧、同样自己转），去掉屋里那个十字底座，
+    杆子直接插进 sign_base 顶上的方孔。"""
+    a = _from_room("room_sign")
+    if a is None:
+        return None
+    meta = json.loads((OUT / "room_sign.json").read_text())
+    fw, fh, n = meta["frame_w"], meta["frame_h"], meta["frames"]
+    frames = []
+    for k in range(n):
+        f = a[:, k * fw:(k + 1) * fw].copy()
+        f = f[:fh - 3]                 # 屋里的十字底座（最下面 3 行）不要
+        s = Spr(fw, f.shape[0])
+        s.a = _outdoors(f)
+        frames.append(s)
+    return frames, meta.get("ms", 250)
+
+
+# ---------------------------------------------------------------- 第四版：剧情姐加的细节
+
+JAR_IN_SHOP = (19, 54)       # shop 里橱窗下层架子上、空点心罐底边中点踩的像素
+PHOTO_ON_SHOP = (86, 47)     # shop 里门右边墙上、旧招贴底边中点的像素
+
+
+def shop_jar():
+    """橱窗玻璃后面那只装点心的空罐：玻璃罐、铁皮盖，罐身贴着一张小纸条（两行看不清的字）。
+    隔着积灰的玻璃，整个压暗。"""
+    s = Spr(8, 9)
+    body = s.rect(0, 2, 7, 8) & ~s.rect(0, 8, 0, 8) & ~s.rect(7, 8, 7, 8)
+    s.fill(body, BARK, 1.2)
+    s.fill(edges(body)[2] | edges(body)[3], WATER, 0)                  # 玻璃的两条边
+    s.put(1, 3, WATER[1])
+    s.put(1, 4, WATER[1])
+    s.fill(s.rect(1, 1, 6, 2), TIN, 1.4 + (s.yy == 1))                 # 盖
+    s.fill(s.rect(2, 0, 5, 0), TIN, 1.2)
+    lab = s.rect(2, 4, 6, 7)
+    s.fill(lab, TAG, 0)
+    s.fill(s.rect(3, 5, 5, 5) | s.rect(3, 6, 4, 6), DUST, 0)          # 两行字
+    s.put(2, 8, BARK[2])
+    return s
+
+
+def shop_photo():
+    """店门边那张被雨泡皱的旧招贴：只剩半张合影，右边是撕掉的毛边。一个人站在柜台后面，脸转开；
+    一只手从照片右边缘伸进来，往她头上扣一顶纸帽。一角被风吹起来（亮一点）。顶上一颗图钉。"""
+    rows = [
+        "....o.......",
+        "PPPPPPPPPPP.",
+        "Pddtttddddp.",
+        "Pdtttttaasss",
+        "Pddhhhaaasss",
+        "Pdhhhhddddss",
+        "Pddmmmddddp.",
+        "Pdmmmmmdddp.",
+        "Pdmmmmmdddp.",
+        "Pcccccccccpp",
+        "Pdddddddddp.",
+        "PpPPPpPPPp..",
+        "PPPpPPPPPPL.",
+        "..........LL",
+    ]
+    # h 她的头发（暗的浅金），a 伸进来的那只手，s 照片外那个人的袖子（另一种颜色），t 纸帽
+    pal = {"P": TAG[0], "p": mixc(TAG[0], BARK[0], 0.35), "d": BARK[2], "m": WOOD_C[2], "h": mixc(COPPER[2], DUST[1], 0.5),
+           "a": DUST[2], "s": PAINT[3], "t": TAG[1], "c": WOOD[3], "o": TIN[3], "L": TAG[1]}
+    s = Spr(len(rows[0]), len(rows))
+    for y, r in enumerate(rows):
+        for x, ch in enumerate(r):
+            if ch != ".":
+                s.a[y, x] = tuple(pal[ch]) + (255,)
+    return s
+
+
 # ================================================================ 输出
 
-def save(name, s, frames=None, ground_row=None):
+def save(name, s, frames=None, ground_row=None, meta=None, ms=400):
     if frames:
         w = frames[0].w
         arr = np.concatenate([f.a for f in frames], 1)
@@ -1438,13 +2085,14 @@ def save(name, s, frames=None, ground_row=None):
         a[..., 3] = np.where(a[..., 3] > 0, 255, 0)
         a[a[..., 3] == 0] = 0
     Image.fromarray(a).save(OUT / f"{name}.png")
-    if frames or ground_row is not None:
-        meta = {}
+    if frames or ground_row is not None or meta:
+        m = {}
         if frames:
-            meta.update(frame_w=w, frame_h=frames[0].h, frames=len(frames), ms=400)
+            m.update(frame_w=w, frame_h=frames[0].h, frames=len(frames), ms=ms)
         if ground_row is not None:
-            meta.update(ground_row=ground_row)
-        (OUT / f"{name}.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+            m.update(ground_row=ground_row)
+        m.update(meta or {})
+        (OUT / f"{name}.json").write_text(json.dumps(m, ensure_ascii=False, indent=1))
     return a
 
 
@@ -1467,6 +2115,33 @@ def build(with_treehouse=False):
     fr = cloth()
     out["cloth"] = save("cloth", None, frames=fr)
     out["hoofprints"] = save("hoofprints", hoofprints(), ground_row=1)
+    # ---- 第三版
+    for name, fn in (("glade_rock", glade_rock), ("signal_box", signal_box), ("sign_base", sign_base),
+                     ("road_house", road_house), ("plank", plank)):
+        out[name] = save(name, fn())
+    out["pine_sap"] = save("pine_sap", None, frames=pine_sap(), ms=[1600, 200])
+    out["plank_bridge"] = save("plank_bridge", plank_bridge(), ground_row=4,
+                               meta={"host": "hollow", "note": "和 hollow.png 同尺寸、同 ground_row，放在同一个位置叠上去"})
+    eh = out["empty_house"]
+    out["clock_window"] = save("clock_window", clock_window(),
+                               meta={"host": "empty_house", "offset": anchor_offset(eh.shape[1], eh.shape[0], *CLOCK_SILL)})
+    sh = out["shop"]
+    out["shop_jar"] = save("shop_jar", shop_jar(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *JAR_IN_SHOP)})
+    out["shop_photo"] = save("shop_photo", shop_photo(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *PHOTO_ON_SHOP)})
+    rh = out["road_house"]
+    lamp = placed_lamp()
+    out["placed_lamp"] = save("placed_lamp", lamp, meta={
+        "host": "road_house", "offset": anchor_offset(rh.shape[1], rh.shape[0], HOOK[0] + 2 - 4 + lamp.w // 2, HOOK[1] - 2 + lamp.h - 1)})
+    st = out["stall"]
+    r = placed_radio()
+    if r is not None:
+        out["placed_radio"] = save("placed_radio", r, meta={
+            "host": "stall", "offset": anchor_offset(st.shape[1], st.shape[0], *RADIO_ON_STALL)})
+    ps = placed_sign()
+    if ps is not None:
+        fr, ms_ = ps
+        out["placed_sign"] = save("placed_sign", None, frames=fr, ms=ms_,
+                                  meta={"host": "sign_base", "offset": [0, -SIGN_BASE_TOP]})
     out["hollow"] = save("hollow", hollow(), ground_row=4)
     out["depressions"] = save("depressions", depressions(), ground_row=3)
     return out
@@ -1586,6 +2261,92 @@ def previews(imgs, d):
     return paths
 
 
+def _blit(bg, a, left, top, semi=False):
+    h, w = a.shape[:2]
+    for j in range(h):
+        y = top + j
+        if not 0 <= y < 270:
+            continue
+        for i in range(w):
+            x = left + i
+            if 0 <= x < 480 and a[j, i, 3] > 0:
+                if semi:
+                    al = a[j, i, 3] / 255
+                    bg[y, x] = (bg[y, x] * (1 - al) + a[j, i, :3] * al).astype(np.uint8)
+                else:
+                    bg[y, x] = a[j, i, :3]
+
+
+def _frame(name, k=0):
+    a = np.array(Image.open(OUT / f"{name}.png").convert("RGBA"))
+    j = OUT / f"{name}.json"
+    if j.exists():
+        m = json.loads(j.read_text())
+        if "frame_w" in m:
+            fw = m["frame_w"]
+            a = a[:, k * fw:(k + 1) * fw]
+    return a
+
+
+def compose(cam, items, fog=False):
+    """items: (名字, 世界 x[, 帧]) 或 ("CHEN", x)。有 host/offset 的图自动跟着宿主的位置放。"""
+    bg = background(cam)
+    if fog:
+        place(bg, np.array(Image.open(OUT / "fog_bank.png")), cam + 240, cam, None, semi=True)
+    hosts = {}
+    for it in items:
+        name, x = it[0], it[1]
+        if name == "CHEN":
+            put_chen(bg, x, cam)
+            continue
+        a = _frame(name, it[2] if len(it) > 2 else 0)
+        h, w = a.shape[:2]
+        meta = json.loads((OUT / f"{name}.json").read_text()) if (OUT / f"{name}.json").exists() else {}
+        if "offset" in meta and meta.get("host") in hosts:
+            hx, hy = hosts[meta["host"]]
+            ax, ay = hx + meta["offset"][0], hy + meta["offset"][1]
+        else:
+            ax = x - cam
+            ay = int(round(FA.ground_y(x % FA.W)))
+            if meta.get("host") in hosts and "ground_row" in meta:
+                ax = hosts[meta["host"]][0]
+            hosts[name] = (ax, ay)
+        top = ay - (h - 1) if "ground_row" not in meta else ay - meta["ground_row"]
+        _blit(bg, a, ax - w // 2, top)
+    return bg
+
+
+def previews_v3(d):
+    shots = {
+        "v3_glade": (1900, [("glade_rock", 2080), ("sign_base", 2134), ("placed_sign", 2134), ("signal_box", 2190),
+                             ("CHEN", 2000)], True),
+        "v3_glade_before": (1900, [("glade_rock", 2080), ("sign_base", 2134), ("signal_box", 2190), ("CHEN", 2150)], True),
+        "v3_road": (1040, [("stall", 1100), ("placed_radio", 0), ("road_house", 1250), ("placed_lamp", 0),
+                           ("CHEN", 1180)], False),
+        "v4_shop_house": (2950 - 240 + 60, [("empty_house", 2900), ("clock_window", 0), ("empty_item", 2930),
+                                            ("shop", 3120), ("shop_jar", 0), ("shop_photo", 0), ("CHEN", 3030)], False),
+        "v3_bridge_house_pine": (2900 - 120, [("hollow", 2840), ("plank_bridge", 2840), ("empty_house", 2930),
+                                              ("clock_window", 0), ("plank", 3010), ("pine_sap", 3070, 1),
+                                              ("CHEN", 2985)], False),
+    }
+    paths = []
+    for name, (cam, items, fog) in shots.items():
+        bg = compose(cam, items, fog)
+        p = d / f"{name}.png"
+        Image.fromarray(bg).resize((1440, 810), Image.NEAREST).save(p)
+        paths.append(p)
+    # 岩画单独放大
+    rock = np.array(Image.open(OUT / "glade_rock.png"))
+    z = np.zeros((rock.shape[0] + 8, rock.shape[1] + 8, 3), np.uint8)
+    z[:] = (62, 87, 72)
+    _m = rock[..., 3] > 0
+    z[4:4 + rock.shape[0], 4:4 + rock.shape[1]][_m] = rock[_m][:, :3]
+    p = d / "v3_glade_rock_x6.png"
+    Image.fromarray(z).resize((z.shape[1] * 6, z.shape[0] * 6), Image.NEAREST).save(p)
+    paths.append(p)
+    return paths
+
+
 def check(imgs):
     """硬规矩自检：alpha 只有 0/255（雾除外）、没有纯黑、比晨暗（最亮的像素 L < 0.62）。"""
     ok = True
@@ -1612,7 +2373,7 @@ if __name__ == "__main__":
     imgs = build(args.treehouse)
     good = check(imgs)
     if args.preview:
-        for p in previews(imgs, Path(args.preview)) + [preview_cloth(Path(args.preview))]:
+        for p in previews(imgs, Path(args.preview)) + [preview_cloth(Path(args.preview))] + previews_v3(Path(args.preview)):
             print("preview", p)
     if not good:
         sys.exit("有图不合规矩，见上面")

@@ -57,7 +57,17 @@
   "room_dish": 330,
   "room_gramophone": 360,
   "room_box": 390,
-  "room_pipes": 440
+  "room_pipes": 440,
+  "house_return": 2400,
+  "road_return": 1840,
+  "wall_glade": 2260,
+  "glade_rock": 2080,
+  "glade_sign_base": 2130,
+  "signal_box": 2180,
+  "shop_plank": 3140,
+  "pine": 3200,
+  "road_house": 1250,
+  "hollow_edge": 1887
  },
  "hotspots": [
   {
@@ -387,6 +397,78 @@
    ],
    "once": false,
    "scene": "revisit"
+  },
+  {
+   "id": "shop_plank",
+   "at": "shop_plank",
+   "room": "forest",
+   "label": {
+    "zh": "木板",
+    "en": ""
+   },
+   "need": [
+    "pump_placed"
+   ],
+   "not": [
+    "got_plank"
+   ],
+   "once": true,
+   "scene": "get_plank",
+   "sprite": "res://art/forest_story/plank.png",
+   "hide_after": "got_plank"
+  },
+  {
+   "id": "hollow_edge",
+   "at": "hollow_edge",
+   "room": "forest",
+   "label": {
+    "zh": "塌陷口",
+    "en": ""
+   },
+   "need": [
+    "fog_on"
+   ],
+   "not": [
+    "bridge_built"
+   ],
+   "once": false,
+   "scene": "hollow_look",
+   "accepts": {
+    "plank": "plank_bridge",
+    "_default": "hollow_no"
+   }
+  },
+  {
+   "id": "glade_rock",
+   "at": "glade_rock",
+   "room": "forest",
+   "label": {
+    "zh": "岩画",
+    "en": ""
+   },
+   "need": [
+    "bridge_built"
+   ],
+   "not": [
+    "saw_rock"
+   ],
+   "once": false,
+   "scene": "glade_rock"
+  },
+  {
+   "id": "cloth_back",
+   "at": "cloth",
+   "room": "forest",
+   "label": {
+    "zh": "布条",
+    "en": ""
+   },
+   "need": [
+    "at_treehouse"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "cloth_back"
   }
  ],
  "scenes": {
@@ -394,6 +476,19 @@
    {
     "say": "chen",
     "zh": "啊……糟糕……坠毁了。（小样）",
+    "en": ""
+   },
+   {
+    "do": "elephant_call",
+    "variant": 1
+   },
+   {
+    "do": "wait",
+    "sec": 0.3
+   },
+   {
+    "say": "chen",
+    "zh": "等一下！",
     "en": ""
    },
    {
@@ -444,6 +539,10 @@
     "do": "journal",
     "zh": "坠毁了。行李都还在。",
     "en": ""
+   },
+   {
+    "do": "give",
+    "item": "sample_page"
    },
    {
     "do": "flag",
@@ -701,12 +800,22 @@
     "en": ""
    },
    {
-    "do": "journal",
-    "zh": "鹿说这里以前卖吃的。"
-   },
-   {
-    "do": "flag",
-    "set": "road_stall"
+    "do": "choice",
+    "options": [
+     {
+      "zh": "卖什么？",
+      "scene": "road_c1"
+     },
+     {
+      "zh": "……",
+      "scene": "road_c2"
+     },
+     {
+      "zh": "大象也来吃吗？",
+      "scene": "road_c3",
+      "added": true
+     }
+    ]
    }
   ],
   "deer_chat": [
@@ -1282,6 +1391,19 @@
    {
     "do": "flag",
     "set": "slope_talked"
+   },
+   {
+    "do": "journal_strike",
+    "match": "亲眼见过"
+   },
+   {
+    "do": "journal",
+    "zh": "鹿是听妈妈说的。",
+    "tag": "elephant"
+   },
+   {
+    "do": "elephant_call",
+    "variant": 2
    }
   ],
   "revisit": [
@@ -1362,6 +1484,199 @@
    {
     "do": "end_chapter"
    }
+  ],
+  "road_c1": [
+   {
+    "say": "deer",
+    "zh": "不记得了。反正很好吃。",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "road_end"
+   }
+  ],
+  "road_c2": [
+   {
+    "say": "deer",
+    "zh": "你不问吗？",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "road_end"
+   }
+  ],
+  "road_c3": [
+   {
+    "say": "deer",
+    "zh": "大象不吃这个。",
+    "en": ""
+   },
+   {
+    "do": "goto",
+    "scene": "road_end"
+   }
+  ],
+  "road_end": [
+   {
+    "do": "journal",
+    "zh": "鹿说大象的鼻子很长。",
+    "tag": "elephant"
+   },
+   {
+    "do": "journal",
+    "zh": "鹿亲眼见过大象。"
+   },
+   {
+    "do": "flag",
+    "set": "road_stall"
+   }
+  ],
+  "get_plank": [
+   {
+    "do": "anim",
+    "who": "chen",
+    "name": "pickup"
+   },
+   {
+    "do": "give",
+    "item": "plank"
+   },
+   {
+    "do": "prop",
+    "id": "plank",
+    "state": "taken"
+   },
+   {
+    "say": "chen",
+    "zh": "一块木板。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "got_plank"
+   }
+  ],
+  "hollow_look": [
+   {
+    "say": "chen",
+    "zh": "……下面是空的。",
+    "en": ""
+   }
+  ],
+  "hollow_no": [
+   {
+    "say": "chen",
+    "zh": "这个好像搭不上去。",
+    "en": ""
+   }
+  ],
+  "plank_bridge": [
+   {
+    "do": "take",
+    "item": "plank"
+   },
+   {
+    "do": "prop",
+    "id": "plank",
+    "state": "bridge"
+   },
+   {
+    "do": "sfx",
+    "name": "tool_tap"
+   },
+   {
+    "say": "chen",
+    "zh": "搭上了。",
+    "en": ""
+   },
+   {
+    "do": "flag",
+    "set": "bridge_built"
+   }
+  ],
+  "glade_rock": [
+   {
+    "say": "chen",
+    "zh": "石头上刻着……大象？",
+    "en": ""
+   },
+   {
+    "do": "journal",
+    "zh": "林间空地的石头上，有人画过大象。",
+    "tag": "elephant"
+   },
+   {
+    "do": "flag",
+    "set": "saw_rock"
+   },
+   {
+    "do": "count",
+    "flags": [
+     "saw_rock",
+     "bridge_built"
+    ],
+    "at_least": 2,
+    "set": "glade_done"
+   }
+  ],
+  "cloth_back": [
+   {
+    "do": "fade_to",
+    "room": "forest",
+    "at": "treehouse_arrive"
+   }
   ]
- }
+ },
+ "items": [
+  {
+   "id": "sample_page",
+   "name": {
+    "zh": "大象那一页",
+    "en": "The elephant page"
+   },
+   "rarity": "rare",
+   "burn": 0,
+   "personal": true,
+   "icon": "res://art/forest_story/icon_drawing.png",
+   "desc": {
+    "zh": "画的旁边写着：大象。",
+    "en": ""
+   },
+   "desc_from_tag": "elephant"
+  },
+  {
+   "id": "plank",
+   "name": {
+    "zh": "木板",
+    "en": "Plank"
+   },
+   "rarity": "common",
+   "burn": 0,
+   "personal": true,
+   "icon": "res://art/forest_story/icon_plank.png",
+   "desc": {
+    "zh": "从烂货架上拆下来的一块木板。",
+    "en": ""
+   }
+  }
+ ],
+ "hints": [
+  {
+   "flag": "crashed",
+   "zh": "……行李还散在那边。"
+  },
+  {
+   "flag": "fuel_full",
+   "zh": "回飞船试试。"
+  },
+  {
+   "flag": "got_plank",
+   "not": [
+    "bridge_built"
+   ],
+   "zh": "这块木板……也许能搭在那个坑上。"
+  }
+ ]
 }

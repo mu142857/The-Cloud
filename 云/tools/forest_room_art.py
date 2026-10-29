@@ -518,12 +518,7 @@ def shelf(img):
     tag(c, x0 + 18, by - 9)
     c.rect(x0 + 22, by - 11, x1 - 4, by - 1, d(0.18, 50))
     c.rect(x0 + 22, by - 11, x1 - 4, by - 11, d(0.21, 70))
-    # 第一层（离地 24）：收音机的位置空着（单独出图，左半边）；右边一只小台灯
-    by = FL - SHELF_H[0] - 1
-    c.rect(x1 - 10, by - 1, x1 - 4, by, d(0.19, 60))
-    c.rect(x1 - 8, by - 9, x1 - 7, by - 2, d(0.19, 60))
-    c.poly([(x1 - 12, by - 9), (x1 - 3, by - 9), (x1 - 5, by - 14), (x1 - 10, by - 14)], d(0.26, 95, 0.025))
-    tag(c, x1 - 3, by - 8)
+    # 第一层（离地 24）：左边收音机、右边油灯，都单独出图（姓名牌支线会被晨拿走），这里空着
     # 第二层（48）：电扇、茶壶
     by = FL - SHELF_H[1] - 1
     c.rect(x0 + 4, by - 13, x0 + 13, by - 4, d(0.22, 175, 0.018))
@@ -643,28 +638,78 @@ def front(cav, lip, bark_raw):
         ry = int(round(roof_y[x]))
         c.rect(x, ry - 3, x, ry - 1, col(0.13, 0.010, 200))
         c.put(x, ry - 4, col(0.16, 0.011, 190))
-    # 板：下半截竖板，上半截横板
+    # 板：下半截竖板，上半截横钉的搭接板。每块板自己一个明度 / 色相（同一档里 ±1 档），左边离雾近、整体亮一档；
+    # 木纹是少量 1 像素的深色短线和节疤；板缝是暗线，缝的上沿 / 左沿一行受光；板头有开裂、缺角、烂掉的一截
     lower = house & (yy > FL - 60)
     upper = house & ~lower
     rng = np.random.default_rng(71)
+
+    def lit_of(x):
+        return 1 - (x - CAV_X0) / (CAV_X1 - CAV_X0)                       # 1 = 最左（雾光那边）.. 0 = 最右
+
+    def wood(L, dh=0.0, C=0.014):
+        return col(L, C, 100 + dh)
+
     x = CAV_X0
     while x < CAV_X1:
         w_ = int(rng.integers(5, 10))
-        L = [0.205, 0.225, 0.19][int(rng.integers(0, 3))]
-        L += 0.02 * (1 - (x - CAV_X0) / (CAV_X1 - CAV_X0))                   # 左边离雾近，亮一点
+        cxb = x + w_ / 2
+        L = 0.198 + 0.016 * int(rng.integers(-1, 2)) + 0.022 * round(lit_of(cxb) * 2) / 2
+        dh = 8.0 * int(rng.integers(-1, 2))
         m = lower & (xx >= x) & (xx < x + w_)
-        img[m, :3] = col(L, 0.014, 100)
+        img[m, :3] = wood(L, dh)
         img[m, 3] = 255
-        img[m & (xx == x), :3] = col(0.15, 0.011, 200)                     # 板缝
+        img[m & (xx == x), :3] = col(0.145, 0.011, 200)                     # 板缝
+        if lit_of(cxb) > 0.3 or rng.random() < 0.5:                        # 缝的左沿受光（右边的板只有一半有）
+            img[m & (xx == x + 1), :3] = wood(L + 0.026, dh - 6)
+        if lit_of(cxb) < 0.5:                                               # 右边的板，右沿背光
+            img[m & (xx == x + w_ - 1), :3] = wood(L - 0.02, dh + 6)
+        for _ in range(int(rng.integers(1, 3))):                            # 木纹：竖的短暗线
+            gx = int(rng.integers(x + 2, max(x + 3, x + w_ - 1)))
+            gy = int(rng.integers(FL - 56, FL - 14))
+            c.rect(gx, gy, gx, gy + int(rng.integers(3, 7)), wood(L - 0.03, dh))
+        if rng.random() < 0.22:                                             # 节疤
+            kx, ky = int(rng.integers(x + 2, max(x + 3, x + w_ - 2))), int(rng.integers(FL - 50, FL - 20))
+            c.rect(kx, ky, kx + 1, ky + 1, wood(L - 0.045, dh))
+            c.put(kx, ky - 1, wood(L + 0.02, dh))
         if rng.random() < 0.3:                                              # 板头烂掉一截，颜色深
-            cut = int(rng.integers(FL - 20, FL - 6))
-            img[m & (yy > cut), :3] = col(L - 0.035, 0.014, 95)
+            cut = int(rng.integers(FL - 18, FL - 8))
+            img[m & (yy > cut) & (xx > x), :3] = wood(L - 0.035, dh - 5)
+        if rng.random() < 0.4:                                              # 板头开裂
+            kx = int(rng.integers(x + 2, max(x + 3, x + w_ - 1)))
+            c.rect(kx, FL - int(rng.integers(4, 8)), kx, FL - 1, col(0.13, 0.011, 210))
+        if rng.random() < 0.3:                                              # 缺角
+            kx = x + 1 if rng.random() < 0.5 else x + w_ - 2
+            c.rect(kx, FL - 2, kx + 1, FL - 1, col(0.12, 0.011, 215))
+            c.put(kx + (1 if kx == x + 1 else 0), FL - 3, col(0.12, 0.011, 215))
         x += w_
-    for y in range(int(roof_y.min()), FL - 59):
-        m = upper & (yy == y)
-        k = (y - FL) % 6
-        img[m, :3] = col(0.175 if k == 0 else (0.21 if k == 1 else 0.195), 0.013, 105)
-        img[m, 3] = 255
+    # 上半截：一行 6 像素的横板，每行在随机的地方接头；每段板自己一个明度
+    top = int(roof_y.min())
+    for j, y0 in enumerate(range(FL - 60 - 6, top - 6, -6)):
+        xb = CAV_X0 - int(rng.integers(0, 30))
+        while xb < CAV_X1:
+            ln = int(rng.integers(44, 96))
+            xa, xe = max(CAV_X0, xb), min(CAV_X1, xb + ln)
+            L = 0.192 + 0.016 * int(rng.integers(-1, 2)) + 0.022 * round(lit_of((xa + xe) / 2) * 2) / 2
+            dh = 8.0 * int(rng.integers(-1, 2))
+            seg = upper & (xx >= xa) & (xx < xe) & (yy >= y0) & (yy < y0 + 6)
+            img[seg, :3] = wood(L, dh)
+            img[seg, 3] = 255
+            img[seg & (yy == y0), :3] = col(0.145, 0.011, 200)              # 板缝（暗）
+            img[seg & (yy == y0 + 5), :3] = wood(L + 0.016, dh - 4)        # 下一道缝的上沿：受光
+            if xa > CAV_X0:                                                 # 接头
+                img[seg & (xx == xa), :3] = col(0.15, 0.011, 200)
+            if rng.random() < 0.7:                                          # 木纹：横的短暗线
+                gx = int(rng.integers(xa + 2, max(xa + 3, xe - 6)))
+                gy = y0 + int(rng.integers(2, 4))
+                c.rect(gx, gy, gx + int(rng.integers(3, 7)), gy, wood(L - 0.03, dh))
+            xb += ln
+    # 板画完以后再把屋子外面（树皮）恢复（木纹的短线可能画出了界）
+    img[rest] = bark_raw[rest]
+    for x in range(CAV_X0, CAV_X1):
+        ry = int(round(roof_y[x]))
+        c.rect(x, ry - 3, x, ry - 1, col(0.13, 0.010, 200))
+        c.put(x, ry - 4, col(0.16, 0.011, 190))
     # 横梁（上下两截的分界），上面挂零件
     c.rect(CAV_X0, FL - 61, CAV_X1 - 1, FL - 58, col(0.18, 0.016, 65))
     c.rect(CAV_X0, FL - 61, CAV_X1 - 1, FL - 61, col(0.235, 0.018, 80))
@@ -720,6 +765,7 @@ def front(cav, lip, bark_raw):
     c.rect(X(160), FL - 57, X(165), FL - 2, col(0.255, 0.02, 92))
     c.rect(X(160), FL - 57, X(160), FL - 2, col(0.15, 0.011, 200))
     c.poly([(X(100), FL - 92), (X(118), FL - 96), (X(119), FL - 93), (X(101), FL - 89)], col(0.23, 0.018, 85))
+    weather(img, house, roof_y, rng)
     # 横梁上挂着的小零件：齿轮、小铃、弹簧、一把小扳手、一串螺母（都暗）
     hang_y = FL - 57
     for hx, ln, kind in [(X(44), 6, "gear"), (X(98), 4, "bell"), (X(146), 8, "spring"), (X(184), 5, "wrench"),
@@ -744,14 +790,67 @@ def front(cav, lip, bark_raw):
         else:
             for i in range(3):
                 c.rect(hx - 1, y + i * 2, hx + 1, y + i * 2, col(0.26, 0.008, 210))
-    # 底边一溜石头 + 苔，门口踩秃了
+    # 底部：潮湿变深的一截（深一档、偏绿），上沿高低不平；苔从地上往上长，有几簇长得高；门口踩秃了
+    damp_top = FL - 10 + np.round(2 * smooth_noise(1, W, 6, 1, seed=81)[0]).astype(int)
+    damp = house & (yy >= damp_top[None, :]) & ~((xx >= d0 - 2) & (xx <= d1 + 2))
+    tint(img, damp, -1.0, 165, 0.006)
     for x in range(CAV_X0, CAV_X1):
         if d0 - 3 <= x <= d1 + 3:
             continue
         hgt = 2 + int(round(1.5 * N_MOSS[FL - 2, x]))
-        c.rect(x, FL - hgt, x, FL - 1, col(0.235, 0.032, 150))
-        c.put(x, FL - hgt, col(0.275, 0.038, 145))
+        if N_MOSS[FL - 30, x] > 0.45:
+            hgt += 3
+        c.rect(x, FL - hgt, x, FL - 1, col(0.215, 0.03, 152))
+        c.put(x, FL - hgt, col(0.255, 0.036, 146))
+        if hgt > 4 and x % 2 == 0:
+            c.put(x, FL - hgt + 1, col(0.255, 0.036, 146))
+    # 生锈的钉头（暗暖 1 像素）+ 下面一道锈迹：钉在横梁、竖板上下两头、补丁旁
+    rust_head, rust = col(0.25, 0.045, 50), col(0.185, 0.03, 45)
+    nails = [(x, y) for x in range(CAV_X0 + 4, CAV_X1 - 2, 23) for y in (FL - 53, FL - 16)]
+    nails += [(X(70), FL - 59), (X(140), FL - 59), (X(250), FL - 59), (X(116), FL - 80), (X(178), FL - 86)]
+    for (nx, ny) in nails:
+        if d0 - 3 <= nx <= d1 + 3 or not house[ny, nx]:
+            continue
+        c.put(nx, ny, rust_head)
+        c.rect(nx, ny + 1, nx, ny + 2 + (nx % 3), rust)
     return img
+
+
+def tint(img, m, steps, hue, amt):
+    """把一块往暗（steps<0）/ 亮走几档，同时往某个色相推一点（水渍偏冷绿）。"""
+    sel = m & (img[..., 3] > 0)
+    if not sel.any():
+        return
+    lab = srgb_to_oklab(img[sel][:, :3])
+    lab[:, 0] += STEP * steps * 0.85
+    lab[:, 1] += amt * math.cos(math.radians(hue))
+    lab[:, 2] += amt * math.sin(math.radians(hue))
+    img[sel, :3] = oklab_to_srgb(lab)
+
+
+def weather(img, house, roof_y, rng):
+    """风化：屋檐下一条阴影带（暗一档）；雨水从屋檐往下流的竖向水渍（深一档、偏冷绿，有长有短，
+    有几道在横梁下面接着流）；横梁下、门框右边这些凹进去的地方暗一档。"""
+    yy, xx = np.mgrid[0:H, 0:W]
+    eave = house & (yy < np.round(roof_y)[None, :] + 5)
+    tint(img, eave, -1.0, 220, 0.002)
+    streak = np.zeros((H, W), bool)
+    for x in list(rng.choice(np.arange(CAV_X0 + 6, CAV_X1 - 4), 14, replace=False)):
+        y0 = int(round(roof_y[x])) + 4
+        ln = int(rng.integers(10, 34))
+        w_ = 2 if rng.random() < 0.35 else 1
+        streak |= (xx >= x) & (xx < x + w_) & (yy >= y0) & (yy < y0 + ln)
+        if rng.random() < 0.5:                                    # 流到下边一截的末梢，细一点
+            streak |= (xx == x) & (yy >= y0 + ln) & (yy < y0 + ln + int(rng.integers(3, 8)))
+    for x in list(rng.choice(np.arange(CAV_X0 + 40, CAV_X1 - 4), 6, replace=False)):
+        y0 = FL - 56
+        streak |= (xx == x) & (yy >= y0) & (yy < y0 + int(rng.integers(6, 18)))
+    keep = ((xx >= DOOR[0] - 3) & (xx <= DOOR[1] + 3) & (yy >= DOOR[2] - 3)) | \
+        ((xx - PORT[0]) ** 2 + (yy - PORT[1]) ** 2 <= (PORT[2] + 3) ** 2)
+    streak &= ~keep
+    tint(img, house & streak, -1.0, 170, 0.008)
+    recess = house & (((yy >= FL - 56) & (yy <= FL - 55)) | ((xx >= DOOR[1] + 3) & (xx <= DOOR[1] + 4) & (yy > DOOR[2] + 4)))
+    tint(img, recess, -1.0, 220, 0.002)
 
 
 # ============================================================ 单独的物件（正侧面；能动 / 换状态）
@@ -818,33 +917,42 @@ CHAIR_SPAN = (X(54), X(122))       # 椅子图覆盖的范围（中间是桌子�
 
 
 def chairs():
-    """两把换过椅脚的椅子（一张图，中间空着放桌子）：左边那把面朝桌子；右边那把带一块褪色的垫子
-    （「别用那把，那把不是给你坐的」）。换过的那根椅脚是新木头的浅色。各挂一个姓名牌。"""
+    """两把换过椅脚的椅子（一张图，中间空着放桌子）：左边那把面朝桌子，晨能坐；右边靠窗那把不让坐——
+    椅背上搭着一件褪色的旧外套，两条椅脚下垫着木片，座面干干净净没落灰（屋里别的东西都落了灰）。
+    换过的那根椅脚是新木头的浅色。各挂一个姓名牌。"""
     w = CHAIR_SPAN[1] - CHAIR_SPAN[0] + 1
     c = S(w, 32)
     wood, wood_d, wood_t = col(*WOOD), col(*WOOD_D), col(*WOOD_L)
     new = col(0.36, 0.035, 80)
 
-    def chair(x, back_left, new_leg, cushion=False):
+    def chair(x, back_left, new_leg, kept=False):
         seat_y = 32 - 14
         c.rect(x, seat_y, x + 10, seat_y + 1, wood)
-        c.rect(x, seat_y, x + 10, seat_y, wood_t)
+        c.rect(x, seat_y, x + 10, seat_y, col(0.27, 0.03, 62) if kept else wood_t)   # 不让坐的那把：座面没灰
         for j, lx in enumerate((x, x + 9)):
-            c.rect(lx, seat_y + 2, lx + 1, 31, new if j == new_leg else wood_d)
+            c.rect(lx, seat_y + 2, lx + 1, 30 if kept else 31, new if j == new_leg else wood_d)
+            if kept:                                                                   # 椅脚下垫的木片
+                c.rect(lx - 1, 31, lx + 2, 31, col(0.33, 0.03, 80))
         bx = x if back_left else x + 9
         c.rect(bx, 0, bx + 1, seat_y - 1, wood)
         c.rect(bx, 0, bx + 1, 0, wood_t)
         c.rect(bx, 4, bx + 1, 5, wood_d)
         c.rect(bx, 9, bx + 1, 10, wood_d)
         c.rect(x + 1, seat_y + 7, x + 8, seat_y + 7, wood_d)
-        if cushion:
-            c.rect(x + 1, seat_y - 2, x + 9, seat_y - 1, col(0.27, 0.03, 340))
-            c.rect(x + 2, seat_y - 3, x + 8, seat_y - 3, col(0.30, 0.025, 345))
+        if kept:                                                                       # 搭在椅背上的旧外套
+            coat, coat_d, coat_l = col(0.27, 0.02, 245), col(0.22, 0.018, 250), col(0.31, 0.016, 240)
+            c.poly([(bx - 3, 1), (bx + 3, 1), (bx + 3, 13), (bx + 2, 15), (bx + 1, 13)], coat)          # 背后那半
+            c.poly([(bx - 4, 1), (bx, 1), (bx, seat_y + 3), (bx - 2, seat_y + 4), (bx - 5, seat_y + 2),
+                    (bx - 4, 8)], coat)                                                                  # 朝前那半，垂到座面
+            c.rect(bx - 3, 0, bx + 2, 1, coat_l)                                                         # 领子
+            c.rect(bx - 2, 4, bx - 2, seat_y + 1, coat_d)                                                # 褶
+            c.rect(bx - 4, 10, bx - 3, 11, coat_d)                                                       # 口袋
+            c.rect(bx + 2, 3, bx + 2, 12, coat_d)
 
     chair(0, True, 1)
     tag(c, 2, 3)
-    chair(w - 11, False, 0, cushion=True)
-    tag(c, w - 12, 3)
+    chair(w - 11, False, 0, kept=True)
+    tag(c, w - 9, 21)
     return c
 
 
@@ -1041,6 +1149,112 @@ def seed_box():
     return c
 
 
+TOOLWALL_ROWS = [
+    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "dBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dBBBBpBBBBBBBBpBBBBBBBBBpBBBBBBBBBBpBBBBBBBBBBBpBBBBBBBBBBBBBd",
+    "dBBBBkBBBBBBBlkllBBBBBBlkBBBBBBBBBlklBBBBBBBBBBkBBBBBBBBBBBBBd",
+    "dBBBlMlBBBBBBlMMlBBBBBlmlBBBBBBBBBlwlBBBBBBBBlMMMlBBBBBBBBBBBd",
+    "dBBlmMmlBBBBBlMMlBBBBBlmlBBBBBBBBBlwlBBBBBBBBlmMmlBBBBBBBBBBBd",
+    "dBBlmMmlBBBBBBlmlBBBBlmmmlBBBBBBBBlwlBBBBBBBBBlmlBBBBBBBBBBBBd",
+    "dBBBlMlBBBBBBBlmlBBBBlmmmlBBBBBBBBlnlBBBBBBBBBlmlBBBBBBBBBBBBd",
+    "dBBBBwlBBBBBBBlmlBBBBBlmlBBBBBBBBBlmlBBBBBBBBBlmlBBBBBBBBBBBBd",
+    "dBBBlwlBBBBBBBlmlBBBBBlmlBBBBBBBBBlmlBBBBBBBBBlmlBBBBBBBBBBBBd",
+    "dBBBlwlBBBBBBBlmlBBBBBlmlBBBBBBBBBlmlBBBBBBBBlmmmlBBBBBBBBBBBd",
+    "dBBBlwlBBBBBBlmmmlBBBBlmlBBBBBBBBBBlBBBBBBBBBlmMmlBBBBBBBBBBBd",
+    "dBBBBlBBBBBBBBlllBBBBBBlBBBBBBBBBBBBBBBBBBBBBBlllBBBBBBBBBBBBd",
+    "dBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dBBBBpBBBBBBBBBpBBBBBBBBBpBBBBBBBBBpBBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dBBBlllBBBBBBBlBlBBBBBBBlBlBBBBBBBlllBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dBBBlBlBBBBBBBlBlBBBBBBBlBlBBBBBBBlBlBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dBBBlBlBBBBBBBBlBBBBBBBlBBBlBBBBBBlBlBBBBBBNNNNNNNNNBBBBBBBBBd",
+    "dBBBBlBBBBBBBBBlBBBBBBBlBBBlBBBBBBBlBBBBBBBNnNnnNnNNBBBBBBBBBd",
+    "dBBBBlBBBBBBBBBlBBBBBBBBlBlBBBBBBBBlBBBBBBBNNnNNnnNNBBBBBBBBBd",
+    "dBBBBlBBBBBBBBBlBBBBBBBBBlBBBBBBBBBlBBBBBBBNNNNNNNNNBBBBBBBBBd",
+    "dBBBBlBBBBBBBBlllBBBBBBBBBBBBBBBBBBlBBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dBBBBlBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBsBssBsBsssBBBBBBd",
+    "dBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBd",
+    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+]
+
+
+def toolwall():
+    """工具墙：一块挂板，上面用浅色画着两套不同高度的工具轮廓。高的那排（弥洛的高度）挂着工具：锤子、钳子、
+    一把锉、螺丝刀、扳手；低的那排（另一个人的高度）空着，只剩画出来的轮廓和空钩子。旁边两行不同的笔迹：
+    一张圆乎乎字迹的小纸条（「用完放回来，我够不到。」），下面一行弥洛后来刻上去的、尖的短划（「那就长高一点。」）。
+    1 倍下读不出字，只看得出是两种笔迹。"""
+    pal = {"d": col(0.15, 0.012, 60), "B": col(0.195, 0.018, 70), "l": col(0.27, 0.012, 95),
+           "p": col(0.30, 0.008, 220), "k": col(0.24, 0.008, 225), "M": col(0.36, 0.008, 210),
+           "m": col(0.28, 0.008, 225), "w": col(0.30, 0.035, 60), "n": col(0.25, 0.03, 30),
+           "N": col(0.30, 0.016, 85), "s": col(0.25, 0.014, 90)}
+    c = Canvas.from_rows(TOOLWALL_ROWS, pal)
+    return c
+
+
+def part_pack():
+    """新零件的小纸包：牛皮纸，拆过又重新折了好几次（几道折痕、一个翘起来的角），细绳。"""
+    return Canvas.from_rows([
+        "..q...",
+        ".PPqPq",
+        "PqPPPP",
+        "PPPwqP",
+        "PqPwPP",
+        "PPPwPq",
+    ], {"P": col(0.34, 0.03, 75), "q": col(0.28, 0.026, 70), "w": col(0.40, 0.012, 90)})
+
+
+def postcard():
+    """玻璃下压着的半张明信片：一块小玻璃板斜靠在墙上（左上一道高光），里面半张明信片——
+    干净、没灰、边角不卷，右上角一枚邮票和半个邮戳圈。屋里唯一干净的纸。"""
+    return Canvas.from_rows([
+        "TggggggG",
+        "gppppsSg",
+        "gpqqpSsg",
+        "gpppeppg",
+        "gpqqpepg",
+        "gpppppg.",
+        "Gggggg..",
+    ], {"T": col(0.50, 0.02, 170), "g": col(0.36, 0.02, 175), "G": col(0.30, 0.02, 180),
+        "p": col(0.52, 0.02, 85), "q": col(0.40, 0.015, 80), "s": col(0.40, 0.05, 30), "S": col(0.46, 0.05, 40),
+        "e": col(0.36, 0.015, 230)})
+
+
+LAMP_X = SHELF_X[1] - 7            # 油灯在架子第一层右边的中心
+
+
+def lamp():
+    """一盏旧油灯（和 icon_lamp 同一件东西）：旧铜灯座，蒙了灰的暗玻璃罩（左边一道浅的高光），
+    灯芯是暗的、不亮；灯颈上挂着姓名牌。"""
+    return Canvas.from_rows([
+        "...mm......",
+        "..mMMm.....",
+        "...gg......",
+        "..tggg.....",
+        ".tggggg....",
+        ".tgbbgg....",
+        ".tgbbgg....",
+        "..tggg.....",
+        ".mmmmmmh...",
+        "mOOOOOOmh..",
+        "mOyOOOOOmzz",
+        "mOOOOOOomzz",
+        ".mooooom...",
+        "..mmmmm....",
+    ], {"m": col(0.24, 0.012, 215), "M": col(0.30, 0.01, 210), "g": col(0.20, 0.015, 195),
+        "t": col(0.27, 0.014, 185), "b": col(0.12, 0.01, 230), "O": col(0.31, 0.045, 72), "y": col(0.37, 0.04, 82),
+        "o": col(0.25, 0.04, 62), "h": STRING, "z": TAG})
+
+
+def lamp_mark():
+    """油灯被拿走以后架子上留下的印子：隔板顶上那一行（落了灰的浅色）在灯座底下是一截没灰的干净木色。
+    一直显示，有灯的时候被灯座盖住、只从两边露一点。"""
+    c = S(11, 1)
+    c.rect(1, 0, 9, 0, col(0.215, 0.03, 58))                  # 没灰的木头（比落灰的隔板顶暗、颜色实）
+    c.put(0, 0, col(0.33, 0.014, 88))                         # 两头灰积得厚一点
+    c.put(10, 0, col(0.33, 0.014, 88))
+    return c
+
+
 def light_shaft():
     """窗里斜进来的一道雾光（半透明，单独一层）+ 光里飘着的几粒灰。"""
     img = np.zeros((H, W, 4), np.uint8)
@@ -1071,6 +1285,10 @@ ICON_PAL = {
     "c": (140, 170, 190), "C": (96, 124, 150), "t": (210, 228, 230), "T": (236, 244, 240), # 冷：玻璃、天
     "m": (120, 120, 132), "M": (160, 160, 170), "n": (88, 86, 100),                        # 金属 / 城市灰
     "v": (100, 150, 110), "V": (140, 190, 140),                                            # 嫩芽绿
+    "L": (150, 112, 78),     # 木头受光的那一条
+    "z": (132, 124, 108),    # 姓名牌：暗的小纸片（比纸 p 暗得多）
+    "h": (104, 100, 110),
+    "D": (70, 88, 110), "u": (128, 152, 172),                                              # 蓝石头：暗边、受光    # 挂姓名牌的线（比最暗的 k 亮一档，在背包底色上看得见）
 }
 
 ICONS = {
@@ -1259,6 +1477,172 @@ ICONS = {
 }
 
 
+def _spring_rows():
+    """闹钟里拆出来的发条：一圈扁的螺旋（外圈受光亮、里圈暗），尾巴伸出去一截，几处锈。"""
+    n = 13
+    g = [["."] * (n + 3) for _ in range(n)]
+    cx = cy = n // 2
+    th = 0.0
+    while th < 5.2 * math.pi:
+        r = 0.55 + 0.36 * th
+        x, y = round(cx + r * math.cos(th)), round(cy + r * math.sin(th) * 0.95)
+        if 0 <= x < n and 0 <= y < n:
+            g[y][x] = "M" if (r > 3.5 and math.sin(th) < 0.2) else ("m" if r > 2 else "n")
+        th += 0.05
+    for x in range(n - 1, n + 3):                       # 尾巴
+        g[cy + 4][x] = "m"
+    g[cy + 3][n + 2] = "M"
+    for (x, y) in ((2, 4), (9, 10), (6, 1)):            # 锈
+        if g[y][x] != ".":
+            g[y][x] = "o"
+    return ["".join(r) for r in g]
+
+
+def _valve_rows():
+    """锈的阀门：上面一只手轮（圆圈 + 四根辐条 + 轴心），下面一截阀体管子带两片法兰，锈斑一块块。"""
+    W_, H_ = 14, 15
+    g = [["."] * W_ for _ in range(H_)]
+    cx, cy, r = 6, 4, 4
+    for y in range(H_):
+        for x in range(W_):
+            d = math.hypot(x - cx, (y - cy) * 1.05)
+            if r - 0.75 <= d <= r + 0.45:
+                g[y][x] = "R" if (x + y) % 5 == 0 else ("r" if y < cy else "R")
+    for k in range(-3, 4):                                # 辐条
+        g[cy][cx + k] = "n" if g[cy][cx + k] == "." else g[cy][cx + k]
+        g[cy + k][cx] = "n" if g[cy + k][cx] == "." else g[cy + k][cx]
+    g[cy][cx] = "M"
+    for y in range(cy + 4, cy + 7):                       # 阀杆
+        g[y][cx] = "m"
+        g[y][cx + 1] = "n"
+    body = ["..mmmmmmmmm...", "nMmmmmommmmMn.", "nmmmooommmmmn.", "nmmmmmmmmommn.", "..nnnnnnnnn..."]
+    for i, row in enumerate(body):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                g[cy + 6 + i][x] = ch
+    return ["".join(r).rstrip(".") or "." for r in g]
+
+
+ICONS.update({
+    # 一块旧木板（从商店烂货架上拆下来的）：顶边受光，两个钉眼，右头断得参差
+    "icon_plank": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "LLLLLLLLLLLLLL..",
+        "wwwwwBwwwwwwwwL.",
+        "wwbwwwwwwwwbwwwL",
+        "wwwwwwwBwwwwwwww",
+        "BBBBBBBBBBBBBBB.",
+        ".bbbbbbbbbbbbb..",
+    ],
+    # 空的小罐子：铁盖，玻璃只画一圈边和一道高光，中间是空的（看得见后面）
+    "icon_jar": [
+        "...MMMMMM...",
+        "...mmmmmm...",
+        "..tc....ct..",
+        ".t........c.",
+        ".t.T......c.",
+        ".t.T......c.",
+        ".t........c.",
+        ".t........C.",
+        ".t........C.",
+        "..t......C..",
+        "...CCCCCC...",
+    ],
+    # 同一个罐子，装了金黄的松脂（满到肩），罐口挂着一滴
+    "icon_sap": [
+        "...MMMMMM...",
+        "...mmmmmm...",
+        "..tc..y.ct..",
+        ".t....y...c.",
+        ".tYYYYYYYYc.",
+        ".tyTyyyyyOc.",
+        ".tyTyyyyOOc.",
+        ".tyyyyyOOOC.",
+        ".tOyyyOOOoC.",
+        "..tOOOOOoC..",
+        "...CCCCCC...",
+    ],
+    "icon_spring": _spring_rows(),
+    "icon_valve": _valve_rows(),
+    # 树屋里那台收音机：木壳，左边格栅，右边刻度窗（指针）和两个旋钮，挂着暗的小姓名牌
+    "icon_radio": [
+        "................",
+        ".LLLLLLLLLLLL...",
+        ".wwwwwwwwwwwwh..",
+        ".wbbbbbwyyywwh..",
+        ".wwwwwwwyoywwzz.",
+        ".wbbbbbwyyywwzz.",
+        ".wwwwwwwwwwww...",
+        ".wbbbbbwnwnww...",
+        ".wwwwwwwwwwww...",
+        ".BBBBBBBBBBBB...",
+        "..b........b....",
+    ],
+    # 那个自己转的路标：木杆，顶上一块朝右的箭头牌（受光），下面一块朝左的小牌，十字脚，挂姓名牌
+    "icon_sign": [
+        ".....bL.........",
+        ".....bLLLLLLLL..",
+        ".....bwwwwwwwwL.",
+        ".....bwBBBBwwwwL",
+        ".....bwwwwwwwwL.",
+        ".....bBBBBBBBB..",
+        ".....bh.........",
+        "..BBBbh.........",
+        ".Bwwwbzz........",
+        "..BBBbzz........",
+        ".....b..........",
+        ".....b..........",
+        ".....b..........",
+        ".....bB.........",
+        "...bbbbbb.......",
+    ],
+    # 一盏旧油灯（不亮）：铜灯座，蒙了灰的暗玻璃罩（左边一道高光），灯芯是暗的，灯颈上挂着姓名牌
+    "icon_lamp": [
+        "......mm........",
+        ".....mMMm.......",
+        "......CC........",
+        ".....tCCC.......",
+        "....tCCCCC......",
+        "....tCbbCC......",
+        "....tCbbCC......",
+        ".....tCCC.......",
+        "....mmmmmmh.....",
+        "...mOOOOOOmh....",
+        "..mOyOOOOOOmh...",
+        "..mOyOOOOOom.zz.",
+        "...mooooooom.zz.",
+        "....mmmmmmm.....",
+    ],
+    # 蓝色小石头（不发光，暗一点的灰蓝）：扁卵石，左上受光；中间一道放拇指的浅槽（上沿是槽壁的影子、下面一道受光）
+    "icon_blue_stone": [
+        "....DDDDD....",
+        "..DCuuCCCD...",
+        ".DCuCCCCCCCD.",
+        "DCuCCDDDDCCCD",
+        "DCCCCuuuuCCCD",
+        ".DCCCCCCCCCD.",
+        "..DDCCCCCDD..",
+        "....DDDDD....",
+    ],
+    # 明信片：暖白的卡片，右上一枚锈红邮票，盖着半个邮戳圈（两道波浪线），左边几行字，中间一道竖线
+    "icon_postcard": [
+        "PPPPPPPPPPPPPP",
+        "PppppppPppRRrP",
+        "PpeeeppPppRrRP",
+        "PppppppPeeeeeP",
+        "PpeeeepPpeppeP",
+        "PppppppPppppqP",
+        "PpeeeppPpeeepP",
+        "PppppppPppppqP",
+        "qqqqqqqqqqqqqq",
+    ],
+})
+
+
 def icon(name):
     rows = ICONS[name]
     c = Canvas.from_rows(rows, ICON_PAL)
@@ -1319,6 +1703,12 @@ def build():
     r = radio()
     save("room_radio", r)
     put("room_radio", r, SHELF_X[0] + 3 + r.w / 2, FL - SHELF_H[0])
+    lm = lamp_mark()
+    save("room_lamp_mark", lm)
+    put("room_lamp_mark", lm, LAMP_X + 0.5, FL - SHELF_H[0] + 1)    # 盖在隔板顶那一行上
+    la = lamp()
+    save("room_lamp", la)
+    put("room_lamp", la, LAMP_X + 2, FL - SHELF_H[0])            # 灯座中心对准印子（图右边多出来的是姓名牌）
     f, fw, fh = sign_frames()
     sheet("room_sign", f, fw, fh, 250)
     put("room_sign", f[0], X(175) + 1, FL, frames=4, fw=fw)
@@ -1331,16 +1721,25 @@ def build():
     put("room_kettle", f[0], X(45), FL - 28, frames=2, fw=fw)
     cu = cups()
     save("room_cups", cu)
-    put("room_cups", cu, X(100), TABLE_TOP)
+    put("room_cups", cu, X(101), TABLE_TOP)
     di = dish()
     save("room_dish", di)
     put("room_dish", di, BENCH_X[0] + 7, BENCH_TOP)
     f, fw, fh = gramophone_frames()
     sheet("room_gramophone", f, fw, fh, 0, states=["old", "new"])
-    put("room_gramophone", f[0], X(80), TABLE_TOP, frames=2, fw=fw, extra={"states": ["old", "new"]})
+    put("room_gramophone", f[0], X(78), TABLE_TOP, frames=2, fw=fw, extra={"states": ["old", "new"]})
+    pk = part_pack()
+    save("room_part_pack", pk)
+    put("room_part_pack", pk, X(91), TABLE_TOP)                    # 留声机和杯子之间（不重叠）
     bx = seed_box()
     save("room_box", bx)
-    put("room_box", bx, (SMALL_SHELF[0] + SMALL_SHELF[1]) / 2, SMALL_SHELF[2])
+    put("room_box", bx, SMALL_SHELF[0] + 6, SMALL_SHELF[2])
+    pcd = postcard()
+    save("room_postcard", pcd)
+    put("room_postcard", pcd, SMALL_SHELF[1] - 3, SMALL_SHELF[2])    # 盒子旁边，玻璃下压着
+    tw = toolwall()
+    save("room_toolwall", tw)
+    put("room_toolwall", tw, (BENCH_X[0] + BENCH_X[1]) / 2, FL - 36)  # 工作台上方的墙上（管道下面）
     pc, (px0, py0), segs, leaks = pipes()
     for name, a, b in segs:
         part = Canvas(b - a, pc.h, pc.a[:, a:b])
@@ -1367,6 +1766,7 @@ def build():
         return objs[n]["x"] + objs[n]["w"] // 2
 
     hot = {"door": X(18) - CX, "stove": mid("room_kettle"), "box": mid("room_box"),
+           "postcard": mid("room_postcard"), "lamp": LAMP_X - CX, "part_pack": mid("room_part_pack"), "toolwall": mid("room_toolwall"),
            "chairs": X(116) - CX, "chair_free": X(60) - CX, "cups": mid("room_cups"),
            "gramophone": mid("room_gramophone"), "radio": mid("room_radio"),
            "shelf": (SHELF_X[0] + SHELF_X[1]) // 2 - CX, "sign": mid("room_sign"), "dish": mid("room_dish")}
@@ -1379,7 +1779,7 @@ def build():
         "walk_min": X(8) - CX,
         "walk_max": X(252) - CX,
         "door_x": X(18) - CX,
-        "layers": ["treehouse_back", "objects (room_*, pipe_*, tool_*)", "room_light（半透明）", "人物",
+        "layers": ["treehouse_back", "objects (room_*, pipe_*, tool_*；room_lamp_mark 一直显示、在 room_lamp 下面)", "room_light（半透明）", "人物",
                    "treehouse_front（进屋淡出 / 出屋淡入）"],
         "note": "所有坐标都是相对锚点（图底边中点）的偏移：x 往右、y 往上为负。objects 的 x,y = 左上角；"
                 "多帧的 w = 帧宽。hotspots = 人走到这个 x 互动。pipe_*.leak = 那段漏气时细白汽（pipe_steam，底边中点）"

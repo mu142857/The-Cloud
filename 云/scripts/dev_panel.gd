@@ -6,7 +6,8 @@ extends CanvasLayer
 ##   2 传送  所有 markers（按 x 排），点一下晨就到那里；room_* 的点会进屋（前墙淡出），屋外的点会出屋
 ##   3 状态  正在播的 scene 和第几步、晨的 x、在哪、背包；所有 flag 列成按钮，亮的是已设，点一下设上 / 去掉
 ##   4 开关  快走（晨的移动 ×3，动画帧速不变）、跳过对话（每句 0.15 秒自动推进）、显示 hotspot 范围和 marker 竖线、
-##           雾开 / 关、前景层开 / 关；按钮：重开本章、给齐本章所有物品、燃料加满
+##           雾开 / 关、前景层开 / 关、补写台词标蓝（剧本 "added": true 的台词正文用蓝色；debug 构建默认开）；
+##           按钮：重开本章、给齐本章所有物品、燃料加满
 ## 用法也写在 docs/forest_chapter.md 末尾「开发者模式（F8）」。
 ## 自测：-- --dev_test   每个开关点两下、每个按钮点一下、传送到每个 marker、点掉 / 加上一个 flag，
 ##        再从面板挨个跳每个节拍（重新载入本章），跳完关掉面板看晨能不能走；全部过了打印 DEV_TEST_DONE 后退出。
@@ -156,7 +157,8 @@ func _build_state(v: VBoxContainer) -> void:
 
 
 func _build_switches(v: VBoxContainer) -> void:
-	for k in [["fast", "快走 ×3"], ["skip", "跳过对话"], ["ranges", "显示范围 / marker"], ["fog", "雾"], ["front", "前景层"]]:
+	for k in [["fast", "快走 ×3"], ["skip", "跳过对话"], ["ranges", "显示范围 / marker"], ["fog", "雾"], ["front", "前景层"],
+			["added", "补写台词标蓝"]]:
 		var b := _btn("", _switch.bind(str(k[0])))
 		b.set_meta("label", str(k[1]))
 		v.add_child(b)
@@ -223,12 +225,14 @@ func _switch(k: String) -> void:
 		"front":
 			var f: CanvasItem = level.get_node("Front")
 			f.visible = not f.visible
+		"added":
+			story.mark_added = not story.mark_added
 	_sync_switches()
 
 
 func _sync_switches() -> void:
 	var on := {"fast": fast, "skip": skip_dialog, "ranges": show_ranges, "fog": story.world.fog_enabled,
-		"front": (level.get_node("Front") as CanvasItem).visible}
+		"front": (level.get_node("Front") as CanvasItem).visible, "added": story.mark_added}
 	for k in _toggles:
 		var b: Button = _toggles[k]
 		b.text = ("■ " if on[k] else "□ ") + str(b.get_meta("label"))
@@ -244,8 +248,30 @@ func _self_test() -> void:
 	var i: int = int(Engine.get_meta(TEST_META, -1))
 	await _wait(1.5)
 	if i >= 0:
-		# 刚从面板跳过来：关掉面板、按住右走一会儿，看晨能不能动
+		# 刚从面板跳过来：关掉面板；落地可能接着播剧情（比如走到等着的鹿身边），让对话自己往下走，等到能自由走再试
 		visible = false
+		story.dlg.auto_delay = 0.2
+		var waited := 0.0
+		var reached: bool = StoryState.has(flags[i])
+		while not level.free_play() and waited < 90.0 and not story.ended:
+			await _wait(0.25)
+			waited += 0.25
+			if story.dlg.picking():
+				story.dlg.confirm()                       # 点选 / 菜单：替它选当前那个
+			elif story.dlg.menu_open():
+				story.dlg._menu_choose(story.dlg._menu_sel)
+		story.dlg.auto_delay = -1.0
+		if story.ended:
+			print("DEV_TEST beat %s: %s  (章节结束卡)" % [flags[i], "ok" if reached else "MISSING"])
+			i += 1
+			if i >= flags.size():
+				Engine.remove_meta(TEST_META)
+				print("DEV_TEST_DONE")
+				get_tree().quit()
+				return
+			Engine.set_meta(TEST_META, i)
+			_jump_beat(flags[i])
+			return
 		var x0: float = level.chen.position.x
 		var ok_state: bool = level.state == level.S.PLAY and level.chen.input_enabled
 		var e := InputEventKey.new()
@@ -257,7 +283,7 @@ func _self_test() -> void:
 		e.pressed = false
 		Input.parse_input_event(e)
 		var moved: bool = absf(level.chen.position.x - x0) > 4.0
-		print("DEV_TEST beat %s: %s  state_ok=%s moved=%s x=%.0f" % [flags[i], "ok" if StoryState.has(flags[i]) else "MISSING",
+		print("DEV_TEST beat %s: %s  state_ok=%s moved=%s x=%.0f" % [flags[i], "ok" if reached else "MISSING",
 			ok_state, moved, level.chen.position.x])
 		i += 1
 	else:

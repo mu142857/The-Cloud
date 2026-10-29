@@ -1,0 +1,11 @@
+{
+ "frame_w": 26,
+ "frame_h": 43,
+ "frames": 4,
+ "ms": 250,
+ "host": "sign_base",
+ "offset": [
+  0,
+  -11
+ ]
+}

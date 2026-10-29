@@ -41,11 +41,12 @@ extends Node2D
 ##                      一直检测「没有对话框、没有剧情在播、没有黑屏，但晨收不到输入超过 3 秒」→ 打印 SOFTLOCK 和当时的状态；
 ##                      剧情的某一步停了 20 秒以上、又没有对话框 / 点选 / 带路在等人 → STUCK_SCENE。结束打印 FUZZ_DONE。
 ##                      可以和 --beat 一起用（从某个节拍开始乱玩）
+##   --hide=节点名,节点名  把这几个节点藏起来（查画面上某一层是谁用）
 ##   --dev [--dev_tab=0..3]  一开始就打开 F8 面板（截图 / 测面板用）
 ##   F8（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
 ##                      见 scripts/dev_panel.gd 和 docs/forest_chapter.md 末尾
 ##   --chen_x=x         （和 --beat 一起）跳完以后让晨站到这个 x（截互动提示用）
-##   --open_bag=物品id  （和 --beat 一起）跳完以后打开背包、选中这件（截背包 / 日记用）
+##   --open_bag=物品id [--bag_line=n]  （和 --beat 一起）跳完以后打开背包、选中这件，描述翻到第 n 行（截背包 / 日记用）
 ## 例：Godot --path . --fixed-fps 60 -- --stage=crash --shot=/tmp/a.png --shot_at=3.6
 ##     Godot --path . --fixed-fps 60 -- --story_auto --story_shots=/tmp/shots
 
@@ -64,6 +65,9 @@ const CHEN_GD := preload("res://scripts/chen.gd")
 const STORY_GD := preload("res://scripts/story_runner.gd")
 const ALIEN_IN_FOREST := false
 const DEV_GD := preload("res://scripts/dev_panel.gd")
+const TEXT_PAGE := preload("res://scripts/text_page.gd")
+const DESC_C := Color("#b9c9bf")
+const STRUCK_C := Color("#6f877b")
 const DEV_BEAT_META := "level_forest_dev_beat"
 const DEV_STAGE_META := "level_forest_dev_stage"
 const DEV_OPEN_META := "level_forest_dev_open"   # 开场的外星人同伴：森林里不出现（那套图以后是河边的泥芙）
@@ -227,8 +231,10 @@ var _lock_reported := false
 var softlocks := 0
 var _dev: Node                    # F8 开发者面板（scripts/dev_panel.gd）
 var _dev_tab := 0
+var _dbg_hide: PackedStringArray = []
 var _dbg_chen_x := NAN
 var _dbg_bag := ""
+var _dbg_bag_line := -1
 
 # ---- 声音
 var _rain: AudioStreamPlayer
@@ -298,6 +304,8 @@ func _ready() -> void:
 		elif a == "--dev_test":
 			if not Engine.has_meta(DEV_BEAT_META):
 				Engine.set_meta(DEV_OPEN_META, true)
+		elif a.begins_with("--hide="):
+			_dbg_hide = a.trim_prefix("--hide=").split(",")
 		elif a == "--dev":
 			Engine.set_meta(DEV_OPEN_META, true)
 		elif a.begins_with("--dev_tab="):
@@ -310,6 +318,8 @@ func _ready() -> void:
 			_dbg_chen_x = float(a.trim_prefix("--chen_x="))
 		elif a.begins_with("--open_bag="):
 			_dbg_bag = a.trim_prefix("--open_bag=")
+		elif a.begins_with("--bag_line="):
+			_dbg_bag_line = int(a.trim_prefix("--bag_line="))
 	if _shots_dir != "":
 		DirAccess.make_dir_recursive_absolute(_shots_dir)
 	if _story_shots != "":
@@ -373,6 +383,7 @@ func _build_story() -> void:
 	story.setup(self, root)
 	root.move_child(story.dlg, _dim.get_index())        # 对话框在黑边上面、面板下面
 	story.auto = _story_auto
+	story.dlg.sfx = _sfx
 	story.shots_dir = _story_shots
 	story.shot_delay = _story_shot_delay
 	if _autoplay or _shot != "" or _shots_dir != "":
@@ -954,17 +965,23 @@ func _build_bag(root: Control) -> void:
 	_bag_w["burn"] = burn
 	# 描述：按整行滚（lines_skipped / max_lines_visible，顶上不会露半行字）；滚轮或 ↑↓ 滚，日记默认翻到最新那条。
 	# 右边一上一下两个小三角：上面 / 下面还有字。
-	var desc := _label("", 14, Color("#b9c9bf"))
+	# 文字页（scripts/text_page.gd）：自己换行、自己画 1 像素的删除线 / 下划线（日记里划掉的、画线的）；按整行滚，框高正好是整数行
+	var desc: Control = TEXT_PAGE.new()
 	desc.position = Vector2(130, 120)
-	desc.size = Vector2(212, DESC_H)
-	desc.clip_text = true
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_constant_override("line_spacing", 2)
-	desc.max_lines_visible = _desc_lines()
+	desc.size = Vector2(212, _desc_lines() * _desc_line_h() - 2.0)
 	desc.mouse_filter = Control.MOUSE_FILTER_STOP
 	desc.gui_input.connect(_on_desc_input)
 	_bag.add_child(desc)
 	_bag_w["desc"] = desc
+	# 「使用」：把选中的东西用在晨身边那个 hotspot 上（日记不能用）
+	var use := Button.new()
+	use.focus_mode = Control.FOCUS_NONE
+	use.custom_minimum_size = Vector2(40, 16)
+	use.position = Vector2(298, 61)
+	use.add_theme_font_size_override("font_size", 14)
+	use.pressed.connect(_on_use_item)
+	_bag.add_child(use)
+	_bag_w["use"] = use
 	for i in 2:
 		var m := Control.new()
 		m.size = Vector2(5, 3)
@@ -1004,37 +1021,73 @@ func _bag_refresh() -> void:
 		_bag_w["rarity"].text = I18n.t("rarity_" + str(it.get("rarity", "common")))
 		_bag_w["rarity"].add_theme_color_override("font_color", rc.darkened(0.25))
 		_bag_w["burn"].text = I18n.t("personal") if it.get("personal", false) else I18n.t("burn_value") % int(it.get("burn", 0))
-		var desc: Label = _bag_w["desc"]
-		var new_text := _item_desc(it)
-		if desc.text != new_text or desc.get_meta("item", "") != str(it.get("id", "")):
-			desc.text = new_text
-			desc.set_meta("item", str(it.get("id", "")))
+		var desc: Control = _bag_w["desc"]
+		var parts := _item_parts(it)
+		var sig := JSON.stringify(parts)
+		var iid := str(it.get("id", ""))
+		if desc.get_meta("sig", "") != sig or desc.get_meta("item", "") != iid:
+			if iid == "journal" and desc.get_meta("item", "") != "journal":
+				_sfx("page_turn", -8.0)           # 翻开日记
+			desc.set_meta("sig", sig)
+			desc.set_meta("item", iid)
+			desc.set_parts(parts)
 			# 日记：翻到最新那条；别的从头
-			desc.lines_skipped = _desc_max_skip() if str(it.get("id", "")) == "journal" else 0
+			_desc_goto(-1 if iid == "journal" else 0)
 		_desc_marks()
+		var use: Button = _bag_w["use"]
+		use.text = I18n.t("use")
+		use.visible = iid != "journal" and state == S.PLAY
 	else:
 		big.texture = null
 		_bag_w["name"].text = ""
 		_bag_w["rarity"].text = ""
 		_bag_w["burn"].text = ""
-		_bag_w["desc"].text = I18n.t("bag_empty") if Inventory.owned.is_empty() else ""
+		var empty_desc: Control = _bag_w["desc"]
+		empty_desc.set_parts([{"text": I18n.t("bag_empty"), "color": DESC_C}] if Inventory.owned.is_empty() else [])
+		empty_desc.set_meta("sig", "")
+		_bag_w["use"].visible = false
 
 
 ## 物品描述：剧本文字取当前语言、空的回落中文；日记 = 按时间列出所有条目；有 desc_fixed 的修好以后换（音乐盒：musicbox_fixed）
-func _item_desc(it: Dictionary) -> String:
+## 物品描述（一段一段，给 text_page.gd 画）：日记 = 按时间列出所有条目（划掉的颜色淡一点、画删除线；画过线的画下划线）；
+## desc_from_tag = 描述后面接上带这个 tag 的条目；有 desc_fixed 的修好以后换（音乐盒：musicbox_fixed）
+func _item_parts(it: Dictionary) -> Array:
+	var out: Array = []
 	if str(it.get("id", "")) == "journal":
-		var lines: Array[String] = []
 		var head: String = story.txt(it.get("desc", ""))
 		if head != "":
-			lines.append(head)
+			out.append({"text": head, "color": DESC_C})
 		for e in StoryState.journal:
-			lines.append("· " + story.txt(e))
+			out.append(_journal_part(e))
 		if StoryState.journal.is_empty():
-			lines.append(I18n.t("journal_empty"))
-		return "\n".join(lines)
+			out.append({"text": I18n.t("journal_empty"), "color": DESC_C})
+		return out
+	var base: String = story.txt(it.get("desc", ""))
 	if it.has("desc_fixed") and StoryState.has(str(it.get("fixed_flag", "musicbox_fixed"))):
-		return story.txt(it["desc_fixed"])
-	return story.txt(it.get("desc", ""))
+		base = story.txt(it["desc_fixed"])
+	if base != "":
+		out.append({"text": base, "color": DESC_C})
+	if it.has("desc_from_tag"):
+		var tag := str(it["desc_from_tag"])
+		for e in StoryState.journal:
+			if str((e as Dictionary).get("tag", "")) == tag:
+				out.append(_journal_part(e))
+	return out
+
+
+func _journal_part(e: Dictionary) -> Dictionary:
+	var struck: bool = e.get("struck", false)
+	return {"text": story.txt(e), "bullet": "· ", "color": STRUCK_C if struck else DESC_C, "struck": struck,
+		"marked": e.get("marked", false)}
+
+
+## 背包「使用」
+func _on_use_item() -> void:
+	if _bag_sel >= Inventory.owned.size():
+		return
+	var id := Inventory.owned[_bag_sel]
+	_close_panels()
+	story.use_item(id)
 
 
 const DESC_H := 88.0
@@ -1049,24 +1102,36 @@ func _desc_lines() -> int:
 
 
 func _desc_max_skip() -> int:
-	var desc: Label = _bag_w["desc"]
-	return maxi(0, desc.get_line_count() - desc.max_lines_visible)
+	var desc: Control = _bag_w["desc"]
+	return desc.max_skip()
+
+
+## 翻到第 n 行（-1 = 最后一屏）
+func _desc_goto(n: int) -> void:
+	var desc: Control = _bag_w["desc"]
+	if n < 0:
+		n = _desc_max_skip()
+	desc.skip = clampi(n, 0, _desc_max_skip())
+	_desc_marks()
 
 
 func _desc_scroll(d: int) -> bool:
-	var desc: Label = _bag_w["desc"]
-	var n := clampi(desc.lines_skipped + d, 0, _desc_max_skip())
-	if n == desc.lines_skipped:
+	var desc: Control = _bag_w["desc"]
+	var cur: int = desc.skip
+	var n := clampi(cur + d, 0, _desc_max_skip())
+	if n == cur:
 		return _desc_max_skip() > 0
-	desc.lines_skipped = n
-	_desc_marks()
+	_desc_goto(n)
+	if desc.get_meta("item", "") == "journal":
+		_sfx("page_turn", -16.0, 1.2)
 	return true
 
 
 func _desc_marks() -> void:
-	var desc: Label = _bag_w["desc"]
-	(_bag_w["more_up"] as Control).visible = desc.lines_skipped > 0 and desc.text != ""
-	(_bag_w["more_down"] as Control).visible = desc.lines_skipped < _desc_max_skip() and desc.text != ""
+	var desc: Control = _bag_w["desc"]
+	var cur: int = desc.skip
+	(_bag_w["more_up"] as Control).visible = cur > 0
+	(_bag_w["more_down"] as Control).visible = cur < _desc_max_skip()
 
 
 func _on_desc_input(e: InputEvent) -> void:
@@ -1558,6 +1623,7 @@ func _crash_done() -> void:
 		_alien_stand()
 	_bars_out(0.7)
 	StoryState.set_flag("crashed")
+	story.alarm(true)
 	var h: String = story.hook("crash")
 	_enter_play()
 	if h != "":
@@ -1902,6 +1968,11 @@ func _input(event: InputEvent) -> void:
 	if _autoplay or _shots_dir != "" or _shot != "" or _story_auto != "":
 		get_viewport().set_input_as_handled()
 		return
+	# 最近一次用的是鼠标还是键盘（互动提示画小鼠标还是「E」）
+	if event is InputEventMouseButton and event.pressed:
+		story.hotspots.use_mouse = true
+	elif event is InputEventKey and event.pressed:
+		story.hotspots.use_mouse = false
 	# F8：开发者面板（只在 debug 构建）
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and OS.is_debug_build():
 		toggle_dev()
@@ -1909,9 +1980,13 @@ func _input(event: InputEvent) -> void:
 		return
 	# 章节结束卡：3 秒以后按任意键回标题
 	if story.ended:
-		if _end_t > 3.0 and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
-			get_tree().reload_current_scene()
 		get_viewport().set_input_as_handled()
+		if _end_t > 3.0 and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
+			_end_t = -100.0                       # 只重开一次
+			if _fuzz > 0.0:
+				_fuzz_t = _fuzz                    # 乱玩：走到结束卡就算玩完
+				return
+			get_tree().reload_current_scene.call_deferred()
 		return
 	# 剧情在播：按键 / 点击给对话框（确认、点选）；鹿带路时方向键照常走
 	if story.busy and not _settings.visible and not _bag.visible:
@@ -1977,7 +2052,7 @@ func _input(event: InputEvent) -> void:
 					_skip_label.modulate.a = 1.0
 		S.PLAY, S.CINE:
 			if state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
-					and event.keycode in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER] and not story.hotspots.near.is_empty():
+					and event.keycode in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and not story.hotspots.near.is_empty():
 				get_viewport().set_input_as_handled()
 				_interact(story.hotspots.near)
 			elif event.is_action_pressed("ui_accept") and _dlg_typing():
@@ -1998,13 +2073,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		if not p.is_empty():
 			# 点到一个能互动的东西：在范围里就直接互动，不然走到它跟前（站在晨这一边）再互动
 			var px := float(p["x"])
-			if absf(chen.position.x - px) <= story.hotspots.range_of(p["h"]):
+			if story.hotspots.in_range(p, chen.position.x):
 				_interact(p)
 			else:
 				_pending_hs = p
 				_walk_target = px - signf(px - chen.position.x) * 10.0
 		else:
 			_walk_target = wp.x
+		_walk_goal = _walk_target
 		get_viewport().set_input_as_handled()
 
 
@@ -2026,6 +2102,7 @@ func _process(delta: float) -> void:
 			create_tween().tween_property(_skip_label, "modulate:a", 0.0, 0.4)
 
 	_update_walls()
+	_update_portal(delta)
 	_update_front(delta)
 	_update_camera(delta)
 	_apply_flash()
@@ -2035,7 +2112,8 @@ func _process(delta: float) -> void:
 	var cc := cam.get_screen_center_position()
 	story.world.update(delta, cc)
 	story.hotspots.active = state == S.PLAY and not story.busy and not _settings.visible and not _bag.visible
-	story.hotspots.update(delta, chen, cc - Vector2(240, 135))
+	story.hotspots.update(delta, chen, cc - Vector2(240, 135), get_global_mouse_position())
+	_update_edge_arrow(cc)
 	if story.ended and _end_t >= 0.0:
 		_end_t += delta
 
@@ -2086,7 +2164,10 @@ func _update_camera(delta: float) -> void:
 			# 标题：镜头慢慢左右漂（50 秒一个来回，±18 像素）
 			cam.position.x = TITLE_CAM_X + 18.0 * sin(_t * TAU / 50.0)
 		S.PLAY, S.CINE:
-			cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
+			if _cam_hold > 0.0:
+				_cam_hold -= delta
+			else:
+				cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
 	cam.position.y = 135.0
 	if _shake > 0.0:
 		_shake -= delta
@@ -2094,6 +2175,14 @@ func _update_camera(delta: float) -> void:
 		cam.offset = Vector2(round(_rng.randf_range(-a, a)), round(_rng.randf_range(-a, a)))
 	else:
 		cam.offset = Vector2.ZERO
+
+
+## 镜头不声不响地停一下（远处有东西走过的时候）
+var _cam_hold := 0.0
+
+
+func cam_hold(sec: float) -> void:
+	_cam_hold = sec
 
 
 ## 镜头跟着晨（往她面朝的方向多看一点）；在树屋里往屋子中心收一点
@@ -2156,10 +2245,12 @@ func _update_interact() -> void:
 		var h: Dictionary = p["h"]
 		if not story.hotspots.usable(h):
 			_pending_hs = {}
-		elif absf(chen.position.x - float(p["x"])) <= story.hotspots.range_of(h) and is_nan(_walk_target):
+		elif story.hotspots.in_range(p, chen.position.x) and (is_nan(_walk_target) or absf(chen.position.x - float(p["x"])) <= 8.0):
 			_pending_hs = {}
 			_interact(p)
 			return
+		elif is_nan(_walk_target) and chen._vel <= 0.0:
+			_pending_hs = {}            # 走到头了还够不着（被看得见的边挡住）：算了
 	var a: Dictionary = story.hotspots.auto_trigger(chen.position.x)
 	if not a.is_empty():
 		_interact(a)
@@ -2171,7 +2262,27 @@ func _interact(p: Dictionary) -> void:
 	chen.auto_dir = 0.0
 	_walk_target = NAN
 	_pending_hs = {}
+	# 按下的瞬间：物件闪一下、箭头按下去、一声轻的确认音，晨朝它转身（story.trigger 里转）
+	if not story.hotspots.is_enter(p["h"]):
+		story.hotspots.pressed(p)
+		_sfx("tick", -12.0, 1.25)
 	story.trigger(p)
+
+
+## 屏幕边上的引导箭头：主线下一个地方（等人的鹿 / 会推进剧情的点）在屏幕外时，指向那边
+func _update_edge_arrow(cc: Vector2) -> void:
+	var side := 0
+	var y := 180.0
+	if free_play():
+		var t: Dictionary = story.main_target()
+		if not t.is_empty():
+			var sx := float(t["x"]) - (cc.x - 240.0)
+			if sx < -4.0:
+				side = -1
+			elif sx > 484.0:
+				side = 1
+			y = round(float(story.world.ground_at(clampf(float(t["x"]), cc.x - 240.0, cc.x + 240.0)))) - 34.0
+	story.dlg.edge_arrow(side, y)
 
 
 ## 左右不可见的墙：自由走时顶着墙按方向键就松手（不原地跑），位置也夹回来
@@ -2248,6 +2359,33 @@ func _front_covers(n: Node2D) -> bool:
 	return hits >= 3
 
 
+## 树屋段往左走到头（回旧路的入口 house_return）、顶着走一小会儿 → 黑屏回到旧路段（road_return，没有就是布条那里）
+var _portal_t := 0.0
+var _walk_goal := NAN              # 走去哪（没被墙夹之前的；走过入口用）
+
+
+func _update_portal(delta: float) -> void:
+	var w: Node2D = story.world
+	if not free_play() or not w.markers.has("house_return") or w.area_of(chen.position.x) != "trees":
+		_portal_t = 0.0
+		return
+	var dir := Input.get_axis("ui_left", "ui_right")
+	if Input.is_key_pressed(KEY_A):
+		dir -= 1.0
+	var at_edge: bool = chen.position.x <= w.b_start() + 8.0
+	var goal_left: bool = not is_nan(_walk_goal) and _walk_goal < w.b_start()
+	if at_edge and (dir < 0.0 or goal_left):
+		_portal_t += delta
+		if _portal_t > 0.35:
+			_portal_t = 0.0
+			_walk_target = NAN
+			_walk_goal = NAN
+			var to: float = w.mx("road_return") if w.markers.has("road_return") else w.mx("cloth")
+			story.portal_to(to)
+	else:
+		_portal_t = 0.0
+
+
 ## 自由走（含鹿带路时：剧情没播完但晨能自己走）
 func _free() -> bool:
 	return state == S.PLAY or (state == S.CINE and story != null and story.free_walk)
@@ -2315,6 +2453,7 @@ func free_play() -> bool:
 
 func walk_to(x: float) -> void:
 	_walk_target = x
+	_walk_goal = x
 
 
 func walking() -> bool:
@@ -2389,50 +2528,122 @@ func _snap_camera() -> void:
 	cam.reset_smoothing()
 
 
-## 剧本里不是图的物件：ship:launch = 晨上船、船身抖、喷口冒烟
+## 剧本里不是图的物件：ship:launch = 点火：晨上船、尾焰火星和烟、尘土、船身抖；鹿往旁边让开（别被船和尘土盖住）
 func _on_pseudo_prop(id: String, st: String) -> void:
 	if id == "ship" and st == "launch":
 		if chen.visible and not story.ff:
-			puffs_front.burst(chen.position + Vector2(0, -2), 6, puffs_front.PRESETS.dust_small)
+			puffs_back.burst(chen.position + Vector2(0, -2), 6, puffs_back.PRESETS.dust_small)
 		chen.visible = false
 		if story.ff:
 			return
-		_shake = 2.2
-		_shake_amp = 1.5
+		_shake = 1.6
+		_shake_amp = 1.0
 		if not wreck.visible:
 			_show_wreck()
 		puffs_back.add_source("launch", wreck.position + WRECK_ENGINE, 18.0, puffs_back.PRESETS.smoke.merged({"spread": Vector2(6, 3)}))
-		puffs_front.add_source("launch_embers", wreck.position + WRECK_HOLE, 6.0, puffs_front.PRESETS.ember)
+		puffs_back.add_source("launch_embers", wreck.position + WRECK_ENGINE + Vector2(-2, 2), 8.0, puffs_back.PRESETS.ember)
+		_deer_clear()
 
 
-## 起飞：坠毁的船换成开场那张飞行图，船头朝右上，先慢慢抬起来再加速飞出屏幕右上角 → 黑屏
+## 鹿站得离船太近：走到船尾右边一点（起飞的船、尘土都别盖住它）
+func _deer_clear() -> void:
+	var deer: Node2D = story.deer
+	var safe := wreck.position.x + 150.0
+	if deer.visible and deer.position.x < safe:
+		if deer.has_method("walk_to"):
+			deer.call("walk_to", safe)
+		else:
+			deer.run_to(safe)
+
+
+## 起飞（不翻面）：
+##   1. 倒出来：沿着机头扎进土里的方向往后、往上慢慢退出来（船身抖，机头那里带出土块和尘），约 1.4 秒
+##   2. 摆平：小角度分几步转（像素图转大角度会有锯齿，所以每步只转几度），悬停一下
+##   3. 按机头朝向（左上）加速飞出画面 → 黑屏
+## 坠毁图（ship_wreck.png）斜 17°、机头朝左下扎在土里；飞行图（ship_fly.png）斜 16°、同一个朝向，退出来以后换成飞行图（有尾焰两帧）。
+const TAKEOFF_BACK := 1.4          # 倒出来多久
+const TAKEOFF_BACK_DIST := 26.0    # 沿船身往后退多远
+const TAKEOFF_LEVEL_STEPS := [0.07, 0.14, 0.21, 0.28, 0.35, 0.42]   # 摆平再微微抬头：一步步转到这些角度（弧度）
+const TAKEOFF_LEVEL_STEP_T := 0.16
+
+
 func story_takeoff() -> void:
 	chen.visible = false
 	_bars_in(0.6)
-	_sfx("ship_whoosh", -4.0, 0.85)
-	for k in ["wreck", "wreck2", "wreck3", "embers", "embers2", "launch", "launch_embers"]:
+	_deer_clear()
+	_fade_db(_crackle, -80.0, 1.0)
+	for k in ["wreck", "wreck2", "wreck3", "embers", "embers2"]:
 		puffs_back.remove_source(k)
 		puffs_front.remove_source(k)
-	_fade_db(_crackle, -80.0, 1.0)
-	var start := wreck.position + WRECK_CENTER
-	puffs_front.burst(wreck.position + Vector2(0, -2), 30, puffs_front.PRESETS.dust.merged({"spread": Vector2(50, 1)}))
-	puffs_back.burst(wreck.position + Vector2(0, -10), 16, puffs_back.PRESETS.smoke_burst)
+	if not wreck.visible:
+		_show_wreck()
+	# ---- 1. 倒出来：沿船身轴线（机头 → 尾巴 = 右上）往后退，抖、机头那里一直带出土
+	_sfx("ship_whoosh", -10.0, 0.6)
+	var w0 := wreck.position
+	var axis := Vector2(cos(-0.297), sin(-0.297))          # 船身斜 17°，往尾巴那边（右上）
+	var nose0 := w0 + WRECK_NOSE
+	var t := 0.0
+	while t < TAKEOFF_BACK:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		var k := clampf(t / TAKEOFF_BACK, 0.0, 1.0)
+		var sm := k * k * (3.0 - 2.0 * k)
+		var jitter := Vector2(_rng.randi_range(-1, 1), _rng.randi_range(-1, 0)) if k < 0.85 else Vector2.ZERO
+		wreck.position = (w0 + axis * TAKEOFF_BACK_DIST * sm + jitter).round()
+		var nose := wreck.position + WRECK_NOSE
+		if _rng.randf() < dt * 18.0:
+			puffs_back.burst(nose0 + Vector2(_rng.randf_range(-6, 10), 0), 2, puffs_back.PRESETS.dust)
+		if _rng.randf() < dt * 6.0:
+			puffs_back.burst(nose + Vector2(2, 2), 1, puffs_back.PRESETS.dust_small)
+		puffs_back.set_source_pos("launch", wreck.position + WRECK_ENGINE)
+		puffs_back.set_source_pos("launch_embers", wreck.position + WRECK_ENGINE + Vector2(-2, 2))
+	puffs_back.burst(nose0 + Vector2(4, 0), 10, puffs_back.PRESETS.dust.merged({"spread": Vector2(14, 1)}))
+	# ---- 换成飞行图（同一个斜度、同一个中心），尾焰
+	var c := wreck.position + WRECK_CENTER
 	wreck.visible = false
+	puffs_back.remove_source("launch")
+	puffs_back.remove_source("launch_embers")
 	ship.visible = true
+	ship.flip_h = false
+	ship.scale = Vector2.ONE
+	ship.rotation = 0.0
 	ship.frame = 0
-	ship.flip_h = true
-	ship.rotation = -0.52
-	ship.position = start.round()
-	_shake = 1.2
-	_shake_amp = 3.0
-	_path_a = start
-	_path_b = Vector2(cam_left().x + 480.0 + 140.0, -90.0)
+	ship.position = c.round()
 	var eng := _takeoff_engine()
-	puffs_back.add_source("trail", ship.position + eng, 46.0, puffs_back.PRESETS.trail)
-	puffs_back.add_source("trail_sparks", ship.position + eng, 10.0, puffs_back.PRESETS.ember)
-	var tw := create_tween()
-	tw.tween_method(_takeoff_step, 0.0, 1.0, 3.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	await tw.finished
+	puffs_back.add_source("trail", ship.position + eng, 30.0, puffs_back.PRESETS.trail)
+	puffs_back.add_source("trail_sparks", ship.position + eng, 8.0, puffs_back.PRESETS.ember)
+	# ---- 2. 摆平：一步一步转（机头抬起来），边转边往上飘一点
+	for a in TAKEOFF_LEVEL_STEPS:
+		ship.rotation = float(a)
+		ship.position = (ship.position + Vector2(0, -2)).round()
+		_move_trail()
+		await get_tree().create_timer(TAKEOFF_LEVEL_STEP_T).timeout
+	# 悬停一下（上下 1 像素）
+	var hover_y := ship.position.y
+	t = 0.0
+	while t < 0.6:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		ship.position.y = hover_y - (1.0 if fmod(t, 0.3) < 0.15 else 0.0)
+		_move_trail()
+	# ---- 3. 按机头朝向加速飞走（左上，出画面）
+	_sfx("ship_whoosh", -4.0, 0.85)
+	_shake = 0.6
+	_shake_amp = 2.0
+	var dir := (Vector2(SHIP_NOSE).rotated(ship.rotation).normalized() + Vector2(0, -0.3)).normalized()
+	var p0 := ship.position
+	t = 0.0
+	var dist := 0.0
+	while t < 3.2:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		dist += (40.0 + 260.0 * t * t) * dt
+		ship.position = (p0 + dir * dist).round()
+		_move_trail()
+		if ship.position.x < cam_left().x - 160.0 or ship.position.y < -90.0:
+			break
 	puffs_back.remove_source("trail")
 	puffs_back.remove_source("trail_sparks")
 	ship.visible = false
@@ -2443,13 +2654,10 @@ func story_takeoff() -> void:
 
 
 func _takeoff_engine() -> Vector2:
-	return Vector2(-SHIP_ENGINE.x, SHIP_ENGINE.y).rotated(ship.rotation)
+	return SHIP_ENGINE.rotated(ship.rotation)
 
 
-func _takeoff_step(k: float) -> void:
-	# 先往上抬（横着几乎不动），再斜着冲出去
-	var p := Vector2(lerpf(_path_a.x, _path_b.x, k * k), lerpf(_path_a.y, _path_b.y, k))
-	ship.position = p.round()
+func _move_trail() -> void:
 	puffs_back.set_source_pos("trail", ship.position + _takeoff_engine())
 	puffs_back.set_source_pos("trail_sparks", ship.position + _takeoff_engine())
 
@@ -2473,6 +2681,12 @@ func _jump_beat(flag: String) -> void:
 	if story.ff_hit_end:
 		story.ff_hit_end = false
 		story.play_end()
+	for n in _dbg_hide:
+		var node := find_child(n, true, false)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = false
+		elif node != null and node.has_method("set_visible"):
+			node.call("set_visible", false)
 	if not is_nan(_dbg_chen_x):
 		chen.position.x = _dbg_chen_x
 		chen.position.y = round(chen.ground_fn.call(_dbg_chen_x)) + 1
@@ -2483,6 +2697,8 @@ func _jump_beat(flag: String) -> void:
 		if i >= 0:
 			_bag_select(i)
 			_bag_slots[i].grab_focus()
+			if _dbg_bag_line >= 0:
+				(func(): _desc_goto(_dbg_bag_line)).call_deferred()
 	on_room_changed()
 	_hud_burn.modulate.a = 1.0 if Inventory.burn_total() > Inventory.base_burn else 0.0
 	_stage_t = 0.0
@@ -2610,10 +2826,14 @@ func _fuzz_tick(delta: float) -> void:
 		_fuzz_key(k, true)
 		_fuzz_key(k, false)
 	else:
-		# 乱点：画面上随便一点（地面、东西、按钮都可能）
+		# 乱点：一半点在能互动的东西上（不在范围里就会先走过去），一半画面上随便一点
 		var e := InputEventMouseButton.new()
 		e.button_index = MOUSE_BUTTON_LEFT
 		e.position = Vector2(_fuzz_rng.randf_range(0, 480), _fuzz_rng.randf_range(20, 260))
+		var av: Array = story.hotspots.available()
+		if not av.is_empty() and _fuzz_rng.randf() < 0.5:
+			var p: Dictionary = av[_fuzz_rng.randi() % av.size()]
+			e.position = story.hotspots.click_rect(p).get_center() - cam_left()
 		e.global_position = e.position
 		e.pressed = true
 		get_viewport().push_input(e, true)
