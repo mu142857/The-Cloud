@@ -234,6 +234,9 @@ func is_typing() -> bool:
 
 ## 确认键 / 点击：在打字就补全，打完了就下一句
 func confirm() -> bool:
+	if _closeup_wait:
+		_closeup_wait = false
+		return true
 	if _pick_on:
 		_pick_choose(_pick_sel)
 		return true
@@ -644,6 +647,55 @@ func _menu_input(event: InputEvent) -> bool:
 func _menu_hit(i: int, p: Vector2) -> bool:
 	var c: Control = _menu_items[i]
 	return Rect2(c.position - Vector2(2, 2), c.size + Vector2(4, 4)).has_point(p)
+
+
+# ======================================================================= 画的特写
+var _closeup_wait := false
+
+
+## 屏幕中间展开一张图（纸张展开：高度一档一档拉开，背景压暗），停 sec 秒或按确认提前收起
+func closeup(tex: Texture2D, sec: float) -> void:
+	if instant or tex == null:
+		return
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.02, 0.01, 0.0)
+	dim.size = Vector2(480, 270)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(dim)
+	var k := maxi(1, mini(int(400.0 / tex.get_width()), int(220.0 / tex.get_height())))
+	var full := tex.get_size() * k
+	var tr := TextureRect.new()
+	tr.texture = tex
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(tr)
+	var cy := 128.0
+	var set_h := func(h: float):
+		h = maxf(2.0, roundf(h / 2.0) * 2.0)
+		tr.size = Vector2(full.x, h)
+		tr.position = (Vector2(240.0 - full.x / 2.0, cy - h / 2.0)).round()
+	set_h.call(2.0)
+	create_tween().tween_property(dim, "color:a", 0.6, 0.3)
+	if sfx.is_valid():
+		sfx.call("page_turn", -6.0, 1.0)
+	for i in 7:                                   # 展开：七档
+		await get_tree().create_timer(0.05).timeout
+		set_h.call(full.y * float(i + 1) / 7.0)
+	_closeup_wait = true
+	var t := 0.0
+	while _closeup_wait and t < sec:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	_closeup_wait = false
+	for i in 5:                                   # 收起
+		await get_tree().create_timer(0.04).timeout
+		set_h.call(full.y * float(4 - i) / 5.0)
+	var tw := create_tween()
+	tw.tween_property(dim, "color:a", 0.0, 0.25)
+	await tw.finished
+	tr.queue_free()
+	dim.queue_free()
 
 
 # ======================================================================= 屏幕边上的引导箭头

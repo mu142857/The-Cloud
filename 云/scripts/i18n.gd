@@ -64,6 +64,10 @@ const STR := {
 	"use_nothing": ["I don't think this helps here.", "这个好像用不上。"],
 	"use_here_nothing": ["Nothing around here to use it on.", "这附近用不上。"],
 	"journal_struck": ["Crossed out a line in the journal", "划掉了日记里的一句"],
+	"cat_keepsake": ["[Keepsake]", "【纪念品】"],
+	"cat_quest": ["[Quest]", "【任务】"],
+	"keepsake_burn": ["Would burn for about %d", "烧掉可得：约 %d"],
+	"quest_item": ["Needed for something", "任务物品"],
 }
 
 

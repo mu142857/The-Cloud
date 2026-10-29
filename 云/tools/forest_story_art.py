@@ -2072,6 +2072,286 @@ def shop_photo():
     return s
 
 
+# ================================================================ 第五版：撞断的树线 + 画的特写
+# 画上大象背的那道弧，和中景树线上被撞断的缺口是同一条曲线：back_arc(u)，u 从 0 到 1，0 和 1 是两头（高 0），
+# 中间最高（1）。树线上的弧正好是画上那道弧的 2 倍（宽 184 / 高 54 对 宽 92 / 高 27），引擎把 drawing_arc.png
+# 最近邻放大 2 倍、按 json 里的端点对齐，就严丝合缝地叠在缺口上。
+
+def back_arc(u):
+    u = np.clip(np.asarray(u, float), 0, 1)
+    return (1 - (2 * u - 1) ** 2) ** 0.75
+
+
+ARC_DRAW = dict(x0=44, x1=136, y_end=58, h=27)          # 画上的弧（drawing_closeup / drawing_arc 的像素坐标）
+ARC_TREE = dict(x0=8, x1=192, y_end=112, h=54)           # 树线上的弧（broken_treeline 的像素坐标）= 画上的 2 倍
+TREELINE_LAYER = "mid"                                   # 放在中景 Mid（scroll 0.62，地面 228，和它的树一个尺度）
+TREELINE_X = 270                                         # 在 mid 层里的 x（图的左边缘）；y = 0（图的上边缘贴着层的上边缘）
+
+
+def arc_y(a, x):
+    u = (np.asarray(x, float) - a["x0"]) / (a["x1"] - a["x0"])
+    return a["y_end"] - a["h"] * back_arc(u)
+
+
+def arc_points(a, n=7):
+    xs = np.linspace(a["x0"], a["x1"], n)
+    return [[int(round(x)), int(round(float(arc_y(a, x))))] for x in xs]
+
+
+def broken_treeline():
+    """中景树线上被撞断的一段：好几棵高云杉的树冠被齐齐削掉，断口连成一道很大、很平滑的弧，
+    像有个巨大的背从这里蹭过去（不画动物）。弧上面是削出来的一条「通道」，透出后面的雾、稍微亮一点；
+    弧下面留着的树冠是参差的断面；树干断在弧上，露出浅色的新木茬，几根断枝挂下来。
+    这张图贴在 mid 层（x = TREELINE_X，y = 0），只盖住那一段原来的树冠。"""
+    W, Hh = 200, 150
+    s = Spr(W, Hh)
+    mid = np.array(Image.open(ROOT / "art" / "forest" / "mid.png"))
+    seg = np.roll(mid, -TREELINE_X, axis=1)[:Hh, :W]
+    rng = np.random.default_rng(121)
+    ay = arc_y(ARC_TREE, s.xx)
+    u = (s.xx - ARC_TREE["x0"]) / (ARC_TREE["x1"] - ARC_TREE["x0"])
+    inside = (u > 0) & (u < 1)
+    f = back_arc(u)
+    # 弧上面那条通道：底边是弧，顶边是弧往上抬 T，顶边是剩下的树冠的毛边
+    # 顶边：剩下的树冠的毛边——一簇簇往下垂的枝尖，高低乱，不和弧平行
+    rag = np.zeros(W)
+    x = 0
+    while x < W:
+        w_ = int(rng.integers(4, 11))
+        rag[x:x + w_] = rng.integers(-9, 6)
+        x += w_
+    tips = (np.arange(W) % 3 == 1) * rng.integers(0, 4, W)        # 枝尖一根根垂下来
+    T = 8 + 30 * f + rag[None, :] * (f > 0.12) - tips[None, :] * (f > 0.12)
+    gap = inside & (s.yy < ay) & (s.yy > ay - np.maximum(T, 2))
+    # 缺口里是后面的雾：背景那一档的颜色，往光斑色提一点（缺口漏下来的天光）；只有一档，不画成一圈圈的彩虹
+    for y in range(Hh):
+        m = gap[y]
+        if m.any():
+            s.a[y, m] = tuple(mixc(FA.BAND_C[FA.band_of(y)], FA.POOL_C, 0.17)) + (255,)
+    # 通道里远处几根淡淡的树干（更远的那层，雾里）
+    for x in (34, 71, 118, 151, 172):
+        col = gap[:, x] | gap[:, x + 1]
+        for y in np.nonzero(col)[0]:
+            for xx in (x, x + 1):
+                if gap[y, xx]:
+                    s.a[y, xx, :3] = mixc(s.a[y, xx, :3], FA.BAND_C[FA.band_of(y)], 0.6)
+    # 弧下面：原来的树冠留着（mid 层里本来就有），只在断面上补参差：沿弧往下 1~3 格的毛边，暗
+    bark = R("#161e1a", 4, 0.08)
+    fol = R("#0c1712", 5, 0.15, 10)
+    # 断面不是一条光滑的轮廓：撕开的枝叶一簇簇往上翘出弧外 1~4 格（弧本身靠下面那排白茬读出来）
+    x = 0
+    while x < W:
+        w_ = int(rng.integers(2, 5))
+        if rng.random() < 0.55:
+            hh = int(rng.integers(1, 5))
+            for xx in range(x, min(W, x + w_)):
+                if inside[0, xx]:
+                    y0 = int(round(float(arc_y(ARC_TREE, xx))))
+                    for d in range(1, hh + 1 - (xx == x + w_ - 1)):
+                        s.put(xx, y0 - d, fol[1 if d < hh else 2])
+        x += w_
+    # 断面下面：几道漏光的缝（被撞散的树冠之间透出后面的雾），树冠就不是一整块
+    trunk_cols = set()
+    for x in range(W):
+        if mid[160, (x + TREELINE_X) % mid.shape[1], 3] > 0:
+            trunk_cols.add(x)
+    for x0_ in range(12, 190, 12):
+        x0_ += int(rng.integers(-4, 5))
+        w_ = int(rng.integers(1, 4))
+        if any(c in trunk_cols for c in range(x0_ - 1, x0_ + w_ + 1)):
+            continue
+        y0 = int(round(float(arc_y(ARC_TREE, x0_ + w_ / 2)))) + int(rng.integers(4, 12))
+        dep = int(rng.integers(6, 20))
+        for xx in range(x0_, x0_ + w_):
+            for yy in range(y0 + int(rng.integers(0, 3)), y0 + dep - int(rng.integers(0, 4))):
+                if 0 <= yy < Hh:
+                    s.a[yy, xx] = tuple(mixc(FA.BAND_C[FA.band_of(yy)], FA.POOL_C, 0.15)) + (255,)
+    # 树干断在弧上：mid 层里在这段的树干（冠下面那截能看到的竖条），往上接到弧，顶上一截白茬
+    row = np.roll(mid[160], -TREELINE_X, axis=0)[:W]      # 冠下面那一截：哪几列是树干
+    xs_ = np.nonzero(row[:, 3] > 0)[0]
+    trunks = []
+    if len(xs_):
+        start = xs_[0]
+        for a_, b_ in zip(xs_, list(xs_[1:]) + [None]):
+            if b_ is None or b_ != a_ + 1:
+                trunks.append((start, a_))
+                if b_ is not None:
+                    start = b_
+    trunks = [(a_, b_) for a_, b_ in trunks if 0 < u[0, a_] < 1 and b_ - a_ <= 10]
+    for x0_, x1_ in [(x0_, x1_) for x0_, x1_ in trunks] + [(58, 62), (96, 101), (140, 144)]:
+        top = int(round(float(arc_y(ARC_TREE, (x0_ + x1_) / 2))))
+        tw = x1_ - x0_ + 1
+        m = s.rect(x0_, top, x1_, top + 2)                 # 断口下面那截树干（再往下被树冠挡住）
+        s.fill(m, bark, np.where(s.xx == x0_, 2.4, 0.8))
+        # 参差的白茬：几根尖往上戳进通道
+        for k, x in enumerate(range(x0_, x1_ + 1)):
+            h_ = int(rng.integers(2, 7)) if k % 2 == 0 else int(rng.integers(1, 4))
+            for d in range(h_ + 1):
+                s.put(x, top - d, DRY[3] if (d == 0 or k == 0) else DRY[2])
+        s.put(x0_ + tw // 2, top + 1, DRY[1])
+    # 沿弧散着的断枝：浅色的断口，几根挂下来的枝
+    for x in range(12, 190, 9):
+        x += int(rng.integers(-3, 4))
+        y = int(round(float(arc_y(ARC_TREE, x))))
+        s.put(x, y, DRY[2])
+        if rng.random() < 0.5:
+            s.put(x + 1, y - 1, DRY[1])
+    for x0_, ln_ in ((30, 7), (77, 9), (123, 6), (166, 8)):          # 挂下来的断枝（一端还连着，斜斜垂进通道）
+        y0_ = int(round(float(arc_y(ARC_TREE, x0_)))) - int(T[0, x0_]) + 2
+        for k in range(ln_):
+            xx, yy = x0_ + k // 2, y0_ + k
+            if gap[yy, xx]:
+                s.put(xx, yy, fol[1])
+                if k % 2 == 0:
+                    s.put(xx - 1, yy, fol[2])
+        s.put(x0_ + ln_ // 2, y0_ + ln_, DRY[2])
+    return s
+
+
+def drawing_closeup():
+    """晨醒来画的大象（特写，UI 用）：一张皱过又摊平的纸（几道折痕把纸分成几块，各接到的光不一样），
+    铅笔线是深灰（偏一点紫，和背包图标 icon_drawing 同一个色），不是纯黑。朝左的大象：长鼻子垂下来卷一下，
+    头侧面一只大耳朵、头顶后面再露出另一只，圆滚的背（就是那道弧），四条柱子腿，小尾巴；
+    画得不太准：有的线描了两遍，一条腿和鼻子有擦掉的旧线（浅灰的糊印）。肚子底下几道斜着的排线。"""
+    W, Hh = 160, 110
+    s = Spr(W, Hh)
+    PAPER = H("#aaa08e", "#c8bea9", "#e2dac8")          # 和 icon_drawing 的纸同色（暗 -> 亮）
+    PEN = H("#605c6e", "#7a768a")                        # 铅笔：深灰偏紫（icon 的 96,92,110）
+    ERASE = from_hex("#b9b0a0")                          # 擦掉的痕迹
+    paper = s.poly([(2, 3), (60, 1), (157, 2), (158, 60), (157, 107), (90, 108), (1, 108), (0, 50)])
+    # 折痕把纸切成几块：左上那块朝光最亮，右下那块最暗
+    c1 = s.xx * 0.19 + 40 - s.yy          # 斜着的一道（从左边 y=40 到右边 y=70）
+    c2 = (s.yy * 0.23 + 70) - s.xx        # 竖着偏斜的一道（从上面 x=70 到下面 x=95）
+    t = np.where(c1 > 0, np.where(c2 > 0, 2, 1.4), np.where(c2 > 0, 1.2, 0.6))
+    s.fill(paper, PAPER, t)
+    for c in (c1, c2):
+        crease = paper & (np.abs(c) < 0.6)
+        s.fill(crease, PAPER, 0.4)
+        s.fill(paper & (c > 0.6) & (c < 1.6), PAPER, 2)
+    # 右上角折过一个角（折回去的那块暗一点）
+    dog = s.poly([(140, 2), (157, 2), (157, 18)])
+    s.fill(dog, PAPER, 0.3)
+    s.fill(s.line((140, 2), (157, 18)), PAPER, 1)
+    # 擦掉的旧线：一条歪了的鼻子、一条腿
+    old = s.line((26, 64), (18, 78), (16, 90)) | s.line((30, 66), (22, 80), (21, 90)) | s.line((96, 74), (99, 98)) | s.line((102, 75), (104, 97))
+    old = dilate(old, 1) & (noise(s, 131, (2, 2)) > -0.25)
+    for y, x in zip(*np.nonzero(old & paper)):
+        s.a[y, x, :3] = mixc(s.a[y, x, :3], ERASE, 0.6)
+    pen = np.zeros((Hh, W), bool)
+    soft = np.zeros((Hh, W), bool)
+
+    def L(*pts, light=False):
+        m = s.line(*[(int(round(x)), int(round(y))) for x, y in pts])
+        if light:
+            soft[:] |= m
+        else:
+            pen[:] |= m
+
+    # 背：那道弧（drawing_arc 就从这里取）
+    arc_px = np.zeros((Hh, W), bool)
+    pts = [(x, float(arc_y(ARC_DRAW, x))) for x in np.linspace(ARC_DRAW["x0"], ARC_DRAW["x1"], 60)]
+    for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
+        arc_px |= s.line((int(round(xa)), int(round(ya))), (int(round(xb)), int(round(yb))))
+    pen |= arc_px
+    # 描了第二遍的一小截（背的中段，偏上 1 格）
+    L((70, float(arc_y(ARC_DRAW, 70)) - 1), (84, float(arc_y(ARC_DRAW, 84)) - 1), light=True)
+    # 屁股和尾巴
+    L((136, 58), (138, 64), (136, 72), (131, 76))
+    L((137, 61), (142, 67), (141, 72))
+    s_tail = s.rect(140, 72, 142, 73)
+    # 头：一个歪一点的圈，接在背的前头
+    head = s.ell(36, 57, 12, 12) & ~s.ell(36, 57, 11, 11)
+    pen |= head & ~s.ell(47, 60, 8, 12)
+    # 大耳朵（头侧面），另一只从头顶后面露出一点
+    ear = s.ell(46, 60, 9, 12) & ~s.ell(46, 60, 8, 11)
+    pen |= ear
+    L((47, 52), (50, 60), (47, 67), light=True)
+    L((28, 46), (31, 42), (35, 44))
+    # 眼睛
+    pen |= s.rect(30, 55, 31, 55)
+    # 长鼻子：从脸前面垂下来，往外卷一圈；两条边
+    L((26, 63), (22, 72), (20, 82), (20, 90), (17, 95), (13, 95), (11, 92), (13, 89), (16, 90))
+    L((30, 67), (26, 76), (25, 86), (24, 93), (21, 98), (15, 99))
+    # 肚子
+    L((52, 76), (80, 79), (110, 78), (131, 76))
+    # 四条腿（柱子，平脚；第三条描歪了又补了一笔）
+    for x0_, y1 in ((54, 99), (68, 100), (104, 99), (118, 98)):
+        L((x0_, 77), (x0_ - 1, y1))
+        L((x0_ + 7, 79), (x0_ + 7, y1))
+        L((x0_ - 1, y1), (x0_ + 7, y1))
+    L((105, 80), (106, 96), light=True)
+    # 肚子底下的排线
+    for k in range(9):
+        x = 60 + k * 7
+        L((x, 70), (x + 4, 76), light=True)
+    s.fill(pen & paper, PEN, 0)
+    s.fill(soft & paper & ~pen, PEN, 1)
+    s.fill(s_tail, PEN, 0)
+    s._arc = arc_px & paper
+    return s
+
+
+def drawing_arc(closeup):
+    """只有背的那道弧：从特写里原样取出来（同样的像素），透明底。"""
+    s = Spr(closeup.w, closeup.h)
+    m = closeup._arc
+    s.a[m] = closeup.a[m]
+    return s
+
+
+def preview_v5(d):
+    """坠毁现场一屏（中景缺口 + 飞船 + 晨）、弧线叠在缺口上、画的特写。"""
+    cam = 10
+    out = []
+    tl = np.array(Image.open(OUT / "broken_treeline.png"))
+    arc = np.array(Image.open(OUT / "drawing_arc.png"))
+    meta = json.loads((OUT / "drawing_arc.json").read_text())
+
+    def scene(with_arc):
+        bg = np.zeros((270, 480, 3), np.uint8)
+        for k, sc in FA.SCROLL.items():
+            if k == "front":
+                continue
+            a = np.array(Image.open(ROOT / "art" / "forest" / f"{k}.png"))
+            if a.shape[1] != 480:
+                off = int(round(cam * sc)) % a.shape[1]
+                a = np.roll(a, -off, axis=1)[:, :480]
+            m = a[..., 3] > 0
+            bg[m] = a[m][:, :3]
+            if k == "mid":
+                left = TREELINE_X - int(round(cam * sc))
+                _blit(bg, tl, left, 0)
+                if with_arc:
+                    big = np.repeat(np.repeat(arc, 2, 0), 2, 1)
+                    ex, ey = meta["arc_end_left"]
+                    tx, ty = meta["treeline_arc_end_left"]
+                    ox_, oy_ = left + tx - ex * 2, ty - ey * 2
+                    hh, ww = big.shape[:2]
+                    for j in range(hh):
+                        for i in range(ww):
+                            if big[j, i, 3] and 0 <= oy_ + j < 270 and 0 <= ox_ + i < 480:
+                                y_, x_ = oy_ + j, ox_ + i
+                                bg[y_, x_] = (bg[y_, x_] * 0.45 + np.array((205, 200, 215)) * 0.55).astype(np.uint8)
+        wreck = np.array(Image.open(ROOT / "art" / "level1" / "ship_wreck.png"))
+        place(bg, wreck, 120, cam)
+        put_chen(bg, 250, cam)
+        return bg
+
+    for name, wa in (("v5_crash", False), ("v5_crash_arc", True)):
+        p = d / f"{name}.png"
+        Image.fromarray(scene(wa)).resize((1440, 810), Image.NEAREST).save(p)
+        out.append(p)
+    cl = np.array(Image.open(OUT / "drawing_closeup.png"))
+    z = np.zeros((cl.shape[0] + 10, cl.shape[1] + 10, 3), np.uint8)
+    z[:] = (20, 26, 23)
+    m = cl[..., 3] > 0
+    z[5:5 + cl.shape[0], 5:5 + cl.shape[1]][m] = cl[m][:, :3]
+    p = d / "v5_drawing_closeup_x3.png"
+    Image.fromarray(z).resize((z.shape[1] * 3, z.shape[0] * 3), Image.NEAREST).save(p)
+    out.append(p)
+    return out
+
+
 # ================================================================ 输出
 
 def save(name, s, frames=None, ground_row=None, meta=None, ms=400):
@@ -2128,6 +2408,21 @@ def build(with_treehouse=False):
     sh = out["shop"]
     out["shop_jar"] = save("shop_jar", shop_jar(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *JAR_IN_SHOP)})
     out["shop_photo"] = save("shop_photo", shop_photo(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *PHOTO_ON_SHOP)})
+    # ---- 第五版
+    out["broken_treeline"] = save("broken_treeline", broken_treeline(), meta={
+        "layer": TREELINE_LAYER, "layer_scroll": FA.SCROLL[TREELINE_LAYER], "x": TREELINE_X, "y": 0,
+        "note": "贴在 Mid 层里，图的左上角放在层坐标 (x, y)；Mid 层 960 宽循环，这张也跟着循环",
+        "arc_points": arc_points(ARC_TREE), "arc_points_layer": [[px + TREELINE_X, py] for px, py in arc_points(ARC_TREE)],
+        "arc_end_left": [ARC_TREE["x0"], ARC_TREE["y_end"]], "arc_end_right": [ARC_TREE["x1"], ARC_TREE["y_end"]],
+        "arc_top": [ (ARC_TREE["x0"] + ARC_TREE["x1"]) // 2, ARC_TREE["y_end"] - ARC_TREE["h"]]})
+    cl = drawing_closeup()
+    out["drawing_closeup"] = save("drawing_closeup", cl)
+    out["drawing_arc"] = save("drawing_arc", drawing_arc(cl), meta={
+        "arc_end_left": [ARC_DRAW["x0"], ARC_DRAW["y_end"]], "arc_end_right": [ARC_DRAW["x1"], ARC_DRAW["y_end"]],
+        "arc_top": [(ARC_DRAW["x0"] + ARC_DRAW["x1"]) // 2, ARC_DRAW["y_end"] - ARC_DRAW["h"]],
+        "scale_to_treeline": 2,
+        "treeline_arc_end_left": [ARC_TREE["x0"], ARC_TREE["y_end"]],
+        "note": "最近邻放大 scale_to_treeline 倍后，把 arc_end_left 对到 broken_treeline 的 treeline_arc_end_left（图内坐标），两条弧重合"})
     rh = out["road_house"]
     lamp = placed_lamp()
     out["placed_lamp"] = save("placed_lamp", lamp, meta={
@@ -2347,6 +2642,9 @@ def previews_v3(d):
     return paths
 
 
+UI_IMAGES = {"drawing_closeup"}   # UI 上的特写（纸是亮的，和背包图标一样），不在场景里，不受「比晨暗」限制
+
+
 def check(imgs):
     """硬规矩自检：alpha 只有 0/255（雾除外）、没有纯黑、比晨暗（最亮的像素 L < 0.62）。"""
     ok = True
@@ -2358,7 +2656,7 @@ def check(imgs):
         black = (cols.max(1) < 8).any()
         bad_alpha = k != "fog_bank" and not al <= {0, 255}
         msg = f"  {k:12s} {a.shape[1]}x{a.shape[0]}  色数 {len(cols):3d}  L {Ls.min():.2f}~{Ls.max():.2f}"
-        if bad_alpha or black or Ls.max() > 0.62:
+        if bad_alpha or black or (Ls.max() > 0.62 and k not in UI_IMAGES):
             ok = False
             msg += "  <-- " + ("半透明 " if bad_alpha else "") + ("纯黑 " if black else "") + ("太亮" if Ls.max() > 0.62 else "")
         print(msg)
@@ -2373,7 +2671,7 @@ if __name__ == "__main__":
     imgs = build(args.treehouse)
     good = check(imgs)
     if args.preview:
-        for p in previews(imgs, Path(args.preview)) + [preview_cloth(Path(args.preview))] + previews_v3(Path(args.preview)):
+        for p in previews(imgs, Path(args.preview)) + [preview_cloth(Path(args.preview))] + previews_v3(Path(args.preview)) + preview_v5(Path(args.preview)):
             print("preview", p)
     if not good:
         sys.exit("有图不合规矩，见上面")

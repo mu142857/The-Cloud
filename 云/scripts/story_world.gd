@@ -42,6 +42,10 @@ extends Node2D
 ##   （林间空地 glade：岩画、信号箱、路标底座），没有 wall_glade 就到 wall_road。
 ##   B 的左边：有 house_return（回旧路的入口）就是它，不然 wall_house。晨在 B 往左走到入口（顶着走一小会儿）→
 ##   黑屏换到旧路段的 road_return（没有就是布条 cloth 那里），见 level_forest.gd 的 _update_portal。双向都能走。
+## 被撞断的树冠缺口（第五版）：art/forest_story/broken_treeline.png 贴在 json 说的那一层（Mid）里、层坐标 (x, y)，一直在；
+##   treeline_match：镜头移过去，把 drawing_arc.png 放大 scale_to_treeline 倍、按两端对齐叠到缺口上，淡入、停、淡出（见 match_arc）。
+##   弧线画在所有世界层（含 Front 近处的树干）上面（单独一个 CanvasLayer，每帧按缺口在屏幕上的位置对齐），像晨脑海里叠上去的一下。
+##   缺图就什么都不做。
 ## 远处有东西走过（elephant_call，sway_canopy）：中远景层上一段树冠从一侧到另一侧依次轻晃 1 像素，不露面。
 ## 看得见的边（不用台词推人）：倒木没推开之前，旧路到倒木为止（倒木右边一点）；塌陷口（hollow）是个坑，晨走到坑边就停住，
 ##   像碰到边（不自动往回走）。
@@ -228,6 +232,7 @@ func setup(lv: Node2D, script_markers: Dictionary, steam_at := "", shown_ids: Ar
 	_add_room_light()
 	chen.ground_fn = walk_ground
 	_add_cloth_glow()
+	_add_treeline()
 	var objs: Dictionary = house["objects"]
 	if steam_at != "" and objs.has(steam_at) and (objs[steam_at] as Dictionary).has("leak"):
 		# 细白汽冒在漏气那段的 leak 点（底边中点）
@@ -814,6 +819,99 @@ func prop_id(id: String) -> String:
 	return id
 
 
+# ======================================================================= 树冠缺口 + 画上的弧线
+var treeline: Dictionary = {}           # broken_treeline.json + 节点
+var _arc: Sprite2D
+
+
+func _add_treeline() -> void:
+	if not ResourceLoader.exists(ART + "broken_treeline.png") or not FileAccess.file_exists(ART + "broken_treeline.json"):
+		return
+	var j = JSON.parse_string(FileAccess.get_file_as_string(ART + "broken_treeline.json"))
+	if not j is Dictionary:
+		return
+	var layer_name := {"mid": "Mid", "midfar": "MidFar", "far": "Far", "ridge": "Ridge"}.get(str(j.get("layer", "mid")).to_lower(), "Mid") as String
+	var layer: Node2D = level.get_node_or_null(layer_name)
+	if layer == null:
+		return
+	var s := Sprite2D.new()
+	s.name = "BrokenTreeline"
+	s.texture = load(ART + "broken_treeline.png")
+	s.centered = false
+	s.position = Vector2(float(j.get("x", 0)), float(j.get("y", 0)))
+	layer.add_child(s)
+	treeline = j.duplicate(true)
+	treeline["node"] = s
+	treeline["layer_node"] = layer
+
+
+## 缺口的弧顶在屏幕上的位置（层会循环，挑离屏幕中间最近的那一份）
+func treeline_screen_top() -> Vector2:
+	if treeline.is_empty():
+		return Vector2(-1, -1)
+	var s: Sprite2D = treeline["node"]
+	var top := _vec(treeline.get("arc_top", [100, 58]))
+	var best := Vector2(-1, -1)
+	for k in [-2, -1, 0, 1, 2]:
+		var p: Vector2 = s.get_global_transform_with_canvas() * (top + Vector2(960.0 * k, 0))
+		if best.x < 0.0 or absf(p.x - 240.0) < absf(best.x - 240.0):
+			best = p
+	return best
+
+
+## 画上的弧线叠到缺口上：淡入、停 hold 秒、淡出（返回总时长；缺图返回 0）
+func match_arc(hold := 1.6) -> float:
+	if treeline.is_empty() or not ResourceLoader.exists(ART + "drawing_arc.png"):
+		return 0.0
+	var aj = {}
+	if FileAccess.file_exists(ART + "drawing_arc.json"):
+		aj = JSON.parse_string(FileAccess.get_file_as_string(ART + "drawing_arc.json"))
+	if not aj is Dictionary:
+		aj = {}
+	var k := float(aj.get("scale_to_treeline", 2))
+	var a_left := _vec(aj.get("arc_end_left", [0, 0]))
+	var t_left := _vec(aj.get("treeline_arc_end_left", treeline.get("arc_end_left", [0, 0])))
+	if _arc == null:
+		var cl := CanvasLayer.new()
+		cl.name = "ArcLayer"
+		cl.layer = 9                               # 世界（含 Front）之上，暗角 / 界面之下
+		level.add_child(cl)
+		_arc = Sprite2D.new()
+		_arc.name = "DrawingArc"
+		_arc.texture = load(ART + "drawing_arc.png")
+		_arc.centered = false
+		cl.add_child(_arc)
+	_arc.scale = Vector2(k, k)
+	_arc.set_meta("local", t_left - a_left * k)    # 在缺口图里的左上角（两条弧的左端对上）
+	_place_arc()
+	_arc.modulate.a = 0.0
+	_arc.visible = true
+	var tw := create_tween()
+	tw.tween_property(_arc, "modulate:a", 0.8, 0.8)
+	tw.tween_interval(hold)
+	tw.tween_property(_arc, "modulate:a", 0.0, 0.8)
+	tw.tween_callback(func(): _arc.visible = false)
+	return 0.8 + hold + 0.8
+
+
+## 弧线跟着缺口在屏幕上的位置走（缺口所在的层会循环，挑离屏幕中间最近的那一份）
+func _place_arc() -> void:
+	if _arc == null or treeline.is_empty():
+		return
+	var s: Sprite2D = treeline["node"]
+	var local: Vector2 = _arc.get_meta("local", Vector2.ZERO)
+	var xf := s.get_global_transform_with_canvas()
+	var best := Vector2.ZERO
+	var bd := INF
+	for k in [-2, -1, 0, 1, 2]:
+		var p: Vector2 = xf * (local + Vector2(960.0 * k, 0))
+		var d := absf(p.x + _arc.texture.get_width() * _arc.scale.x / 2.0 - 240.0)
+		if d < bd:
+			bd = d
+			best = p
+	_arc.position = best.round()
+
+
 ## 屋里的灯光（room_light.png，半透明，和树屋同尺寸同锚点）：在屋内物件上面、人物下面
 func _add_room_light() -> void:
 	if not ResourceLoader.exists(ART + "room_light.png"):
@@ -1033,6 +1131,8 @@ func update(delta: float, cam_center: Vector2) -> void:
 			else:
 				s.frame = int(_anim_t * 1000.0 / float(c["anim"])) % s.hframes
 	_update_cloth()
+	if _arc != null and _arc.visible:
+		_place_arc()
 	if _sway_t >= 0.0:
 		_sway_t += delta
 		if _sway_t > _sway_dur + SWAY_EACH:

@@ -68,6 +68,7 @@ const DEV_GD := preload("res://scripts/dev_panel.gd")
 const TEXT_PAGE := preload("res://scripts/text_page.gd")
 const DESC_C := Color("#b9c9bf")
 const STRUCK_C := Color("#6f877b")
+const KEEPSAKE_C := Color("#dcc39a")         # 背包里纪念品名字的暖色
 const DEV_BEAT_META := "level_forest_dev_beat"
 const DEV_STAGE_META := "level_forest_dev_stage"
 const DEV_OPEN_META := "level_forest_dev_open"   # 开场的外星人同伴：森林里不出现（那套图以后是河边的泥芙）
@@ -185,6 +186,9 @@ var _lang_btns := {}
 var _bag_btn: TextureButton
 var _hud_burn: HBoxContainer
 var _hud_burn_label: Label
+var _hud_obj: Label
+var _hud_flame: TextureRect
+var _obj_key := "-"
 var _bars: Array[ColorRect] = []
 var _skip_label: Label
 var _keys_hint: Label
@@ -582,11 +586,19 @@ func _build_ui() -> void:
 	_hud_burn.position = Vector2(8, 7)
 	_hud_burn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_burn.add_theme_constant_override("separation", 4)
+	# 当前目标（剧本 objectives）：在燃烧值前面；没有 objectives 就藏着，左上角照旧只显示燃烧值
+	_hud_obj = _label("", 14, UITheme.TEXT)
+	_hud_obj.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.6))
+	_hud_obj.add_theme_constant_override("shadow_offset_x", 0)
+	_hud_obj.add_theme_constant_override("shadow_offset_y", 1)
+	_hud_obj.visible = false
+	_hud_burn.add_child(_hud_obj)
 	var fl := TextureRect.new()
 	fl.texture = TEX_FLAME
 	fl.stretch_mode = TextureRect.STRETCH_KEEP
 	fl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_burn.add_child(fl)
+	_hud_flame = fl
 	_hud_burn_label = _label("", 14, UITheme.WARM)
 	_hud_burn.add_child(_hud_burn_label)
 	_hud_burn.modulate.a = 0.0
@@ -953,6 +965,10 @@ func _build_bag(root: Control) -> void:
 	name_l.position = Vector2(130, 84)
 	_bag.add_child(name_l)
 	_bag_w["name"] = name_l
+	var cat := _label("", 14, UITheme.TEXT_DIM)       # 名字旁边的【纪念品】/【任务】
+	cat.position = Vector2(200, 84)
+	_bag.add_child(cat)
+	_bag_w["cat"] = cat
 	var rar := _label("", 14, UITheme.TEXT_DIM)
 	rar.position = Vector2(130, 100)
 	_bag.add_child(rar)
@@ -1015,12 +1031,16 @@ func _bag_refresh() -> void:
 		big.texture = tex
 		big.size = tex.get_size() * k
 		big.position = ((Vector2(212, 50) - big.size) / 2).floor()
-		var rc := Inventory.rarity_color(it.get("rarity", "common"))
+		# 不用稀有度：名字统一一种颜色，纪念品用柔和的暖色
 		_bag_w["name"].text = story.txt(it.get("name", ""))
-		_bag_w["name"].add_theme_color_override("font_color", rc)
-		_bag_w["rarity"].text = I18n.t("rarity_" + str(it.get("rarity", "common")))
-		_bag_w["rarity"].add_theme_color_override("font_color", rc.darkened(0.25))
-		_bag_w["burn"].text = I18n.t("personal") if it.get("personal", false) else I18n.t("burn_value") % int(it.get("burn", 0))
+		_bag_w["name"].add_theme_color_override("font_color", KEEPSAKE_C if str(it.get("category", "")) == "keepsake" else UITheme.TEXT)
+		_bag_w["rarity"].text = ""
+		_bag_w["burn"].text = _burn_line(it)
+		var catl: Label = _bag_w["cat"]
+		var c := str(it.get("category", ""))
+		catl.text = I18n.t("cat_keepsake") if c == "keepsake" else (I18n.t("cat_quest") if c == "quest" else "")
+		var nw := UITheme.font().get_string_size(str(_bag_w["name"].text), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		catl.position = Vector2(130.0 + nw + 4.0, 84)
 		var desc: Control = _bag_w["desc"]
 		var parts := _item_parts(it)
 		var sig := JSON.stringify(parts)
@@ -1042,6 +1062,7 @@ func _bag_refresh() -> void:
 		_bag_w["name"].text = ""
 		_bag_w["rarity"].text = ""
 		_bag_w["burn"].text = ""
+		_bag_w["cat"].text = ""
 		var empty_desc: Control = _bag_w["desc"]
 		empty_desc.set_parts([{"text": I18n.t("bag_empty"), "color": DESC_C}] if Inventory.owned.is_empty() else [])
 		empty_desc.set_meta("sig", "")
@@ -1079,6 +1100,18 @@ func _journal_part(e: Dictionary) -> Dictionary:
 	var struck: bool = e.get("struck", false)
 	return {"text": story.txt(e), "bullet": "· ", "color": STRUCK_C if struck else DESC_C, "struck": struck,
 		"marked": e.get("marked", false)}
+
+
+## 详情右边那行：材料 = 燃烧值 +n；纪念品 = 烧掉可得：约 n（只显示，不提供烧的按钮）；任务物品；其他私人物品照旧
+func _burn_line(it: Dictionary) -> String:
+	var c := str(it.get("category", ""))
+	if c == "keepsake" and it.has("keepsake_burn"):
+		return I18n.t("keepsake_burn") % int(it["keepsake_burn"])
+	if c == "quest":
+		return I18n.t("quest_item")
+	if it.get("personal", false):
+		return I18n.t("personal")
+	return I18n.t("burn_value") % int(it.get("burn", 0))
 
 
 ## 背包「使用」
@@ -1230,6 +1263,34 @@ func _center_settings() -> void:
 
 func _update_hud() -> void:
 	_hud_burn_label.text = I18n.t("burn_total") % [Inventory.burn_total(), Inventory.get_launch_burn()]
+
+
+## 左上角「当前目标」（剧本顶层 objectives，第一个满足条件的）：show_fuel = 目标 + 燃烧值，不然只有目标。
+## 换目标时淡入、翻页声。没有 objectives（或一条都不满足）就照旧只有燃烧值。开场（坠毁之前）不显示。
+func _update_objective() -> void:
+	if state in [S.HEADPHONES, S.INTRO, S.TITLE, S.CRASH] or not StoryState.has("crashed"):
+		return
+	var o: Dictionary = story.objective()
+	var key := "" if o.is_empty() else str(o.get("zh", "")) + "|" + str(o.get("show_fuel", false))
+	if key == _obj_key:
+		return
+	var first := _obj_key == "-"
+	_obj_key = key
+	if o.is_empty():
+		_hud_obj.visible = false
+		_hud_flame.visible = true
+		_hud_burn_label.visible = true
+		return
+	_hud_obj.text = story.txt(o)
+	_hud_obj.visible = true
+	var fuel: bool = o.get("show_fuel", false)
+	_hud_flame.visible = fuel
+	_hud_burn_label.visible = fuel
+	_update_hud()
+	_hud_burn.modulate.a = 0.0
+	create_tween().tween_property(_hud_burn, "modulate:a", 1.0, 0.6)
+	if not first:
+		_sfx("page_turn", -10.0)
 
 
 # ======================================================================= 定时事件 / tween
@@ -2103,6 +2164,7 @@ func _process(delta: float) -> void:
 
 	_update_walls()
 	_update_portal(delta)
+	_update_objective()
 	_update_front(delta)
 	_update_camera(delta)
 	_apply_flash()
@@ -2164,11 +2226,15 @@ func _update_camera(delta: float) -> void:
 			# 标题：镜头慢慢左右漂（50 秒一个来回，±18 像素）
 			cam.position.x = TITLE_CAM_X + 18.0 * sin(_t * TAU / 50.0)
 		S.PLAY, S.CINE:
-			if _cam_hold > 0.0:
+			if not is_nan(_cam_override.x):
+				cam.position = _cam_override.round()
+			elif _cam_hold > 0.0:
 				_cam_hold -= delta
 			else:
 				cam.position.x = lerpf(cam.position.x, _cam_target(), 1.0 - exp(-FOLLOW * delta))
-	cam.position.y = 135.0
+	if is_nan(_cam_override.x):
+		# 平时镜头高度固定；从别处回来时慢慢落回去
+		cam.position.y = 135.0 if absf(cam.position.y - 135.0) < 0.5 else lerpf(cam.position.y, 135.0, 1.0 - exp(-3.0 * delta))
 	if _shake > 0.0:
 		_shake -= delta
 		var a := _shake_amp * clampf(_shake / 0.8, 0.0, 1.0)
@@ -2179,6 +2245,20 @@ func _update_camera(delta: float) -> void:
 
 ## 镜头不声不响地停一下（远处有东西走过的时候）
 var _cam_hold := 0.0
+var _cam_override := Vector2(NAN, NAN)    # 剧本让镜头去别处（树冠缺口）：镜头就在这，不跟晨
+
+
+## 镜头移到 to（世界坐标的镜头中心），sec 秒，到了返回
+func camera_pan(to: Vector2, sec: float) -> void:
+	_cam_override = cam.position
+	var tw := create_tween()
+	tw.tween_property(self, "_cam_override", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tw.finished
+
+
+## 镜头回去跟着晨（慢慢跟回去，不跳）
+func camera_release() -> void:
+	_cam_override = Vector2(NAN, NAN)
 
 
 func cam_hold(sec: float) -> void:

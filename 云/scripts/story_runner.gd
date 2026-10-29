@@ -42,6 +42,12 @@ extends Node
 ##     数组 [{"flag"?: f, "need"?: [..], "not"?: [..], "zh", "en"}…]（条件都满足的里面挑 flag 最近设的那条）；
 ##     字典 {"flag 名": {zh, en} 或 [{zh, en}…]}（挑最近设的、有提示的那个 flag）。没有 hints 再找 scene nudge_<hotspot id>。
 ##   坠毁后飞船里断续的警报 alarm_broken：引擎在 wreck 处放成 ambient，晨第一次修飞船（tried_parts）或捡到木头（got_wood）后淡掉。
+## 第五版：
+##   {"do": "drawing_closeup", "sec": n}：屏幕中间展开画的特写（art/forest_story/drawing_closeup.png，纸张展开、背景压暗），
+##     停 n 秒，确认键 / 点击提前收起。缺图跳过。
+##   {"do": "treeline_match"}：镜头移到中景层那道被撞断的树冠缺口（broken_treeline），画上的弧线（drawing_arc）放大对齐、
+##     淡淡叠上去、停一下、淡出，镜头回到晨。缺图跳过。
+##   顶层 "objectives"：[{need, not, zh, en, show_fuel}…] 取第一个满足条件的，当左上角的「当前目标」（level_forest.gd 画）。
 ## 不推人（作者的规矩）：走进 trigger:"enter" 的点触发的 scene 里，「晨 walk」一律不执行（不能用台词 + 自动走路把玩家推回去；
 ##   该停的地方由 story_world.gd 的「看得见的边」挡住）。--story_check 会把这种步骤列出来。
 ## 引擎扩展（设计文档之外、可选）：hotspot 的 at = NPC 名（跟着角色）；
@@ -62,7 +68,7 @@ const SAMPLE_STORY := "res://data/story_forest_sample.json"
 const SFX_DIR := "res://audio/sfx/"
 const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "take", "flag", "journal", "sfx",
 	"fade_to", "anim", "prop", "guide", "goto", "pick", "end_chapter", "if", "ambient", "show_item",
-	"choice", "elephant_call", "journal_strike", "count", "journal_mark"]
+	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match"]
 const HOOKS := {
 	"crash": ["crash_wake", "wake", "crash", "intro", "opening"],
 	"wood": ["wood_found", "wood", "wood_pickup", "pickup_wood", "glowing_wood"],
@@ -470,6 +476,18 @@ func _step(st: Dictionary) -> String:
 			return cs
 		"elephant_call":
 			await _elephant_call(st)
+		"drawing_closeup":
+			if not ff:
+				var tp := "res://art/forest_story/drawing_closeup.png"
+				if ResourceLoader.exists(tp):
+					var sec := float(st.get("sec", 2.5))
+					if auto != "":
+						sec = minf(sec, 1.2)
+					_ui_shot("closeup", 0.75)
+					await dlg.closeup(load(tp), sec)
+		"treeline_match":
+			if not ff:
+				await _treeline_match()
 		"journal_mark":
 			var mm := str(st.get("match", ""))
 			if StoryState.mark(mm) == 0:
@@ -1352,6 +1370,30 @@ func _elephant_call(st: Dictionary) -> void:
 	if chen.spr.sprite_frames.has_animation(&"idle_eye") and chen._vel <= 0.0:
 		chen.spr.play(&"idle_eye")
 	await _wait(dur + 0.4)
+
+
+## 镜头移到树冠缺口、画上的弧线叠上去、镜头回来
+func _treeline_match() -> void:
+	if world.treeline.is_empty():
+		return
+	var top: Vector2 = world.treeline_screen_top()
+	var s := float(world.treeline.get("layer_scroll", 0.62))
+	var cam: Camera2D = level.cam
+	var to := Vector2(cam.position.x + (top.x - 240.0) / maxf(0.05, s), 135.0 - 16.0)
+	await level.camera_pan(to, 1.4)
+	var dur: float = world.match_arc(1.8 if auto == "" else 0.8)
+	_ui_shot("arc", 0.9)
+	await _wait(dur + 0.2)
+	level.camera_release()
+	await _wait(0.6)
+
+
+## 左上角的当前目标：第一个满足条件的 objectives 条目；没有就 {}
+func objective() -> Dictionary:
+	for o in data.get("objectives", []):
+		if o is Dictionary and StoryState.all_of(o.get("need", [])) and StoryState.none_of(o.get("not", [])):
+			return o
+	return {}
 
 
 ## 闲着太久时晨自言自语的那句：顶层 hints 按 flag 挑
