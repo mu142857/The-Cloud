@@ -70,6 +70,14 @@ var _rope: Node2D
 var _amb: Array = []                   # [{player, cfg}]
 var _warned := {}
 var _ph_node: Node2D                   # 占位的底图
+# 多层小屋（room.json levels / stairs，只有妮芙家用）：每层一条地面线 + 左右范围，层之间是斜的石阶
+var _levels: Array = []                # [{id, pts: [[x, y], …], walk: Vector2}]（图里的坐标）
+var _stairs: Array = []                # [{a: 层号, xa, b: 层号, xb}]：从 a 层的 xa 沿斜线走到 b 层的 xb
+var _marker_lv := {}                   # marker → 层号
+var chen_lv := 0                       # 晨在哪层
+var chen_stair := -1                   # 晨正在走哪段石阶（−1 = 没在楼梯上）
+var npc_lv := {}                       # NPC 节点名 → 层号（没记的 = 跟晨同层）
+var _sky_up: Sprite2D                  # 镜头升到 host 顶上时补的夜空
 
 
 ## room.json（没有就 DEFAULT）先看一眼：是不是小屋、host 是谁（建房间的先后要用）
@@ -123,6 +131,7 @@ func setup(room_id: String, w: Node2D, host_stage: Node2D = null) -> void:
 	for k in mk:
 		var v = mk[k]
 		markers[str(k)] = float(v.get("x", 0)) if v is Dictionary else (float(v[0]) if v is Array else float(v))
+	_parse_levels(mk)
 	if is_house:
 		_place_house()
 		_build_house()
@@ -315,6 +324,8 @@ func _build_house() -> void:
 	if house_front.texture == null:
 		house_front.texture = _house_ph(true)
 	add_child(house_front)
+	if has_levels() and size.y > 220.0:
+		_build_sky_up()
 
 
 ## 小屋占位：back = 暗墙 + 地板线 + 门；front = 不透明的前墙 + 一扇暖窗（进屋淡出）
@@ -511,6 +522,8 @@ func to_local_px(p: Vector2) -> Vector2:
 
 ## 地面（房间 y）
 func ground_local(lx: float) -> float:
+	if not _levels.is_empty():
+		return stair_local(chen_stair, lx) if chen_stair >= 0 else floor_local(chen_lv, lx)
 	if _ground_pts.size() < 2:
 		return _ground_y
 	var a: Array = _ground_pts[0]
@@ -533,6 +546,11 @@ func ground_y(wx: float) -> float:
 ## 能走的左右（世界 x）
 func walls() -> Vector2:
 	var w: Vector2 = _v2(cfg.get("walk", [16, size.x - 16]), Vector2(16, size.x - 16))
+	if not _levels.is_empty():
+		w = level_walk(chen_lv)
+		if chen_stair >= 0:
+			var s: Dictionary = _stairs[chen_stair]
+			w = Vector2(minf(s["xa"], s["xb"]), maxf(s["xa"], s["xb"]))
 	for wc in cfg.get("walk_when", []):
 		if not wc is Dictionary:
 			continue
@@ -560,12 +578,147 @@ func clear_walk() -> void:
 	walk_override = null
 
 
+# ======================================================================= 多层小屋（levels / stairs）
+## room.json：
+##   "levels": [{"id": "l0", "floor": 265, "walk": [20, 404]}, {"id": "l2", "floor": [[92, 119], [206, 119], [234, 91]], …}]
+##   "stairs": [{"from": "l0", "x": 400, "to": "l1", "x2": 336}]   —— 从 l0 的 x 沿斜线走到 l1 的 x2（反过来也能走）
+##   markers 写 {"x": 246, "level": "l1"}；不写 level = 第一层。
+## 晨的层记在 chen_lv（ground_y / walls 都按它）；NPC 的层记在 npc_lv，它们的 ground_fn 由 story_runner 换成 level_fn。
+func _parse_levels(mk: Dictionary) -> void:
+	var ids := {}
+	for L in cfg.get("levels", []):
+		if not L is Dictionary:
+			continue
+		var f = L.get("floor", 200)
+		var pts: Array = f if f is Array else [[0, float(f)], [size.x, float(f)]]
+		ids[str(L.get("id", ""))] = _levels.size()
+		_levels.append({"id": str(L.get("id", "")), "pts": pts,
+			"walk": _v2(L.get("walk", [16, size.x - 16]), Vector2(16, size.x - 16))})
+	if _levels.is_empty():
+		return
+	for s in cfg.get("stairs", []):
+		if s is Dictionary and ids.has(str(s.get("from", ""))) and ids.has(str(s.get("to", ""))):
+			_stairs.append({"a": int(ids[str(s["from"])]), "xa": float(s.get("x", 0)),
+				"b": int(ids[str(s["to"])]), "xb": float(s.get("x2", 0))})
+	for k in mk:
+		var v = mk[k]
+		_marker_lv[str(k)] = int(ids.get(str(v.get("level", "")), 0)) if v is Dictionary else 0
+
+
+func has_levels() -> bool:
+	return not _levels.is_empty()
+
+
+## marker 在哪层（没有多层 / 不认识 = −1）
+func marker_level(n: String) -> int:
+	if _levels.is_empty() or not markers.has(n):
+		return -1
+	return int(_marker_lv.get(n, 0))
+
+
+func level_walk(lv: int) -> Vector2:
+	return _levels[clampi(lv, 0, _levels.size() - 1)]["walk"]
+
+
+## 某层的地面（图里的 y）
+func floor_local(lv: int, lx: float) -> float:
+	var pts: Array = _levels[clampi(lv, 0, _levels.size() - 1)]["pts"]
+	var a: Array = pts[0]
+	if lx <= float(a[0]):
+		return float(a[1])
+	for i in range(1, pts.size()):
+		var b: Array = pts[i]
+		if lx <= float(b[0]):
+			var k := (lx - float(a[0])) / maxf(float(b[0]) - float(a[0]), 1.0)
+			return round(lerpf(float(a[1]), float(b[1]), k))
+		a = b
+	return float(a[1])
+
+
+## 石阶上的地面（图里的 y）：两头之间直线
+func stair_local(si: int, lx: float) -> float:
+	var s: Dictionary = _stairs[si]
+	var ya := floor_local(s["a"], s["xa"])
+	var yb := floor_local(s["b"], s["xb"])
+	var k := clampf((lx - float(s["xa"])) / (float(s["xb"]) - float(s["xa"])), 0.0, 1.0)
+	return round(lerpf(ya, yb, k))
+
+
+## 世界 x → 世界 y 的地面函数（给 NPC 的 ground_fn）：某层 / 某段石阶
+func level_fn(lv: int) -> Callable:
+	return func(wx: float) -> float: return origin.y + floor_local(lv, wx - origin.x)
+
+
+func stair_fn(si: int) -> Callable:
+	return func(wx: float) -> float: return origin.y + stair_local(si, wx - origin.x)
+
+
+## 从 a 层到 b 层要走的石阶：[{si, x0, x1, to}]（x 是世界 x：从 x0 上台阶、走到 x1 下台阶、到 to 层）
+func route(a: int, b: int) -> Array:
+	if a == b or _levels.is_empty():
+		return []
+	var prev := {a: null}
+	var q := [a]
+	while not q.is_empty():
+		var cur: int = q.pop_front()
+		if cur == b:
+			break
+		for si in _stairs.size():
+			var s: Dictionary = _stairs[si]
+			for e in [[s["a"], s["b"], s["xa"], s["xb"]], [s["b"], s["a"], s["xb"], s["xa"]]]:
+				if int(e[0]) == cur and not prev.has(int(e[1])):
+					prev[int(e[1])] = {"si": si, "from": cur, "x0": origin.x + float(e[2]), "x1": origin.x + float(e[3]), "to": int(e[1])}
+					q.append(int(e[1]))
+	if not prev.has(b):
+		return []
+	var out: Array = []
+	var c := b
+	while prev[c] != null:
+		out.push_front(prev[c])
+		c = int(prev[c]["from"])
+	return out
+
+
+## 镜头升到 host 上沿以上时，补一片夜空（host 的天只有 0..270）：取天的最上面一截竖着翻过去、越往上越暗；横向钉在屏幕上（和天一样 scroll 0）
+func _build_sky_up() -> void:
+	var src: Texture2D = null
+	if host != null:
+		for L in host._layers:
+			if str((L["cfg"] as Dictionary).get("id", "")) == "sky":
+				src = (L["node"] as Sprite2D).texture
+				break
+	var h := 200
+	var img := Image.create_empty(480, h, false, Image.FORMAT_RGBA8)
+	var si: Image = src.get_image() if src != null else null
+	if si != null and si.is_compressed():
+		si.decompress()
+	for y in h:
+		var k := 1.0 - 0.35 * float(y) / h
+		for x in 480:
+			var c := Color("#050917")
+			if si != null:
+				var r := (h - 1 - y) % 120
+				c = si.get_pixel(x % si.get_width(), mini(r if r < 60 else 119 - r, si.get_height() - 1))
+			img.set_pixel(x, y, Color(c.r * k, c.g * k, c.b * k, 1.0))
+	_sky_up = Sprite2D.new()
+	_sky_up.name = "SkyUp"
+	_sky_up.centered = false
+	_sky_up.texture = ImageTexture.create_from_image(img)
+	_sky_up.z_as_relative = false
+	_sky_up.z_index = -200
+	add_child(_sky_up)
+
+
 func center() -> Vector2:
 	return origin + size / 2.0
 
 
 ## 镜头中心的 y（世界）
 func cam_y() -> float:
+	if is_house and host != null and has_levels() and world != null and world.chen != null:
+		# 多层：镜头跟着晨的高度（晨在镜头中线往下 cam_dy 处；地面层 = host 的镜头高度）。level_forest 再 lerp，所以上下楼是平滑的
+		var top := origin.y + float(cfg.get("cam_top", 0))
+		return clampf(world.chen.position.y - float(cfg.get("cam_dy", 40)), top, host.cam_y())
 	if is_house and host != null:
 		return host.cam_y()
 	return origin.y + float(cfg.get("cam_y", 135))
@@ -659,6 +812,8 @@ func update(delta: float, cam_center: Vector2) -> void:
 				s.position.x = roundf(x + cl * (1.0 - sc))
 		if _layers.size() > 0 and _t < delta * 1.5:
 			_place_layers_y()
+	elif _sky_up != null:
+		_sky_up.position = Vector2(roundf(cam_center.x - 240.0) - origin.x, -float(_sky_up.texture.get_height()) - origin.y)
 	for oid in objects:
 		var s: Sprite2D = objects[oid]
 		_refresh_vis(oid)

@@ -74,8 +74,8 @@ const ROOM_W := 480.0                    # 剧本 room_* marker 原来那间屋�
 const HOUSE_SIZE := Vector2i(260, 200)   # 树屋占位图多大
 
 const DEFAULT_MARKERS := {
-	"wall_left": -160, "scrap": -60, "wreck": 120, "luggage": 190, "chen_start": 250, "wood": 372,
-	"resin": 520, "deer_appear": 560, "branch": 690, "road_start": 900, "stall": 1100, "log": 1400,
+	"wall_left": -1120, "scrap": -1020, "wreck": -840, "luggage": -770, "chen_start": -710, "wood": 372,
+	"resin": 520, "deer_appear": -400, "branch": 690, "road_start": 900, "stall": 1100, "log": 1400,
 	"fog_start": 1550, "cloth": 1780, "hollow": 1900, "wall_road": 1960,
 	"road_house": 1250, "glade_rock": 2080, "glade_sign_base": 2130, "signal_box": 2180, "wall_glade": 2260,
 	"pine": 3700, "shop_plank": 3640,

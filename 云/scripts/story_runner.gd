@@ -768,10 +768,19 @@ func _walk(st: Dictionary) -> void:
 	if n == null:
 		_warn_once("walk：不认识 " + who)
 		return
+	var tlv := _lv_target(st.get("to", 0), n)
 	if ff:
-		_place(n, x, world.room if n == chen else _room_of(n))
+		_place(n, x, world.room if n == chen else _room_of(n), tlv)
 		return
 	var wait: bool = st.get("wait", true)
+	var lsg := _lv_stage()
+	if lsg != null and tlv >= 0 and tlv != _lv_of(n, lsg) and not (who == "chen" and _enter_scene):
+		# 多层小屋：目标在别的层 → 先沿石阶走上 / 下去，再走到那一点
+		if wait:
+			await _lv_walk(n, lsg, tlv, x, st)
+		else:
+			_lv_walk(n, lsg, tlv, x, st)
+		return
 	match who:
 		"chen":
 			if _enter_scene:
@@ -805,6 +814,84 @@ func _walk(st: Dictionary) -> void:
 			miluo.glide_to(x, float(st.get("speed", miluo.GLIDE_SPEED)))
 			while wait and miluo.is_gliding():
 				await get_tree().process_frame
+
+
+## 多层小屋（room.json levels，妮芙家）：现在这间是多层的就返回它
+func _lv_stage(r := "") -> Node2D:
+	var sg: Node2D = world.stage(r if r != "" else world.room) if world != null else null
+	return sg if sg != null and sg.has_method("has_levels") and sg.has_levels() else null
+
+
+func _lv_of(n: Node2D, sg: Node2D) -> int:
+	return int(sg.chen_lv) if n == chen else int(sg.npc_lv.get(n.name, sg.chen_lv))
+
+
+## walk / show 的目标在哪层：marker 的层、或那个人所在的层；不是多层 = −1
+func _lv_target(to, n: Node2D = null) -> int:
+	if not to is String:
+		return -1
+	var tn := npc(str(to))
+	var sg := _lv_stage(_room_of(n) if n != null and n != chen else "")
+	if sg == null:
+		sg = _lv_stage()
+	if sg == null:
+		return -1
+	if tn != null and tn != n:
+		return _lv_of(tn, sg)
+	return sg.marker_level(str(to))
+
+
+## 沿石阶换层再走到 x（晨 / NPC）。石阶上 = 脚底跟着斜线走（没有爬楼梯的帧，走路动画 + 平滑位移）
+func _lv_walk(n: Node2D, sg: Node2D, to_lv: int, x: float, st := {}) -> void:
+	if n == chen and not missing_anims.has("climb"):
+		missing_anims["climb"] = true            # 上下石阶：没有爬楼梯的帧，先用走路 + 沿斜线位移（给奥斯卡的清单）
+		print("MISSING_ANIM climb")
+	n.set_meta("lv_climbing", true)
+	var sp := float(st.get("speed", -1.0))
+	if sp <= 0.0 and n != chen:
+		sp = maxf(float(n.get("speed")), 56.0)      # 换层的路远：妮芙飘得快一点（剧本没写速度时）
+	for e in sg.route(_lv_of(n, sg), to_lv):
+		if n == chen:
+			await _chen_walk(float(e["x0"]))
+			sg.chen_stair = int(e["si"])
+			await _chen_walk(float(e["x1"]))
+			sg.chen_stair = -1
+			sg.chen_lv = int(e["to"])
+		else:
+			n.visible = true
+			n.walk_to(float(e["x0"]), sp)
+			while n.is_walking():
+				await get_tree().process_frame
+			n.ground_fn = sg.stair_fn(int(e["si"]))
+			n.walk_to(float(e["x1"]), sp)
+			while n.is_walking():
+				await get_tree().process_frame
+			sg.npc_lv[n.name] = int(e["to"])
+			n.ground_fn = sg.level_fn(int(e["to"]))
+	n.remove_meta("lv_climbing")
+	if n == chen:
+		var w: Vector2 = world.walls(chen.position.x)
+		await _chen_walk(clampf(x, w.x + 4.0, w.y - 4.0))
+	else:
+		n.walk_to(x, sp)
+		while n.is_walking():
+			await get_tree().process_frame
+
+
+## 点了别的层的 hotspot（鼠标 / 自动玩）：先走上 / 下去，到那一层的楼梯口为止，再播它的剧情
+func _lv_reach(p: Dictionary) -> void:
+	var sg := _lv_stage()
+	var at = (p["h"] as Dictionary).get("at", 0)
+	var tlv := _lv_target(at)
+	if sg == null or tlv < 0 or tlv == sg.chen_lv or ff:
+		return
+	busy = true
+	hotspots.active = false
+	level.story_begin(false)
+	await _lv_walk(chen, sg, tlv, float(p["x"]))
+	level.story_end()
+	busy = false
+	hotspots.active = true
 
 
 ## 鹿：剧本 speed ≤ 60 = 走路（npc_deer.gd 的 walk_to，不传速度：它自己的 WALK_SPEED 是蹄子不打滑的唯一速度），
@@ -874,7 +961,7 @@ func _show(st: Dictionary, on: bool) -> void:
 	if st.has("at"):
 		var r: Dictionary = world.resolve(st["at"])
 		if r["ok"]:
-			_place(n, r["x"], r["room"])
+			_place(n, r["x"], r["room"], _lv_target(st["at"], n) if _lv_stage(str(r["room"])) != null else -1)
 		else:
 			_warn_once("show：找不到 " + str(st["at"]))
 	# "fade": 秒（10-29）：按 4 档透明度淡入 / 淡出（鹿走进雾里、慢慢出现），不突然出现 / 消失；不等它淡完就播下一步
@@ -957,7 +1044,8 @@ func _set_miluo_front(on: bool) -> void:
 
 
 ## 把角色直接放到 x（房间 r 的地面上），停掉正在跑 / 滑
-func _place(n: Node2D, x: float, r: String) -> void:
+## lv：多层小屋里放到哪层（−1 = 晨留在原来那层、NPC 放在晨现在那层）
+func _place(n: Node2D, x: float, r: String, lv := -1) -> void:
 	if n == deer and _deer_moving():
 		deer._running = false
 		if "_walking" in deer:
@@ -971,7 +1059,20 @@ func _place(n: Node2D, x: float, r: String) -> void:
 	if npcs.values().has(n):
 		n.stop()
 		n.ground_fn = func(gx: float) -> float: return world.ground_at(gx, r)
-	n.position = Vector2(round(x), round(world.ground_at(x, r)) + 1.0)
+	var ls := _lv_stage(r)
+	if ls != null:
+		if lv < 0 and n == chen and _arrive_lv >= 0:
+			lv = _arrive_lv
+		if lv < 0:
+			lv = ls.chen_lv
+		if n == chen:
+			ls.chen_lv = lv
+			ls.chen_stair = -1
+		elif npcs.values().has(n):
+			ls.npc_lv[n.name] = lv
+			n.ground_fn = ls.level_fn(lv)
+	var gy: float = world.ground_at(x, r) if ls == null or n == chen else ls.level_fn(lv).call(x)
+	n.position = Vector2(round(x), round(gy) + 1.0)
 	_npc_room[n.name] = r
 	if n == miluo and world.house.has("front_x0"):
 		_set_miluo_front(r != "treehouse" and not world.behind_front(round(x)))    # 直接放过去的：图层也直接对
@@ -1213,8 +1314,13 @@ func _update_item_show(delta: float) -> void:
 
 
 # ----------------------------------------------------------------------- 换地方
+var _arrive_lv := -1                 # fade_to 进多层小屋：晨（和同行的）落在 at 那个 marker 的层
+
+
 func _fade_to(st: Dictionary) -> void:
 	var room := str(st.get("room", "forest"))
+	var lsg := _lv_stage(room)
+	_arrive_lv = lsg.marker_level(str(st.get("at", ""))) if lsg != null and st.get("at", 0) is String else -1
 	var r: Dictionary = world.resolve(st.get("at", 0))
 	if not r["ok"]:
 		_warn_once("fade_to：找不到 " + str(st.get("at")))
@@ -1335,6 +1441,7 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		_place(n, nx, room)
 		n.visible = true
 		n._set_facing(1 if x > nx else -1)
+	_arrive_lv = -1
 	level.on_room_changed(snap)
 	sync_npc_vis(snap)
 
@@ -1557,6 +1664,7 @@ func trigger(p: Dictionary) -> void:
 	_visited[id] = StoryState.progress()
 	var p0 := StoryState.progress()
 	hotspots_used += 1
+	await _lv_reach(p)                      # 多层小屋：点的是别的层的东西，先走上 / 下去
 	if not ff and absf(float(p["x"]) - chen.position.x) > 2.0:
 		chen._set_facing(1 if float(p["x"]) > chen.position.x else -1)
 	_enter_scene = hotspots.is_enter(h) and not bool(h.get("cutscene", false))
@@ -2672,6 +2780,13 @@ func _update_follow(delta: float) -> void:
 		if str(_npc_room.get(n.name, "")) != world.room:
 			continue
 		if not free:
+			continue
+		var fsg := _lv_stage()
+		if fsg != null and _lv_of(n, fsg) != fsg.chen_lv:
+			if not n.has_meta("lv_climbing") and fsg.chen_stair < 0:
+				_lv_walk(n, fsg, fsg.chen_lv, chen.position.x - (FOLLOW_GAP if chen.facing > 0 else -FOLLOW_GAP))   # 跟着晨上 / 下楼
+			continue
+		if n.has_meta("lv_climbing"):
 			continue
 		var gap := float(follow[who])
 		var side := -1.0 if chen.facing > 0 else 1.0

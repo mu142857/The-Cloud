@@ -2,7 +2,7 @@
  "_comment": "妮芙家（剖面小屋，月夜）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。tools/river_bank_moon_art.py 生成（屋内借 tools/river_home_art.py 的画法重新上色），别手改。地板下面泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
  "kind": "house",
  "host": "river_bank",
- "x": 890,
+ "x": 1570,
  "size": [
   420,
   206

@@ -1,5 +1,5 @@
 {
-	"_comment": "河流城市「妮芙的三分钟」剧本（剧情姐合订稿 in1030/yun1.txt 第 73–152 行）。通讯器用 phone_* 步骤（docs/phone_and_cockpit_contract.md）：鹿借弥洛通讯器留言 river_msg_deer、告别时 phone_add nifu。生成脚本 scratchpad/later/gen_river.py。妮芙的记忆用沙漏 + 轻铃（sfx bell_soft）+ 她的本子（prop niff_notebook）表现，不计时。水下仓库里两人不说话（她说过不要隔着面罩喊）。markers 坐标都是占位 0。带 \"added\": true 的是补写。 10-30：飞行一结尾改成往前一冲进黑色星空、第一章结束（不再降落），原文 71–72 的降落（城市沿水道铺开……趴在操纵台上缓了一会儿）挪到 start_river 开头：晨先藏起来，河岸画面淡入时用 narr 念完、配推进器关掉 / 撞浮木的声音，晨说「行。至少到了。」以后再从舱门出来。手改的，重新跑生成脚本会丢，要一起改进去。",
+	"_comment": "河流城市「妮芙的三分钟」剧本（剧情姐合订稿 in1030/yun1.txt 第 73–152 行）。通讯器用 phone_* 步骤（docs/phone_and_cockpit_contract.md）：鹿借弥洛通讯器留言 river_msg_deer、告别时 phone_add nifu。生成脚本 scratchpad/later/gen_river.py。妮芙的记忆用沙漏 + 轻铃（sfx bell_soft）+ 她的本子（prop niff_notebook）表现，不计时。水下仓库里两人不说话（她说过不要隔着面罩喊）。markers 坐标都是占位 0。带 \"added\": true 的是补写。 10-30：飞行一结尾改成往前一冲进黑色星空、第一章结束（不再降落），原文 71–72 的降落（城市沿水道铺开……趴在操纵台上缓了一会儿）挪到 start_river 开头：晨先藏起来，河岸画面淡入时用 narr 念完、配推进器关掉 / 撞浮木的声音，晨说「行。至少到了。」以后再从舱门出来。手改的，重新跑生成脚本会丢，要一起改进去。 10-30 河岸第三版（作者要孤独感）：start_river 到晨出舱为止（设 river_ashore），晨先一个人沿河岸走一大段，走到箱子跟前才触发 bank_meet（hotspot meet_niff：trigger enter + cutscene，台词原样搬过去）；bank_cup 里补了阿汀 / 妮芙 / 晨走回飞机那边的 walk，结尾妮芙先往家那边走（river_bank_niff）。也是手改的。",
 	"speakers": {
 		"chen": {"zh": "晨", "en": "Chen"},
 		"niff": {"zh": "妮芙", "en": "Niff"},
@@ -144,6 +144,7 @@
 		{"id": "plane_fix", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_bell"], "not": ["river_plane_fixed"], "once": false, "scene": "plane_fix"},
 		{"id": "plane_parts", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_need_head"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_parts"},
 		{"id": "plane_drying", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_landed"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_drying"},
+		{"id": "meet_niff", "at": "river_bank_crates", "room": "river_bank", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_ashore"], "not": ["river_salvaged"], "once": true, "scene": "bank_meet", "trigger": "enter", "range": 56, "cutscene": true},
 		{"id": "ting_footage", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_footage_broken"], "not": ["river_need_head"], "once": false, "scene": "ting_footage"},
 		{"id": "ting_chat_4", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_plane_fixed"], "not": [], "once": false, "scene": "ting_chat_4"},
 		{"id": "ting_chat_3", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_back_home"], "not": [], "once": false, "scene": "ting_chat_3"},
@@ -212,6 +213,9 @@
 			{"say": "chen", "zh": "行。至少到了。", "en": "Okay. At least I made it."},
 			{"do": "show", "who": "chen", "at": "river_bank_hatch"},
 			{"do": "sfx", "name": "hatch_open"},
+			{"do": "flag", "set": "river_ashore"}
+		],
+		"bank_meet": [
 			{"do": "prop", "id": "river_bank_crates", "state": "tail"},
 			{"do": "wait", "sec": 1.0},
 			{"say": "chen", "zh": "你好？", "en": "Hello?"},
@@ -297,6 +301,9 @@
 			{"do": "show", "who": "ting", "at": "river_bank_post"},
 			{"do": "face", "who": "chen", "to": "ting"},
 			{"say": "ting", "zh": "先把机翼绑住。", "en": "Tie down the wing first.", "added": true},
+			{"do": "walk", "who": "ting", "to": "river_bank_toolkit", "wait": false},
+			{"do": "walk", "who": "niff", "to": "river_bank_ting", "wait": false},
+			{"do": "walk", "who": "chen", "to": "river_bank_hatch"},
 			{"do": "anim", "who": "chen", "name": "tie"},
 			{"do": "walk", "who": "ting", "to": "river_bank_plane"},
 			{"do": "anim", "who": "ting", "name": "check"},
@@ -325,6 +332,7 @@
 			{"do": "prop", "id": "river_bank_plane", "state": "straps_drying"},
 			{"do": "wait", "sec": 0.8},
 			{"say": "niff", "zh": "晾好啦。走吧，去我家。", "en": "All hung up. Come on, to my place.", "added": true},
+			{"do": "walk", "who": "niff", "to": "river_bank_niff", "wait": false},
 			{"do": "flag", "set": "river_landed"}
 		],
 		"bank_doorplate": [
@@ -1161,7 +1169,7 @@
 			{"do": "anim", "who": "niff", "name": "shake_head"},
 			{"say": "niff", "zh": "今天先不要啦。", "en": "Not today."},
 			{"say": "niff", "zh": "拿回来的这些还没晾干呢，", "en": "What we brought back isn't even dry yet."},
-			{"say": "niff", "zh": "再捞一堆，晚上我就没地方睡了。", "en": "Fish out another pile and I'll have nowhere to sleep tonight."},
+			{"say": "niff", "zh": "再捞一堆，今晚我就没地方睡了。", "en": "Fish out another pile and I'll have nowhere to sleep tonight."},
 			{"do": "prop", "id": "niff_photo", "state": "flattened"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "hide", "who": "ting"},

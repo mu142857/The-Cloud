@@ -56,10 +56,14 @@ enum S { HEADPHONES, INTRO, TITLE, CRASH, PLAY, CINE }
 
 const LOOK := 36.0            # 镜头往晨面朝的方向多看多少像素（和 forest_test 一样）
 const FOLLOW := 3.0
-const TITLE_CAM_X := 236.0    # 标题界面镜头中心；晨爬起来时镜头也在这
-const CHEN_X := 250.0         # 晨趴着的地方
-const WRECK_X := 120.0        # 坠毁飞船（锚点 = 船身中心的 x 和地面）
-const ALIEN_X := 204.0        # 另一个外星人（梧桐画的旧主角）趴着、站着的地方：残骸尾巴旁边，在晨左边，不挡去木头的路
+## 坠毁现场（船、晨、行李、碎片、左墙）整体往左挪了 960：到发光木头中间留一段什么都不能点的空林子（约 7 秒路）。
+## 960 = Main 层和地面（chen.ground_y）的循环宽，所以坠毁那一屏的近景树干、光柱、地面起伏和原来一模一样。
+## 剧本 story_forest.json 里坠毁现场的 markers（wreck、chen_start、treeline_gap、home_enter……）跟着一起挪了，改这里要一起改。
+const CRASH_DX := -960.0
+const TITLE_CAM_X := 236.0 + CRASH_DX    # 标题界面镜头中心；晨爬起来时镜头也在这
+const CHEN_X := 250.0 + CRASH_DX         # 晨趴着的地方
+const WRECK_X := 120.0 + CRASH_DX        # 坠毁飞船（锚点 = 船身中心的 x 和地面）
+const ALIEN_X := 204.0 + CRASH_DX        # 另一个外星人（梧桐画的旧主角）趴着、站着的地方：残骸尾巴旁边，在晨左边，不挡去木头的路
 const WOOD_X := 372.0         # 发光木头
 const PICK_DIST := 26.0       # 晨走到离木头这么近就进入拾取过场
 const LIE_LIFT := 9.0         # 没有 lie / getup 动画时的老办法：趴着时精灵往上抬几像素（转 90° 以后身体的厚度一半在地下）
@@ -433,6 +437,10 @@ func _ground(x: float) -> float:
 
 
 func _place_world() -> void:
+	# 坠毁现场挪了 CRASH_DX：Main 层正好绕回一圈，别的视差层补上相位，标题 / 坠毁 / 起飞那几屏的远景、前景和挪之前一模一样
+	for n in ["Ridge", "Far", "MidFar", "Mid", "Front"]:
+		var p := get_node(n) as Parallax2D
+		p.scroll_offset.x += CRASH_DX * p.scroll_scale.x
 	wreck.position = Vector2(WRECK_X, _ground(WRECK_X) + 1)
 	wood.position = Vector2(WOOD_X, _ground(WOOD_X))
 	chen.position = Vector2(CHEN_X, _ground(CHEN_X) + 1)

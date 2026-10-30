@@ -1,7 +1,7 @@
 {
  "_note": "tools/river_warehouse_bridge_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。远景层是原来的蓝色月夜河岸（art/river）。",
  "size": [
-  1500,
+  2000,
   270
  ],
  "env": "river",
@@ -99,35 +99,51 @@
    212
   ],
   [
-   60,
+   304,
    212
   ],
   [
-   120,
+   324,
+   213
+  ],
+  [
+   344,
+   217
+  ],
+  [
+   364,
+   223
+  ],
+  [
+   384,
    228
   ],
   [
-   1186,
+   1680,
    228
   ],
   [
-   1194,
-   220
+   1692,
+   225
   ],
   [
-   1202,
-   212
+   1704,
+   216
   ],
   [
-   1210,
+   1716,
    204
   ],
   [
-   1218,
+   1728,
+   197
+  ],
+  [
+   1738,
    196
   ],
   [
-   1500,
+   2000,
    196
   ]
  ],
@@ -135,25 +151,25 @@
   "southbridge_entry": 24,
   "southbridge_back": 14,
   "southbridge_niff": 60,
-  "southbridge_lamp_post": 522,
-  "southbridge_ornament": 1028,
-  "southbridge_arch_wrong": 310,
-  "southbridge_arch": 590,
-  "southbridge_footprints": 596,
-  "southbridge_waterway": 1100,
-  "southbridge_dock": 1262,
-  "southbridge_routemap": 1350,
-  "southbridge_dock_step": 1210,
-  "southbridge_plates": 1450,
-  "southbridge_arch_far": 850,
-  "southbridge_view_spot": 592,
-  "southbridge_plate_07": 1420,
-  "southbridge_plate_12": 1440,
-  "southbridge_plate_21": 1460
+  "southbridge_lamp_post": 782,
+  "southbridge_ornament": 1262,
+  "southbridge_arch_wrong": 570,
+  "southbridge_arch": 850,
+  "southbridge_footprints": 856,
+  "southbridge_waterway": 1600,
+  "southbridge_dock": 1750,
+  "southbridge_routemap": 1781,
+  "southbridge_dock_step": 1704,
+  "southbridge_plates": 1892,
+  "southbridge_arch_far": 1110,
+  "southbridge_view_spot": 852,
+  "southbridge_plate_07": 1872,
+  "southbridge_plate_12": 1892,
+  "southbridge_plate_21": 1912
  },
  "walk": [
   12,
-  1486
+  1986
  ],
  "walk_when": [
   {
@@ -162,7 +178,7 @@
    ],
    "walk": [
     12,
-    1054
+    1554
    ]
   }
  ],
@@ -183,13 +199,13 @@
  "scripts": [],
  "viewfinder": {
   "img": "viewfinder.png",
-  "cam_x": 352,
-  "chen_x": 592,
+  "cam_x": 612,
+  "chen_x": 852,
   "note": "镜头左边缘 = cam_x 时对齐；用这几层按引擎视差公式合成后压成影像（tools/river_warehouse_bridge_art.py 每次重出）"
  },
  "objects": {
   "southbridge_arch": {
-   "x": 528,
+   "x": 788,
    "y": 66,
    "w": 124,
    "h": 40,
@@ -199,14 +215,14 @@
     "scratches": 1
    },
    "click": [
-    560,
+    820,
     100,
     60,
     128
    ]
   },
   "southbridge_footprints": {
-   "x": 520,
+   "x": 780,
    "y": 229,
    "w": 150,
    "h": 14,
@@ -217,7 +233,7 @@
    }
   },
   "southbridge_waterway": {
-   "x": 1050,
+   "x": 1550,
    "y": 138,
    "w": 100,
    "h": 92,
@@ -227,32 +243,32 @@
     "revealed": 1
    },
    "click": [
-    1060,
+    1560,
     150,
     80,
     78
    ]
   },
   "southbridge_routemap": {
-   "x": 1286,
-   "y": 84,
-   "w": 130,
-   "h": 116,
+   "x": 1752,
+   "y": 116,
+   "w": 70,
+   "h": 82,
    "frames": 2,
    "states": {
     "default": 0,
     "fallen": 1
    },
    "click": [
-    1292,
-    88,
-    118,
-    108
+    1752,
+    116,
+    58,
+    80
    ]
   },
   "southbridge_plate_07": {
-   "x": 1412,
-   "y": 105,
+   "x": 1864,
+   "y": 102,
    "w": 16,
    "h": 14,
    "frames": 2,
@@ -263,8 +279,8 @@
    }
   },
   "southbridge_plate_12": {
-   "x": 1432,
-   "y": 105,
+   "x": 1884,
+   "y": 102,
    "w": 16,
    "h": 14,
    "frames": 2,
@@ -275,8 +291,8 @@
    }
   },
   "southbridge_plate_21": {
-   "x": 1452,
-   "y": 105,
+   "x": 1904,
+   "y": 102,
    "w": 16,
    "h": 14,
    "frames": 2,

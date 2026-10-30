@@ -169,7 +169,7 @@ func available(room := "") -> Array:
 			continue
 		var dup := false
 		for o in out:
-			if absf(float(o["x"]) - float(p["x"])) <= SAME_X:
+			if absf(float(o["x"]) - float(p["x"])) <= SAME_X and runner._lv_target(o["h"].get("at", 0)) == runner._lv_target(hd.get("at", 0)):
 				dup = true
 				break
 		if dup:
@@ -207,6 +207,9 @@ func locate(h: Dictionary) -> Dictionary:
 		return {"ok": true, "x": x, "top": orr.position.y - 4.0, "rect": orr.grow(3), "spr": sn}
 	var room := str(h.get("room", "forest"))
 	var gy: float = round(world.ground_at(x, room)) + 1.0
+	var ls: Node2D = runner._lv_stage(room)
+	if ls != null and at is String and ls.marker_level(str(at)) >= 0:
+		gy = round(ls.level_fn(ls.marker_level(str(at))).call(x)) + 1.0     # 多层小屋：点画在它那层的地面上
 	var rect := Rect2(x - 10, gy - 30, 20, 30)
 	var top := gy - 26.0
 	var pid := ""
@@ -249,9 +252,20 @@ func _in_group(px: float, cx: float) -> bool:
 func in_range(p: Dictionary, cx: float) -> bool:
 	var h: Dictionary = p["h"]
 	var px := float(p["x"])
+	if runner.auto == "" and not same_level(h):
+		return false                     # 多层小屋：别的层的东西够不着（先上 / 下楼）；自动玩例外，点了晨自己走上去（_lv_reach）
 	if absf(px - cx) <= range_of(h):
 		return true
 	return not is_enter(h) and _in_group(px, cx)
+
+
+## 多层小屋：这个点和晨在不在同一层（按键只认同层的；鼠标点别层的 = 晨先走上 / 下去，见 story_runner._lv_reach）
+func same_level(h: Dictionary) -> bool:
+	var ls: Node2D = runner._lv_stage(str(h.get("room", "forest")))
+	if ls == null:
+		return true
+	var lv: int = runner._lv_target(h.get("at", 0))
+	return lv < 0 or lv == int(ls.chen_lv)
 
 
 ## 按键会互动的那个：范围里先挑会推进剧情的，再挑最近的；没有就是 {}
@@ -260,7 +274,7 @@ func nearest(cx: float) -> Dictionary:
 	var best_key := INF
 	for p in available():
 		var h: Dictionary = p["h"]
-		if is_enter(h) or not in_range(p, cx):
+		if is_enter(h) or not in_range(p, cx) or not same_level(h):
 			continue
 		var key := absf(float(p["x"]) - cx) + (0.0 if runner.is_progress_hotspot(h) else 1000.0)
 		if key < best_key:

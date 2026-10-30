@@ -221,6 +221,60 @@ def lighten(cv, m, amt, h=250.0):
     cv.a[ys, xs, :3] = np.clip(out, 0, 255).astype(np.uint8)
 
 
+HOLE_LIT = None                  # 透灯的洞：从最暗的暖褐到灯芯（第一次用时再算，bm 的 WARM 要先 import 完）
+HOLE_DARK = [(1, 1, 7), (2, 4, 13), (3, 7, 19), (5, 11, 25), (7, 16, 31), (10, 22, 38)]   # 和岩石同一路的靛色，最亮那档 ≈ 石头的暗面
+
+
+def hole(cv, m, ox, oy, lit=True, door=False, src=None, pal=None, halo=True, reach=1.0, levels=None):
+    """凿出来的洞（门 / 窗 / 拱洞），不平涂：
+    透灯的 = 灯在洞里偏下（门在地上），离灯越远越暗，抖着过渡；上沿、左沿一道内壁的影（墙厚）；外面一圈暖光落到石头上、往外渐弱。
+    不透灯的 = 近黑的靛色，月光从右下斜进来，下半截、右边亮一点；上沿最深。m 是洞的局部掩码，(ox, oy) 是它的左上角。"""
+    global HOLE_LIT
+    if HOLE_LIT is None:
+        HOLE_LIT = [col(0.13, 0.03, 40)] + list(bm.WARM)
+    h, w = m.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    if src is None:
+        src = (w * 0.55, h * (0.86 if door else 0.66))
+    sx, sy = src
+    d = np.hypot((xx + 0.5 - sx) / (w * 0.62 * reach), (yy + 0.5 - sy) / (h * 0.7 * reach))
+    bay = BAYER[(yy + oy) % 4, (xx + ox) % 4] - 0.5
+    left = m & ~np.roll(m, 1, 1)
+    left[:, 0] = m[:, 0]
+    top = m & ~np.roll(m, 1, 0)
+    top[0] = m[0]
+    top2 = m & ~np.roll(top | ~m, 1, 0) & ~top
+    if lit:
+        levels = HOLE_LIT
+        v = (1 - d) * (len(levels) - 0.6) + bay * 0.9
+        if door:
+            v += np.clip((yy - h * 0.75) / (h * 0.25), 0, 1) * 1.2       # 门里的地上一层亮
+    else:
+        levels = levels or HOLE_DARK
+        v = 0.9 + np.clip(1.1 - d, 0, 1) * 2.4 + np.clip((yy - h * 0.55) / (h * 0.45), 0, 1) * 1.2 \
+            + np.clip((xx - w * 0.6) / (w * 0.4), 0, 1) * 0.6 + bay * 0.9
+    v = np.where(left, v - 2.2, v)
+    v = np.where(top, v - 3, np.where(top2, v - 1.4, v))
+    idx = np.clip(np.floor(v), 0, len(levels) - 1).astype(int)
+    for y, x in zip(*np.nonzero(m)):
+        cv.put(ox + x, oy + y, levels[idx[y, x]])
+    if lit and halo:
+        r = max(w, h) * 0.75 + 7
+        bm.glow(rc(cv), ox + sx, oy + sy, r)
+    if pal is not None:                                                # 右沿、下沿的石唇受月光
+        for y in range(h):
+            row = np.nonzero(m[y])[0]
+            if len(row):
+                cv.put(ox + row[-1] + 1, oy + y, pal[-2])
+        cols = np.nonzero(m.any(0))[0]
+        cv.rect(ox + cols[0] - 1, oy + h, ox + cols[-1] + 1, oy + h, pal[-1])
+
+
+def carve2(cv, x, y, w, h, kind="arch", lit=True, door=False, pal=None):
+    """bm.carve 的形 + hole 的光（不平涂、光往外渐弱）。"""
+    hole(cv, bm.opening_mask(w, h, kind), x, y, lit, door, pal=pal if pal is not None else SPAL)
+
+
 # =========================================================================== 引擎的视差合成（预览 + 取景框）
 def comp(layers, cam_left, w=480):
     """layers：[(rgba 数组, scroll, x, y, tile)]，按 room_stage.gd update() 的公式摆，返回 480×270。"""
@@ -375,8 +429,8 @@ def wh_main():
         cv.rect(x0 - 2, y1 + 1, x1 + 2, y1 + 1, WROCK[5])
         cv.rect(x1 + 1, y0, x1 + 1, y1, WROCK[4])
     # 塌口的断边：边上一圈亮一档（石头的厚度）
-    hole = ~cv.mask_of_poly(H1)
-    edge = hole & ~np.roll(hole, 1, 1) | hole & ~np.roll(hole, -1, 0) | hole & ~np.roll(hole, 1, 0)
+    gone = ~cv.mask_of_poly(H1)
+    edge = gone & ~np.roll(gone, 1, 1) | gone & ~np.roll(gone, -1, 0) | gone & ~np.roll(gone, 1, 0)
     edge &= m
     for y, x in zip(*np.nonzero(edge)):
         cv.put(x, y, WROCK[5] if y < 120 else WROCK[4])
@@ -405,10 +459,13 @@ def wh_main():
     dyy, dxx = np.mgrid[0:H, 0:WH_W]
     door |= (dxx >= 12) & (dxx <= 54) & (dyy >= 150) & (dyy <= WH_FLOOR)
     door |= ((dxx - 33) / 21.0) ** 2 + ((dyy - 150) / 14.0) ** 2 <= 1
-    cv.fill(door, DARK)
-    for i in range(10):                                            # 门里往上的台阶，一点点受光
-        y = WH_FLOOR - i * 8
-        cv.rect(14 + i * 2, y - 1, 30 + i * 2, y, blue(0.1 + i * 0.006))
+    ys, xs = np.nonzero(door)
+    # 门洞里不平涂：通往上面的斜坡，水面的月光从洞里右上斜着漏下来，往下、往左越来越深
+    hole(cv, door[ys.min():ys.max() + 1, xs.min():xs.max() + 1], xs.min(), ys.min(), lit=False,
+         src=(30, 4), reach=1.4, levels=HOLE_DARK[:3] + WROCK[2:5])
+    for i in range(1, 9):                                          # 洞里往上的坡道：几道被月光擦亮的石沿，越往里越暗
+        y = WH_FLOOR - i * 9
+        cv.rect(16 + i * 3, y, 34 + i * 2, y, HOLE_DARK[min(4, 1 + i // 2)])
     edge = door & ~(np.roll(door, -1, 1) & np.roll(door, 1, 0))
     cv.fill(edge & (dxx < 33), WROCK[0])
     rim = ~door & (np.roll(door, 1, 1) | np.roll(door, -1, 0)) & (dyy <= WH_FLOOR) & (dxx > 8) & (dxx < 60)
@@ -553,7 +610,8 @@ def wh_props(cv):
     pm = np.zeros((H, WH_W), bool)
     pm[10:WH_FLOOR + 1, a - 3:b + 4] = True
     stone_mass(cv, pm, rng, WBLOCK, cracks=3, strata=2)          # 凿大厅时留下的一道岩墙
-    cv.rect(a + 1, 174, b - 1, WH_FLOOR, DARK)                     # 门洞（门关着时被物件盖住）
+    dm_ = np.ones((WH_FLOOR - 174 + 1, b - a - 1), bool)           # 门洞（门关着时被物件盖住）：里间暗，圆窗那边一点冷光
+    hole(cv, dm_, a + 1, 174, lit=False, src=(b - a - 1, 10), reach=1.2)
     cv.rect(a - 3, 171, b + 3, 173, WBLOCK[5])                    # 门楣：一条长石
     cv.rect(a - 3, 173, b + 3, 173, WBLOCK[1])
     cv.rect(a - 1, WH_ROPE_Y - 2, b + 1, WH_ROPE_Y + 2, DARK)
@@ -1025,20 +1083,26 @@ def build_warehouse(prev=None):
 
 
 # =========================================================================== 南桥 + 货台
-SB_W = 1500
+SX = 260                         # 开头一段空的河堤（从旧街过来，先只有月亮、河、一盏石灯笼，再到桥）
+GAP = 240                        # 桥和水道 / 货台之间再空一段泥滩
+D0 = SX + GAP                    # 水道、货台那一组整体往右挪多少（下面写成 D0 + 原来的 x）
+SB_W = 1500 + SX + GAP
 SB_G = 228                       # 泥滩（桥下）
 DOCK_Y = 196                     # 货台台面
-SB_GROUND = [[0, 212], [60, 212], [120, 228], [1186, 228], [1194, 220], [1202, 212], [1210, 204], [1218, 196], [1500, 196]]
+SB_GROUND = [[0, 212], [SX + 44, 212], [SX + 64, 213], [SX + 84, 217], [SX + 104, 223], [SX + 124, 228],
+             [D0 + 1180, 228], [D0 + 1192, 225], [D0 + 1204, 216], [D0 + 1216, 204], [D0 + 1228, 197], [D0 + 1238, 196], [SB_W, 196]]
 DECK = 58                        # 桥面（= 拱肩里那几户的屋顶）
 SPRING = 150                     # 拱脚
-ARCHES = [(310, 120, 72), (590, 120, 72), (850, 100, 68)]   # (中心 x, 半跨, 矢高)
+ARCHES = [(SX + 310, 120, 72), (SX + 590, 120, 72), (SX + 850, 100, 68)]   # (中心 x, 半跨, 矢高)
 RING = 9                         # 券石那一圈的厚度
-PIERS = [(150, 190), (430, 470), (710, 750), (950, 990)]
-BRIDGE = (130, 1030)
+PIERS = [(SX + a, SX + b) for a, b in ((150, 190), (430, 470), (710, 750), (950, 990))]
+BRIDGE = (SX + 130, SX + 1030)
 OLD_WATER = 176                  # 影像里那时候的水位（桥墩上一道水线）
-LAMPS = [244, 522, 800]          # 桥面上的灯柱（522 = 影像里挂浮灯的那根，marker southbridge_lamp_post）
-VIEW_CAM = 352                   # 取景框：镜头左边缘
-VIEW_SPOT = 592
+LAMPS = [SX + 244, SX + 522, SX + 800]   # 桥面上的灯柱（中间那根 = 影像里挂浮灯的，marker southbridge_lamp_post）
+VIEW_CAM = SX + 352              # 取景框：镜头左边缘
+VIEW_SPOT = SX + 592
+HOUSE_X = SX + 1002              # 右桥头那块凿出来的巨石屋（marker southbridge_ornament）
+TUNNEL_X = D0 + 1100             # 旧运输水道的石拱洞口
 
 STONE = [blue(v, None, 256) for v in (0.075, 0.095, 0.12, 0.145, 0.175, 0.21, 0.26, 0.32)]
 PLAST = [col(v, 0.016, 236) for v in (0.15, 0.185, 0.215, 0.245, 0.29)]
@@ -1156,75 +1220,122 @@ def sb_main():
         figure(cv, x, DECK - 1, rng)
     for lx in LAMPS:
         lamp_post(cv, lx, DECK - 1)
-    # ---- 左岸：粗石河堤 + 台阶（往回走 = 旧街）、一盏石灯笼
+    # ---- 左岸：一长段石砌河堤（空的，只有一盏石灯笼），坡下到泥滩（不砌台阶，一道缓坡）
     lm = np.zeros((H, SB_W), bool)
-    for x in range(0, 136):
+    prof = smooth1d(SX + 140, np.random.default_rng(33), 50, 1.5)
+    for x in range(0, SX + 140):
         g = sb_ground(x)
         if x >= a0 and g >= SB_G:
             continue
-        lm[g:, x] = True
-    stone_mass(cv, lm, rng, RPAL, cracks=3, strata=2)
-    for x in range(0, 136):
+        lm[g + int(max(0, prof[x])) // 2:, x] = True
+    stone_mass(cv, lm, rng, RPAL, cracks=5, strata=3)
+    for x in range(0, SX + 140):
         g = sb_ground(x)
-        if lm[g, x]:
-            cv.put(x, g, RPAL[4])
-    for i in range(6):
-        sx = 60 + i * 10
-        g = sb_ground(sx)
-        cv.rect(sx, g, sx + 9, g + 1, RPAL[3])
-        cv.rect(sx, g, sx + 9, g, RPAL[4])
-    bm.stone_lantern(r, 96, sb_ground(96))
-    # ---- 右边：挡土墙（整块岩壁）+ 旧运输水道的石拱洞口（洞口是物件 southbridge_waterway）+ 墙头一块凿出来的巨石屋
-    wall = (xx >= a1) & (xx < 1186) & (yy >= 132) & (yy <= SB_G)
+        if lm[g:, x].any():
+            top = g + int(np.argmax(lm[g:, x]))
+            cv.put(x, top, RPAL[4])
+            if rng.random() < 0.3:
+                cv.put(x, top - 1, bm.MOSS[1])
+    for bx, bw, bh in ((SX + 70, 14, 9), (SX + 98, 10, 6), (SX + 30, 8, 5)):   # 坡上几块滚下来的圆石
+        mm = bm.blob_mask(bw, bh, rng)
+        cv.paste(bm.shade_mass(mm, rng, RPAL, cracks=0, strata=0), bx, sb_ground(bx + bw // 2) - bh + 2)
+    bm.stone_lantern(r, 148, sb_ground(148))
+    # ---- 右桥头：一块凿出来的巨石屋（压在桥头上，底下一块石头墩着）；石头顶上一排小石像离地面近
+    pm = np.zeros((H, SB_W), bool)
+    for x in range(a1 - 8, a1 + 22):
+        u = (x - (a1 - 8)) / 30.0
+        pm[int(124 + 30 * u * u):SB_G + 1, x] = True
+    stone_mass(cv, pm, rng, RPAL, cracks=2, strata=1)
+    low_house(cv, HOUSE_X, rng)
+    # ---- 中间那段空泥滩：一根石桩，桩头一盏小灯；几块石头
+    mooring_lamp(cv, a1 + 128, SB_G)
+    for bx, bw, bh in ((a1 + 60, 12, 7), (a1 + 176, 18, 10), (a1 + 190, 8, 5)):
+        mm = bm.blob_mask(bw, bh, rng)
+        cv.paste(bm.shade_mass(mm, rng, RPAL, cracks=0, strata=1), bx, SB_G - bh + 3)
+    # ---- 右边：一段挡土的岩体（顶上起伏）+ 旧运输水道的石拱洞口（洞口是物件 southbridge_waterway）
+    wall = np.zeros((H, SB_W), bool)
+    wp = smooth1d(160, np.random.default_rng(41), 40, 6.0)
+    for i, x in enumerate(range(D0 + 1040, D0 + 1200)):
+        u = min(1.0, (x - (D0 + 1040)) / 22.0)
+        top = int(128 + wp[i] + 40 * (1 - np.sqrt(max(0.0, 1 - (1 - u) ** 2))))
+        wall[top:SB_G + 1, x] = True
     stone_mass(cv, wall, rng, RPAL, cracks=5, strata=3)
-    tunnel = arch_open(1100, 40, 34) & (yy <= SB_G) & (yy >= 100)
-    cv.fill(tunnel, blue(0.05))
-    rm = ring_mask(1100, 40, 34, 7)
-    ang = np.degrees(np.arctan2(-(yy - SPRING), (xx - 1100)))
+    for x in range(D0 + 1040, D0 + 1200):
+        ys = np.nonzero(wall[:, x])[0]
+        if len(ys) and rng.random() < 0.5:
+            cv.put(x, ys[0], bm.MOSS[1 if rng.random() < 0.6 else 2])
+    tunnel = arch_open(TUNNEL_X, 40, 34) & (yy <= SB_G) & (yy >= 100)
+    ys, xs = np.nonzero(tunnel)
+    tx0, ty0 = xs.min(), ys.min()
+    hole(cv, tunnel[ty0:ys.max() + 1, tx0:xs.max() + 1], tx0, ty0, lit=False, src=(40, 120), reach=1.3)
+    for k, sc in enumerate((0.8, 0.62, 0.46)):                       # 洞里往深处一圈圈小下去的拱（看得出深）：右半边被月光擦亮
+        spr = SPRING + (1 - sc) * 46
+        t_ = (xx - TUNNEL_X) / (40 * sc)
+        top_ = spr - 34 * sc * np.sqrt(np.clip(1 - t_ * t_, 0, 1))
+        inner = (np.abs(t_) < 1) & (yy >= top_) & (yy <= SB_G - 4)
+        edge = inner & ~np.roll(inner, 1, 0)
+        edge |= inner & (~np.roll(inner, -1, 1) | ~np.roll(inner, 1, 1))
+        edge &= tunnel & ((xx > TUNNEL_X - 4) | ((xx + yy) % 2 == 0))
+        cv.fill(edge, HOLE_DARK[4 - k])
+    for x in range(TUNNEL_X - 36, TUNNEL_X + 37):                    # 洞底一条暗的水，映一点月光
+        cv.put(x, SB_G - 3, blue(0.1, 0.03, 250))
+        if (x * 5) % 7 < 3:
+            cv.put(x, SB_G - 3, blue(0.16, 0.03, 248))
+    rm = ring_mask(TUNNEL_X, 40, 34, 7)
+    ang = np.degrees(np.arctan2(-(yy - SPRING), (xx - TUNNEL_X)))
     seg = np.floor(ang / 20).astype(int)
     seam = np.abs(np.diff(seg, axis=1, prepend=seg[:, :1])) > 0
     lv = np.where(ang < 85, 4, 2) + (seg % 2) * 0.6 + (BAYER[yy % 4, xx % 4] - 0.5) * 0.5
     lv = np.where(seam, 0, lv)
     idx = np.clip(np.round(lv), 0, len(SPAL) - 1).astype(int)
     cv.a[rm] = pal[idx[rm]]
-    cv.rect(1056, SPRING, 1059, SB_G, RPAL[1])
-    cv.rect(1141, SPRING, 1144, SB_G, RPAL[3])
-    low_house(cv, 1028, rng)
-    # ---- 货台：粗石台阶和台面、背后一间长的石屋（大块粗石墙 + 压顶的厚石板）、石系船桩、一盏还亮着的灯
+    cv.rect(TUNNEL_X - 44, SPRING, TUNNEL_X - 41, SB_G, RPAL[1])
+    cv.rect(TUNNEL_X + 41, SPRING, TUNNEL_X + 44, SB_G, RPAL[3])
+    # ---- 货台：一道缓坡上去，台面是整块的石头；背后一块凿出货棚的巨石、贴航线图的石面、挂编号牌的石门框
     dm = np.zeros((H, SB_W), bool)
-    for x in range(1186, SB_W):
-        dm[sb_ground(x):, x] = True
-    stone_mass(cv, dm, rng, RPAL, cracks=4, strata=3)
-    for x in range(1186, SB_W):
+    for x in range(D0 + 1176, SB_W):
         g = sb_ground(x)
-        cv.put(x, g, RPAL[4])
-    for i in range(4):
-        sx = 1186 + i * 8
-        cv.rect(sx, sb_ground(sx + 4) + 1, sx, sb_ground(sx + 4) + 8, RPAL[0])
+        if g < SB_G or x >= D0 + 1186:
+            dm[g:, x] = True
+    stone_mass(cv, dm, rng, RPAL, cracks=4, strata=3)
+    for x in range(D0 + 1176, SB_W):
+        if dm[:, x].any():
+            cv.put(x, sb_ground(x), RPAL[4])
     dock_shed(cv, rng)
     # ---- 泥滩（蓝黑，和河岸的地一路）：上沿一条被月光擦亮的湿泥，往下很快沉进黑
-    for x in range(120, 1186):
+    m0, m1 = SX + 120, D0 + 1186
+    for x in range(m0, m1):
         g = SB_G
+        if dm[g + 1:, x].any():
+            continue
         for y in range(g + 1, H):
             t = (y - g) / (H - g)
             k = 3.0 - t * 3.6 + (BAYER[y % 4, x % 4] - 0.5) * 0.9
             cv.put(x, y, MUD[int(np.clip(np.floor(k), 0, 4))])
         cv.put(x, g, MUD[5])
         cv.put(x, g + 1, MUD[4])
-    for _ in range(46):                                              # 积水的小水洼（映着天，亮一档）
-        x = int(rng.integers(130, 1170))
+    for _ in range(64):                                              # 积水的小水洼（映着天，亮一档）
+        x = int(rng.integers(m0 + 10, m1 - 30))
         y = int(rng.integers(SB_G + 7, H - 6))
         w = int(rng.integers(8, 30))
         cv.rect(x, y, x + w, y, blue(0.17, 0.035, 252))
         cv.rect(x + 2, y + 1, x + w - 3, y + 1, blue(0.13, 0.035, 256))
         if rng.random() < 0.4:
             cv.rect(x + w // 3, y, x + w // 3 + 2, y, blue(0.27, 0.035, 248))
-    for _ in range(140):                                             # 卵石：顶上一点亮
-        x = int(rng.integers(120, 1186))
+    for _ in range(190):                                             # 卵石：顶上一点亮
+        x = int(rng.integers(m0, m1))
         y = int(rng.integers(SB_G + 3, H - 2))
         cv.rect(x, y, x + 1, y, MUD[4])
         cv.put(x, y + 1, MUD[0])
-    fallen_float_lamp(cv, 474, SB_G)
+    fallen_float_lamp(cv, SX + 474, SB_G)
+    # 泥里一盏还亮着的浮灯（空泥滩那段，水洼里一点暖的倒影）
+    lx = a1 + 210
+    cv.rect(lx, SB_G - 2, lx + 10, SB_G, WOOD[2])
+    cv.rect(lx, SB_G - 2, lx + 10, SB_G - 2, WOOD[4])
+    cv.line(lx + 5, SB_G - 3, lx + 6, SB_G - 9, IRON[3])
+    bm.lantern(r, lx + 6, SB_G - 12, "post", r=11)
+    for k in range(1, 4):
+        cv.put(lx + 5 + (k % 2), SB_G + 2 + k * 2, bm.WARM[1])
     return cv, holes
 
 
@@ -1238,11 +1349,11 @@ def house_in_spandrel(cv, cx, i, rng, spand):
     for j, wx in enumerate(xs):
         if not spand[wy - 1:wy + 14, wx - 1:wx + 10].all():
             continue
-        bm.carve(r, wx, wy, 8, 12, "arch", lit[j % 2], False, pal=SPAL)
+        carve2(cv, wx, wy, 8, 12, "arch", lit[j % 2], False, pal=SPAL)
     if inner:
         dy = wy + 36
         if spand[dy:dy + 16, cx - 5:cx + 6].all():
-            bm.carve(r, cx - 4, dy, 8, 14, "arch", i == 2, True, pal=SPAL)
+            carve2(cv, cx - 4, dy, 8, 14, "arch", i == 2, True, pal=SPAL)
             cv.rect(cx - 9, dy + 14, cx + 9, dy + 15, SPAL[4])         # 门口凿出的一条窄台
             cv.rect(cx - 9, dy + 14, cx + 9, dy + 14, SPAL[5])
         ly = wy + 22
@@ -1300,8 +1411,9 @@ def lamp_post(cv, x, base):
 def low_house(cv, cx, rng):
     """右桥头（挡土墙上）一块凿出来的巨石屋：一扇亮着的拱窗、一扇门洞；石头顶上一排小石像离地面近（marker southbridge_ornament）。"""
     r = rc(cv)
-    x0, y0 = bm.boulder_house(r, cx, 131, 64, 46, 77,
-                              openings=[("arch", 14, 16, 9, 13, True, False), ("arch", 38, 0, 10, 18, False, True)], pal=SPAL)
+    x0, y0 = bm.boulder_house(r, cx, 131, 64, 46, 77, openings=[], pal=SPAL)
+    for (kind, ox, oy, ow, oh, lit, door) in (("arch", 14, 16, 9, 13, True, False), ("arch", 38, 0, 10, 18, True, True)):
+        carve2(cv, x0 + ox, 131 - oy - oh + 1, ow, oh, kind, lit, door, pal=SPAL)
     for k in range(5):
         fx = x0 + 10 + k * 11
         col_ = cv.a[:, fx, 3]
@@ -1338,41 +1450,69 @@ def fallen_float_lamp(cv, x, g):
     cv.put(x + 11, g - 14, WARM4)
 
 
+def mooring_lamp(cv, x, base):
+    """空泥滩上一根石系船桩，桩头一盏小方灯（暖光往外渐弱），桩脚缠一圈旧绳。"""
+    cv.rect(x - 2, base - 26, x + 3, base, RPAL[2])
+    cv.rect(x + 3, base - 26, x + 3, base, RPAL[4])
+    cv.rect(x - 2, base - 26, x - 2, base, RPAL[1])
+    cv.rect(x - 3, base - 28, x + 4, base - 26, RPAL[3])
+    cv.rect(x - 3, base - 28, x + 4, base - 28, RPAL[4])
+    cv.rect(x - 2, base - 12, x + 3, base - 11, ROPE_C)
+    bm.lantern(rc(cv), x, base - 32, "post", r=13)
+
+
+MAP_R = (D0 + 1252, 116, 58, 44)   # 航线图（x, y, w, h）：贴在货棚巨石的正面，一张不大的纸
+PLATE_XS = (D0 + 1372, D0 + 1392, D0 + 1412)   # 编号牌 07 / 12 / 21 挂在石门框横梁底下
+LINTEL = (D0 + 1356, D0 + 1428, 92)           # 石门框：两根石柱 + 一条横梁（x0, x1, 梁顶 y）
+
+
 def dock_shed(cv, rng):
-    """货台背后一整块岩体，凿出来的货棚：顶是起伏的石头（长苔、几缕垂叶），一个凿出的大拱门洞（里面黑），
-    航线图贴着的那一块磨平的石面、编号牌那一条凿进去的暗槽、门边一盏还亮着的挂灯、石头系船桩。"""
+    """货台背后：一块凿出货棚的巨石（门洞里暗、往里渐深，正面一块磨平的石面贴航线图），右边一个孤零零的石门框
+    （两根石柱 + 一条横梁，编号牌挂在梁底下，梁头挂一盏还亮着的灯），门框里、头顶上都透着月夜；石系船桩。"""
     r = rc(cv)
-    x0, x1 = 1226, SB_W
-    m = np.zeros((H, SB_W), bool)
-    prof = smooth1d(x1 - x0, np.random.default_rng(91), 60, 5.0)
-    for i, x in enumerate(range(x0, x1)):
-        u = min(1.0, (x - x0) / 26.0)
-        top = int(74 + prof[i] + 26 * (1 - np.sqrt(max(0.0, 1 - (1 - u) ** 2))))
-        m[top:DOCK_Y + 1, x] = True
-    stone_mass(cv, m, rng, SPAL, cracks=7, strata=4)
-    for x in range(x0, x1):                                           # 顶上一层苔
-        ys = np.nonzero(m[:, x])[0]
+    bx0, bw, bh = D0 + 1214, 128, 104
+    m = bm.blob_mask(bw, bh, rng, p=2.2, lump=0.1)
+    img = bm.shade_mass(m, rng, SPAL, cracks=5, strata=3)
+    cv.paste(img, bx0, DOCK_Y - bh + 1)
+    for xx in range(bw):                                              # 顶上一层苔、几缕垂下来
+        ys = np.nonzero(m[:, xx])[0]
         if len(ys) and rng.random() < 0.55:
-            cv.put(x, ys[0], bm.MOSS[2] if rng.random() < 0.4 else bm.MOSS[1])
-            if rng.random() < 0.15:
-                for d in range(1, int(rng.integers(2, 8))):
-                    cv.put(x, ys[0] + d, bm.MOSS[0])
-    bm.carve(r, 1236, 132, 44, 64, "arch", False, True, pal=SPAL)    # 大门洞
-    cv.rect(1290, 86, 1412, 188, SPAL[1])                             # 航线图原来贴着的一块（磨平的石面）
-    cv.rect(1291, 87, 1411, 187, SPAL[2])
-    cv.rect(1414, 102, 1474, 126, SPAL[0])                            # 编号牌那一条（凿进去的暗槽）
-    cv.rect(1414, 126, 1474, 126, SPAL[4])
-    for px in (1420, 1440, 1460):
-        cv.rect(px - 1, 104, px, 105, IRON[4])
-    bm.lantern(r, 1484, 100, "hang", r=10)
-    for bx in (1240, 1330, 1450):                                     # 石系船桩
+            cv.put(bx0 + xx, DOCK_Y - bh + 1 + ys[0], bm.MOSS[2] if rng.random() < 0.4 else bm.MOSS[1])
+            if rng.random() < 0.18:
+                for d in range(1, int(rng.integers(2, 9))):
+                    cv.put(bx0 + xx, DOCK_Y - bh + 1 + ys[0] + d, bm.MOSS[0])
+    carve2(cv, D0 + 1222, DOCK_Y - 47, 22, 48, "arch", True, True, pal=SPAL)       # 货棚门洞：里面深处还点着一盏，光贴着地往外渐弱
+    carve2(cv, D0 + 1226, DOCK_Y - 82, 7, 9, "arch", True, False, pal=SPAL)        # 门上一扇小窗，还透一点灯
+    mx, my, mw, mh = MAP_R
+    pm = np.zeros((H, SB_W), bool)                                    # 磨平的那块石面：只比周围平一点、亮一点，纹理照旧
+    pm[my - 1:my + mh + 1, mx - 1:mx + mw + 1] = True
+    lighten(cv, pm, 0.018)
+    cv.rect(mx - 2, my + mh + 2, mx + mw + 1, my + mh + 2, SPAL[1])
+    for nx in (mx + 3, mx + mw - 3):
+        cv.put(nx, my + 3, SPAL[0])
+    x0, x1, ty = LINTEL                                                # 石门框
+    for px in (x0, x1 - 6):
+        cv.rect(px, ty + 6, px + 6, DOCK_Y, RPAL[2])
+        cv.rect(px + 6, ty + 6, px + 6, DOCK_Y, RPAL[4])
+        cv.rect(px, ty + 6, px, DOCK_Y, RPAL[1])
+        for y in range(ty + 30, DOCK_Y, 23):
+            cv.rect(px + 1, y, px + 5, y, RPAL[0])
+    lm = bm.blob_mask(x1 - x0 + 8, 9, rng, p=4.0, lump=0.04)
+    cv.paste(bm.shade_mass(lm, rng, SPAL, cracks=1, strata=0), x0 - 4, ty)
+    cv.rect(x0 - 3, ty + 8, x1 + 3, ty + 8, SPAL[0])
+    for px in PLATE_XS:
+        cv.rect(px - 1, ty + 9, px, ty + 10, IRON[4])
+    cv.rect(x1 + 1, ty + 9, x1 + 2, ty + 12, IRON[3])
+    bm.lantern(r, x1 + 2, ty + 18, "hang", r=12)
+    for bx in (D0 + 1268, D0 + 1330, D0 + 1462):                       # 石系船桩
         cv.rect(bx, DOCK_Y - 9, bx + 6, DOCK_Y, RPAL[2])
         cv.rect(bx - 1, DOCK_Y - 11, bx + 7, DOCK_Y - 9, RPAL[3])
         cv.rect(bx - 1, DOCK_Y - 11, bx + 7, DOCK_Y - 11, RPAL[4])
         cv.rect(bx + 6, DOCK_Y - 9, bx + 6, DOCK_Y, RPAL[4])
 
 
-MID_W = 1100
+MID_W = 480 + int((SB_W - 480) * 0.6) + 8
+MID_DX = int(SX * 0.6)            # 桥整体右挪 SX，中景跟着挪 0.6 倍，桥洞里框住的东西不变
 MID_BANK = 200                   # 中景：对面那条泥岸的上沿（桥洞里看过去，河在它后面）
 
 
@@ -1411,7 +1551,9 @@ def sb_mid():
             cv.put(x, y, MUD[int(np.clip(np.floor(k), 0, 3))])
     # 石像：立在河里（脚下一圈水线），互相隔得很开
     pal = [blue(v, None, 256) for v in (0.1, 0.14, 0.19, 0.25, 0.31, 0.38)]
-    for sx, w, h, kind, seed in ((250, 26, 64, "robe", 1), (452, 30, 78, "robe", 2), (660, 34, 40, "head", 3), (860, 30, 52, "sit", 4)):
+    for sx, w, h, kind, seed in ((250, 26, 64, "robe", 1), (452, 30, 78, "robe", 2), (660, 34, 40, "head", 3), (860, 30, 52, "sit", 4),
+                                 (1150, 24, 46, "head", 5)):
+        sx += MID_DX
         r = np.random.default_rng(seed)
         m = statue_mask(w, h, kind, r)
         img = shade_rock(m, r, pal, cracks=(1, 3), seams=False)
@@ -1421,13 +1563,23 @@ def sb_mid():
             if (x + seed) % 3:
                 cv.put(x, base + 1, blue(0.36, 0.03, 246))
     # 石系船桩 + 柱头上一盏暖灯；一条小船
-    for px in (360, 760):
+    for px in (360 + MID_DX, 760 + MID_DX):
         cv.rect(px - 1, MID_BANK - 22, px + 3, MID_BANK, pal[2])
         cv.rect(px + 3, MID_BANK - 22, px + 3, MID_BANK, pal[4])
         cv.rect(px - 2, MID_BANK - 24, px + 4, MID_BANK - 22, pal[3])
         cv.rect(px, MID_BANK - 29, px + 2, MID_BANK - 25, WARM2)
         cv.put(px + 1, MID_BANK - 28, WARM)
-    bx = 556
+    # 河里几盏浮灯，隔得很远（小木托、一根杆、灯罩，水里一道暖的倒影）
+    for fx in (90, 230 + MID_DX, 1040 + MID_DX, 1270):
+        fy = MID_BANK - 3
+        cv.rect(fx - 3, fy, fx + 3, fy, WOOD[2])
+        cv.put(fx, fy - 1, IRON[3])
+        cv.rect(fx - 1, fy - 5, fx + 1, fy - 2, WARM2)
+        cv.put(fx, fy - 4, WARM)
+        cv.put(fx, fy - 6, IRON[2])
+        for k in range(1, 4):
+            cv.put(fx + (k % 2), fy + 1 + k * 2, WARM3)
+    bx = 556 + MID_DX
     cv.poly([(bx, MID_BANK - 6), (bx + 34, MID_BANK - 6), (bx + 28, MID_BANK - 1), (bx + 5, MID_BANK - 1)], WOOD[1])
     cv.line(bx, MID_BANK - 6, bx + 34, MID_BANK - 6, WOOD[4])
     cv.line(bx + 34, MID_BANK - 6, bx + 46, MID_BANK - 24, ROPE_C)
@@ -1440,7 +1592,7 @@ def sb_front():
     cv = Cv(w, H)
     rng = np.random.default_rng(23)
     dk = [blue(0.045), blue(0.065), blue(0.085)]
-    for x0 in (40, 330, 700, 1020, 1380, 1700):
+    for x0 in (40, 330, 700, 1020, 1380, 1700, 2050, 2380):
         n = int(rng.integers(5, 10))
         for k in range(n):
             x = x0 + int(rng.integers(-14, 14))
@@ -1461,7 +1613,7 @@ DIGITS = {"0": ["111", "101", "101", "101", "111"], "1": ["010", "110", "010", "
           "2": ["111", "001", "111", "100", "111"], "7": ["111", "001", "010", "010", "010"]}
 
 
-def sb_objects():
+def sb_objects(main):
     out = {}
     # ---- 中间桥洞的擦痕 + 勾在石头上的粗毛（scratches）
     cx, hs, rise = ARCHES[1]
@@ -1482,7 +1634,7 @@ def sb_objects():
         for t in range(ln):
             c.put(x + (t // 3) % 2, y + t, col(0.3, 0.01, 60))
     fr.append(c.a.copy())
-    out["southbridge_arch"] = (ox, oy, fr, {"states": {"default": 0, "scratches": 1}, "click": [560, 100, 60, 128]})
+    out["southbridge_arch"] = (ox, oy, fr, {"states": {"default": 0, "scratches": 1}, "click": [cx - 30, 100, 60, 128]})
     # ---- 泥滩脚印：default 只是几块浅坑；seen = 坑里积着水，边上一圈亮（看得出是脚印）
     fr = []
     for seen in (False, True):
@@ -1498,66 +1650,81 @@ def sb_objects():
             else:
                 c.rect(px - 5, py - 3, px + 5, py - 3, MUD[3])
         fr.append(c.a.copy())
-    out["southbridge_footprints"] = (520, SB_G + 1, fr, {"states": {"default": 0, "seen": 1}})
-    # ---- 旧运输水道：default 洞口堆着塌下来的石块、上面垂着一帘干水草；revealed = 石块挪到两边，里面很远有一点暖光（货台的灯）
+    out["southbridge_footprints"] = (SX + 520, SB_G + 1, fr, {"states": {"default": 0, "seen": 1}})
+    # ---- 旧运输水道：default 洞口堆着塌下来的石块、上面垂着一帘干水草；
+    #      revealed = 石块挪到两边，洞里很深的地方一点暖光（货台的灯），光顺着洞壁、水面往外一层层弱下去
     fr = []
+    ox, oy = TUNNEL_X - 50, 138
     for rev in (False, True):
-        c = Cv(100, 92)
-        ox, oy = 1050, 138
         r = np.random.default_rng(8)
         if not rev:
-            for (bx, by, bw, bh) in ((1062, 196, 26, 32), (1086, 190, 30, 38), (1114, 200, 24, 28), (1074, 170, 22, 24),
-                                     (1100, 168, 20, 24), (1088, 152, 18, 18)):
+            c = Cv(100, 92)
+            for (bx, by, bw, bh) in ((12, 196, 26, 32), (36, 190, 30, 38), (64, 200, 24, 28), (24, 170, 22, 24),
+                                     (50, 168, 20, 24), (38, 152, 18, 18)):
                 m = bm.blob_mask(bw, bh, r)
-                c.paste(bm.shade_mass(m, r, RPAL, cracks=1, strata=0), bx - ox, by - oy)
-            for x in range(1062, 1140, 2):                              # 垂下来的干水草
+                c.paste(bm.shade_mass(m, r, RPAL, cracks=1, strata=0), bx, by - oy)
+            for x in range(12, 90, 2):                                  # 垂下来的干水草
                 ln = int(r.integers(4, 22))
                 for t in range(ln):
-                    c.put(x - ox + (t // 5) % 2, 150 - oy + t, MOSS[1] if t < 6 else MOSS[0])
+                    c.put(x + (t // 5) % 2, 150 - oy + t, MOSS[1] if t < 6 else MOSS[0])
         else:
-            for (bx, by, bw, bh) in ((1050, 204, 16, 24), (1134, 206, 16, 22)):
+            c = Cv(100, 92)
+            c.a[:] = main.a[oy:oy + 92, ox:ox + 100]
+            yy, xx = np.mgrid[0:92, 0:100]
+            tun = arch_open(50, 40, 34, w=100)[oy:oy + 92] & (yy + oy <= SB_G - 4)
+            fm = bm.opening_mask(16, 20, "arch")                       # 洞的那一头：一个小小的亮拱
+            fx0, fy0 = 42, SB_G - 4 - 20 - oy
+            far = np.zeros((92, 100), bool)
+            far[fy0:fy0 + 20, fx0:fx0 + 16] = fm
+            hole(c, fm, fx0, fy0, lit=True, halo=False)
+            d = np.hypot((xx - 50) / 34.0, (yy + oy - (SB_G - 12)) / 30.0)       # 暖光沿着洞壁往外渐弱
+            k = (1 - d) * 3.2 - (BAYER[yy % 4, xx % 4] - 0.5) * 0.9
+            for y, x in zip(*np.nonzero(tun & ~far & (k > 0.6))):
+                cc = tuple(int(v) for v in c.a[y, x, :3])
+                c.a[y, x, :3] = bm.mixc(cc, bm.WARM[0] if k[y, x] < 1.6 else bm.WARM[1], min(0.8, 0.25 * k[y, x]))
+            for x in range(16, 85):                                     # 水面上一道长长的暖倒影
+                if abs(x - 50) < 14 - (abs(x - 50) > 8) * 4 and (x * 3) % 5 < 3:
+                    c.put(x, SB_G - 3 - oy, bm.WARM[1] if abs(x - 50) < 6 else bm.WARM[0])
+            for (bx, by, bw, bh) in ((0, 204, 16, 24), (84, 206, 16, 22)):
                 m = bm.blob_mask(bw, bh, r)
-                c.paste(bm.shade_mass(m, r, RPAL, cracks=1, strata=0), bx - ox, by - oy)
-            c.rect(1099 - ox, 196 - oy, 1101 - ox, 198 - oy, WARM2)
-            c.put(1100 - ox, 197 - oy, WARM)
-            for x in range(1066, 1136):                                 # 水道底：一条暗的水
-                c.put(x - ox, 226 - oy, blue(0.16, 0.03, 250))
+                c.paste(bm.shade_mass(m, r, RPAL, cracks=1, strata=0), bx, by - oy)
         fr.append(c.a.copy())
-    out["southbridge_waterway"] = (1050, 138, fr, {"states": {"default": 0, "revealed": 1}, "click": [1060, 150, 80, 78]})
-    # ---- 航线图：default 贴在墙上（一张大纸，几条航线，最右一条通到云层星）；fallen = 掉在台面上卷着
+    out["southbridge_waterway"] = (ox, oy, fr, {"states": {"default": 0, "revealed": 1}, "click": [ox + 10, 150, 80, 78]})
+    # ---- 航线图：default 贴在货棚巨石磨平的那块石面上（几条航线，最右一条通到云层星）；fallen = 掉在台面上卷着
+    mx, my, mw, mh = MAP_R
     fr = []
     for fallen in (False, True):
-        c = Cv(130, 116)
-        ox, oy = 1286, 84
+        c = Cv(mw + 12, DOCK_Y - my + 2)
         if not fallen:
-            c.rect(1294 - ox, 90 - oy, 1408 - ox, 182 - oy, MAP)
-            c.rect(1408 - ox, 90 - oy, 1408 - ox, 182 - oy, MAP_D)
-            c.rect(1294 - ox, 182 - oy, 1408 - ox, 182 - oy, MAP_D)
-            c.poly([(1400 - ox, 182 - oy), (1408 - ox, 174 - oy), (1408 - ox, 182 - oy)], MAP_D)   # 卷起的一角
-            c.rect(1298 - ox, 94 - oy, 1340 - ox, 97 - oy, INK)
-            pts = [(1302, 160), (1330, 150), (1356, 128), (1380, 120), (1398, 104)]
-            for (a, b), (cc, d) in zip(pts, pts[1:]):
-                c.line(a - ox, b - oy, cc - ox, d - oy, INK)
-            for a, b in pts[:-1]:
-                c.rect(a - ox - 1, b - oy - 1, a - ox + 1, b - oy + 1, INK)
-            c.fill(c.mask_of_ellipse(1393 - ox, 99 - oy, 1404 - ox, 110 - oy), TAG)     # 终点：云层星（琥珀色的圆）
-            c.line(1302 - ox, 160 - oy, 1340 - ox, 176 - oy, MAP_D)
-            c.line(1302 - ox, 160 - oy, 1320 - ox, 128 - oy, MAP_D)
-            for nx in (1296, 1406):
-                c.rect(nx - ox, 92 - oy, nx + 1 - ox, 93 - oy, IRON[4])
+            c.rect(2, 2, mw - 1, mh - 1, MAP)
+            c.rect(mw - 1, 2, mw - 1, mh - 1, MAP_D)
+            c.rect(2, mh - 1, mw - 1, mh - 1, MAP_D)
+            c.poly([(mw - 7, mh - 1), (mw - 1, mh - 7), (mw - 1, mh - 1)], MAP_D)   # 卷起的一角
+            c.rect(4, 4, 22, 5, INK)
+            pts = [(7, 34), (20, 30), (31, 21), (41, 17), (48, 10)]
+            for (a_, b_), (cc, d_) in zip(pts, pts[1:]):
+                c.line(a_, b_, cc, d_, INK)
+            for a_, b_ in pts[:-1]:
+                c.rect(a_ - 1, b_ - 1, a_ + 1, b_ + 1, INK)
+            c.fill(c.mask_of_ellipse(45, 5, 52, 12), TAG)                # 终点：云层星（琥珀色的圆）
+            c.line(7, 34, 24, 40, MAP_D)
+            c.line(7, 34, 15, 20, MAP_D)
+            for nx in (3, mw - 3):
+                c.rect(nx, 3, nx + 1, 4, IRON[4])
         else:
-            c.poly([(1300 - ox, 196 - oy), (1312 - ox, 170 - oy), (1340 - ox, 176 - oy), (1360 - ox, 196 - oy)], MAP_D)
-            c.poly([(1312 - ox, 170 - oy), (1340 - ox, 176 - oy), (1332 - ox, 186 - oy), (1316 - ox, 182 - oy)], MAP)
-            c.rect(1340 - ox, 193 - oy, 1400 - ox, 196 - oy, MAP)
-            c.rect(1340 - ox, 196 - oy, 1400 - ox, 196 - oy, MAP_D)
-            c.line(1344 - ox, 194 - oy, 1390 - ox, 194 - oy, INK)
-            for nx in (1296, 1406):
-                c.rect(nx - ox, 92 - oy, nx + 1 - ox, 93 - oy, IRON[4])
-                c.put(nx - ox, 94 - oy, MAP)
+            fy = DOCK_Y - my
+            c.poly([(6, fy), (14, fy - 18), (34, fy - 14), (46, fy)], MAP_D)
+            c.poly([(14, fy - 18), (34, fy - 14), (28, fy - 7), (17, fy - 10)], MAP)
+            c.rect(34, fy - 3, mw + 6, fy, MAP)
+            c.rect(34, fy, mw + 6, fy, MAP_D)
+            c.line(38, fy - 2, mw + 2, fy - 2, INK)
+            for nx in (3, mw - 3):
+                c.rect(nx, 3, nx + 1, 4, IRON[4])
+                c.put(nx, 5, MAP)
         fr.append(c.a.copy())
-    out["southbridge_routemap"] = (1286, 84, fr, {"states": {"default": 0, "fallen": 1}, "click": [1292, 88, 118, 108]})
-    # ---- 编号牌 07 / 12 / 21：held = 取下来了（墙上只剩钉子）；back = 挂回去
-    for num, px in (("07", 1420), ("12", 1440), ("21", 1460)):
+    out["southbridge_routemap"] = (mx, my, fr, {"states": {"default": 0, "fallen": 1}, "click": [mx, my, mw, DOCK_Y - my]})
+    # ---- 编号牌 07 / 12 / 21：held = 取下来了（梁底下只剩钉子）；back = 挂回去
+    for num, px in zip(("07", "12", "21"), PLATE_XS):
         fr = []
         c = Cv(16, 14)
         c.rect(1, 2, 14, 13, PAPER)
@@ -1572,7 +1739,7 @@ def sb_objects():
                         c.put(3 + d * 5 + xx_, 5 + yy_, INK)
         fr.append(c.a.copy())
         fr.append(Cv(16, 14).a.copy())
-        out[f"southbridge_plate_{num}"] = (px - 8, 105, fr, {"states": {"default": 0, "back": 0, "held": 1}})
+        out[f"southbridge_plate_{num}"] = (px - 8, LINTEL[2] + 10, fr, {"states": {"default": 0, "back": 0, "held": 1}})
     return out
 
 
@@ -1681,7 +1848,7 @@ def build_southbridge(prev=None):
         for ext in (".png", ".png.import"):
             if (folder / (old + ext)).exists():
                 (folder / (old + ext)).unlink()
-    objs = sb_objects()
+    objs = sb_objects(main)
     layers = sb_layers()
     la = layer_arrays(layers, folder)
     # 取景框：镜头左边缘 = VIEW_CAM 时的画面（不画人、不画前景层）→ 影像
@@ -1698,14 +1865,14 @@ def build_southbridge(prev=None):
         "ground": SB_GROUND,
         "markers": {
             "southbridge_entry": 24, "southbridge_back": 14, "southbridge_niff": 60, "southbridge_lamp_post": LAMPS[1],
-            "southbridge_ornament": 1028, "southbridge_arch_wrong": ARCHES[0][0], "southbridge_arch": ARCHES[1][0],
-            "southbridge_footprints": 596, "southbridge_waterway": 1100, "southbridge_dock": 1262,
-            "southbridge_routemap": 1350, "southbridge_dock_step": 1210, "southbridge_plates": 1450,
+            "southbridge_ornament": HOUSE_X, "southbridge_arch_wrong": ARCHES[0][0], "southbridge_arch": ARCHES[1][0],
+            "southbridge_footprints": SX + 596, "southbridge_waterway": TUNNEL_X, "southbridge_dock": D0 + 1250,
+            "southbridge_routemap": MAP_R[0] + MAP_R[2] // 2, "southbridge_dock_step": D0 + 1204, "southbridge_plates": PLATE_XS[1],
             "southbridge_arch_far": ARCHES[2][0], "southbridge_view_spot": VIEW_SPOT,
-            "southbridge_plate_07": 1420, "southbridge_plate_12": 1440, "southbridge_plate_21": 1460,
+            "southbridge_plate_07": PLATE_XS[0], "southbridge_plate_12": PLATE_XS[1], "southbridge_plate_21": PLATE_XS[2],
         },
-        "walk": [12, 1486],
-        "walk_when": [{"not": ["river_waterway_open"], "walk": [12, 1054]}],
+        "walk": [12, SB_W - 14],
+        "walk_when": [{"not": ["river_waterway_open"], "walk": [12, D0 + 1054]}],
         "portals": [{"edge": "left", "to": "oldstreet", "at": "oldstreet_to_south", "kind": "walk_fade"}],
         "ambient": [{"name": "river_flow", "db": -14}],
         "scripts": [],
@@ -1716,12 +1883,15 @@ def build_southbridge(prev=None):
     if prev:
         shots = {
             "sb_entry": (0, 40, {}),
-            "sb_view_off": (200, 440, {}),
+            "sb_bank": (SX - 120, SX + 40, {}),
+            "sb_view_off": (SX + 200, SX + 440, {}),
             "sb_view_on": (VIEW_CAM, VIEW_SPOT, {}),
-            "sb_arch": (VIEW_CAM, 600, {"southbridge_arch": "scratches", "southbridge_footprints": "seen", "southbridge_waterway": "revealed"}),
-            "sb_waterway": (820, 1040, {}),
-            "sb_dock": (1020, 1262, {"southbridge_waterway": "revealed"}),
-            "sb_dock_fallen": (1020, 1300, {"southbridge_waterway": "revealed", "southbridge_routemap": "fallen", "southbridge_plate_12": "held"}),
+            "sb_arch": (VIEW_CAM, SX + 600, {"southbridge_arch": "scratches", "southbridge_footprints": "seen", "southbridge_waterway": "revealed"}),
+            "sb_gap": (SX + 960, SX + 1180, {}),
+            "sb_waterway": (D0 + 820, D0 + 1040, {}),
+            "sb_waterway_open": (D0 + 900, D0 + 1100, {"southbridge_waterway": "revealed"}),
+            "sb_dock": (SB_W - 480, D0 + 1250, {"southbridge_waterway": "revealed"}),
+            "sb_dock_fallen": (SB_W - 480, D0 + 1300, {"southbridge_waterway": "revealed", "southbridge_routemap": "fallen", "southbridge_plate_12": "held"}),
         }
         for name, (cl, chx, st) in shots.items():
             img = comp_room(la, layers, cl, False)
@@ -1730,7 +1900,7 @@ def build_southbridge(prev=None):
             img = over(img, comp_room(la, layers, cl, True))
             big(img, 2).save(Path(prev) / f"{name}.png")
         # 取景框叠在场景上（alpha 0.7）：对上 / 没对上
-        for name, cl in (("sb_vf_on", VIEW_CAM), ("sb_vf_off", 300)):
+        for name, cl in (("sb_vf_on", VIEW_CAM), ("sb_vf_off", VIEW_CAM - 52)):
             img = comp_room(la, layers, cl, False)
             img = over(img, obj_overlay(objs, {}, cl))
             stand_in(img, cl + 240 - cl, sb_ground(cl + 240))
@@ -1744,7 +1914,8 @@ def build_southbridge(prev=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", help="合成预览（放大 2 倍）存到这个目录")
-    ap.add_argument("--only", default="warehouse,southbridge")
+    ap.add_argument("--only", default="southbridge",
+                    help="默认只出南桥。仓库已交给 river-underwater 会话重做（10-30），别再用 warehouse 覆盖它的图")
     args = ap.parse_args()
     if args.preview:
         Path(args.preview).mkdir(parents=True, exist_ok=True)

@@ -18,17 +18,22 @@
 
 森林背景层是 960 宽循环的 Parallax2D，可以无限往右走。章节是一条长路，左右有不可见的墙。
 
+坠毁现场整体往左挪过 960（10-30，原来 wreck 在 120、wood 在 372，挤在一屏里）：960 = Main 层和地面的循环宽，坠毁那一屏的近景、地面起伏不变。
+坠毁现场的 markers（wall_left / scrap / wreck / luggage / chen_start / wreck_front / treeline_gap / deer_fail / deer_board / deer_ship / chen_bye / home_enter / home_enter_deer / home_view / deer_appear）
+和 `scripts/level_forest.gd` 的 `CRASH_DX`（TITLE_CAM_X、CHEN_X、WRECK_X 都由它算）、`story_world.gd` 的 DEFAULT_MARKERS 要一起改。
+
 | 名字（marker） | x | 是什么 |
 |---|---|---|
-| `wall_left` | -160 | 左墙 |
-| `scrap` | -60 | 普通材料：金属碎片 |
-| `wreck` | 120 | 坠毁飞船（已有）。可互动：试启动 |
-| `luggage` | 190 | 散落的行李（可互动，拿到私人物品） |
-| `chen_start` | 250 | 晨坠地处（已有） |
+| `wall_left` | -1120 | 左墙 |
+| `scrap` | -1020 | 普通材料：金属碎片 |
+| `wreck` | -840 | 坠毁飞船（已有）。可互动：试启动 |
+| `luggage` | -770 | 散落的行李（可互动，拿到私人物品） |
+| `chen_start` | -710 | 晨坠地处（已有） |
+| — | -630 .. 372 | **空林子**：坠毁现场（`treeline_gap` -630 之后）到发光木头之间什么都不能点，约 7 秒路，只有森林自己的雾、光斑、萤火虫、影子生物。别往这里加 hotspot |
 | `wood` | 372 | 发光木头（已有） |
 | `resin` | 520 | 普通材料：树脂 |
 | `branch` | 690 | 普通材料：干枝 |
-| `deer_appear` | 560 | 推进器坏了以后，鹿站在这里（林间） |
+| `deer_appear` | -400 | 推进器坏了以后，鹿从这里（空林子里，画面右边外）走到飞船旁 `deer_fail` |
 | `road_start` | 900 | 旧路开始 |
 | `stall` | 1100 | 废弃的小吃棚（「这里以前卖吃的」）|
 | `log` | 1400 | 倒木挡路（轻解谜 1）|
@@ -78,7 +83,7 @@
 ```json
 {
   "speakers": {"chen": {"zh": "晨", "en": "Chen"}, "deer": {"zh": "鹿", "en": "Deer"}, "miluo": {"zh": "弥洛", "en": "Milo"}, "voice": {"zh": "屋里的声音", "en": "A voice inside"}},
-  "markers": {"wreck": 120, "...": 0},
+  "markers": {"wreck": -840, "...": 0},
   "hotspots": [
     {"id": "wreck_tinker", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"},
      "need": ["crashed"], "not": ["fuel_full"], "once": false, "scene": "wreck_tinker"}
