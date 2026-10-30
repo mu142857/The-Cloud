@@ -1851,10 +1851,11 @@ def far_ripples_img():
 # 作者：「这个月光好像在平移一样，理论上是合理的，但是看起来总觉得有问题」。原来 glints 是 art/river/glints.png 整张钉在屏幕上
 # （scroll 0），碎光的样子也钉住了，脚下的水、水纹、石柱都在走，像一张贴纸在水面上滑；而且它到码头就断了，前景的近水里没有，
 # 看着是浮在半空的一块长方形。现在拆成两半（scripts/river_moonpath.gdshader）：
-# - 这里画的是遮罩，钉在屏幕上、对着月亮（MOON_X）：越往近处越宽、越稀、越暗一点，边缘抖开；一直铺到画面最下面（码头前的近水）。
+# - 这里画的是遮罩，钉在屏幕上、对着月亮（MOON_X）：等宽的竖条，上亮下暗、上密下稀；一直铺到画面最下面（码头前的近水）。
 # - 碎光由 shader 按「这一行水面的世界 x」切出来：每一行有自己的视差 scroll（贴着哪一层的水线就跟那一层一样快），
 #   镜头走，碎光跟着水往后退，月光条留在月亮底下。
 MOON_X = 340                     # sky.png 里月亮的中心（326~355），sky scroll 0
+MOON_HW = 15                     # 月光条半宽（比月亮宽一点点），从上到下不变
 MOON_SCROLL = ((155, 0.16), (172, FAR_S), (184, 0.42), (192, MID_S), (200, NEAR_S), (206, 0.95), (217, 1.0))
 MOON_PARAMS = {"speed": 1.0, "wobble": 1.5, "flicker": 0.9}
 
@@ -1866,23 +1867,24 @@ def moon_scroll(y):
 
 
 def moonpath_img(y0, y1):
-    """屏幕第 y0..y1-1 行的月光遮罩：A = 能不能有碎光，R = 最亮档，B = 密度，G = scroll / 2。"""
+    """屏幕第 y0..y1-1 行的月光遮罩：A = 能不能有碎光，R = 最亮档，B = 密度，G = scroll / 2。
+    （第十版，作者：「月光一般不是这种三角形，一般是有上到下由亮到暗的长条」；这个游戏不用透视，光影不做三角形扩散）
+    一条竖的长条，从对岸到画面底宽度基本不变（每两行左右各参差 0~2 像素）；从上到下由亮到暗、由密到稀，
+    码头前的近水里还是同一个 x、同样宽，只是更暗更稀。"""
     a = np.zeros((y1 - y0, SW, 4), np.uint8)
     for y in range(y0, y1):
         d = y - SHORE_WL
-        hw = 6.0 + 0.58 * d                          # 地平线下窄，往近处越来越宽（透视）
-        dens = np.interp(d, (0, 20, 55, 112), (0.8, 0.62, 0.4, 0.22))
+        dens = np.interp(d, (0, 15, 45, 61, 112), (0.85, 0.7, 0.45, 0.32, 0.12))
         if _hash01(0, y, 13) < 0.3:                  # 有几行稀一点：一行一行的水波，不是均匀撒的点
             dens *= 0.4
-        lvl = np.interp(d, (0, 30, 60, 112), (1.0, 0.9, 0.72, 0.58))   # 越近越暗一点，别抢晨
-        for x in range(SW):
-            u = abs(x + 0.5 - MOON_X) / hw
-            edge = 1.0 + 0.3 * (_hash01(x // 2, y, 91) - 0.5)   # 边缘抖开，不是一条直线
-            if u > edge:
-                continue
-            f = max(0.0, 1.0 - (u / edge) ** 2)
-            a[y - y0, x] = (int(255 * lvl * (0.6 + 0.4 * f)), int(round(moon_scroll(y) / 2 * 255)),
-                            int(255 * dens * (0.25 + 0.75 * f)), 255)
+        lvl = np.interp(d, (0, 15, 45, 61, 112), (1.0, 0.92, 0.75, 0.62, 0.45))
+        lo = MOON_X - MOON_HW - int(_hash01(y // 2, 1, 93) * 3)
+        hi = MOON_X + MOON_HW + int(_hash01(y // 2, 2, 93) * 3)
+        for x in range(lo, hi):
+            u = abs(x + 0.5 - MOON_X) / (hi - lo) * 2
+            f = max(0.0, 1.0 - u ** 2)               # 中间密、两边稀，边缘自然散开
+            a[y - y0, x] = (int(255 * lvl * (0.7 + 0.3 * f)), int(round(moon_scroll(y) / 2 * 255)),
+                            int(255 * dens * (0.3 + 0.7 * f)), 255)
     return a
 
 
@@ -1900,7 +1902,7 @@ def moonpath_rgb(a, cam, t=0.0, params=MOON_PARAMS):
     sp = params["speed"]
     off = np.round(w * (0.65 * np.sin(t * sp * 0.9 + py * 0.71) + 0.35 * np.sin(t * sp * 2.3 + py * 1.93)))
     wx = px - off + np.floor(cam * sc + 0.5)
-    cell = np.clip(np.floor(4.0 + 7.0 * sc + 0.5), 4, 12)
+    cell = np.full_like(sc, 6.0)
     ci = np.floor(wx / cell)
     k = wx - ci * cell
     h1 = h(ci, py); h2 = h(ci + 31, py + 17); h3 = h(ci + 57, py + 3); h4 = h(ci + 11, py + 41)

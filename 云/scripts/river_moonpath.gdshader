@@ -3,7 +3,7 @@ shader_type canvas_item;
 // 作者说原来的月光「好像在平移」：碎光图整张钉在屏幕上，脚下的水、水纹、石柱都在走，看着像一张贴纸在水面上滑。
 // 现实里，月光那一竖条的位置跟着人走（月亮在无限远），但里面一闪一闪的碎光是水面自己的，人走它不走。所以拆成两半：
 // - 贴图是一张遮罩，层 scroll = 0 钉在屏幕上、对着月亮：A = 这里能不能有碎光（边缘是抖开的），
-//   R = 最亮能到哪一档，B = 碎光有多密，G = 这一行水面的视差 scroll（÷2 存，越近越大）。
+//   R = 最亮能到哪一档，B = 碎光有多密（等宽竖条，上亮下暗、上密下稀，不做透视的三角形），G = 这一行水面的视差 scroll（÷2 存，越近越大）。
 // - 碎光本身按水面算：这一行的世界 x = 屏幕 x + 镜头左边缘 × 这一行的 scroll，在世界坐标里切小格、每格自己的长短、亮度、闪烁。
 //   镜头动，碎光跟着这一行的水一起往后退，月光条留在原地。
 // 镜头左边缘直接从这一层自己的位置拿（scroll 0 的层每帧被摆到镜头左边缘，见 room_stage.gd update），不用脚本传参。
@@ -39,7 +39,7 @@ void fragment() {
 	float w = wobble * clamp(sc, 0.3, 1.0);
 	float off = round(w * (0.65 * sin(TIME * speed * 0.9 + px.y * 0.71) + 0.35 * sin(TIME * speed * 2.3 + px.y * 1.93)));
 	float wx = px.x - off + floor(cam_left * sc + 0.5);
-	float cell = clamp(floor(4.0 + 7.0 * sc + 0.5), 4.0, 12.0);  // 一格一段横的碎光：远处短而密，近处一段段长
+	float cell = 6.0;                                            // 一格一段横的碎光，远近一样长（不做透视）
 	float ci = floor(wx / cell);
 	float k = wx - ci * cell;
 	float h1 = hash(vec2(ci, px.y));

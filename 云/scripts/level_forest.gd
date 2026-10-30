@@ -48,11 +48,13 @@ extends Node2D
 ##   F8（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
 ##                      见 scripts/dev_panel.gd 和 docs/forest_chapter.md 末尾
 ##   --chen_x=x         （和 --beat 一起）跳完以后让晨站到这个 x（截互动提示用）
-##   --free=场景        直接进自由探索（F8 第 5 页「探索」同一套）：forest / treehouse / cockpit / river_bank / river_home / market /
-##                      oldstreet / warehouse / southbridge，或者小样场景名（city_test、river_test……）。不播开场、剧情、对话、提示，
-##                      剧情的墙都不算，NPC 藏着。和 --chen_x=x|left|mid|right、--shot= 一起拍截图（面板不开；要开加 --dev）
-##   --free_check       （和 --free= 一起）自测：晨从最左一直走到最右（多层小屋再上楼、下楼），打印 FREE_CHECK（走到哪、
-##                      有没有剧情 / 对话 / 点选 / 提示出来过）后退出
+##   --free=forest|river 直接进自由探索（F8 第 5 页「探索」同一套）。不播开场、剧情、对话、目标、卡关提示，剧情的墙不算，NPC 藏着；
+##                      换地方的交互照常（E / 点击：进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥，走到边上的出口），不看剧情 flag。
+##                      拍截图也可以直接给房间名（treehouse / cockpit / river_home / market / oldstreet / warehouse / southbridge），
+##                      和 --chen_x=x|left|mid|right、--shot= 一起用（面板不开；要开加 --dev）
+##   --free_check [--free_shots=目录]  （和 --free=forest|river 一起）自测：按进出口把这一章走一遍（河岸 → 妮芙家 → 上楼 → 下楼 → 出门 →
+##                      市集 → 旧街 → 仓库 → 回旧街 → 南桥 → 回旧街；森林 → 树屋段 → 树屋 → 出来 → 回旧路），每一步打印 FREE_TOUR，
+##                      一路有没有对话 / 点选 / 目标 / 剧情 hotspot 出来过；给了目录就每一步存一张图。打印 FREE_CHECK 后退出
 ##   --open_bag=物品id [--bag_line=n]  （和 --beat 一起）跳完以后打开背包、选中这件，描述翻到第 n 行（截背包 / 日记用）
 ## 例：Godot --path . --fixed-fps 60 -- --stage=crash --shot=/tmp/a.png --shot_at=3.6
 ##     Godot --path . --fixed-fps 60 -- --story_auto --story_shots=/tmp/shots
@@ -85,8 +87,10 @@ const DEV_STAGE_META := "level_forest_dev_stage"
 const DEV_FREE_META := "level_forest_dev_free"   # F8「探索」：自由探索哪个场景（跨重新载入一直留着，退出探索时清掉）
 const FREE_CLI_META := "level_forest_free_cli"   # --free= 只在第一次载入时用（退出探索重开本章时不再进去）
 ## 自由探索能去的场景：id → 章节（id 就是房间名；river_home 是河岸里的小屋，treehouse 是森林里的树屋）
-const FREE_ROOMS := {"forest": "forest", "treehouse": "forest", "cockpit": "flight1", "river_bank": "river", "river_home": "river",
-	"market": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river"}
+## 面板只给 forest 和 river 两个入口（river = 从河岸起）；别的房间名只给命令行拍截图用
+const FREE_ROOMS := {"forest": "forest", "river": "river", "treehouse": "forest", "cockpit": "flight1", "river_bank": "river",
+	"river_home": "river", "market": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river"}
+const FREE_STAIR := "free_stair_"   # 自由探索给多层小屋楼梯口加的 marker（上楼 / 下楼的进出口）
 const FREE_SHIFT := 1.0            # 自由探索按住 Shift：晨每帧走的距离再多这么多倍（chen.gd 的 Shift 已经 ×1.5，合起来 ×3；动画帧速不变）
 const DEV_OPEN_META := "level_forest_dev_open"   # 开场的外星人同伴：森林里不出现（那套图以后是河边的泥芙）
 ## 晨的精灵配置里有没有「趴着 / 爬起来」两段（tools/level1_chen_getup.py）。没有就退回把站立帧转 90° 的老办法。
@@ -264,6 +268,7 @@ var _free_cli := ""
 var _free_pos := ""                # --chen_x=left|mid|right
 var _free_climb := false
 var _free_check := false
+var _free_shots := ""
 # ---- 章节（scripts/chapter_flow.gd）：forest = 森林（默认）；flight1 = 驾驶舱，同一个关卡、不播开场
 const CHAPTER_GD := preload("res://scripts/chapter_flow.gd")
 var chapter := "forest"
@@ -359,6 +364,8 @@ func _ready() -> void:
 			_free_cli = a.trim_prefix("--free=")
 		elif a == "--free_check":
 			_free_check = true
+		elif a.begins_with("--free_shots="):
+			_free_shots = a.trim_prefix("--free_shots=")
 		elif a.begins_with("--open_bag="):
 			_dbg_bag = a.trim_prefix("--open_bag=")
 		elif a.begins_with("--bag_line="):
@@ -1965,7 +1972,7 @@ func _enter_play() -> void:
 	_hint_wait = 0.0
 	_gear.visible = true
 	create_tween().tween_property(_gear, "modulate:a", 0.6, 0.8)
-	if not Inventory.owned.is_empty():
+	if not Inventory.owned.is_empty() and free_roam == "":       # 自由探索：背包、燃料不出来
 		_bag_btn.visible = true
 		create_tween().tween_property(_bag_btn, "modulate:a", 1.0, 0.5)
 		create_tween().tween_property(_hud_burn, "modulate:a", 1.0, 0.5)
@@ -2350,10 +2357,9 @@ func _input(event: InputEvent) -> void:
 					_skip_armed = 2.0
 					_skip_label.modulate.a = 1.0
 		S.PLAY, S.CINE:
-			if free_roam != "":
-				if state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
-						and event.keycode in [KEY_UP, KEY_W, KEY_DOWN, KEY_S]:
-					free_stairs(1 if event.keycode in [KEY_UP, KEY_W] else -1)     # 多层小屋：↑ 上楼、↓ 下楼
+			if free_roam != "" and state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
+					and event.keycode in [KEY_UP, KEY_W, KEY_DOWN, KEY_S] and not story.busy:
+				free_stairs(1 if event.keycode in [KEY_UP, KEY_W] else -1)     # 自由探索的多层小屋：↑ 上楼、↓ 下楼（也可以在楼梯口按 E）
 			elif state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
 					and event.keycode in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and not story.hotspots.near.is_empty():
 				_handled()
@@ -2373,7 +2379,7 @@ func _handled() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# 鼠标只能点够得着的东西（走到跟前才能点）；点空地、点远处的东西晨都不动
 	# （10-30 作者：点地走容易点不到东西，晨就走到一边去了；「够不着的东西那就不能点啊」）
-	if not _free() or _settings.visible or _bag.visible or free_roam != "":
+	if not _free() or _settings.visible or _bag.visible:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _dlg_typing():
@@ -2406,10 +2412,10 @@ func _process(delta: float) -> void:
 			create_tween().tween_property(_skip_label, "modulate:a", 0.0, 0.4)
 
 	_update_walls()
+	_update_portal(delta)
 	if free_roam != "":
 		_free_tick()
 	else:
-		_update_portal(delta)
 		_update_objective()
 	_update_front(delta)
 	_update_camera(delta)
@@ -2419,7 +2425,7 @@ func _process(delta: float) -> void:
 	_update_hints(delta)
 	var cc := cam.get_screen_center_position()
 	story.world.update(delta, cc)
-	story.hotspots.active = state == S.PLAY and not story.busy and not _settings.visible and not _bag.visible and free_roam == ""
+	story.hotspots.active = state == S.PLAY and not story.busy and not _settings.visible and not _bag.visible
 	story.hotspots.update(delta, chen, cc - Vector2(240, 135), get_global_mouse_position())
 	_update_edge_arrow(cc)
 	if story.ended and _end_t >= 0.0:
@@ -2587,9 +2593,7 @@ func _update_world(delta: float) -> void:
 					_walk_goal = NAN
 			else:
 				chen.auto_dir = signf(d)
-		if free_roam != "":
-			pass                            # 自由探索：木头不捡、hotspot 不触发
-		elif state == S.PLAY and wood_available() and absf(chen.position.x - WOOD_X) <= PICK_DIST:
+		if state == S.PLAY and free_roam == "" and wood_available() and absf(chen.position.x - WOOD_X) <= PICK_DIST:
 			chen.auto_dir = 0.0
 			_pending_hs = {}
 			_start_pickup()
@@ -2627,6 +2631,9 @@ func _update_interact() -> void:
 
 func _interact(p: Dictionary) -> void:
 	if story.busy or state != S.PLAY:
+		return
+	if free_roam != "":
+		_free_use(p)                      # 自由探索：hotspot 只有进出口，不播剧情、直接换过去
 		return
 	chen.auto_dir = 0.0
 	_walk_target = NAN
@@ -2753,7 +2760,16 @@ func _update_portal(delta: float) -> void:
 	# 换过去以后晨从 from 走几步到 to（到达，见 story_runner.gd 的 portal_to）：from 就在那一段的入口边上
 	var from := NAN
 	var to := NAN
-	if area == "trees":
+	if free_roam != "":
+		# 自由探索：两段之间的入口不看剧情（没搭桥、没到过树屋也能走）；旧路段一直到林间空地的尽头
+		var a_end := _free_a_end()
+		if area == "trees" and chen.position.x <= w.b_start() + 8.0 and (dir < 0.0 or (not is_nan(_walk_goal) and _walk_goal < w.b_start())):
+			from = a_end - 6.0
+			to = from - ARRIVE_DIST
+		elif area == "road" and chen.position.x >= a_end - 8.0 and (dir > 0.0 or (not is_nan(_walk_goal) and _walk_goal > a_end)):
+			to = (w.mx("treehouse_approach") if w.markers.has("treehouse_approach") else w.b_start() + 30.0) + ARRIVE_DIST / 2.0
+			from = maxf(w.b_start() + 4.0, to - ARRIVE_DIST)
+	elif area == "trees":
 		var at_edge: bool = chen.position.x <= w.b_start() + 8.0
 		var goal_left: bool = not is_nan(_walk_goal) and _walk_goal < w.b_start()
 		if at_edge and (dir < 0.0 or goal_left):
@@ -2793,7 +2809,7 @@ func _update_stage_portal(delta: float) -> void:
 		dir -= 1.0
 	if Input.is_key_pressed(KEY_D):
 		dir += 1.0
-	var wl: Vector2 = sg.walls()
+	var wl: Vector2 = free_walls() if free_roam != "" else sg.walls()
 	var edge := ""
 	if chen.position.x <= wl.x + 1.0 and (dir < 0.0 or (not is_nan(_walk_goal) and _walk_goal < wl.x)):
 		edge = "left"
@@ -2802,7 +2818,7 @@ func _update_stage_portal(delta: float) -> void:
 	var pt: Dictionary = {}
 	if edge != "":
 		for p in sg.portals():
-			if p is Dictionary and str(p.get("edge", "")) == edge and sg.portal_open(p):
+			if p is Dictionary and str(p.get("edge", "")) == edge and (sg.portal_open(p) or free_roam != ""):
 				pt = p
 				break
 	if pt.is_empty():
@@ -3657,7 +3673,8 @@ func _free_pick() -> void:
 			Engine.remove_meta(m)
 
 
-## 不播开场、标题、坠毁、章节入口 scene：晨直接站在场景里能走。剧本整个关掉（story.free_roam：play / trigger / 卡关提示都不做）
+## 不播开场、标题、坠毁、章节入口 scene：晨直接站在场景里能走。剧本关掉（story.free_roam：play / trigger / 卡关提示都不做），
+## hotspot 换成只有进出口的一套（_free_exits），按 E / 点它直接换过去
 func _start_free() -> void:
 	story.free_roam = true
 	_beat = ""
@@ -3677,7 +3694,8 @@ func _start_free() -> void:
 		_enter_play()
 	else:
 		_start_chapter(false)
-	free_teleport(free_roam)
+	story.hotspots.defs = _free_exits()
+	_free_spawn(free_roam)
 	if _free_pos != "":
 		free_place(_free_pos)
 	elif not is_nan(_dbg_chen_x):
@@ -3689,54 +3707,19 @@ func _start_free() -> void:
 			(node as CanvasItem).visible = false
 	_stage_t = 0.0
 	var w := free_walls()
-	print("FREE_ROAM %s chapter=%s room=%s walk=%d..%d x=%d" % [free_roam, chapter, story.world.room, w.x, w.y, chen.position.x])
+	print("FREE_ROAM %s chapter=%s room=%s walk=%d..%d x=%d exits=%d" % [free_roam, chapter, story.world.room, w.x, w.y,
+		chen.position.x, story.hotspots.defs.size()])
 	if _free_check:
-		_free_check_run.call_deferred()
+		_free_tour.call_deferred()
 
 
-## --free_check：按住「往右」从最左走到最右，一路看有没有剧情 / 对话 / 点选 / 小气泡 / 互动提示出来
-func _free_check_run() -> void:
-	await get_tree().create_timer(1.2).timeout
-	free_place("left")
-	var w := free_walls()
-	var seen := []
-	var t := 0.0
-	var x0 := chen.position.x
-	chen.auto_dir = 1.0
-	while chen.position.x < w.y - 2.0 and t < 60.0:
-		await get_tree().process_frame
-		t += get_process_delta_time()
-		chen.auto_dir = 1.0
-		for k in [["剧情", story.busy], ["对话", story.dlg.is_open()], ["点选", story.dlg.picking() or story.dlg.menu_open()],
-				["互动提示", not story.hotspots.near.is_empty()], ["背包按钮", _bag_btn.visible], ["目标", _hud_burn.modulate.a > 0.01]]:
-			if k[1] and not seen.has(k[0]):
-				seen.append(k[0])
-	chen.auto_dir = 0.0
-	var x1 := chen.position.x
-	var lv := ""
-	var sg: Node2D = story.world.cur_stage()
-	if sg != null and sg.has_levels():
-		var got := []
-		for d in [1, 1, -1, -1]:
-			await free_stairs(d)
-			got.append(sg.chen_lv)
-		lv = " 上下楼 层=%s" % str(got)
-	print("FREE_CHECK %s room=%s 墙 %d..%d 从 %d 走到 %d（%.1f 秒）%s 出现过: %s%s" % [free_roam, story.world.room, w.x, w.y, x0,
-		x1, t, "到头 ok" if x1 >= w.y - 2.0 else "没到头 BLOCKED",
-		"、".join(seen) if not seen.is_empty() else "无", lv])
-	get_tree().quit()
-
-
-## 自由探索里换到同一章的另一个场景（不重新载入）：晨落在那里的左头（小屋：中间）
-func free_teleport(id: String) -> void:
-	free_roam = id
-	Engine.set_meta(DEV_FREE_META, id)
-	_free_climb = false
+## 一开始站哪：forest = 坠毁现场；river = 河岸的出舱口（章节的 spawn）；别的房间名（拍截图用）= 那个房间的左头（小屋：中间）
+func _free_spawn(id: String) -> void:
 	var w: Node2D = story.world
+	if id in ["forest", "river", "cockpit"]:
+		return                                     # 已经在 _start_free / _start_chapter 里站好了
 	var x := chen.position.x
-	if id == "forest":
-		x = CHEN_X
-	elif id == "treehouse":
+	if id == "treehouse":
 		var hw: Vector2 = w.house["walk"]
 		x = (hw.x + hw.y) / 2.0
 	elif w.is_stage(id):
@@ -3746,14 +3729,122 @@ func free_teleport(id: String) -> void:
 			sg.chen_stair = -1
 		var fw := _free_walls_of(sg)
 		x = (fw.x + fw.y) / 2.0 if sg.is_house else fw.x + 40.0
-	if id != "cockpit":
-		story._teleport(id, x, [], true)
+	story._teleport(id, x, [], true)
 	_walk_target = NAN
 	_enter_play()
-	_free_tick()
 
 
-## 自由探索能走的左右：剧情加的墙（walk_when、小游戏改的范围、导绳、倒木、塌陷口、两段之间的入口）都不算
+## 进出口：剧本里 scene 会 fade_to 到别的房间 / 森林另一段的 hotspot（同一个地方、同一个去处只留一个；不看 need / not，
+## 第一个 fade_to 就是去处），room.json 里带 x 的 portal（仓库回旧街这种剧本里没有点的），多层小屋每段楼梯的两头（上楼 / 下楼）。
+## 去驾驶舱（起飞）、走进去就触发的（trigger:"enter"）不算。返回 hotspot 的 defs：{id, at, room, label, free_to | free_stairs}
+func _free_exits() -> Array:
+	var w: Node2D = story.world
+	var out: Array = []
+	var seen := {}
+	for h in story.hotspot_defs:
+		if not h is Dictionary or story.hotspots.is_enter(h) or h.get("at") == null:
+			continue
+		var f := _first_fade(str(h.get("scene", "")), {})
+		var src := str(h.get("room", "forest"))
+		var dst := str(f.get("room", ""))
+		if dst == "" or dst == "cockpit" or src == "cockpit":
+			continue
+		var fr: Dictionary = w.resolve(f.get("at", 0))
+		var hr: Dictionary = w.resolve(h["at"])
+		if not fr["ok"] or not hr["ok"]:
+			continue
+		if dst == src and (w.is_stage(src) or w.area_of(float(fr["x"])) == w.area_of(float(hr["x"]))):
+			continue                                   # 同一个房间、同一段：不是换地方
+		var key := "%s|%s|%s|%s" % [src, str(h["at"]), dst, w.area_of(float(fr["x"])) if dst == "forest" else ""]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		seen["%s>%s" % [src, dst]] = true
+		out.append({"id": "free_exit_%d" % out.size(), "at": h["at"], "room": src, "label": h.get("label", {"zh": dst, "en": dst}),
+			"free_to": {"room": dst, "at": f.get("at", 0)}})
+	for r in w.stages:
+		var sg: Node2D = w.stages[r]
+		for pt in sg.portals():
+			if not pt is Dictionary or not pt.has("x") or seen.has("%s>%s" % [r, str(pt.get("to", ""))]):
+				continue
+			var to := str(pt.get("to", ""))
+			if w.stage(to) == null:
+				continue
+			seen["%s>%s" % [r, to]] = true
+			var nm := _free_room_name(to)
+			out.append({"id": "free_exit_%d" % out.size(), "at": sg.origin.x + float(pt["x"]), "room": str(r),
+				"label": {"zh": nm, "en": to}, "free_to": {"room": to, "at": str(pt.get("at", ""))}})
+		if sg.has_levels():
+			for si in sg._stairs.size():
+				var st: Dictionary = sg._stairs[si]
+				for e in [[st["a"], st["xa"], st["b"]], [st["b"], st["xb"], st["a"]]]:
+					var nm := "%s%s_%d_%d" % [FREE_STAIR, r, si, int(e[0])]
+					sg.markers[nm] = float(e[1])
+					sg._marker_lv[nm] = int(e[0])
+					w.markers[nm] = sg.origin.x + float(e[1])
+					w._marker_room[nm] = str(r)
+					var up: bool = int(e[2]) > int(e[0])
+					out.append({"id": "free_exit_%d" % out.size(), "at": nm, "room": str(r),
+						"label": {"zh": "上楼" if up else "下楼", "en": "Upstairs" if up else "Downstairs"},
+						"free_stairs": int(e[2]) - int(e[0])})
+	return out
+
+
+## 房间的中文名（data/dev_names.json 的 rooms，没有就原 id）
+func _free_room_name(r: String) -> String:
+	var d = JSON.parse_string(FileAccess.get_file_as_string("res://data/dev_names.json"))
+	if d is Dictionary and d.get("rooms", {}) is Dictionary:
+		return str(d["rooms"].get(r, r))
+	return r
+
+
+## scene 里（顺着 goto / if 往下）第一个 fade_to：{room, at}；没有 = {}
+func _first_fade(sid: String, seen: Dictionary) -> Dictionary:
+	if sid == "" or seen.has(sid) or not story.scenes.has(sid):
+		return {}
+	seen[sid] = true
+	for st in story.scenes[sid]:
+		if not st is Dictionary:
+			continue
+		var d := str(st.get("do", ""))
+		if d == "fade_to":
+			return {"room": str(st.get("room", "forest")), "at": st.get("at", 0)}
+		var nx: Array = []
+		if d == "goto":
+			nx = [str(st.get("scene", ""))]
+		elif d == "if":
+			nx = [str(st.get("then", "")), str(st.get("else", ""))]
+		for n in nx:
+			var f := _first_fade(n, seen)
+			if not f.is_empty():
+				return f
+	return {}
+
+
+## 按 E / 点了一个进出口：上下楼就沿石阶走过去；别的直接换过去（剧本的 fade_to 那套转场：小屋前墙、竖直平移、黑一下）
+func _free_use(p: Dictionary) -> void:
+	var h: Dictionary = p["h"]
+	chen.auto_dir = 0.0
+	_walk_target = NAN
+	_pending_hs = {}
+	story.hotspots.pressed(p)
+	_sfx("tick", -12.0, 1.25)
+	if h.has("free_stairs"):
+		free_stairs(int(h["free_stairs"]))
+		return
+	if not h.has("free_to"):
+		return
+	story.busy = true
+	story_begin(false)
+	await story._fade_to(h["free_to"])
+	if not is_inside_tree():
+		return
+	story.busy = false
+	story_end()
+
+
+## 自由探索能走的左右：剧情加的墙（walk_when、小游戏改的范围、导绳、倒木、塌陷口）都不算。
+## 森林还是两段（旧路段一直到林间空地的尽头 / 树屋段），中间靠入口换过去
 func free_walls() -> Vector2:
 	var w: Node2D = story.world
 	var sg: Node2D = w.cur_stage()
@@ -3761,7 +3852,15 @@ func free_walls() -> Vector2:
 		return _free_walls_of(sg)
 	if w.in_room() or w.room == "cockpit":
 		return w.walls(chen.position.x)
-	return Vector2(w.mx("wall_left"), w.mx("wall_right"))
+	if chen.position.x < w.area_split():
+		return Vector2(w.mx("wall_left"), _free_a_end())
+	return Vector2(w.b_start(), w.mx("wall_right"))
+
+
+## 旧路段的右头（搭了桥的样子：林间空地的尽头）
+func _free_a_end() -> float:
+	var w: Node2D = story.world
+	return w.mx("wall_glade") if w.markers.has("wall_glade") else w.mx("wall_road")
 
 
 func _free_walls_of(sg: Node2D) -> Vector2:
@@ -3774,7 +3873,7 @@ func _free_walls_of(sg: Node2D) -> Vector2:
 	return Vector2(sg.origin.x + v.x, sg.origin.x + v.y)
 
 
-## 一键到左头 / 中间 / 右头（left / mid / right）
+## 一键到左头 / 中间 / 右头（left / mid / right；--chen_x= 拍截图用）
 func free_place(where: String) -> void:
 	var w := free_walls()
 	var x := (w.x + w.y) / 2.0
@@ -3822,7 +3921,7 @@ func _free_walk(x: float) -> void:
 	chen.position.x = round(x)                 # 被方向键打断也落到楼梯口，不停在楼梯半路
 
 
-## 每帧：HUD、背包、目标都藏着；角色和路人按 free_npcs 藏 / 显示
+## 每帧：目标、燃料、背包按钮都藏着；角色和路人按 free_npcs 藏 / 显示
 func _free_tick() -> void:
 	_hud_burn.modulate.a = 0.0
 	_bag_btn.visible = false
@@ -3845,7 +3944,7 @@ func free_people() -> Array:
 	return out
 
 
-## 面板「显示角色」：路人照常走；本章剧本里的角色一字排开站在晨右边（看图用，森林的鹿 / 弥洛也算，河流篇里不放它们）
+## 面板「角色」：路人照常走；本章剧本里的角色一字排开站在晨右边（看图用，森林的鹿 / 弥洛也算，河流篇里不放它们）
 func free_show_npcs(on: bool) -> void:
 	free_npcs = on
 	if not on:
@@ -3869,6 +3968,106 @@ func free_show_npcs(on: bool) -> void:
 		n.visible = true
 		n.modulate.a = 1.0
 		x += 34.0
+
+
+## --free_check：按进出口把这一章走一遍（真的走过去、真的按 E 那条路 _interact；走到边上的出口就顶着走过去），
+## 每一步打印 FREE_TOUR（到没到），一路记有没有对话 / 点选 / 目标 / 剧情的 hotspot 出来过
+const FREE_TOUR := {
+	"forest": ["edge:right", "treehouse", "forest", "edge:left"],
+	"river": ["river_home", "up", "up", "down", "down", "river_bank", "market", "oldstreet", "warehouse", "oldstreet", "southbridge",
+		"edge:left"],
+}
+
+
+func _free_tour() -> void:
+	await get_tree().create_timer(1.2).timeout
+	if _free_shots != "":
+		DirAccess.make_dir_recursive_absolute(_free_shots)
+	var seen: Array = []
+	var ok := 0
+	var steps: Array = FREE_TOUR.get(chapter, [])
+	_free_shot(0, "start")
+	for i in steps.size():
+		var step := str(steps[i])
+		var room0: String = story.world.room
+		var area0: String = story.world.area_of(chen.position.x)
+		var sg: Node2D = story.world.cur_stage()
+		var lv0: int = sg.chen_lv if sg != null else -1
+		var how := await _free_tour_step(step, seen)
+		var sg2: Node2D = story.world.cur_stage()
+		var good := false
+		match step:
+			"up":
+				good = sg2 != null and sg2.chen_lv == lv0 + 1
+			"down":
+				good = sg2 != null and sg2.chen_lv == lv0 - 1
+			"edge:left", "edge:right":
+				good = story.world.room != room0 or story.world.area_of(chen.position.x) != area0
+			_:
+				good = story.world.room == step
+		if good:
+			ok += 1
+		print("FREE_TOUR %d %s: %s（%s）room=%s 层=%d x=%d" % [i + 1, step, "ok" if good else "FAILED", how, story.world.room,
+			sg2.chen_lv if sg2 != null else -1, chen.position.x])
+		_free_shot(i + 1, step.replace(":", "_"))
+	print("FREE_CHECK %s 走了 %d / %d 步 ok，一路出现过: %s" % [chapter, ok, steps.size(), "、".join(seen) if not seen.is_empty() else "无"])
+	get_tree().quit()
+
+
+func _free_shot(i: int, nm: String) -> void:
+	if _free_shots == "":
+		return
+	await get_tree().process_frame
+	_save(_free_shots.path_join("%s_%02d_%s.png" % [chapter, i, nm]))
+
+
+## 一步：走到去 step 的那个进出口、按 E（_interact）；edge:left / right = 顶着那一头走过去。等转场做完（story.busy 落下）
+func _free_tour_step(step: String, seen: Array) -> String:
+	var how := ""
+	if step.begins_with("edge:"):
+		var dir := -1.0 if step == "edge:left" else 1.0
+		var w := free_walls()
+		walk_to((w.x - 60.0) if dir < 0.0 else (w.y + 60.0))
+		how = "顶着%s边走" % ("左" if dir < 0.0 else "右")
+	else:
+		var target: Dictionary = {}
+		for p in story.hotspots.available():
+			var h: Dictionary = p["h"]
+			if (step == "up" and int(h.get("free_stairs", 0)) > 0) or (step == "down" and int(h.get("free_stairs", 0)) < 0) \
+					or str((h.get("free_to", {}) as Dictionary).get("room", "")) == step:
+				if not story.hotspots.same_level(h):
+					continue
+				if target.is_empty() or absf(float(p["x"]) - chen.position.x) < absf(float(target["x"]) - chen.position.x):
+					target = p
+		if target.is_empty():
+			return "这里没有去那儿的进出口"
+		how = "E %s" % story.txt(target["h"].get("label", {}))
+		_pending_hs = target                    # 和鼠标点了它一样：走过去，到了就互动
+		walk_to(float(target["x"]))
+	var t := 0.0
+	var started := false
+	while t < 60.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		_free_watch(seen)
+		if step.begins_with("edge:") and not started:
+			chen.auto_dir = -1.0 if step == "edge:left" else 1.0     # 顶着那一头一直走（像按住方向键）
+		if story.busy or _free_climb:
+			started = true
+		elif started or (not story.busy and is_nan(_walk_target) and _pending_hs.is_empty() and not _free_climb and t > 0.6 \
+				and not step.begins_with("edge:")):
+			break
+	await get_tree().create_timer(0.6).timeout
+	return how
+
+
+func _free_watch(seen: Array) -> void:
+	var near: Dictionary = story.hotspots.near
+	for k in [["对话", story.dlg.is_open()], ["点选", story.dlg.picking() or story.dlg.menu_open()],
+			["剧情 hotspot", not near.is_empty() and not (near["h"] as Dictionary).has("free_to") and not (near["h"] as Dictionary).has("free_stairs")],
+			["目标 / 燃料", _hud_burn.modulate.a > 0.01], ["背包按钮", _bag_btn.visible], ["剧情在播", story.played_order.size() > 0]]:
+		if k[1] and not seen.has(k[0]):
+			seen.append(k[0])
 
 
 func _fuzz_key(k: int, pressed: bool) -> void:

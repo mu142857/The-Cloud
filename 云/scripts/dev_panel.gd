@@ -13,12 +13,11 @@ extends CanvasLayer
 ##   4 开关  快走（晨的移动 ×3，动画帧速不变）、跳过对话（每句 0.15 秒自动推进）、显示 hotspot 范围和 marker 竖线、
 ##           雾开 / 关、前景层开 / 关、补写台词标蓝（剧本 "added": true 的台词正文用蓝色；debug 构建默认开）；
 ##           按钮：重开本章、给齐本章所有物品、燃料加满
-##   5 探索  自由探索（看美术用，level_forest.gd 的 free_roam / --free=）：点一个场景就进去——不播开场、剧情、对话，
-##           不触发 hotspot / trigger:"enter"，没有目标、提示、卡关提示，剧情加的墙（walk_when、倒木、坑、导绳……）都不算，
-##           角色和路人藏着（「显示角色」打开：路人照常走，本章剧本里的角色排在晨右边）。
-##           上一个 / 下一个场景、到左头 / 中间 / 右头、多层小屋 ↑ 上楼 ↓ 下楼（也可以按 ↑ / ↓）、Shift 跑快（只改移动速度）；
-##           小样场景（scenes/*_test.tscn，Esc 回来）；本房间物件的状态（点一下换下一个：水位、导绳、柜门……）。
-##           探索时状态页点 flag = 直接设 / 去掉这一个（不补剧情）。「退出自由探索」= 重开本章
+##   5 探索  自由探索（看美术用，level_forest.gd 的 free_roam / --free=forest|river）：两个入口，森林（坠毁现场起）、河流（河岸起）。
+##           进去以后不播剧情、对话，没有目标、卡关提示，trigger:"enter" 不触发，剧情加的墙（walk_when、倒木、坑、导绳……）不算；
+##           换地方照常靠 E / 点击（进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥、走到边上的出口），不看剧情 flag，只显示这些进出口。
+##           小按钮：角色（路人照常走，本章剧本里的角色排在晨右边）、退出（= 重开本章）。Shift 跑快（只改移动速度）。
+##           探索时状态页点 flag = 直接设 / 去掉这一个（不补剧情）
 ## 面板上的字统一中文：flag / marker / scene / 房间 / 状态的中文名在 data/dev_names.json（没写的回退显示原 id），
 ##   原 id 放在按钮的 tooltip 里（鼠标停上去看）；状态页那段文字的 tooltip 是原始 id。背包显示物品的 name.zh。
 ## 用法也写在 docs/forest_chapter.md 末尾「开发者模式（F8）」。
@@ -69,7 +68,7 @@ var _beat_btns: Array = []       # 节拍页的大节点：[{b, ch, after}]（�
 var _all_box: VBoxContainer      # 节拍页最下面折叠的「全部节点」
 var _all_fold: Button
 var _cur_head: Label             # 节拍页现在这章的标题（打开时滚到它）
-var _free_dyn: VBoxContainer     # 探索页上半截（跟着现在在哪个场景重建）
+var _free_dyn: VBoxContainer     # 探索页下面那一行小按钮（在探索里才有）
 var _free_sig := "-"
 
 
@@ -387,40 +386,16 @@ func _build_switches(v: VBoxContainer) -> void:
 
 
 # ======================================================================= 探索（自由探索）
-const FREE_NOTE := {"forest": "坠毁现场起，一直到最右", "treehouse": "树屋室内", "cockpit": "飞行一", "river_bank": "",
-	"river_home": "三层", "market": "", "oldstreet": "", "warehouse": "水下", "southbridge": ""}
-
-
 func _build_free(v: VBoxContainer) -> void:
+	var t := _label("自由探索：不播剧情、没有任务和墙，换地方靠 E / 点击（进出屋、上下楼、去市集……）。Shift 跑快")
+	t.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	t.add_theme_font_size_override("font_size", 12)
+	v.add_child(t)
+	v.add_child(_btn("森林（坠毁现场起）", _free_go.bind("forest"), "--free=forest"))
+	v.add_child(_btn("河流（河岸起）", _free_go.bind("river"), "--free=river"))
 	_free_dyn = VBoxContainer.new()
-	_free_dyn.add_theme_constant_override("separation", 1)
 	v.add_child(_free_dyn)
-	var head := _label("— 场景（点 = 进去自由走）—")
-	head.add_theme_font_size_override("font_size", 12)
-	v.add_child(head)
-	for id in level.FREE_ROOMS:
-		var note := str(FREE_NOTE.get(id, ""))
-		v.add_child(_btn("%s%s" % [_nm("rooms", str(id)), "（%s）" % note if note != "" else ""], _free_go.bind(str(id)),
-			"--free=%s  （%s）" % [id, _chapter_name(str(level.FREE_ROOMS[id]))]))
-	var tests := _test_scenes()
-	if not tests.is_empty():
-		var th := _label("— 小样场景（Esc 回来）—")
-		th.add_theme_font_size_override("font_size", 12)
-		v.add_child(th)
-		for t in tests:
-			v.add_child(_btn(str(t), level._open_test_scene.bind("res://scenes/%s.tscn" % t), "--free=" + str(t)))
 	_free_refresh()
-
-
-## scenes/*_test.tscn（导出的包里是 .tscn.remap）
-func _test_scenes() -> Array:
-	var out: Array = []
-	for f in DirAccess.get_files_at("res://scenes"):
-		var n := str(f).trim_suffix(".remap")
-		if n.ends_with("_test.tscn") and not out.has(n.get_basename()):
-			out.append(n.get_basename())
-	out.sort()
-	return out
 
 
 ## 一行几个按钮（不折行，平分宽度）
@@ -436,12 +411,11 @@ func _row(items: Array) -> HBoxContainer:
 	return h
 
 
-## 探索页上半截：现在在哪、上一个 / 下一个、到左中右、上下楼、显示角色、退出、本房间物件的状态。换了场景 / 层才重建
+## 在探索里才有的那一行小按钮：角色开关、退出
 func _free_refresh() -> void:
 	if _free_dyn == null:
 		return
-	var sg: Node2D = story.world.cur_stage()
-	var sig := "%s|%s|%d|%s" % [level.free_roam, story.world.room, sg.chen_lv if sg != null else -1, level.free_npcs]
+	var sig := "%s|%s" % [level.free_roam, level.free_npcs]
 	if sig == _free_sig:
 		return
 	_free_sig = sig
@@ -449,148 +423,22 @@ func _free_refresh() -> void:
 		_free_dyn.remove_child(c)
 		c.queue_free()
 	if level.free_roam == "":
-		var t := _label("自由探索：点下面的场景进去（不播剧情、没有墙、没有 NPC，看美术用）。命令行 --free=河岸那种 id")
-		t.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-		t.add_theme_font_size_override("font_size", 12)
-		_free_dyn.add_child(t)
 		return
-	var ch := _chapter_name(str(level.chapter))
-	_free_dyn.add_child(_label("自由探索：%s（%s）" % [_nm("rooms", str(story.world.room)), ch]))
-	_free_dyn.add_child(_row([["◀ 上一个", _free_step.bind(-1)], ["下一个 ▶", _free_step.bind(1)]]))
-	_free_dyn.add_child(_row([["左头", level.free_place.bind("left")], ["中间", level.free_place.bind("mid")],
-		["右头", level.free_place.bind("right")]]))
-	if sg != null and sg.has_levels():
-		_free_dyn.add_child(_row([["↑ 上楼", level.free_stairs.bind(1)], ["↓ 下楼", level.free_stairs.bind(-1)]]))
-		var lt := _label("现在在第 %d 层（键盘 ↑ / ↓ 也行）" % (sg.chen_lv + 1))
-		lt.add_theme_font_size_override("font_size", 12)
-		_free_dyn.add_child(lt)
-	_free_dyn.add_child(_btn(("■ " if level.free_npcs else "□ ") + "显示角色、路人（角色排在晨右边）",
-		func(): level.free_show_npcs(not level.free_npcs)))
-	var tip := _label("Shift 跑快（只改速度，帧速不变）")
-	tip.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-	tip.add_theme_font_size_override("font_size", 12)
-	_free_dyn.add_child(tip)
-	_free_dyn.add_child(_btn("退出自由探索（重开本章）", _free_exit))
-	var props := _room_props()
-	if not props.is_empty():
-		var ph := _label("— 物件状态（点 = 换下一个）—")
-		ph.add_theme_font_size_override("font_size", 12)
-		_free_dyn.add_child(ph)
-		for pr in props:
-			var b := _btn("", _cycle_prop.bind(str(pr[0]), pr[1] as Array), "%s: %s" % [pr[0], ", ".join(pr[1])])
-			b.set_meta("prop", str(pr[0]))
-			_prop_text(b, str(pr[0]))
-			_free_dyn.add_child(b)
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 6)
+	gap.custom_minimum_size = Vector2(0, 4)
 	_free_dyn.add_child(gap)
+	_free_dyn.add_child(_row([[("■" if level.free_npcs else "□") + " 角色", func(): level.free_show_npcs(not level.free_npcs)],
+		["退出探索", _free_exit]]))
 
 
-## 现在这个房间里能换状态的东西：[[id, [状态…]]]
-func _room_props() -> Array:
-	var w = story.world
-	var out: Array = []
-	var sg: Node2D = w.cur_stage()
-	if sg != null:
-		for oid in sg.ocfg:
-			var st = (sg.ocfg[oid] as Dictionary).get("states", {})
-			var names: Array = []
-			if st is Dictionary:
-				names = st.keys()
-			elif st is Array:
-				names = st.duplicate()
-			_add_state(names, "default", true)
-			_add_state(names, "hidden", false)
-			out.append([str(oid), names])
-		var wt = sg.cfg.get("water", {})
-		if wt is Dictionary and (wt.get("levels", {}) as Dictionary).size() > 0 and not sg.ocfg.has(str(wt.get("prop", ""))):
-			out.append([str(wt.get("prop", "")), (wt["levels"] as Dictionary).keys()])
-		var rope = sg.cfg.get("rope", null)
-		if rope is Dictionary and str(rope.get("prop", "")) != "":
-			out.append([str(rope["prop"]), ["off", str(rope.get("on", "on"))]])
-		return out
-	if w.room == "cockpit" and w.cockpit != null:
-		for oid in w.cockpit.objects:
-			var st = (w.cockpit.objects[oid] as Dictionary).get("states", {})
-			var names: Array = st.keys() if st is Dictionary else []
-			_add_state(names, "default", true)
-			out.append([str(oid), names])
-		var sky = w.cockpit.sky.get("states", {}) if w.cockpit.sky is Dictionary else {}
-		if sky is Dictionary and not sky.is_empty():
-			out.append(["cockpit_window", sky.keys()])
-		return out
-	for id in w.props:
-		if str(w.prop_room(str(id))) != str(w.room):
-			continue
-		var names: Array = ["default"]
-		var base: Dictionary = w.PROPS.get(id, {})
-		for k in (base.get("states", {}) as Dictionary):
-			_add_state(names, str(k), false)
-		for k in (w.FRAME_STATES.get(id, {}) as Dictionary):
-			_add_state(names, str(k), false)
-		_add_state(names, "hidden", false)
-		out.append([str(id), names])
-	if w.room == "forest":
-		out.append(["fog", ["default", "thick"]])
-	return out
-
-
-func _add_state(names: Array, s: String, front: bool) -> void:
-	if names.has(s):
-		return
-	if front:
-		names.push_front(s)
-	else:
-		names.append(s)
-
-
-func _prop_state(id: String) -> String:
-	var sg: Node2D = story.world.cur_stage()
-	if sg != null:
-		return str(sg.prop_state(id))
-	if story.world.room == "cockpit" and story.world.cockpit != null:
-		return str(story.world.cockpit.states.get(id, ""))
-	if id == "fog":
-		return "thick" if story.world.thick else "default"
-	return story.world.prop_state(id)
-
-
-func _prop_text(b: Button, id: String) -> void:
-	var cur := _prop_state(id)
-	b.text = "%s：%s" % [id, cur if cur != "" else "default"]
-
-
-func _cycle_prop(id: String, names: Array) -> void:
-	if names.is_empty():
-		return
-	var cur := _prop_state(id)
-	var i := names.find(cur if cur != "" else "default")
-	var nxt := str(names[(i + 1) % names.size()])
-	story.world.set_prop(id, nxt)
-	for c in _free_dyn.get_children():            # 有的物件跟着别的物件的状态显示（on）：都刷一遍
-		if c is Button and c.has_meta("prop"):
-			_prop_text(c, str(c.get_meta("prop")))
-
-
-## 进自由探索 / 换场景：同一章里直接传过去；别的章（或者还没在探索）就重新载入那一章再进（level_forest._free_pick）
+## 进自由探索：重新载入那一章再进（level_forest._free_pick / _start_free）
 func _free_go(id: String) -> void:
 	var ch := str(level.FREE_ROOMS[id])
-	if level.free_roam != "" and ch == level.chapter:
-		level.free_teleport(id)
-		if level.free_npcs:
-			level.free_show_npcs(true)
-		return
 	if ch != level.chapter:
 		_prep_chapter(ch)
 	Engine.set_meta(level.DEV_FREE_META, id)
 	Engine.set_meta(level.DEV_OPEN_META, true)
 	_reload()
-
-
-func _free_step(d: int) -> void:
-	var keys: Array = level.FREE_ROOMS.keys()
-	var i := keys.find(level.free_roam)
-	_free_go(str(keys[posmod(i + d, keys.size())]))
 
 
 func _free_exit() -> void:
