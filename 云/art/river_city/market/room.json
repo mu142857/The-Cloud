@@ -4,6 +4,10 @@
   1440,
   270
  ],
+ "origin": [
+  880,
+  -270
+ ],
  "env": "river",
  "bg": [
   "#03060f",
@@ -87,7 +91,7 @@
   "market_baskets": 90,
   "market_tool_stall": 330,
   "market_bridge": 830,
-  "market_to_oldstreet": 16
+  "market_to_oldstreet": 1424
  },
  "objects": {
   "market_baskets": {
@@ -133,7 +137,7 @@
  },
  "walk": [
   10,
-  1380
+  1430
  ],
  "walkers": [
   {
@@ -165,7 +169,7 @@
    "x": 1351
   },
   {
-   "edge": "left",
+   "edge": "right",
    "to": "oldstreet",
    "at": "oldstreet_entry",
    "kind": "walk_fade"

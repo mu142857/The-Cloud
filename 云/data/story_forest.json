@@ -209,7 +209,7 @@
 		{"id": "deer_ship", "at": "deer_ship", "room": "forest", "label": {"zh": "鹿", "en": "Deer"}, "need": ["ready_to_launch"], "not": [], "once": false, "scene": "deer_chat_bye"},
 		{"id": "room_door_home", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["farewell_done"], "not": [], "once": false, "scene": "go_home"},
 		{"id": "room_door_out", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["parts_needed"], "not": ["tools_started"], "once": false, "scene": "exit_room"},
-		{"id": "miluo_bye", "at": "room_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["farewell_done"], "not": [], "once": false, "scene": "miluo_chat_bye"},
+		{"id": "miluo_bye", "at": "room_chair_side", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["farewell_done"], "not": [], "once": false, "scene": "miluo_chat_bye"},
 		{"id": "miluo_b", "at": "room_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["parts_needed"], "not": ["tools_started"], "once": false, "scene": "miluo_b"},
 		{"id": "radio", "at": "room_radio", "room": "treehouse", "label": {"zh": "收音机", "en": "Radio"}, "need": ["parts_needed"], "not": ["took_radio", "revisit_done"], "once": false, "scene": "radio_look"},
 		{"id": "radio_b", "at": "room_radio", "room": "treehouse", "label": {"zh": "收音机", "en": "Radio"}, "need": ["revisit_done"], "not": ["took_radio"], "once": false, "scene": "radio_b"},

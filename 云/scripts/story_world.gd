@@ -1385,7 +1385,7 @@ func add_stages(rooms: Array, inferred: Dictionary, order: Array) -> void:
 	# 剧本 prop 过、room.json 里没有的物件：在同名 marker 那里放占位
 	for id in _prop_ids:
 		var pr := str(_marker_room.get(id, ""))
-		if pr != "" and not stages[pr].has_object(id):
+		if pr != "" and not stages[pr].owns_prop(id):
 			stages[pr].add_placeholder_object(id)
 	for id in StoryState.props:
 		if stage_of_prop(str(id)) != "":

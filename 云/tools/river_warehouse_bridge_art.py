@@ -238,7 +238,7 @@ def hole(cv, m, ox, oy, lit=True, door=False, src=None, pal=None, halo=True, rea
         src = (w * 0.55, h * (0.86 if door else 0.66))
     sx, sy = src
     d = np.hypot((xx + 0.5 - sx) / (w * 0.62 * reach), (yy + 0.5 - sy) / (h * 0.7 * reach))
-    bay = BAYER[(yy + oy) % 4, (xx + ox) % 4] - 0.5
+    bay = blobs(h, w, np.random.default_rng(ox * 7 + oy), 1.2, 1.6) - 0.5   # 档边一团团的，不是棋盘格
     left = m & ~np.roll(m, 1, 1)
     left[:, 0] = m[:, 0]
     top = m & ~np.roll(m, 1, 0)
@@ -264,15 +264,15 @@ def hole(cv, m, ox, oy, lit=True, door=False, src=None, pal=None, halo=True, rea
     if pal is not None:                                                # 右沿、下沿的石唇受月光
         for y in range(h):
             row = np.nonzero(m[y])[0]
-            if len(row):
-                cv.put(ox + row[-1] + 1, oy + y, pal[-2])
+            if len(row) and y > h * 0.35:                              # 右沿的石唇：只有下半截受光（上半截在门楣的影里）
+                cv.put(ox + row[-1] + 1, oy + y, pal[-2] if y > h * 0.6 else pal[-3])
         cols = np.nonzero(m.any(0))[0]
         cv.rect(ox + cols[0] - 1, oy + h, ox + cols[-1] + 1, oy + h, pal[-1])
 
 
 def carve2(cv, x, y, w, h, kind="arch", lit=True, door=False, pal=None):
-    """bm.carve 的形 + hole 的光（不平涂、光往外渐弱）。"""
-    hole(cv, bm.opening_mask(w, h, kind), x, y, lit, door, pal=pal if pal is not None else SPAL)
+    """凿门窗洞：用河岸会话第四版的 bm.carve（墙厚、门楣受光、窗台石板、洞口磨损、光往外渐弱），整章统一。"""
+    bm.carve(rc(cv), x, y, w, h, kind, lit, door, pal=pal if pal is not None else SPAL, seed=x * 31 + y)
 
 
 # =========================================================================== 引擎的视差合成（预览 + 取景框）
@@ -1112,6 +1112,35 @@ GLASS = blue(0.16, 0.03, 250)
 MOSS = [col(v, 0.03, 190) for v in (0.12, 0.17, 0.22)]
 
 
+def rock(cv, m, rng, pal, face=False):
+    """石头：河岸会话第四版的 bm.stone_shade（整章统一的料：柱状节理切面、小色团、右沿冷亮边、底部暗、苔、水渍）。
+    face=True 的是很宽的一横条（河堤、货台台面、挡土岩），切面放宽、岩层台少一点。
+    桥墩的旧水位不交给 stone_shade（它会把线以下压成一片死黑），由 water_mark 另外画。"""
+    ys, xs = np.nonzero(m)
+    if len(ys) == 0:
+        return
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    img = bm.stone_shade(m[y0:y1, x0:x1], rng, pal, facet_w=40.0 if face else 11.0, ledges=0.4 if face else 0.8)
+    cv.paste(img, x0, y0)
+
+def walk_top(cv, x0, x1, rng):
+    """走的那一层石面（晨的脚就踩在这上面，不然看着像浮着）：最上一行冷亮边、下面两行受月光的路面
+    （一团团深浅，偶尔一道缝、一撮苔），再下一行是路面挑出来的影。跟着 sb_ground 走。"""
+    nz = blobs(1, x1 - x0 + 1, rng, 1, 4)[0]
+    for x in range(x0, x1):
+        g = sb_ground(x)
+        u = nz[x - x0]
+        cv.put(x, g, SPAL[5] if u > 0.25 else SPAL[4])
+        cv.put(x, g + 1, RPAL[4] if u > 0.4 else RPAL[3])
+        cv.put(x, g + 2, RPAL[3] if u > 0.55 else RPAL[2])
+        cv.put(x, g + 3, RPAL[0])
+        if rng.random() < 0.04:                                          # 路面上一道缝
+            cv.put(x, g + 1, RPAL[1])
+            cv.put(x, g + 2, RPAL[0])
+        if u < 0.12 and rng.random() < 0.5:
+            cv.put(x, g, bm.MOSS[1])
+
+
 def sb_ground(x):
     xs = [p[0] for p in SB_GROUND]
     ys = [p[1] for p in SB_GROUND]
@@ -1155,69 +1184,30 @@ def sb_main():
         widen = np.clip((yy - (SB_G - 30)) / 7.0, 0, 4).astype(int)
         pm = (xx >= p0 - widen) & (xx <= p1 + widen) & (yy > SPRING) & (yy <= SB_G)
         piers |= pm
-        stone_mass(cv, pm, rng, RPAL, cracks=3, strata=2)
+        rock(cv, pm, rng, RPAL)
     for pm in ((xx >= a0) & (xx < PIERS[0][0]) & (yy > SPRING) & (yy <= SB_G),
                (xx > PIERS[-1][1]) & (xx < a1) & (yy > SPRING) & (yy <= SB_G)):
         piers |= pm
-        stone_mass(cv, pm, rng, RPAL, cracks=3, strata=2)
+        rock(cv, pm, rng, RPAL)
     body |= piers
     # 拱肩：一整块大石头里凿出来的人家（每一块各自上色，边上受光），门窗是凿的洞
     spand = body & ~rings & (yy <= SPRING) & (yy > DECK + 6)
     lab, n = RA.components(spand)
     for k in range(1, n + 1):
-        stone_mass(cv, lab == k, rng, SPAL, cracks=3, strata=2)
+        rock(cv, lab == k, rng, SPAL)
     for i, (p0, p1) in enumerate(PIERS):
         house_in_spandrel(cv, (p0 + p1) // 2, i, rng, spand)
-    # 拱圈：一圈放射的大块券石（每块 15°，宽窄、深浅不一），右上半边（迎着月亮）亮；擦痕刻在这圈石沿上（物件）
-    pal = np.array([RA.rgba(c) for c in SPAL], np.uint8)
-    for cx, hs, rise in ARCHES:
-        rm = ring_mask(cx, hs, rise, RING)
-        ang = np.degrees(np.arctan2(-(yy - SPRING) / (rise + RING / 2), (xx - cx) / (hs + RING / 2)))
-        jit = np.array([0, 3, -2, 4, -3, 1, 2, -4, 3, 0, -2, 4, 1])
-        seg = np.floor((ang + jit[np.clip((ang // 15).astype(int), 0, 12)]) / 15).astype(int)
-        seam = np.abs(np.diff(seg, axis=1, prepend=seg[:, :1])) > 0
-        r_in = ((xx - cx) / hs) ** 2 + ((yy - SPRING) / rise) ** 2
-        lit = ang < 85
-        tone = (seg * 7) % 3
-        lv = np.where(lit, 3, 2) + (tone == 0) * 1 - (tone == 2) * 1
-        lv = np.where(r_in < 1.05, lv + 1, lv)
-        lv = lv + (BAYER[yy % 4, xx % 4] - 0.5) * 0.6
-        lv = np.where(seam, 0, lv)
-        idx = np.clip(np.round(lv), 0, len(SPAL) - 1).astype(int)
-        cv.a[rm] = pal[idx[rm]]
-        outer = ((xx - cx) / (hs + RING)) ** 2 + ((yy - SPRING) / (rise + RING)) ** 2
-        cv.fill(rm & (outer > 0.93) & ~lit, SPAL[0])               # 券石外沿的缝
-        sh = arch_open(cx, hs, rise) & (r_in > 0.955) & (r_in < 1.0) & (yy < SPRING - 2)
-        cv.fill(sh, SPAL[0])                                       # 拱腹里贴着石沿的一条影
-    # 桥墩上的旧水位线：线以下深一档、挂着干水草，线上一道发白的泥壳
-    below = piers & (yy > OLD_WATER)
-    lighten(cv, below, -0.03)
-    for x in range(a0, a1):
-        if piers[OLD_WATER, x]:
-            cv.put(x, OLD_WATER, col(0.3, 0.018, 95))
-            cv.put(x, OLD_WATER + 1, col(0.22, 0.016, 90))
-            if rng.random() < 0.35:
-                for k in range(int(rng.integers(1, 6))):
-                    if piers[OLD_WATER + 2 + k, x]:
-                        cv.put(x, OLD_WATER + 2 + k, MOSS[1] if k < 2 else MOSS[0])
-    for p0, p1 in PIERS:                                           # 墩子顶上压一条长石（拱脚）
-        cv.rect(p0 - 3, SPRING + 1, p1 + 3, SPRING + 3, SPAL[3])
-        cv.rect(p0 - 3, SPRING + 1, p1 + 3, SPRING + 1, SPAL[5])
-        cv.rect(p0 - 3, SPRING + 4, p1 + 3, SPRING + 4, SPAL[0])
+    # 拱圈：一圈放射的大块券石，每块有体积（见 voussoirs）；擦痕刻在这圈石沿上（物件）
+    for k, (cx, hs, rise) in enumerate(ARCHES):
+        voussoirs(cv, cx, hs, rise, np.random.default_rng(60 + k))
+    # 桥墩上的旧水位线：线以下更深、更湿（一道湿亮的冷边、往下的水渍），线上一层发灰的泥壳；不用黄色
+    water_mark(cv, piers, rng)
+    for p0, p1 in PIERS:                                           # 墩子顶上压一条长石（拱脚）：顶面受光、正面、底下一道影
+        imposts(cv, p0 - 3, p1 + 3, SPRING + 1, rng)
     # 桥面：一整条厚石板（挑出去一点，顶上长苔）——它就是拱肩里这几户的屋顶；屋脊上一排小石像，远看像栏杆
     r = rc(cv)
-    for x in range(a0 - 6, a1 + 6):
-        y0 = DECK - 1 + int(round(0.6 * np.sin(x / 11.0)))
-        for d in range(8):
-            k = 4 if d == 0 else (3 if d < 2 else (2 if d < 6 else (1 if d < 7 else 0)))
-            cv.put(x, y0 + d, SPAL[k])
-        if rng.random() < 0.45:
-            cv.put(x, y0 - 1, bm.MOSS[1 if rng.random() < 0.6 else 2])
-        if rng.random() < 0.06:
-            for d in range(1, int(rng.integers(2, 6))):
-                cv.put(x, y0 + 7 + d, bm.MOSS[0])
-    for x in range(a0 + 4, a1 - 3, 12):
-        figure(cv, x, DECK - 1, rng)
+    deck_slab(cv, a0 - 6, a1 + 6, rng)
+    ornament_row(cv, a0 + 2, a1 - 2, DECK - 1, np.random.default_rng(71))
     for lx in LAMPS:
         lamp_post(cv, lx, DECK - 1)
     # ---- 左岸：一长段石砌河堤（空的，只有一盏石灯笼），坡下到泥滩（不砌台阶，一道缓坡）
@@ -1228,30 +1218,25 @@ def sb_main():
         if x >= a0 and g >= SB_G:
             continue
         lm[g + int(max(0, prof[x])) // 2:, x] = True
-    stone_mass(cv, lm, rng, RPAL, cracks=5, strata=3)
-    for x in range(0, SX + 140):
-        g = sb_ground(x)
-        if lm[g:, x].any():
-            top = g + int(np.argmax(lm[g:, x]))
-            cv.put(x, top, RPAL[4])
-            if rng.random() < 0.3:
-                cv.put(x, top - 1, bm.MOSS[1])
+    rock(cv, lm, rng, RPAL, face=True)
+    walk_top(cv, 0, SX + 124, np.random.default_rng(55))
     for bx, bw, bh in ((SX + 70, 14, 9), (SX + 98, 10, 6), (SX + 30, 8, 5)):   # 坡上几块滚下来的圆石
         mm = bm.blob_mask(bw, bh, rng)
-        cv.paste(bm.shade_mass(mm, rng, RPAL, cracks=0, strata=0), bx, sb_ground(bx + bw // 2) - bh + 2)
+        cv.paste(bm.stone_shade(mm, rng, RPAL, facet_w=8.0, ledges=0.3), bx, sb_ground(bx + bw // 2) - bh + 2)
     bm.stone_lantern(r, 148, sb_ground(148))
     # ---- 右桥头：一块凿出来的巨石屋（压在桥头上，底下一块石头墩着）；石头顶上一排小石像离地面近
     pm = np.zeros((H, SB_W), bool)
     for x in range(a1 - 8, a1 + 22):
         u = (x - (a1 - 8)) / 30.0
         pm[int(124 + 30 * u * u):SB_G + 1, x] = True
-    stone_mass(cv, pm, rng, RPAL, cracks=2, strata=1)
+    rock(cv, pm, rng, RPAL)
     low_house(cv, HOUSE_X, rng)
     # ---- 中间那段空泥滩：一根石桩，桩头一盏小灯；几块石头
     mooring_lamp(cv, a1 + 128, SB_G)
+    lamp_string(cv, (HOUSE_X + 30, 104), (a1 + 128, SB_G - 30), 14, 5, np.random.default_rng(81))   # 桥头巨石屋到石桩一串小灯
     for bx, bw, bh in ((a1 + 60, 12, 7), (a1 + 176, 18, 10), (a1 + 190, 8, 5)):
         mm = bm.blob_mask(bw, bh, rng)
-        cv.paste(bm.shade_mass(mm, rng, RPAL, cracks=0, strata=1), bx, SB_G - bh + 3)
+        cv.paste(bm.stone_shade(mm, rng, RPAL, facet_w=8.0, ledges=0.3), bx, SB_G - bh + 3)
     # ---- 右边：一段挡土的岩体（顶上起伏）+ 旧运输水道的石拱洞口（洞口是物件 southbridge_waterway）
     wall = np.zeros((H, SB_W), bool)
     wp = smooth1d(160, np.random.default_rng(41), 40, 6.0)
@@ -1259,7 +1244,7 @@ def sb_main():
         u = min(1.0, (x - (D0 + 1040)) / 22.0)
         top = int(128 + wp[i] + 40 * (1 - np.sqrt(max(0.0, 1 - (1 - u) ** 2))))
         wall[top:SB_G + 1, x] = True
-    stone_mass(cv, wall, rng, RPAL, cracks=5, strata=3)
+    rock(cv, wall, rng, RPAL, face=True)
     for x in range(D0 + 1040, D0 + 1200):
         ys = np.nonzero(wall[:, x])[0]
         if len(ys) and rng.random() < 0.5:
@@ -1275,20 +1260,14 @@ def sb_main():
         inner = (np.abs(t_) < 1) & (yy >= top_) & (yy <= SB_G - 4)
         edge = inner & ~np.roll(inner, 1, 0)
         edge |= inner & (~np.roll(inner, -1, 1) | ~np.roll(inner, 1, 1))
-        edge &= tunnel & ((xx > TUNNEL_X - 4) | ((xx + yy) % 2 == 0))
-        cv.fill(edge, HOLE_DARK[4 - k])
+        edge &= tunnel
+        cv.fill(edge & (xx > TUNNEL_X - 4), HOLE_DARK[4 - k])
+        cv.fill(edge & (xx <= TUNNEL_X - 4), HOLE_DARK[3 - k])
     for x in range(TUNNEL_X - 36, TUNNEL_X + 37):                    # 洞底一条暗的水，映一点月光
         cv.put(x, SB_G - 3, blue(0.1, 0.03, 250))
         if (x * 5) % 7 < 3:
             cv.put(x, SB_G - 3, blue(0.16, 0.03, 248))
-    rm = ring_mask(TUNNEL_X, 40, 34, 7)
-    ang = np.degrees(np.arctan2(-(yy - SPRING), (xx - TUNNEL_X)))
-    seg = np.floor(ang / 20).astype(int)
-    seam = np.abs(np.diff(seg, axis=1, prepend=seg[:, :1])) > 0
-    lv = np.where(ang < 85, 4, 2) + (seg % 2) * 0.6 + (BAYER[yy % 4, xx % 4] - 0.5) * 0.5
-    lv = np.where(seam, 0, lv)
-    idx = np.clip(np.round(lv), 0, len(SPAL) - 1).astype(int)
-    cv.a[rm] = pal[idx[rm]]
+    voussoirs(cv, TUNNEL_X, 40, 34, np.random.default_rng(77), t_=7)
     cv.rect(TUNNEL_X - 44, SPRING, TUNNEL_X - 41, SB_G, RPAL[1])
     cv.rect(TUNNEL_X + 41, SPRING, TUNNEL_X + 44, SB_G, RPAL[3])
     # ---- 货台：一道缓坡上去，台面是整块的石头；背后一块凿出货棚的巨石、贴航线图的石面、挂编号牌的石门框
@@ -1297,20 +1276,19 @@ def sb_main():
         g = sb_ground(x)
         if g < SB_G or x >= D0 + 1186:
             dm[g:, x] = True
-    stone_mass(cv, dm, rng, RPAL, cracks=4, strata=3)
-    for x in range(D0 + 1176, SB_W):
-        if dm[:, x].any():
-            cv.put(x, sb_ground(x), RPAL[4])
+    rock(cv, dm, rng, RPAL, face=True)
+    walk_top(cv, D0 + 1180, SB_W, np.random.default_rng(56))
     dock_shed(cv, rng)
     # ---- 泥滩（蓝黑，和河岸的地一路）：上沿一条被月光擦亮的湿泥，往下很快沉进黑
     m0, m1 = SX + 120, D0 + 1186
+    mb = blobs(H, SB_W, np.random.default_rng(5), 1.5, 6.0)
     for x in range(m0, m1):
         g = SB_G
         if dm[g + 1:, x].any():
             continue
         for y in range(g + 1, H):
             t = (y - g) / (H - g)
-            k = 3.0 - t * 3.6 + (BAYER[y % 4, x % 4] - 0.5) * 0.9
+            k = 3.0 - t * 3.6 + (mb[y, x] - 0.5) * 1.6
             cv.put(x, y, MUD[int(np.clip(np.floor(k), 0, 4))])
         cv.put(x, g, MUD[5])
         cv.put(x, g + 1, MUD[4])
@@ -1339,105 +1317,359 @@ def sb_main():
     return cv, holes
 
 
-def house_in_spandrel(cv, cx, i, rng, spand):
-    """拱肩这块大石头里凿出来的一户：两扇拱窗（有的透暖黄）、一扇小门洞、门口凿出的一条窄台阶；窗下一根晾衣绳。"""
-    r = rc(cv)
-    lit = [(i % 2 == 0), (i != 1)]
-    wy = DECK + 14
-    inner = 0 < i < len(PIERS) - 1
-    xs = (cx - 14, cx + 6) if inner else (cx - 4,)
-    for j, wx in enumerate(xs):
-        if not spand[wy - 1:wy + 14, wx - 1:wx + 10].all():
+
+def blobs(h, w, rng, sy=3.0, sx=4.0):
+    """手画感的小色团用的低频噪声（0~1）：代替 Bayer 棋盘格，档边是一团团的，不是点点。"""
+    return RA.vnoise(h, w, sy, sx, rng) * 0.65 + RA.vnoise(h, w, sy * 2.5, sx * 2.5, rng) * 0.35
+
+
+def lv_to(cv, m, lv, pal, ox=0, oy=0):
+    """局部掩码 m 里按档位 lv（浮点）上色，四舍五入到 pal 的档。"""
+    idx = np.clip(np.round(lv), 0, len(pal) - 1).astype(int)
+    for y, x in zip(*np.nonzero(m)):
+        cv.put(ox + x, oy + y, pal[idx[y, x]])
+
+
+def voussoirs(cv, cx, hs, rise, rng, t_=RING):
+    """一圈券石。月光从右上来：每块石头朝光的那条边（外沿、一侧的接缝边）亮一档，背光的边暗一档，
+    拱腹（内沿）一律暗；块与块之间一道暗缝，外沿的角有几处磕掉；块面上 2~3 色的小色团（不是棋盘格）；
+    从拱脚往上一段越来越湿、发暗、长苔，几道水渍顺着拱腹往下挂；外沿迎光的一侧一道断断续续的冷亮边。"""
+    x0, x1 = int(cx - hs - t_ - 2), int(cx + hs + t_ + 3)
+    y0, y1 = int(SPRING - rise - t_ - 2), SPRING + 1
+    h, w = y1 - y0, x1 - x0
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    dx, dy = (xx - cx + 0.5), (yy - SPRING + 0.5)
+    ri = np.sqrt((dx / hs) ** 2 + (dy / rise) ** 2)
+    ro = np.sqrt((dx / (hs + t_)) ** 2 + (dy / (rise + t_)) ** 2)
+    ring = (ri >= 1) & (ro < 1) & (yy <= SPRING)
+    tt = (ri - 1) / np.maximum((ri - 1) + (1 - ro), 1e-6)          # 0 = 内沿，1 = 外沿
+    a = np.degrees(np.arctan2(-dy / (rise + t_ / 2), dx / (hs + t_ / 2)))
+    # 每块的角度边界：宽 11°~17°，拱顶石宽一点
+    edges = [0.0]
+    while edges[-1] < 180:
+        nxt = edges[-1] + rng.uniform(11, 17)
+        if abs((edges[-1] + nxt) / 2 - 90) < 9:
+            nxt = edges[-1] + 19
+        edges.append(min(180.0, nxt) if 180 - nxt > 8 else 180.0)
+    edges = np.array(edges)
+    blk = np.clip(np.searchsorted(edges, a, side="right") - 1, 0, len(edges) - 2)
+    lo, hi = edges[blk], edges[blk + 1]
+    arc_px = np.radians(hi - lo) * (hs + t_ / 2)                     # 这块沿弧长有多少像素
+    s = (a - lo) / np.maximum(hi - lo, 1e-6)                          # 0 = 小角度那边，1 = 大角度那边
+    base = 3.1 + np.array([rng.choice([-0.45, 0, 0, 0.35]) for _ in range(len(edges))])[blk]
+    ar = np.radians(a)
+    L = np.array([0.7071, -0.7071])                                   # 月光方向（右上）
+    ext = np.cos(ar) * L[0] - np.sin(ar) * L[1]                       # 外沿法线 · 光
+    tan_hi = (-np.sin(ar)) * L[0] + (-np.cos(ar)) * L[1]              # 大角度那条缝边的法线 · 光
+    lv = base + 0.5 * np.clip(ext, -1, 1)
+    lv += (blobs(h, w, rng, 2.0, 3.0) - 0.5) * 0.9                    # 小色团
+    edge_px = 1.0 / max(1.0, t_)
+    lv = np.where(tt > 1 - 1.3 * edge_px, lv + 1.5 * np.clip(ext, -0.4, 1), lv)                 # 外沿那条边
+    lv = np.where(tt < 1.4 * edge_px, lv - 1.6, lv)                                              # 内沿（拱腹那条边）背光
+    sw = 1.2 / np.maximum(arc_px, 1)
+    lv = np.where(s > 1 - sw, lv + 1.3 * tan_hi, lv)                                             # 两条缝边，一亮一暗
+    lv = np.where(s < sw, lv - 1.3 * tan_hi, lv)
+    wet = np.clip(1 - np.minimum(a, 180 - a) / 32.0, 0, 1)             # 拱脚往上一段：湿、暗
+    lv -= wet * 1.3
+    seam = (np.diff(blk, axis=1, prepend=blk[:, :1]) != 0) | (np.diff(blk, axis=0, prepend=blk[:1]) != 0)
+    lv = np.where(seam, 0, lv)
+    loc = ring.copy()
+    lv_to(cv, loc, lv, SPAL, x0, y0)
+    mos = ring & (wet > 0.15) & (blobs(h, w, rng, 1.5, 2.0) < wet * 0.75)
+    for y, x in zip(*np.nonzero(mos)):
+        cv.put(x0 + x, y0 + y, bm.MOSS[0] if lv[y, x] < 1.6 else bm.MOSS[1])
+    # 外沿磕掉的角：缝和外沿相交处，挖一个 2~3 像素的小缺口（缺口里暗，下唇受光）
+    rad = hs + t_ / 2
+    for b in range(1, len(edges) - 1):
+        if rng.random() < 0.45:
+            side = rng.choice([-1, 1])
+            for k in (1, 2)[: int(rng.integers(1, 3))]:
+                ang = np.radians(edges[b] + side * np.degrees(k / rad))
+                px = cx + (hs + t_ - 0.6) * np.cos(ang)
+                py = SPRING - (rise + t_ - 0.6) * np.sin(ang)
+                ix, iy = int(px - x0), int(py - y0)
+                if 0 <= iy < h and 0 <= ix < w and ring[iy, ix]:
+                    cv.put(px, py, SPAL[1])
+                    px2 = cx + (hs + t_ - 1.8) * np.cos(ang)
+                    py2 = SPRING - (rise + t_ - 1.8) * np.sin(ang)
+                    cv.put(px2, py2, SPAL[4] if np.cos(ang) > -0.3 else SPAL[2])
+    # 一两处大一点的缺口（一块券石崩掉一角）
+    for _ in range(int(rng.integers(1, 3))):
+        ang = rng.uniform(40, 140)
+        ar_ = np.radians(ang)
+        px = cx + (hs + t_ * 0.75) * np.cos(ar_)
+        py = SPRING - (rise + t_ * 0.75) * np.sin(ar_)
+        for k in range(int(rng.integers(3, 6))):
+            cv.put(px + k % 3, py + k // 3, SPAL[0] if k < 3 else SPAL[1])
+    # 外沿迎光那半边一道断断续续的冷亮边
+    for y, x in zip(*np.nonzero(ring & (tt > 1 - edge_px * 1.1) & (ext > 0.35) & ~seam)):
+        if (x * 7 + y * 3) % 9 < 6:
+            cv.put(x0 + x, y0 + y, SPAL[5])
+    # 拱腹（桥的厚度）：洞里贴着石沿一条 3 像素的暗带，越往拱脚越窄；几道水渍从这里往下挂
+    inside = (ri < 1) & (ri > 0.93 - 0.05 * (np.sin(ar) > 0.5)) & (yy < SPRING - 6)
+    lvs = 0.6 + (blobs(h, w, rng, 1.5, 3.0) - 0.5) * 1.2 + (ri - 0.95) * 10
+    lv_to(cv, inside, lvs, SPAL, x0, y0)
+    for _ in range(int(rng.integers(3, 6))):
+        ang = rng.uniform(35, 145)
+        ar_ = np.radians(ang)
+        px = int(cx + hs * 0.94 * np.cos(ar_))
+        py = int(SPRING - rise * 0.94 * np.sin(ar_))
+        for k in range(int(rng.integers(3, 9))):
+            if cv.a[py + k, px, 3]:
+                cv.put(px, py + k, SPAL[0] if k % 3 else bm.MOSS[0])
+
+
+def water_mark(cv, piers, rng):
+    """桥墩上的旧水位：线以下深一档、湿（偶尔一点湿亮的冷边），线上一层发灰的薄泥壳（冷灰，不是黄），
+    线下挂几缕长短不一的干水草和往下的水渍。"""
+    below = piers & (np.arange(H)[:, None] > OLD_WATER)
+    lighten(cv, below, -0.025)
+    wet = piers & (np.arange(H)[:, None] > OLD_WATER) & (np.arange(H)[:, None] < OLD_WATER + 5)
+    lighten(cv, wet, -0.015)
+    xs = np.nonzero(piers[OLD_WATER])[0]
+    crust = blue(0.24, 0.012, 230)
+    run = 0
+    for x in xs:
+        run = run - 1 if run > 0 else (int(rng.integers(3, 9)) if rng.random() < 0.12 else 0)
+        if run:                                                         # 线断开的地方（泥壳掉了）
             continue
-        carve2(cv, wx, wy, 8, 12, "arch", lit[j % 2], False, pal=SPAL)
+        if rng.random() < 0.7:
+            cv.put(x, OLD_WATER - 1, crust)
+        cv.put(x, OLD_WATER, SPAL[0])
+        if rng.random() < 0.25:
+            cv.put(x, OLD_WATER + 1, SPAL[3])                         # 一点湿亮
+        if rng.random() < 0.12:
+            for k in range(int(rng.integers(2, 9))):
+                if piers[OLD_WATER + 1 + k, x]:
+                    cv.put(x, OLD_WATER + 1 + k, bm.MOSS[0] if k < 3 else SPAL[0])
+
+
+def imposts(cv, x0, x1, y, rng):
+    """拱脚压的一条长石：顶面一道受光（右边更亮）、正面、底下一道影；两头的角磕圆了。"""
+    for x in range(x0, x1 + 1):
+        u = (x - x0) / max(1, x1 - x0)
+        cv.put(x, y, SPAL[4] if u > 0.35 or (x % 3) else SPAL[3])
+        cv.put(x, y + 1, SPAL[3])
+        cv.put(x, y + 2, SPAL[2] if rng.random() < 0.8 else SPAL[3])
+        cv.put(x, y + 3, SPAL[0])
+    cv.put(x0, y, SPAL[2])
+    cv.put(x1, y, SPAL[5])
+    cv.put(x1, y + 1, SPAL[4])
+
+
+def deck_slab(cv, x0, x1, rng):
+    """桥面：一长条厚石板，一段段长短不一（18~44 像素）。顶面受月光、正面中间暗、下沿挑出一道影；
+    接缝处顶角磕圆；顶上一层苔（一团一团，不均匀）；下沿偶尔挂几缕苔、几道水渍。"""
+    x = x0
+    k = 0
+    while x < x1:
+        ln = int(rng.integers(18, 45))
+        xe = min(x1, x + ln)
+        tone = rng.choice([-0.4, 0, 0, 0.35])
+        for xx in range(x, xe):
+            y0 = DECK - 1 + int(round(0.6 * np.sin(xx / 11.0)))
+            u = (xx - x) / max(1, xe - x)
+            for d in range(8):
+                lv = (4.1 if d == 0 else 3.2 if d == 1 else 2.2 if d < 5 else 1.6 if d < 7 else 0.2) + tone
+                lv += 0.5 * (u > 0.8) * (d < 2) - 0.6 * (u < 0.08) * (0 < d < 7)
+                cv.put(xx, y0 + d, SPAL[int(np.clip(round(lv), 0, 5))])
+            if xx == x:                                                 # 接缝
+                for d in range(1, 7):
+                    cv.put(xx, y0 + d, SPAL[0])
+                cv.put(xx, y0, SPAL[2])
+        x = xe
+        k += 1
+    mz = blobs(1, x1 - x0 + 1, rng, 1, 5)[0]
+    for xx in range(x0, x1):
+        y0 = DECK - 1 + int(round(0.6 * np.sin(xx / 11.0)))
+        m = mz[xx - x0]
+        if m > 0.45:
+            cv.put(xx, y0 - 1, bm.MOSS[1] if m < 0.7 else bm.MOSS[2])
+            if m > 0.72:
+                cv.put(xx, y0 - 2, bm.MOSS[1])
+        if m > 0.62:
+            cv.put(xx, y0, bm.MOSS[0])
+        if rng.random() < 0.035:
+            for d in range(1, int(rng.integers(3, 9))):
+                cv.put(xx, y0 + 7 + d, bm.MOSS[0] if d < 3 else SPAL[0])
+
+
+def ornament_row(cv, x0, x1, base, rng):
+    """屋脊上一排小石像（远看像栏杆）：大小、种类不一（蹲兽、抱膝小人、圆顶小柱、断了只剩一截的），
+    间距有疏有密、偶尔缺一个；每个左暗右亮（月光右上），右沿一道冷亮边，脚下一点影。"""
+    x = x0 + int(rng.integers(0, 6))
+    while x < x1 - 4:
+        x += int(rng.integers(9, 17))
+        if x >= x1 - 4 or rng.random() < 0.13:
+            continue
+        kind = rng.choice(["beast", "sit", "post", "post", "stump", "beast", "sit"])
+        k = rng.choice([0.8, 1.0, 1.0, 1.2, 1.4])
+        c = Cv(14, 14)
+        cxl = 6
+        if kind == "beast":
+            hb = int(5 * k)
+            c.fill(c.mask_of_ellipse(cxl - 3 * k, 13 - hb, cxl + 3 * k, 13), (1, 1, 1))
+            c.fill(c.mask_of_ellipse(cxl - 1 * k, 13 - hb - 3 * k, cxl + 2.5 * k, 13 - hb + 1), (1, 1, 1))
+            c.put(cxl, 13 - hb - 3 * k, (1, 1, 1))
+            c.put(cxl + 2 * k, 13 - hb - 3 * k, (1, 1, 1))
+        elif kind == "sit":
+            c.fill(c.mask_of_ellipse(cxl - 2.5 * k, 13 - 5 * k, cxl + 2.5 * k, 13), (1, 1, 1))
+            c.fill(c.mask_of_ellipse(cxl - 1.5 * k, 13 - 8 * k, cxl + 1.5 * k, 13 - 5 * k), (1, 1, 1))
+        elif kind == "post":
+            c.rect(cxl - 1, 13 - int(6 * k), cxl + 1, 13, (1, 1, 1))
+            c.fill(c.mask_of_ellipse(cxl - 2, 13 - int(6 * k) - 3, cxl + 2, 13 - int(6 * k) + 1), (1, 1, 1))
+        else:
+            c.rect(cxl - 1, 13 - int(rng.integers(2, 4)), cxl + 2, 13, (1, 1, 1))
+            c.a[13 - 3, cxl + 2] = 0                                      # 断口缺一角
+        m = c.a[..., 3] > 0
+        if not m.any():
+            continue
+        ys, xs = np.nonzero(m)
+        lvm = np.zeros(m.shape)
+        for y in set(ys):
+            row = np.nonzero(m[y])[0]
+            for xx in row:
+                u = (xx - row[0]) / max(1, row[-1] - row[0])
+                lvm[y, xx] = 1.6 + 1.6 * u + (0.6 if y == ys.min() else 0)
+            lvm[y, row[-1]] = 4.6                                       # 右沿冷亮边
+        if rng.random() < 0.3:                                         # 有的长了苔
+            lvm[ys.max() - 1:, :] -= 1.0
+        lv_to(cv, m, lvm, SPAL, x - cxl, base - 13)
+        cv.put(x - 2, base + 1, SPAL[0])
+        cv.put(x - 1, base + 1, SPAL[0])
+
+
+def house_in_spandrel(cv, cx, i, rng, spand):
+    """拱肩这块大石头里凿出来的一户：两三扇窗（大小、形状、亮不亮都不一样，有的是暗的）、一扇小门洞，
+    门口凿出的一条窄石台（台面受光、下面一道影）。不挂晾晒的东西。"""
+    r = np.random.default_rng(300 + i)
+    inner = 0 < i < len(PIERS) - 1
+    wy = DECK + 13
+    slots = [(cx - 15, wy + int(r.integers(0, 4))), (cx + 6, wy + int(r.integers(-1, 3)))] if inner else [(cx - 5, wy + 2)]
+    if inner and r.random() < 0.6:
+        slots.append((cx + int(r.integers(-6, 4)), wy + 22 + int(r.integers(0, 4))))
+    for j, (wx, y) in enumerate(slots):
+        kind = r.choice(["arch", "arch", "round", "rect"])
+        ww = int(r.choice([6, 7, 8, 9])) if kind != "round" else int(r.choice([6, 7]))
+        wh = ww if kind == "round" else ww + int(r.integers(3, 7))
+        if not spand[y - 2:y + wh + 3, wx - 2:wx + ww + 3].all():
+            continue
+        lit = r.random() < 0.6
+        carve2(cv, wx, y, ww, wh, kind, lit, False, pal=SPAL)
+        if lit and r.random() < 0.5:                                   # 有的窗里一根石棂
+            for yy in range(y + ww // 2, y + wh):
+                cv.put(wx + ww // 2, yy, bm.WARM[0])
+        cv.rect(wx - 1, y + wh + 1, wx + ww, y + wh + 1, SPAL[2])       # 窗台下一道影
     if inner:
-        dy = wy + 36
-        if spand[dy:dy + 16, cx - 5:cx + 6].all():
-            carve2(cv, cx - 4, dy, 8, 14, "arch", i == 2, True, pal=SPAL)
-            cv.rect(cx - 9, dy + 14, cx + 9, dy + 15, SPAL[4])         # 门口凿出的一条窄台
-            cv.rect(cx - 9, dy + 14, cx + 9, dy + 14, SPAL[5])
-        ly = wy + 22
-        x0, x1 = cx - 26, cx + 26
-        while not spand[ly, x0]:
-            x0 += 1
-        while not spand[ly, x1]:
-            x1 -= 1
-        cv.line(x0, ly, x1, ly + 1, ROPE_C)
-        for bx, bw, bc in ((cx - 12, 6, col(0.3, 0.03, 20)), (cx + 4, 5, col(0.32, 0.03, 195))):
-            cv.rect(bx, ly + 1, bx + bw, ly + 6, bc)
+        dy = wy + 36 + int(r.integers(-2, 3))
+        dw = int(r.choice([8, 9, 10]))
+        if spand[dy:dy + 18, cx - 6:cx + 7].all():
+            carve2(cv, cx - dw // 2, dy, dw, dw + 6, "arch", r.random() < 0.6, True, pal=SPAL)
+            ly = dy + dw + 6
+            for x in range(cx - 8, cx + 9):                              # 门口一条窄石台：台面受光、下面一道影，边上磕了
+                if x in (cx - 8, cx + 8) and r.random() < 0.5:
+                    continue
+                cv.put(x, ly, SPAL[4] if x > cx - 4 else SPAL[3])
+                cv.put(x, ly + 1, SPAL[2])
+                cv.put(x, ly + 2, SPAL[0])
 
 
-def figure(cv, x, base, rng):
-    """屋脊上的小石像（蹲着的兽 / 坐着的小人 / 圆顶小石柱）：5×7 的剪影，右边一条亮边。"""
-    kind = int(rng.integers(0, 3))
-    c, cl, cd = SPAL[3], SPAL[5], SPAL[1]
-    cv.rect(x - 1, base - 1, x + 3, base, cd)
-    if kind == 0:
-        cv.rect(x - 1, base - 5, x + 2, base - 2, c)
-        cv.rect(x, base - 7, x + 2, base - 6, c)
-        cv.put(x + 3, base - 7, c)
-    elif kind == 1:
-        cv.rect(x, base - 5, x + 2, base - 2, c)
-        cv.rect(x, base - 8, x + 1, base - 7, c)
-    else:
-        cv.rect(x, base - 6, x + 2, base - 2, c)
-        cv.put(x + 1, base - 7, c)
-    for y in range(base - 8, base - 1):
-        for xx in range(x + 3, x - 2, -1):
-            if cv.a[y, xx, 3] and tuple(cv.a[y, xx, :3]) == tuple(c[:3]):
-                cv.put(xx, y, cl)
-                break
+def lamp_string(cv, p0, p1, sag, n, rng):
+    """两点之间一根下垂的旧绳，挂一串小灯（灯挂在绳下 2~3 像素，亮度不一，有一盏不亮），每盏一小圈暖光往外渐弱。"""
+    (xa, ya), (xb, yb) = p0, p1
+    rope = col(0.2, 0.012, 250)
+    steps = int(max(abs(xb - xa), abs(yb - ya)) * 1.5) + 1
+    pts = []
+    for k in range(steps + 1):
+        t = k / steps
+        x = xa + (xb - xa) * t
+        y = ya + (yb - ya) * t + sag * 4 * t * (1 - t)
+        cv.put(x, y, rope)
+        pts.append((x, y))
+    dark = int(rng.integers(0, n))
+    for i in range(n):
+        t = (i + 0.5 + rng.uniform(-0.15, 0.15)) / n
+        x, y = pts[int(t * steps)]
+        x, y = int(round(x)), int(round(y))
+        hang = int(rng.integers(2, 4))
+        for d in range(1, hang):
+            cv.put(x, y + d, rope)
+        ly = y + hang
+        if i == dark:
+            cv.rect(x - 1, ly, x + 1, ly + 2, SPAL[1])
+            cv.put(x, ly + 1, bm.WARM[0])
+            continue
+        br = rng.choice([3, 4, 4])
+        cv.rect(x - 1, ly, x + 1, ly + 2, bm.WARM[br - 1])
+        cv.put(x, ly + 1, bm.WARM[br])
+        cv.put(x - 1, ly, bm.WARM[0])
+        for ddx, ddy in ((-2, 1), (2, 1), (0, -1), (0, 4), (-2, 3), (2, -1)):    # 一小圈暖光（只在空处点几颗，往外很快没了）
+            xx_, yy_ = x + ddx, ly + ddy
+            if 0 <= xx_ < cv.w and 0 <= yy_ < cv.h and cv.a[yy_, xx_, 3] == 0 and (xx_ + yy_) % 2 == 0:
+                cv.put(xx_, yy_, bm.WARM[0])
 
 
 def lamp_post(cv, x, base):
-    """桥上的灯柱：一根细石柱（方座、柱身、宽顶石），柱头凿空成灯室，四面小窗透暖黄；右边伸出一个挂浮灯绳的石钩。"""
+    """桥上的灯柱：一根细石柱（方座、两段柱身、宽顶石），柱头凿空成灯室，凿出的拱口里透暖光（里亮外暗、光落到灯室的石头上），
+    左暗右亮、右沿冷亮边；右边伸出一个挂浮灯绳的石钩（取景框里的绳从这里垂下）。
+    每根的顶和磕掉的角都有点不一样。"""
+    rng = np.random.default_rng(x)
     top = 18
-    cv.rect(x - 3, base - 4, x + 4, base, SPAL[2])
-    cv.rect(x - 3, base - 4, x + 4, base - 4, SPAL[4])
-    cv.rect(x - 1, top + 10, x + 2, base - 4, SPAL[2])
-    cv.rect(x + 2, top + 10, x + 2, base - 4, SPAL[4])
-    cv.rect(x - 1, top + 10, x - 1, base - 4, SPAL[1])
-    cv.rect(x - 3, top + 1, x + 4, top + 9, SPAL[2])
-    cv.rect(x - 2, top + 3, x + 3, top + 7, bm.WARM[3])
-    cv.rect(x, top + 4, x + 1, top + 6, bm.WARM[4])
-    cv.rect(x + 4, top + 1, x + 4, top + 9, SPAL[4])
-    cv.poly([(x - 5, top + 1), (x + 1, top - 4), (x + 6, top + 1)], SPAL[3])
-    cv.line(x + 1, top - 4, x + 6, top + 1, SPAL[5])
+    for xx in range(x - 3, x + 5):                                      # 方座
+        u = (xx - (x - 3)) / 7
+        for yy in range(base - 4, base + 1):
+            cv.put(xx, yy, SPAL[1 if u < 0.25 else 2 if u < 0.7 else 3])
+        cv.put(xx, base - 4, SPAL[4] if u > 0.3 else SPAL[3])
+    if rng.random() < 0.5:
+        cv.put(x + 4, base - 4, SPAL[1])                                  # 磕掉的角
+    jy = (top + 10 + base - 4) // 2 + int(rng.integers(-3, 4))
+    for yy in range(top + 10, base - 4):                                 # 柱身：左暗、中、右亮、右沿冷边；中间一道接缝
+        cv.put(x - 1, yy, SPAL[1])
+        cv.put(x, yy, SPAL[2])
+        cv.put(x + 1, yy, SPAL[3])
+        cv.put(x + 2, yy, SPAL[4] if yy % 5 else SPAL[3])
+    for xx in range(x - 1, x + 3):
+        cv.put(xx, jy, SPAL[0])
+        cv.put(xx, jy + 1, SPAL[3] if xx > x - 1 else SPAL[2])
+    for xx in range(x - 3, x + 5):                                      # 灯室
+        u = (xx - (x - 3)) / 7
+        for yy in range(top + 1, top + 10):
+            cv.put(xx, yy, SPAL[1 if u < 0.2 else 2 if u < 0.75 else 4])
+        cv.put(xx, top + 9, SPAL[3] if u > 0.3 else SPAL[2])
+    carve2(cv, x - 1, top + 2, 4, 7, "arch", True, False, pal=SPAL)
+    if rng.random() < 0.5:                                               # 顶：尖的 / 平一点的
+        cv.poly([(x - 5, top + 1), (x + 1, top - 4), (x + 6, top + 1)], SPAL[2])
+        cv.line(x + 1, top - 4, x + 6, top + 1, SPAL[5])
+        cv.line(x - 5, top + 1, x, top - 3, SPAL[1])
+    else:
+        cv.rect(x - 4, top - 1, x + 5, top, SPAL[2])
+        cv.rect(x - 2, top - 3, x + 3, top - 2, SPAL[2])
+        cv.rect(x + 1, top - 3, x + 3, top - 3, SPAL[4])
+        cv.rect(x + 2, top - 1, x + 5, top - 1, SPAL[5])
+    cv.put(x + 1, top - 5, SPAL[3])
     cv.rect(x + 3, top + 11, x + 5, top + 12, SPAL[4])                # 石钩
+    cv.put(x + 3, top + 12, SPAL[2])
     cv.put(x + 5, top + 13, SPAL[4])
-    bm.glow(rc(cv), x + 0.5, top + 5, 9)
 
 
 def low_house(cv, cx, rng):
-    """右桥头（挡土墙上）一块凿出来的巨石屋：一扇亮着的拱窗、一扇门洞；石头顶上一排小石像离地面近（marker southbridge_ornament）。"""
-    r = rc(cv)
-    x0, y0 = bm.boulder_house(r, cx, 131, 64, 46, 77, openings=[], pal=SPAL)
+    """右桥头一块凿出来的巨石屋（和桥同一种石头料）：一扇亮着的拱窗、一扇透光的门洞；顶上一层苔。
+    marker southbridge_ornament 在这里：晨在这儿抬头看桥面那排小石像（「从下面看，是别人家的屋顶」）。
+    屋顶上原来也摆了一排小石像，贴着后面的桥身看不清、像石头上的划痕，去掉了。"""
+    r = np.random.default_rng(77)
+    w, h, base = 64, 46, 131
+    m = bm.blob_mask(w, h, r)
+    x0, y0 = int(cx - w // 2), int(base - h + 1)
+    cv.paste(bm.stone_shade(m, r, SPAL, facet_w=12.0), x0, y0)
+    for xx in range(w):
+        ys = np.nonzero(m[:, xx])[0]
+        if len(ys) and r.random() < 0.5:
+            cv.put(x0 + xx, y0 + ys[0], bm.MOSS[2] if r.random() < 0.4 else bm.MOSS[1])
+            if r.random() < 0.2:
+                for d in range(1, int(r.integers(2, 6))):
+                    cv.put(x0 + xx, y0 + ys[0] + d, bm.MOSS[0])
     for (kind, ox, oy, ow, oh, lit, door) in (("arch", 14, 16, 9, 13, True, False), ("arch", 38, 0, 10, 18, True, True)):
-        carve2(cv, x0 + ox, 131 - oy - oh + 1, ow, oh, kind, lit, door, pal=SPAL)
-    for k in range(5):
-        fx = x0 + 10 + k * 11
-        col_ = cv.a[:, fx, 3]
-        ys = np.nonzero(col_[y0:132])[0]
-        if len(ys):
-            big_figure(cv, fx, y0 + ys[0] - 1, k)
-
-
-def big_figure(cv, x, base, k):
-    c, cl, cd = SPAL[3], SPAL[5], SPAL[1]
-    cv.rect(x - 2, base - 1, x + 3, base, cd)
-    if k % 2 == 0:   # 蹲兽：耳朵、背、尾巴卷
-        cv.rect(x - 2, base - 6, x + 2, base - 2, c)
-        cv.rect(x - 1, base - 9, x + 2, base - 7, c)
-        cv.put(x - 1, base - 10, c)
-        cv.put(x + 2, base - 10, c)
-        cv.rect(x + 3, base - 5, x + 3, base - 3, c)
-        cv.rect(x + 2, base - 9, x + 2, base - 7, cl)
-        cv.put(x, base - 8, cd)
-    else:            # 小人：抱着膝盖
-        cv.rect(x - 1, base - 6, x + 2, base - 2, c)
-        cv.rect(x - 1, base - 9, x + 1, base - 7, c)
-        cv.rect(x + 2, base - 6, x + 2, base - 2, cl)
-        cv.put(x + 1, base - 9, cl)
+        carve2(cv, x0 + ox, base - oy - oh + 1, ow, oh, kind, lit, door, pal=SPAL)
 
 
 def fallen_float_lamp(cv, x, g):
@@ -1457,7 +1689,8 @@ def mooring_lamp(cv, x, base):
     cv.rect(x - 2, base - 26, x - 2, base, RPAL[1])
     cv.rect(x - 3, base - 28, x + 4, base - 26, RPAL[3])
     cv.rect(x - 3, base - 28, x + 4, base - 28, RPAL[4])
-    cv.rect(x - 2, base - 12, x + 3, base - 11, ROPE_C)
+    cv.rect(x - 2, base - 12, x + 3, base - 11, col(0.2, 0.012, 250))     # 桩脚缠的旧绳（暗，不发白）
+    cv.put(x + 3, base - 12, RPAL[3])
     bm.lantern(rc(cv), x, base - 32, "post", r=13)
 
 
@@ -1466,13 +1699,44 @@ PLATE_XS = (D0 + 1372, D0 + 1392, D0 + 1412)   # 编号牌 07 / 12 / 21 挂在�
 LINTEL = (D0 + 1356, D0 + 1428, 92)           # 石门框：两根石柱 + 一条横梁（x0, x1, 梁顶 y）
 
 
+def stone_post(cv, x0, top, base, w, rng):
+    """一根石柱（几段鼓石摞起来）：左暗右亮，右沿一道冷亮边；鼓石之间的缝高低不一、角磕掉；
+    面上 2~3 色的小色团；柱脚一段暗（和地面交接的影）、长一点苔。"""
+    h = base - top + 1
+    m = np.zeros((h, w + 2), bool)
+    for y in range(h):
+        sh = 1 if (y // 9) % 3 == 1 else 0
+        m[y, sh:sh + w] = True
+    nz = blobs(h, w + 2, rng, 2.0, 2.0)
+    yy, xx = np.mgrid[0:h, 0:w + 2]
+    lv = 2.0 + 2.0 * (xx / (w + 1)) + (nz - 0.5) * 1.0
+    joints = sorted(set(int(v) for v in rng.integers(8, h - 6, size=max(1, h // 22))))
+    for j in joints:
+        lv[j, :] = 0.2
+        lv[j + 1, :] += 0.8                                            # 缝下面那段石头的顶边受光
+        if rng.random() < 0.6:
+            lv[j - 1, w - 1:] = 0.4
+    lv[0, :] += 1.0
+    lv[:, -1] += 0
+    for y in range(h):
+        row = np.nonzero(m[y])[0]
+        lv[y, row[-1]] = 4.4 if (y + int(x0)) % 5 else 3.6             # 右沿冷亮边
+        lv[y, row[0]] = min(lv[y, row[0]], 1.0)
+    lv -= np.clip((yy - (h - 6)) / 6.0, 0, 1) * 1.4                    # 柱脚的影
+    lv_to(cv, m, lv, RPAL + [SPAL[5]], x0, top)
+    for y in range(h - 5, h):
+        for x in range(w):
+            if nz[y, x] < 0.35:
+                cv.put(x0 + x, top + y, bm.MOSS[0])
+
+
 def dock_shed(cv, rng):
     """货台背后：一块凿出货棚的巨石（门洞里暗、往里渐深，正面一块磨平的石面贴航线图），右边一个孤零零的石门框
     （两根石柱 + 一条横梁，编号牌挂在梁底下，梁头挂一盏还亮着的灯），门框里、头顶上都透着月夜；石系船桩。"""
     r = rc(cv)
     bx0, bw, bh = D0 + 1214, 128, 104
     m = bm.blob_mask(bw, bh, rng, p=2.2, lump=0.1)
-    img = bm.shade_mass(m, rng, SPAL, cracks=5, strata=3)
+    img = bm.stone_shade(m, rng, SPAL, facet_w=8.0, ledges=0.3)
     cv.paste(img, bx0, DOCK_Y - bh + 1)
     for xx in range(bw):                                              # 顶上一层苔、几缕垂下来
         ys = np.nonzero(m[:, xx])[0]
@@ -1491,14 +1755,10 @@ def dock_shed(cv, rng):
     for nx in (mx + 3, mx + mw - 3):
         cv.put(nx, my + 3, SPAL[0])
     x0, x1, ty = LINTEL                                                # 石门框
-    for px in (x0, x1 - 6):
-        cv.rect(px, ty + 6, px + 6, DOCK_Y, RPAL[2])
-        cv.rect(px + 6, ty + 6, px + 6, DOCK_Y, RPAL[4])
-        cv.rect(px, ty + 6, px, DOCK_Y, RPAL[1])
-        for y in range(ty + 30, DOCK_Y, 23):
-            cv.rect(px + 1, y, px + 5, y, RPAL[0])
+    for k, px in enumerate((x0, x1 - 6)):
+        stone_post(cv, px, ty + 6, DOCK_Y, 7, np.random.default_rng(90 + k))
     lm = bm.blob_mask(x1 - x0 + 8, 9, rng, p=4.0, lump=0.04)
-    cv.paste(bm.shade_mass(lm, rng, SPAL, cracks=1, strata=0), x0 - 4, ty)
+    cv.paste(bm.stone_shade(lm, rng, SPAL, facet_w=8.0, ledges=0.3), x0 - 4, ty)
     cv.rect(x0 - 3, ty + 8, x1 + 3, ty + 8, SPAL[0])
     for px in PLATE_XS:
         cv.rect(px - 1, ty + 9, px, ty + 10, IRON[4])
@@ -1541,22 +1801,22 @@ def sb_mid():
     cv = Cv(MID_W, H)
     # 对面的泥岸（桥洞里看得见的那一条）：上沿受光，往下沉进暗里
     prof = smooth1d(MID_W, rng, 80, 2.0)
+    mbk = blobs(H, MID_W, rng, 1.5, 5.0)
     for x in range(MID_W):
         top = int(MID_BANK + prof[x])
         cv.put(x, top, MUD[4])
         cv.put(x, top + 1, MUD[3])
         for y in range(top + 2, H):
             t = (y - top) / 30
-            k = 2.6 - t * 2.5 + (BAYER[y % 4, x % 4] - 0.5) * 0.8
+            k = 2.6 - t * 2.5 + (mbk[y, x] - 0.5) * 1.4
             cv.put(x, y, MUD[int(np.clip(np.floor(k), 0, 3))])
     # 石像：立在河里（脚下一圈水线），互相隔得很开
     pal = [blue(v, None, 256) for v in (0.1, 0.14, 0.19, 0.25, 0.31, 0.38)]
-    for sx, w, h, kind, seed in ((250, 26, 64, "robe", 1), (452, 30, 78, "robe", 2), (660, 34, 40, "head", 3), (860, 30, 52, "sit", 4),
-                                 (1150, 24, 46, "head", 5)):
+    for sx, w, h, kind, seed in ((250, 26, 64, "robe", 1), (452, 30, 78, "robe", 2), (860, 30, 52, "sit", 4)):
         sx += MID_DX
         r = np.random.default_rng(seed)
         m = statue_mask(w, h, kind, r)
-        img = shade_rock(m, r, pal, cracks=(1, 3), seams=False)
+        img = bm.stone_shade(m, r, pal, facet_w=8.0, ledges=0.2, moss=0.3)
         base = MID_BANK - 6
         cv.paste(img, sx - w // 2, base - h + 1)
         for x in range(sx - w // 2 - 3, sx + w // 2 + 4):          # 水线：一道亮的小涟漪
@@ -1579,10 +1839,6 @@ def sb_mid():
         cv.put(fx, fy - 6, IRON[2])
         for k in range(1, 4):
             cv.put(fx + (k % 2), fy + 1 + k * 2, WARM3)
-    bx = 556 + MID_DX
-    cv.poly([(bx, MID_BANK - 6), (bx + 34, MID_BANK - 6), (bx + 28, MID_BANK - 1), (bx + 5, MID_BANK - 1)], WOOD[1])
-    cv.line(bx, MID_BANK - 6, bx + 34, MID_BANK - 6, WOOD[4])
-    cv.line(bx + 34, MID_BANK - 6, bx + 46, MID_BANK - 24, ROPE_C)
     return cv
 
 
@@ -1662,11 +1918,11 @@ def sb_objects(main):
             for (bx, by, bw, bh) in ((12, 196, 26, 32), (36, 190, 30, 38), (64, 200, 24, 28), (24, 170, 22, 24),
                                      (50, 168, 20, 24), (38, 152, 18, 18)):
                 m = bm.blob_mask(bw, bh, r)
-                c.paste(bm.shade_mass(m, r, RPAL, cracks=1, strata=0), bx, by - oy)
-            for x in range(12, 90, 2):                                  # 垂下来的干水草
-                ln = int(r.integers(4, 22))
+                c.paste(bm.stone_shade(m, r, RPAL, facet_w=8.0, ledges=0.3), bx, by - oy)
+            for x in (17, 23, 31, 44, 58, 66, 79):                       # 洞顶垂下来几缕干水草：长短不一、颜色压到接近石头
+                ln = int(r.integers(4, 19))
                 for t in range(ln):
-                    c.put(x + (t // 5) % 2, 150 - oy + t, MOSS[1] if t < 6 else MOSS[0])
+                    c.put(x + (t // 6) % 2 * (1 if x % 2 else -1), 150 - oy + t, bm.MOSS[0] if t < ln - 2 else SPAL[1])
         else:
             c = Cv(100, 92)
             c.a[:] = main.a[oy:oy + 92, ox:ox + 100]
@@ -1687,7 +1943,7 @@ def sb_objects(main):
                     c.put(x, SB_G - 3 - oy, bm.WARM[1] if abs(x - 50) < 6 else bm.WARM[0])
             for (bx, by, bw, bh) in ((0, 204, 16, 24), (84, 206, 16, 22)):
                 m = bm.blob_mask(bw, bh, r)
-                c.paste(bm.shade_mass(m, r, RPAL, cracks=1, strata=0), bx, by - oy)
+                c.paste(bm.stone_shade(m, r, RPAL, facet_w=8.0, ledges=0.3), bx, by - oy)
         fr.append(c.a.copy())
     out["southbridge_waterway"] = (ox, oy, fr, {"states": {"default": 0, "revealed": 1}, "click": [ox + 10, 150, 80, 78]})
     # ---- 航线图：default 贴在货棚巨石磨平的那块石面上（几条航线，最右一条通到云层星）；fallen = 掉在台面上卷着
@@ -1701,6 +1957,15 @@ def sb_objects(main):
             c.rect(2, mh - 1, mw - 1, mh - 1, MAP_D)
             c.poly([(mw - 7, mh - 1), (mw - 1, mh - 7), (mw - 1, mh - 1)], MAP_D)   # 卷起的一角
             c.rect(4, 4, 22, 5, INK)
+            wear = blobs(mh, mw, np.random.default_rng(12), 2.5, 3.5)         # 受潮的旧纸：一团团发暗的水渍、边上磨毛
+            for yy_ in range(3, mh - 1):
+                for xx_ in range(3, mw - 1):
+                    if wear[yy_, xx_] < 0.12 + 0.22 * max(0.0, yy_ / mh - 0.55) / 0.45:
+                        c.put(xx_, yy_, MAP_D)
+            for xx_ in range(2, mw):
+                if (xx_ * 5) % 7 == 0:
+                    c.a[2, xx_] = 0
+            c.rect(2, 2, 2, mh - 1, MAP_D)
             pts = [(7, 34), (20, 30), (31, 21), (41, 17), (48, 10)]
             for (a_, b_), (cc, d_) in zip(pts, pts[1:]):
                 c.line(a_, b_, cc, d_, INK)

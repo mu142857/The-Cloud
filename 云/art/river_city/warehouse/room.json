@@ -1,7 +1,11 @@
 {
- "_note": "tools/river_warehouse_bridge_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。远景层是原来的水底（art/underwater）。",
+ "_note": "tools/river_underwater_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。0..690 是作者原来的水底（art/underwater 原图 + scripts/river_uw_fx.gd 照 underwater_test.tscn 搭的动效），690..1360 是泡在水底的半塌石头仓库。origin 让入口正好在旧街仓库入口（1066）的正下方，下水是竖直平移。",
  "size": [
-  720,
+  1360,
+  270
+ ],
+ "origin": [
+  4026,
   270
  ],
  "env": "underwater",
@@ -14,44 +18,50 @@
    "id": "deep",
    "img": "res://art/underwater/deep.png",
    "scroll": 0.0,
-   "y": 0
+   "y": 0,
+   "z": -100
   },
   {
    "id": "distant",
    "img": "res://art/underwater/distant.png",
    "scroll": 0.05,
    "y": 0,
-   "tile": true
+   "tile": true,
+   "z": -98
   },
   {
    "id": "far",
    "img": "res://art/underwater/far.png",
    "scroll": 0.08,
    "y": 0,
-   "tile": true
+   "tile": true,
+   "z": -96
   },
   {
    "id": "midfar",
    "img": "res://art/underwater/midfar.png",
    "scroll": 0.17,
    "y": 0,
-   "tile": true
+   "tile": true,
+   "z": -94
   },
   {
    "id": "head",
    "img": "res://art/underwater/head.png",
    "scroll": 0.3,
-   "x": -215,
    "y": 0,
-   "tile": true
+   "x": 40,
+   "tile": true,
+   "z": -92
   },
   {
    "id": "headweeds",
    "img": "res://art/underwater/headweeds.png",
    "scroll": 0.3,
-   "x": -215,
    "y": 182,
+   "x": 40,
    "tile": true,
+   "z": -90,
    "shader": "sway",
    "shader_params": {
     "amp": 2.0,
@@ -67,6 +77,7 @@
    "scroll": 0.52,
    "y": 20,
    "tile": true,
+   "z": -86,
    "shader": "sway",
    "shader_params": {
     "amp": 4.0,
@@ -80,59 +91,471 @@
    "id": "main",
    "img": "main.png",
    "scroll": 1.0,
-   "y": 0
+   "y": 0,
+   "z": -80
+  },
+  {
+   "id": "weeds",
+   "img": "weeds.png",
+   "scroll": 1.0,
+   "y": 96,
+   "z": -79,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 3.0,
+    "speed": 0.5,
+    "wavelength": 140.0,
+    "power": 1.6,
+    "bend": 0.08
+   }
+  },
+  {
+   "id": "bedweeds",
+   "img": "bedweeds.png",
+   "scroll": 1.0,
+   "y": 196,
+   "z": -78,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 2.0,
+    "speed": 0.6,
+    "wavelength": 120.0,
+    "power": 1.3,
+    "bend": 0.12
+   }
   },
   {
    "id": "shafts",
    "img": "shafts.png",
    "scroll": 1.0,
    "y": 0,
-   "alpha": 0.1,
+   "alpha": 0.12,
    "z": -15
   },
   {
    "id": "front",
    "img": "front.png",
-   "scroll": 1.2,
+   "scroll": 1.0,
    "y": 0,
    "front": true
+  },
+  {
+   "id": "kelpfront",
+   "img": "kelpfront.png",
+   "scroll": 1.4,
+   "y": 40,
+   "front": true,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 6.0,
+    "speed": 0.42,
+    "wavelength": 240.0,
+    "power": 1.6,
+    "bend": 0.03
+   }
   }
  ],
- "ground": 236,
+ "ground": [
+  [
+   0,
+   228
+  ],
+  [
+   8,
+   228
+  ],
+  [
+   16,
+   228
+  ],
+  [
+   24,
+   228
+  ],
+  [
+   32,
+   228
+  ],
+  [
+   40,
+   228
+  ],
+  [
+   48,
+   228
+  ],
+  [
+   56,
+   227
+  ],
+  [
+   64,
+   227
+  ],
+  [
+   72,
+   227
+  ],
+  [
+   80,
+   227
+  ],
+  [
+   88,
+   227
+  ],
+  [
+   96,
+   227
+  ],
+  [
+   104,
+   226
+  ],
+  [
+   112,
+   226
+  ],
+  [
+   120,
+   226
+  ],
+  [
+   128,
+   227
+  ],
+  [
+   136,
+   227
+  ],
+  [
+   144,
+   227
+  ],
+  [
+   152,
+   227
+  ],
+  [
+   160,
+   227
+  ],
+  [
+   168,
+   227
+  ],
+  [
+   176,
+   227
+  ],
+  [
+   184,
+   227
+  ],
+  [
+   192,
+   227
+  ],
+  [
+   200,
+   227
+  ],
+  [
+   208,
+   227
+  ],
+  [
+   216,
+   227
+  ],
+  [
+   224,
+   226
+  ],
+  [
+   232,
+   226
+  ],
+  [
+   240,
+   226
+  ],
+  [
+   248,
+   225
+  ],
+  [
+   256,
+   225
+  ],
+  [
+   264,
+   224
+  ],
+  [
+   272,
+   224
+  ],
+  [
+   280,
+   224
+  ],
+  [
+   288,
+   224
+  ],
+  [
+   296,
+   224
+  ],
+  [
+   304,
+   224
+  ],
+  [
+   312,
+   224
+  ],
+  [
+   320,
+   224
+  ],
+  [
+   328,
+   224
+  ],
+  [
+   336,
+   224
+  ],
+  [
+   344,
+   225
+  ],
+  [
+   352,
+   225
+  ],
+  [
+   360,
+   225
+  ],
+  [
+   368,
+   225
+  ],
+  [
+   376,
+   226
+  ],
+  [
+   384,
+   226
+  ],
+  [
+   392,
+   226
+  ],
+  [
+   400,
+   226
+  ],
+  [
+   408,
+   226
+  ],
+  [
+   416,
+   226
+  ],
+  [
+   424,
+   226
+  ],
+  [
+   432,
+   226
+  ],
+  [
+   440,
+   226
+  ],
+  [
+   448,
+   226
+  ],
+  [
+   456,
+   226
+  ],
+  [
+   464,
+   226
+  ],
+  [
+   472,
+   226
+  ],
+  [
+   480,
+   226
+  ],
+  [
+   488,
+   226
+  ],
+  [
+   496,
+   226
+  ],
+  [
+   504,
+   226
+  ],
+  [
+   512,
+   226
+  ],
+  [
+   520,
+   227
+  ],
+  [
+   528,
+   227
+  ],
+  [
+   536,
+   227
+  ],
+  [
+   544,
+   228
+  ],
+  [
+   552,
+   228
+  ],
+  [
+   560,
+   228
+  ],
+  [
+   568,
+   228
+  ],
+  [
+   576,
+   228
+  ],
+  [
+   584,
+   228
+  ],
+  [
+   592,
+   228
+  ],
+  [
+   600,
+   228
+  ],
+  [
+   608,
+   228
+  ],
+  [
+   616,
+   228
+  ],
+  [
+   624,
+   227
+  ],
+  [
+   632,
+   227
+  ],
+  [
+   640,
+   227
+  ],
+  [
+   648,
+   226
+  ],
+  [
+   656,
+   226
+  ],
+  [
+   664,
+   225
+  ],
+  [
+   672,
+   225
+  ],
+  [
+   680,
+   225
+  ],
+  [
+   686,
+   225
+  ],
+  [
+   694,
+   226
+  ],
+  [
+   1360,
+   226
+  ]
+ ],
  "markers": {
-  "warehouse_cabinet_top": 534,
-  "warehouse_cabinet_foot": 478,
   "warehouse_entry": 40,
   "warehouse_niff": 72,
   "warehouse_rope": 40,
-  "warehouse_boxes": 368,
-  "warehouse_broken_box": 284,
-  "warehouse_float": 442,
-  "warehouse_tall_cabinet": 500,
-  "warehouse_furniture": 527,
-  "warehouse_inner_door": 550,
-  "warehouse_cabinet": 598,
-  "warehouse_sluice_door": 664,
-  "warehouse_exit_light": 33,
-  "warehouse_knot_1": 230,
-  "warehouse_knot_2": 420
+  "warehouse_exit_light": 38,
+  "warehouse_boxes": 798,
+  "warehouse_broken_box": 862,
+  "warehouse_float": 934,
+  "warehouse_cabinet_foot": 978,
+  "warehouse_tall_cabinet": 1012,
+  "warehouse_cabinet_top": 1050,
+  "warehouse_furniture": 1066,
+  "warehouse_inner_door": 1093,
+  "warehouse_knot_1": 1124,
+  "warehouse_knot_2": 1166,
+  "warehouse_cabinet": 1211,
+  "warehouse_sluice_door": 1296
  },
  "walk": [
   24,
-  690
+  1330
+ ],
+ "walk_when": [
+  {
+   "prop": "warehouse_inner_door=closed",
+   "walk": [
+    24,
+    1082
+   ]
+  }
  ],
  "rope": {
   "prop": "warehouse_rope",
   "on": "on",
   "anchor": [
    33,
-   150
+   184
   ],
-  "end": 686,
-  "color": "#7b8a8a",
+  "end": 1326,
+  "color": "#66737a",
   "knots": [
-   230,
-   420
+   1124,
+   1166
   ]
  },
  "portals": [
@@ -140,7 +563,7 @@
    "to": "oldstreet",
    "at": "oldstreet_warehouse_entry",
    "kind": "pan_up",
-   "x": 33
+   "x": 40
   }
  ],
  "ambient": [
@@ -156,50 +579,94 @@
    "y": 0,
    "z": -12,
    "params": {
-    "count": 40,
+    "count": 60,
     "area": [
      0,
      40,
-     720,
+     1360,
      190
+    ]
+   }
+  },
+  {
+   "script": "res://scripts/river_uw_fx.gd",
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "params": {
+    "head_x": 40,
+    "bedlight": "res://art/river_city/warehouse/bedlight.png",
+    "pods": [
+     [
+      596,
+      227,
+      2
+     ]
+    ],
+    "bubbles": [
+     [
+      300,
+      225
+     ],
+     [
+      1120,
+      224
+     ],
+     [
+      1330,
+      224
+     ]
+    ],
+    "warm": [
+     [
+      38,
+      156
+     ]
     ]
    }
   }
  ],
  "objects": {
   "warehouse_float": {
-   "x": 420,
-   "y": 118,
-   "w": 146,
-   "h": 119,
-   "frames": 4,
+   "x": 918,
+   "y": 112,
+   "w": 170,
+   "h": 115,
+   "frames": 5,
    "z": -1,
    "click": [
-    430,
-    200,
-    24,
-    36
+    920,
+    180,
+    22,
+    24
    ],
+   "ms": 700,
    "states": {
-    "default": 0,
-    "idle": 0,
-    "tied_warehouse_cabinet_top": 1,
-    "tied_warehouse_cabinet_foot": 2,
-    "held": 3
+    "default": [
+     0,
+     1
+    ],
+    "idle": [
+     0,
+     1
+    ],
+    "tied_warehouse_cabinet_top": 2,
+    "tied_warehouse_cabinet_foot": 3,
+    "held": 4
    }
   },
   "warehouse_tall_cabinet": {
-   "x": 420,
-   "y": 118,
-   "w": 146,
-   "h": 119,
+   "x": 950,
+   "y": 136,
+   "w": 140,
+   "h": 91,
    "frames": 3,
    "z": -2,
    "click": [
-    470,
-    196,
-    74,
-    40
+    978,
+    176,
+    64,
+    44
    ],
    "states": {
     "default": 0,
@@ -209,17 +676,17 @@
    }
   },
   "warehouse_furniture": {
-   "x": 420,
-   "y": 118,
-   "w": 146,
-   "h": 119,
+   "x": 1020,
+   "y": 186,
+   "w": 68,
+   "h": 41,
    "frames": 4,
    "z": -3,
    "click": [
-    508,
-    200,
+    1048,
+    188,
     38,
-    36
+    38
    ],
    "states": {
     "default": 0,
@@ -230,10 +697,10 @@
    }
   },
   "warehouse_inner_door": {
-   "x": 545,
-   "y": 174,
-   "w": 10,
-   "h": 62,
+   "x": 1086,
+   "y": 164,
+   "w": 28,
+   "h": 63,
    "frames": 2,
    "z": -2,
    "states": {
@@ -243,10 +710,10 @@
    }
   },
   "warehouse_exit_light": {
-   "x": 25,
-   "y": 134,
+   "x": 30,
+   "y": 150,
    "w": 16,
-   "h": 8,
+   "h": 12,
    "frames": 2,
    "ms": 900,
    "states": {
@@ -261,10 +728,10 @@
    }
   },
   "warehouse_broken_box": {
-   "x": 258,
-   "y": 207,
-   "w": 56,
-   "h": 30,
+   "x": 838,
+   "y": 200,
+   "w": 52,
+   "h": 27,
    "frames": 2,
    "states": {
     "default": 0,
@@ -272,8 +739,8 @@
    }
   },
   "warehouse_knot_1": {
-   "x": 226,
-   "y": 148,
+   "x": 1120,
+   "y": 181,
    "w": 9,
    "h": 14,
    "frames": 2,
@@ -283,8 +750,8 @@
    }
   },
   "warehouse_knot_2": {
-   "x": 416,
-   "y": 148,
+   "x": 1162,
+   "y": 181,
    "w": 9,
    "h": 14,
    "frames": 2,
@@ -294,10 +761,10 @@
    }
   },
   "warehouse_sluice_door": {
-   "x": 640,
-   "y": 124,
+   "x": 1262,
+   "y": 112,
    "w": 70,
-   "h": 112,
+   "h": 115,
    "frames": 3,
    "states": {
     "default": 0,

@@ -102,6 +102,7 @@ def main():
         "frame": [fw, fh],
         "anchor": anchor,
         "faces": "right",
+        "speed": 70,      # 10-30 作者：妮芙走得太慢、老得等她（原来默认 36；跟晨时最快 2.2 倍 ≈ 晨跑步 150）
         "anims": {"swim": {"frames": list(range(len(crop))), "ms": ms[0] if len(set(ms)) == 1 else ms}},
         "alias": {"idle": "swim", "walk": "swim", "talk": "swim"},
         "forms": {

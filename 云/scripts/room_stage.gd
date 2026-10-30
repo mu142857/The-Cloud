@@ -19,7 +19,7 @@ const DEFAULT := {
 	"river_bank": {"size": [1280, 270], "origin": [0, 0], "env": "river_day",
 		"markers": {"river_bank_plane": 110, "river_bank_hatch": 150, "river_bank_home_door": 870},
 		"portals": [{"to": "market", "kind": "pan_up"}]},
-	"market": {"size": [1100, 270], "origin": [0, -270], "env": "river_day",
+	"market": {"size": [1100, 270], "origin": [880, -270], "env": "river_day",
 		"portals": [{"to": "river_bank", "kind": "pan_down"}, {"to": "oldstreet", "kind": "walk_fade"}]},
 	"oldstreet": {"size": [1200, 270], "origin": [3000, 0], "env": "river_day",
 		"portals": [{"to": "warehouse", "kind": "pan_down"}, {"to": "market", "kind": "walk_fade"},
@@ -377,9 +377,13 @@ func _make_object(oid: String, raw) -> void:
 	_apply_state(oid)
 
 
-## 剧本 prop 了、room.json 里没有的东西：在同名 marker 那里放一块占位色块（每个状态一档深浅）
+## 剧本 prop 了、room.json 里没有的东西：在同名 marker 那里放一块占位色块（每个状态一档深浅）。
+## 已经有 room.json（美术画好了）的房间不画色块（成片里会是一块灰方块），只打一行 ROOM_WARN 提醒美术补物件
 func add_placeholder_object(oid: String) -> void:
 	if objects.has(oid) or not markers.has(oid):
+		return
+	if has_json:
+		_warn("剧本 prop 了 %s，room.json 的 objects 里没有（不画占位；纯剧情状态可以加一个 1×1 的空物件）" % oid)
 		return
 	var x: float = markers[oid]
 	_make_object(oid, {"x": round(x - 8), "y": round(ground_local(x) - 15), "w": 16, "h": 16})
@@ -407,7 +411,10 @@ func prop_state(oid: String) -> String:
 
 
 func owns_prop(oid: String) -> bool:
-	return objects.has(oid) or (not is_nan(water_base) and str(cfg["water"].get("prop", "")) == oid)
+	if objects.has(oid) or (not is_nan(water_base) and str(cfg["water"].get("prop", "")) == oid):
+		return true
+	var rope = cfg.get("rope", null)                 # 导绳的开关（rope.prop）也算这个房间的
+	return rope is Dictionary and str(rope.get("prop", "")) == oid
 
 
 func _apply_state(oid: String) -> void:

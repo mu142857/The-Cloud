@@ -464,7 +464,7 @@ func _settle(limit: float) -> void:
 		elif story.dlg.menu_open():
 			story.dlg._menu_choose(story.dlg._menu_sel)
 		elif story.cockpit_ui != null:
-			story.cockpit_ui.dev_skip()
+			_cockpit_skip()
 	story.dlg.auto_delay = was
 
 
@@ -572,6 +572,12 @@ func _test_beat(d: Dictionary) -> void:
 	_test_go(d)
 
 
+## 驾驶舱小游戏 / 演出做完（直接回剖面）。没有 dev_skip 的（cockpit_dash 往前一冲：自动玩本来就照真实时长 7 秒播完）不管
+func _cockpit_skip() -> void:
+	if story.cockpit_ui != null and story.cockpit_ui.has_method("dev_skip"):
+		story.cockpit_ui.dev_skip()
+
+
 ## 自动玩到 flag 设上（flag 为空 = 到章节结尾），最多 limit 秒
 func _play_until(flag: String, limit: float) -> bool:
 	var waited := 0.0
@@ -580,7 +586,7 @@ func _play_until(flag: String, limit: float) -> bool:
 		await _wait(0.25)
 		waited += 0.25
 		if story.cockpit_ui != null:
-			story.cockpit_ui.dev_skip()
+			_cockpit_skip()
 	story.auto = ""
 	story.dlg.auto_delay = -1.0
 	return StoryState.has(flag) if flag != "" else story.ended
@@ -610,7 +616,7 @@ func _test_interrupt(d: Dictionary) -> void:
 			await get_tree().process_frame
 			waited += get_process_delta_time()
 			if story.cockpit_ui != null and str(it[0]) != "驾驶舱小游戏":
-				story.cockpit_ui.dev_skip()
+				_cockpit_skip()
 		d["hit"] = _in_state(str(it[0]))
 		d["scene"] = str(story._cur_scene) if story.busy else "-"
 		_push(_key(KEY_F8, true))
@@ -646,7 +652,7 @@ func _test_interrupt(d: Dictionary) -> void:
 		await _wait(0.25)
 		waited += 0.25
 		if story.cockpit_ui != null:
-			story.cockpit_ui.dev_skip()
+			_cockpit_skip()
 	story.auto = ""
 	print("DEV_TEST interrupt %s（%s scene=%s，F8 开面板=%s）→ %s · %s: %s  接着玩: %s" % [it[0],
 		"打断时正在" if d["hit"] else "没等到这种时候 NOT_HIT", d["scene"], d["open"], _chapter_name(str(to[0])),
@@ -699,7 +705,7 @@ func _check_sample(d: Dictionary) -> void:
 			await _wait(0.25)
 			waited += 0.25
 			if story.cockpit_ui != null:
-				story.cockpit_ui.dev_skip()
+				_cockpit_skip()
 		story.auto = ""
 		story.dlg.auto_delay = -1.0
 	var cont: bool = story.ended or StoryState.flag_order.size() >= n1 + 2

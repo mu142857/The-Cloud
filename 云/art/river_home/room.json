@@ -1,40 +1,206 @@
 {
- "_comment": "妮芙家（剖面小屋，月夜）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。tools/river_bank_moon_art.py 生成（屋内借 tools/river_home_art.py 的画法重新上色），别手改。地板下面泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
+ "_comment": "妮芙家（第三版：一整块巨石被掏空的三层洞屋，石阶往上）。格式照 docs/river_rooms_contract.md 1.6（多层：levels / stairs，见 scripts/room_stage.gd）；坐标都是图里的像素（左上角 0,0）。tools/river_home_rooms_art.py 生成，别手改。地面以下泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
  "kind": "house",
  "host": "river_bank",
  "x": 1570,
  "size": [
   420,
-  206
+  280
  ],
  "back": "home_back.png",
  "front": "home_front.png",
  "light": "home_light.png",
- "floor": 205,
+ "floor": 279,
  "walk": [
-  26,
-  392
+  24,
+  406
  ],
  "door": 48,
+ "levels": [
+  {
+   "id": "l0",
+   "floor": [
+    [
+     20,
+     279
+    ],
+    [
+     134,
+     279
+    ],
+    [
+     138,
+     276
+    ],
+    [
+     222,
+     276
+    ],
+    [
+     226,
+     279
+    ],
+    [
+     406,
+     279
+    ]
+   ],
+   "walk": [
+    24,
+    406
+   ],
+   "note": "门厅 → 厨房 → 上两级餐桌 → 储物 → 楼梯井 1"
+  },
+  {
+   "id": "l1",
+   "floor": [
+    [
+     20,
+     199
+    ],
+    [
+     110,
+     199
+    ],
+    [
+     113,
+     196
+    ],
+    [
+     198,
+     196
+    ],
+    [
+     202,
+     199
+    ],
+    [
+     342,
+     199
+    ]
+   ],
+   "walk": [
+    26,
+    340
+   ],
+   "note": "楼梯井 2 → 上一级卧室 → 收藏间"
+  },
+  {
+   "id": "l2",
+   "floor": [
+    [
+     94,
+     129
+    ],
+    [
+     172,
+     129
+    ],
+    [
+     206,
+     94
+    ],
+    [
+     320,
+     94
+    ]
+   ],
+   "walk": [
+    96,
+    316
+   ],
+   "note": "阁楼 → 几级台阶 → 窗台"
+  }
+ ],
+ "stairs": [
+  {
+   "from": "l0",
+   "x": 402,
+   "to": "l1",
+   "x2": 337,
+   "note": "楼梯井 1：从最右往左上"
+  },
+  {
+   "from": "l1",
+   "x": 28,
+   "to": "l2",
+   "x2": 100,
+   "note": "楼梯井 2：从最左往右上"
+  }
+ ],
+ "cam_dy": 36,
+ "cam_top": -100,
  "markers": {
-  "river_home_door": 48,
-  "river_home_kitchen": 100,
-  "river_home_jar": 98,
-  "river_home_labels": 114,
-  "river_home_chen": 148,
-  "river_home_table": 162,
-  "river_home_hourglass": 172,
-  "river_home_niff": 198,
-  "river_home_window": 252,
-  "river_home_chair": 250,
-  "river_home_cabinet": 307,
-  "river_home_player": 334
+  "river_home_door": {
+   "x": 48,
+   "level": "l0"
+  },
+  "river_home_labels": {
+   "x": 28,
+   "level": "l0"
+  },
+  "river_home_jar": {
+   "x": 100,
+   "level": "l0"
+  },
+  "river_home_kitchen": {
+   "x": 108,
+   "level": "l0"
+  },
+  "river_home_chen": {
+   "x": 154,
+   "level": "l0"
+  },
+  "river_home_table": {
+   "x": 168,
+   "level": "l0"
+  },
+  "river_home_hourglass": {
+   "x": 178,
+   "level": "l0"
+  },
+  "river_home_niff": {
+   "x": 212,
+   "level": "l0"
+  },
+  "river_home_up1": {
+   "x": 398,
+   "level": "l0"
+  },
+  "river_home_l1": {
+   "x": 332,
+   "level": "l1"
+  },
+  "river_home_up2": {
+   "x": 34,
+   "level": "l1"
+  },
+  "river_home_cabinet": {
+   "x": 231,
+   "level": "l1"
+  },
+  "river_home_player": {
+   "x": 266,
+   "level": "l1"
+  },
+  "river_home_l2": {
+   "x": 104,
+   "level": "l2"
+  },
+  "river_home_chair": {
+   "x": 258,
+   "level": "l2"
+  },
+  "river_home_window": {
+   "x": 262,
+   "level": "l2"
+  }
  },
  "objects": {
   "river_home_table": {
    "img": "obj_table.png",
-   "x": 140,
-   "y": 166,
+   "x": 146,
+   "y": 237,
    "w": 67,
    "h": 16,
    "frames": 11,
@@ -56,8 +222,8 @@
   },
   "river_home_hourglass": {
    "img": "obj_hourglass.png",
-   "x": 168,
-   "y": 168,
+   "x": 174,
+   "y": 239,
    "w": 10,
    "h": 14,
    "frames": 6,
@@ -74,8 +240,8 @@
   },
   "niff_notebook": {
    "img": "obj_notebook.png",
-   "x": 191,
-   "y": 177,
+   "x": 197,
+   "y": 248,
    "w": 12,
    "h": 5,
    "frames": 2,
@@ -95,8 +261,8 @@
   },
   "niff_photo": {
    "img": "obj_photo.png",
-   "x": 180,
-   "y": 179,
+   "x": 186,
+   "y": 250,
    "w": 9,
    "h": 3,
    "frames": 3,
@@ -110,10 +276,10 @@
   },
   "guestbook": {
    "img": "obj_guestbook.png",
-   "x": 174,
-   "y": 150,
-   "w": 111,
-   "h": 32,
+   "x": 180,
+   "y": 73,
+   "w": 115,
+   "h": 180,
    "frames": 8,
    "states": {
     "default": 0,
@@ -126,12 +292,12 @@
     "drawing_in": 7
    },
    "default": "default",
-   "note": "一帧横跨桌子到窗台：open / photo_cup / pages_stuck / closed / drawing_in 在桌上，drying / dry 在窗台上；特写 closeup_guestbook_<state>.png"
+   "note": "一帧竖着跨两层：open / photo_cup / pages_stuck / closed / drawing_in 在 L0 餐桌上，drying / dry 在 L2 窗台上；特写 closeup_guestbook_<state>.png"
   },
   "river_home_chair": {
    "img": "obj_chair.png",
-   "x": 230,
-   "y": 176,
+   "x": 240,
+   "y": 65,
    "w": 58,
    "h": 30,
    "frames": 2,
@@ -140,12 +306,12 @@
     "by_window": 1
    },
    "default": "default",
-   "note": "晨坐的那把：default 靠在柜子边，by_window 在窗边"
+   "note": "晨坐的那把：default 靠在窗台右边的格子架旁，by_window 在大窗前（两个状态都在 L2 窗台）"
   },
   "river_home_cabinet": {
    "img": "obj_cabinet.png",
-   "x": 282,
-   "y": 116,
+   "x": 206,
+   "y": 110,
    "w": 51,
    "h": 83,
    "frames": 3,
@@ -159,8 +325,8 @@
   },
   "river_home_player": {
    "img": "obj_player.png",
-   "x": 332,
-   "y": 158,
+   "x": 262,
+   "y": 152,
    "w": 36,
    "h": 34,
    "frames": 35,
@@ -198,17 +364,51 @@
   },
   "river_home_labels": {
    "img": "obj_labels.png",
-   "x": 25,
-   "y": 92,
-   "w": 373,
-   "h": 109,
+   "x": 0,
+   "y": 0,
+   "w": 420,
+   "h": 280,
    "frames": 2,
    "states": {
     "default": 0,
     "on": 1
    },
    "default": "default",
-   "note": "on = 每张标签亮一档（晨注意到屋里几乎每件东西都有标签，原文 81）"
+   "note": "on = 每张标签亮一档（晨注意到屋里几乎每件东西都有标签，原文 81）；整张图大小（标签在三层的各个洞里），点击框只在门厅雨衣那块",
+   "click": [
+    18,
+    212,
+    18,
+    46
+   ]
+  },
+  "chen_drawing": {
+   "img": "obj_empty.png",
+   "x": 0,
+   "y": 0,
+   "w": 1,
+   "h": 1,
+   "frames": 1,
+   "states": {
+    "default": 0,
+    "done": 0
+   },
+   "default": "default",
+   "note": "只记剧情状态，不画（特写见 art/river_story/）"
+  },
+  "chen_journal": {
+   "img": "obj_empty.png",
+   "x": 0,
+   "y": 0,
+   "w": 1,
+   "h": 1,
+   "frames": 1,
+   "states": {
+    "default": 0,
+    "memory_page": 0
+   },
+   "default": "default",
+   "note": "只记剧情状态，不画（特写见 art/river_story/）"
   }
  }
 }

@@ -187,6 +187,8 @@ func locate(h: Dictionary) -> Dictionary:
 	if npc != null:
 		if not npc.visible:
 			return {"ok": false}
+		if not world.stages.is_empty() and str(runner._npc_room.get(npc.name, h.get("room", ""))) != str(h.get("room", "forest")):
+			return {"ok": false}             # 多房间章节：人不在这个点的房间（市集在河岸正上方、x 重叠，不然会在没人的地方冒提示）
 		var x := npc.position.x
 		return {"ok": true, "x": x, "top": npc.position.y - 56.0, "rect": Rect2(x - 14, npc.position.y - 52, 28, 52), "spr": null}
 	if at is String and world.extra_rects.has(str(at)):

@@ -40,6 +40,7 @@ extends Node
 ##   {"do": "count", "flags": [..], "set": "名字", "at_least": n}：数这些 flag 设了几个，够 n 就设 set。
 ##   顶层 "hints"：玩家 NUDGE_AFTER 秒没推进主线，按 flag 挑一条让晨自言自语（不锁人）。认两种写法：
 ##     数组 [{"flag"?: f, "need"?: [..], "not"?: [..], "zh", "en"}…]（条件都满足的里面挑 flag 最近设的那条）；
+##       条目也可以写 "lines": [{zh, en, added?}…]（三章现在都这么写）：每隔 NUDGE_EVERY 秒说下一句，说完为止；
 ##     字典 {"flag 名": {zh, en} 或 [{zh, en}…]}（挑最近设的、有提示的那个 flag）。没有 hints 再找 scene nudge_<hotspot id>。
 ##   坠毁后飞船里断续的警报 alarm_broken：引擎在 wreck 处放成 ambient，晨第一次修飞船（tried_parts）或捡到木头（got_wood）后淡掉。
 ## 第五版：
@@ -129,6 +130,8 @@ var bark: Control                    # 头顶小气泡（story_bark.gd）
 var quick: RefCounted                # story_quick.gd
 var cockpit_ui: Control              # 正在等玩家的驾驶舱步骤（避碎石 / 选纪念品；软锁检测用）
 var missing_anims := {}              # 剧本要、晨还没有的动作（MISSING_ANIM，给奥斯卡画）
+const CHEN_ALIAS := "res://data/chen_anim_alias.json"
+var _chen_alias = null                # chen_alias() 读进来的别名表
 var entry_scene := ""                # 这一章的入口 scene（flight1 = start_flight1；关卡直接播，--story_check 不算「播不到」）
 var chen: Node2D
 var deer: Node2D
@@ -1097,6 +1100,27 @@ func sync_npc_vis(instant := false) -> void:
 			nd.set_meta("sync_tw", tw)
 
 
+## 晨的动作别名表（data/chen_anim_alias.json：剧本动作名 → ANIMS 里的段名，对照 docs/给美术姐和奥斯卡的需求.md 第一节）
+func chen_alias() -> Dictionary:
+	if _chen_alias == null:
+		_chen_alias = {}
+		if FileAccess.file_exists(CHEN_ALIAS):
+			var d = JSON.parse_string(FileAccess.get_file_as_string(CHEN_ALIAS))
+			if d is Dictionary:
+				_chen_alias = d
+	return _chen_alias
+
+
+## 剧本要晨做 name：实际播哪段（原名有就原名，没有看别名表指的那段）；都没有 = ""
+func chen_anim(name: String) -> String:
+	if chen.spr.sprite_frames.has_animation(StringName(name)):
+		return name
+	var a := str(chen_alias().get(name, ""))
+	if a != "" and not name.begins_with("_") and chen.spr.sprite_frames.has_animation(StringName(a)):
+		return a
+	return ""
+
+
 func _anim(st: Dictionary) -> void:
 	if ff:
 		return
@@ -1108,9 +1132,11 @@ func _anim(st: Dictionary) -> void:
 	var key := "miluo" if n == miluo else who
 	var m: Dictionary = ANIM_MAP.get(key, {})
 	if n == chen and n != null and not m.has(name):
-		# 晨：chen.gd 的 ANIMS 里有同名的段就直接播（奥斯卡画好加进去就能用）；没有就退回待机，记下来给奥斯卡（帧速照旧 100ms）
-		if chen.spr.sprite_frames.has_animation(StringName(name)):
-			chen.spr.play(StringName(name))
+		# 晨：chen.gd 的 ANIMS 里有同名的段就直接播（奥斯卡画好加进去就能用）；没有看别名表（data/chen_anim_alias.json）；
+		# 都没有就退回待机，记下来给奥斯卡（帧速照旧 100ms）
+		var an := chen_anim(name)
+		if an != "":
+			chen.spr.play(StringName(an))
 			return
 		if not missing_anims.has(name):
 			missing_anims[name] = true
@@ -1424,7 +1450,7 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 	_place(chen, x, room)
 	chen.visible = true
 	var w: Vector2 = world.walls(x)
-	var k := 0
+	var off := 0.0
 	with = with.duplicate()
 	for fw in follow:
 		var fnode := npc(str(fw))
@@ -1434,10 +1460,10 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		var n := npc(str(who))
 		if n == null or n == chen:
 			continue
-		k += 1
-		var nx := x - 30.0 * k
+		off += _side_gap(n, 30.0)
+		var nx := x - off
 		if nx < w.x + 10.0:
-			nx = x + 30.0 * k
+			nx = x + off
 		_place(n, nx, room)
 		n.visible = true
 		n._set_facing(1 if x > nx else -1)
@@ -1956,7 +1982,19 @@ func _hint_line() -> Dictionary:
 			if rank >= best_rank:
 				best = ed
 				best_rank = rank
-	return best
+	return _hint_pick(best)
+
+
+## 三章的 hints 都是一条带 "lines": [{zh, en, added?, who?}…]：挑第一句这轮还没说过的；都说过了 = 没有（再去找 nudge_ scene）。
+## 没有 lines 的（老写法，zh / en 直接写在条目上）原样返回
+func _hint_pick(e: Dictionary) -> Dictionary:
+	var ls = e.get("lines", null)
+	if not ls is Array:
+		return e
+	for l in ls:
+		if l is Dictionary and not _nudged.has("hint:" + str(l.get("zh", ""))):
+			return l
+	return {}
 
 
 ## 这个 hotspot 现在去了会不会推进（设新 flag、给新东西、换地方、结束、换物件状态）
@@ -2180,6 +2218,15 @@ func _process(delta: float) -> void:
 		if not level.walking():
 			level.walk_to(tx)
 		return
+	var lsg := _lv_stage()
+	if lsg != null and hotspots.usable(h) and not hotspots.is_enter(h):
+		var tlv := _lv_target(h.get("at", 0))
+		if tlv >= 0 and tlv != int(lsg.chen_lv):
+			# 多层小屋、点在别的层：直接点（trigger 里 _lv_reach 沿石阶走过去）。不能先在本层走到同一个 x 再看范围——
+			# 本层的墙可能离那个 x 比互动范围还远（阁楼左墙 1452、楼下门 1408：停在 1458 够得着、1460 就永远够不着，链式自动玩卡死过）
+			_target = {}
+			trigger(p)
+			return
 	var wl: Vector2 = world.walls(chen.position.x)
 	var stand := clampf(tx, wl.x + 2.0, wl.y - 2.0)
 	if (absf(chen.position.x - stand) <= 4.0 and chen._vel <= 0.0) or _target_t > _target_limit:
@@ -2461,8 +2508,9 @@ func validate() -> Array[String]:
 							out.append("info: MISSING_ANIM %s.%s（scene %s：还没有这段动作，播的时候退回待机 / 占位）" % [who, st.get("name"), id])
 						continue
 					if npc(who) == chen and chen != null and not (ANIM_MAP["chen"] as Dictionary).has(str(st.get("name", ""))):
-						if not chen.spr.sprite_frames.has_animation(StringName(str(st.get("name", "")))):
-							out.append("info: MISSING_ANIM %s（scene %s：晨还没有这段动作，播的时候退回待机）" % [st.get("name"), id])
+						if chen_anim(str(st.get("name", ""))) == "":
+							var al := str(chen_alias().get(str(st.get("name", "")), ""))
+							out.append("info: MISSING_ANIM %s（scene %s：晨还没有这段动作，播的时候退回待机）" % [str(st.get("name")) + (" → " + al if al != "" else ""), id])
 					elif not (ANIM_MAP.get(key, {}) as Dictionary).has(str(st.get("name", ""))):
 						out.append("scene %s：%s 没有动画 %s（有：%s）" % [id, who, st.get("name"), ", ".join((ANIM_MAP.get(key, {}) as Dictionary).keys())])
 				"prop":
@@ -2788,7 +2836,7 @@ func _update_follow(delta: float) -> void:
 			continue
 		if n.has_meta("lv_climbing"):
 			continue
-		var gap := float(follow[who])
+		var gap := _side_gap(n, float(follow[who]))
 		var side := -1.0 if chen.facing > 0 else 1.0
 		var tx := chen.position.x + side * gap
 		var w: Vector2 = world.walls(chen.position.x)
@@ -2796,6 +2844,18 @@ func _update_follow(delta: float) -> void:
 		if absf(tx - n.position.x) < 4.0 and chen._vel <= 0.0:
 			tx = n.position.x
 		n.follow_to(tx, chen.position.x, delta)
+
+
+## 跟在晨旁边至少隔多远才不叠到晨身上：比人宽的（妮芙的鲸鱼壳 71 宽，锚点到边 36）= 锚点到最远一边 + 晨半个身子 12；
+## 一般大小的人（帧 40 宽）照 base
+func _side_gap(n: Node2D, base: float) -> float:
+	var c = n.get("cur")
+	if not c is Dictionary or not (c as Dictionary).has("frame"):
+		return base
+	var fr: Array = c["frame"]
+	var an: Array = c.get("anchor", [float(fr[0]) / 2.0, 0])
+	var half := maxf(float(an[0]), float(fr[0]) - float(an[0]))
+	return maxf(base, half + 12.0) if half > 28.0 else base
 
 
 # ----------------------------------------------------------------------- 房间之间的转场

@@ -271,13 +271,29 @@
    }
   },
   "river_bank_crate_float": {
-   "x": 20,
-   "y": 209,
-   "w": 22,
+   "x": 18,
+   "y": 207,
+   "w": 24,
    "h": 18,
    "frames": 1,
    "states": {
     "default": 0
+   }
+  },
+  "river_bank_shallow": {
+   "x": 1236,
+   "y": 215,
+   "w": 28,
+   "h": 7,
+   "frames": 4,
+   "ms": 400,
+   "states": {
+    "default": 3,
+    "floating": [
+     0,
+     1,
+     2
+    ]
    }
   },
   "river_bank_salvage_lid": {
@@ -406,8 +422,8 @@
    "z": -93,
    "params": {
     "scroll": 0.55,
-    "x0": 1280,
-    "x1": 1298,
+    "x0": 534,
+    "x1": 558,
     "y": 105
    }
   }

@@ -100,6 +100,7 @@ static func go(tree: SceneTree, ch: String) -> void:
 		register_items(str(p))
 	Engine.set_meta(CARRY_META, StoryState.to_dict())
 	Engine.set_meta(CHAPTER_META, ch)
+	Engine.set_meta(PICK_META, true)          # 换章也要压过命令行 --chapter=（不然 --chapter=flight1 --story_chain 演完又回到 flight1 开头）
 	for prev in CHAPTERS:
 		if CHAPTERS[prev].get("next", "") == ch and CHAPTERS[prev].has("end_card"):
 			await _end_card(tree, CHAPTERS[prev]["end_card"])

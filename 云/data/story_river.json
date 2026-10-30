@@ -43,6 +43,10 @@
 		"river_home_niff": 0,
 		"river_home_chen": 0,
 		"river_home_labels": 0,
+		"river_home_up1": 0,
+		"river_home_l1": 0,
+		"river_home_up2": 0,
+		"river_home_l2": 0,
 		"market_entry": 0,
 		"market_niff": 0,
 		"market_breather_stall": 0,
@@ -122,7 +126,8 @@
 		{"need": ["river_need_head"], "not": ["river_breather"], "zh": "去高处市集借呼吸装置", "en": "Borrow a breathing set at the upper market", "show_fuel": false, "added": true},
 		{"need": ["river_footage_broken"], "not": ["river_need_head"], "zh": "把影像盒拿给阿汀", "en": "Take the footage box to Ting", "show_fuel": false, "added": true},
 		{"need": ["river_book_drying"], "not": ["river_sat_down"], "zh": "等来客册晾干", "en": "Wait for the guestbook to dry", "show_fuel": false, "added": true},
-		{"need": ["river_landed"], "not": ["river_bread"], "zh": "去妮芙家", "en": "Go to Niff's house", "show_fuel": false, "added": true}
+		{"need": ["river_landed"], "not": ["river_bread"], "zh": "去妮芙家", "en": "Go to Niff's house", "show_fuel": false, "added": true},
+		{"need": ["river_ashore"], "not": ["river_salvaged"], "zh": "沿着河岸走走", "en": "Walk along the bank", "show_fuel": false, "added": true}
 	],
 	"hints": [
 		{"need": ["river_plane_fixed"], "not": ["river_farewell"], "lines": [{"zh": "走之前，要先说再见。", "en": "Say goodbye before leaving.", "added": true}, {"zh": "她会写下来的。", "en": "She'll write it down.", "added": true}]},
@@ -145,13 +150,13 @@
 		{"id": "plane_parts", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_need_head"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_parts"},
 		{"id": "plane_drying", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_landed"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_drying"},
 		{"id": "meet_niff", "at": "river_bank_crates", "room": "river_bank", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_ashore"], "not": ["river_salvaged"], "once": true, "scene": "bank_meet", "trigger": "enter", "range": 56, "cutscene": true},
-		{"id": "ting_footage", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_footage_broken"], "not": ["river_need_head"], "once": false, "scene": "ting_footage"},
-		{"id": "ting_chat_4", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_plane_fixed"], "not": [], "once": false, "scene": "ting_chat_4"},
-		{"id": "ting_chat_3", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_back_home"], "not": [], "once": false, "scene": "ting_chat_3"},
-		{"id": "ting_chat_2", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_need_head"], "not": [], "once": false, "scene": "ting_chat_2"},
-		{"id": "ting_chat_1", "at": "river_bank_ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_landed"], "not": [], "once": false, "scene": "ting_chat_1"},
-		{"id": "niff_bank_late", "at": "river_bank_niff", "room": "river_bank", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_bell"], "not": ["river_farewell"], "once": false, "scene": "niff_chat_late"},
-		{"id": "niff_bank", "at": "river_bank_niff", "room": "river_bank", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_landed"], "not": ["river_bread"], "once": false, "scene": "niff_chat_bank"},
+		{"id": "ting_footage", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_footage_broken"], "not": ["river_need_head"], "once": false, "scene": "ting_footage"},
+		{"id": "ting_chat_4", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_plane_fixed"], "not": [], "once": false, "scene": "ting_chat_4"},
+		{"id": "ting_chat_3", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_back_home"], "not": [], "once": false, "scene": "ting_chat_3"},
+		{"id": "ting_chat_2", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_need_head"], "not": [], "once": false, "scene": "ting_chat_2"},
+		{"id": "ting_chat_1", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_landed"], "not": [], "once": false, "scene": "ting_chat_1"},
+		{"id": "niff_bank_late", "at": "niff", "room": "river_bank", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_bell"], "not": ["river_farewell"], "once": false, "scene": "niff_chat_late"},
+		{"id": "niff_bank", "at": "niff", "room": "river_bank", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_landed"], "not": ["river_bread"], "once": false, "scene": "niff_chat_bank"},
 		{"id": "farewell", "at": "river_bank_home_door", "room": "river_bank", "label": {"zh": "妮芙家", "en": "Niff's house"}, "need": ["river_plane_fixed"], "not": ["river_farewell"], "once": false, "scene": "farewell"},
 		{"id": "home_enter", "at": "river_bank_home_door", "room": "river_bank", "label": {"zh": "妮芙家", "en": "Niff's house"}, "need": ["river_landed"], "not": ["river_bread"], "once": true, "scene": "home_enter"},
 		{"id": "home_in", "at": "river_bank_home_door", "room": "river_bank", "label": {"zh": "妮芙家", "en": "Niff's house"}, "need": ["river_bread"], "not": ["river_farewell"], "once": false, "scene": "home_in"},
@@ -170,13 +175,17 @@
 		{"id": "hourglass", "at": "river_home_hourglass", "room": "river_home", "label": {"zh": "沙漏", "en": "Hourglass"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_hourglass"},
 		{"id": "labels", "at": "river_home_labels", "room": "river_home", "label": {"zh": "标签", "en": "Labels"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_labels"},
 		{"id": "kitchen", "at": "river_home_kitchen", "room": "river_home", "label": {"zh": "厨房", "en": "Kitchen"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_kitchen"},
-		{"id": "niff_home", "at": "river_home_niff", "room": "river_home", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_footage_broken"], "not": ["river_farewell"], "once": false, "scene": "niff_chat_home"},
+		{"id": "home_up1", "at": "river_home_up1", "room": "river_home", "label": {"zh": "上楼", "en": "Upstairs"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_up1"},
+		{"id": "home_down1", "at": "river_home_l1", "room": "river_home", "label": {"zh": "下楼", "en": "Downstairs"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_down1"},
+		{"id": "home_up2", "at": "river_home_up2", "room": "river_home", "label": {"zh": "上楼", "en": "Upstairs"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_up2"},
+		{"id": "home_down2", "at": "river_home_l2", "room": "river_home", "label": {"zh": "下楼", "en": "Downstairs"}, "need": ["river_bread"], "not": [], "once": false, "scene": "home_down2"},
+		{"id": "niff_home", "at": "niff", "room": "river_home", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_footage_broken"], "not": ["river_farewell"], "once": false, "scene": "niff_chat_home"},
 		{"id": "market_breather", "at": "market_breather_stall", "room": "market", "label": {"zh": "借气瓶的摊子", "en": "Air tank stall"}, "need": ["river_market"], "not": ["river_breather"], "once": false, "scene": "market_breather"},
 		{"id": "market_keeper", "at": "market_breather_stall", "room": "market", "label": {"zh": "摊主", "en": "Stallkeeper"}, "need": ["river_breather"], "not": [], "once": false, "scene": "market_keeper"},
 		{"id": "market_baskets", "at": "market_baskets", "room": "market", "label": {"zh": "吊着的篮子", "en": "Hanging baskets"}, "need": ["river_market"], "not": [], "once": false, "scene": "market_baskets"},
 		{"id": "market_tool_stall", "at": "market_tool_stall", "room": "market", "label": {"zh": "修补摊", "en": "Repair stall"}, "need": ["river_market"], "not": [], "once": false, "scene": "market_tool_stall"},
 		{"id": "market_bridge", "at": "market_bridge", "room": "market", "label": {"zh": "屋顶的桥", "en": "Rooftop bridges"}, "need": ["river_market"], "not": [], "once": false, "scene": "market_bridge"},
-		{"id": "niff_market", "at": "market_niff", "room": "market", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_market"], "not": [], "once": false, "scene": "niff_chat_market"},
+		{"id": "niff_market", "at": "niff", "room": "market", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_market"], "not": [], "once": false, "scene": "niff_chat_market"},
 		{"id": "market_back", "at": "market_back", "room": "market", "label": {"zh": "回河岸", "en": "Back to the bank"}, "need": ["river_market"], "not": [], "once": false, "scene": "market_back"},
 		{"id": "to_oldstreet", "at": "market_to_oldstreet", "room": "market", "label": {"zh": "旧街", "en": "Old Street"}, "need": ["river_oldstreet"], "not": [], "once": false, "scene": "market_to_oldstreet_again"},
 		{"id": "to_oldstreet_first", "at": "market_to_oldstreet", "room": "market", "label": {"zh": "旧街", "en": "Old Street"}, "need": ["river_breather"], "not": ["river_oldstreet"], "once": false, "scene": "oldstreet_go"},
@@ -185,14 +194,15 @@
 		{"id": "oldstreet_signs", "at": "oldstreet_signs", "room": "oldstreet", "label": {"zh": "两层招牌", "en": "Two rows of signs"}, "need": ["river_sluice_done"], "not": [], "once": false, "scene": "oldstreet_signs"},
 		{"id": "oldstreet_corner", "at": "oldstreet_corner", "room": "oldstreet", "label": {"zh": "拐角", "en": "Corner"}, "need": ["river_sluice_done"], "not": ["river_jam"], "once": false, "scene": "oldstreet_corner", "trigger": "enter", "range": 40},
 		{"id": "warehouse_go", "at": "oldstreet_warehouse_entry", "room": "oldstreet", "label": {"zh": "仓库入口", "en": "Warehouse entrance"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "warehouse_go"},
-		{"id": "niff_old", "at": "oldstreet_niff", "room": "oldstreet", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "niff_chat_old"},
+		{"id": "niff_old", "at": "niff", "room": "oldstreet", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "niff_chat_old"},
 		{"id": "oldstreet_back", "at": "oldstreet_back", "room": "oldstreet", "label": {"zh": "回市集", "en": "Back to the market"}, "need": ["river_oldstreet"], "not": ["river_bell"], "once": false, "scene": "oldstreet_back"},
-		{"id": "warehouse_niff", "at": "warehouse_niff", "room": "warehouse", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "warehouse_niff"},
-		{"id": "warehouse_boxes", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "warehouse_boxes"},
+		{"id": "warehouse_niff", "at": "niff", "room": "warehouse", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "warehouse_niff"},
+		{"id": "wh_in", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_wh_dive"], "not": ["river_back_home", "river_wh_in"], "once": true, "scene": "warehouse_in", "trigger": "enter", "range": 40, "cutscene": true, "added": true},
+		{"id": "warehouse_boxes", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_jam", "river_wh_in"], "not": ["river_back_home"], "once": false, "scene": "warehouse_boxes"},
 		{"id": "south_dock", "at": "southbridge_waterway", "room": "southbridge", "label": {"zh": "旧运输水道", "en": "Old shipping channel"}, "need": ["river_prints"], "not": ["river_ship_number"], "once": false, "scene": "south_dock"},
 		{"id": "south_lamp", "at": "southbridge_lamp_post", "room": "southbridge", "label": {"zh": "灯柱", "en": "Lamppost"}, "need": ["river_cup_traced"], "not": [], "once": false, "scene": "south_lamp"},
 		{"id": "south_ornament", "at": "southbridge_ornament", "room": "southbridge", "label": {"zh": "屋顶装饰", "en": "Roof ornaments"}, "need": ["river_cup_traced"], "not": [], "once": false, "scene": "south_ornament"},
-		{"id": "niff_south", "at": "southbridge_niff", "room": "southbridge", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_prints"], "not": ["river_ship_number"], "once": false, "scene": "niff_chat_south"},
+		{"id": "niff_south", "at": "niff", "room": "southbridge", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_prints"], "not": ["river_ship_number"], "once": false, "scene": "niff_chat_south"},
 		{"id": "south_back", "at": "southbridge_back", "room": "southbridge", "label": {"zh": "回去", "en": "Head back"}, "need": ["river_ship_number"], "not": ["river_bell"], "once": false, "scene": "south_back"}
 	],
 	"scenes": {
@@ -709,6 +719,18 @@
 			{"say": "chen", "zh": "门把手上也有：往下按，别往上提。", "en": "Even the door handle has one: Push down, don't lift.", "added": true},
 			{"say": "chen", "zh": "大概是试过往上提。", "en": "Guess she tried lifting.", "added": true}
 		],
+		"home_up1": [
+			{"do": "walk", "who": "chen", "to": "river_home_l1"}
+		],
+		"home_down1": [
+			{"do": "walk", "who": "chen", "to": "river_home_up1"}
+		],
+		"home_up2": [
+			{"do": "walk", "who": "chen", "to": "river_home_l2"}
+		],
+		"home_down2": [
+			{"do": "walk", "who": "chen", "to": "river_home_up2"}
+		],
 		"home_kitchen": [
 			{"do": "face", "who": "chen", "to": "river_home_kitchen"},
 			{"say": "chen", "zh": "锅是空的。", "en": "The pot's empty.", "added": true},
@@ -758,14 +780,7 @@
 			{"do": "sfx", "name": "market_bustle"},
 			{"do": "ambient", "name": "tools_clink", "at": "market_tool_stall", "on": true},
 			{"say": "chen", "zh": "这里比河岸热闹。", "en": "It's livelier up here than on the bank.", "added": true},
-			{"do": "walk", "who": "niff", "to": "market_tool_stall"},
-			{"do": "anim", "who": "niff", "name": "check_mark"},
-			{"do": "anim", "who": "niff", "name": "wave"},
-			{"do": "walk", "who": "niff", "to": "market_baskets"},
-			{"do": "wait", "sec": 0.5},
-			{"do": "walk", "who": "niff", "to": "market_tool_stall"},
-			{"do": "anim", "who": "niff", "name": "check_mark"},
-			{"do": "walk", "who": "niff", "to": "market_breather_stall"},
+			{"do": "walk", "who": "niff", "to": "market_tool_stall", "speed": 90, "wait": false, "_note": "10-30 作者：原来妮芙在三个摊子之间来回走完才放手（54 秒动不了）。现在不锁晨：她先飘去修补摊看门边的标记，晨自己往借气瓶的摊子走，她看完会跟上来"},
 			{"do": "flag", "set": "river_market"}
 		],
 		"market_breather": [
@@ -956,7 +971,7 @@
 		"oldstreet_corner": [
 			{"do": "walk", "who": "niff", "to": "oldstreet_corner"},
 			{"do": "anim", "who": "niff", "name": "tuck_notebook"},
-			{"do": "walk", "who": "niff", "to": "oldstreet_steps"},
+			{"do": "walk", "who": "niff", "to": "oldstreet_steps", "speed": 110},
 			{"do": "anim", "who": "niff", "name": "stop"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "anim", "who": "niff", "name": "scratch_cheek"},
@@ -964,7 +979,7 @@
 			{"say": "niff", "zh": "脚还记得呢，店已经不在啦。", "en": "My feet still remember. The shop's gone, though."},
 			{"do": "face", "who": "chen", "to": "oldstreet_height_wall"},
 			{"do": "prop", "id": "oldstreet_height_wall", "state": "seen"},
-			{"do": "walk", "who": "niff", "to": "oldstreet_height_wall"},
+			{"do": "walk", "who": "niff", "to": "oldstreet_height_wall", "speed": 110},
 			{"do": "anim", "who": "niff", "name": "look_up"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "niff", "name": "read_notebook"},
@@ -1009,7 +1024,10 @@
 			{"do": "show", "who": "niff", "at": "warehouse_niff"},
 			{"do": "ambient", "name": "underwater", "at": "warehouse_entry", "on": true},
 			{"do": "prop", "id": "warehouse_rope", "state": "on"},
-			{"do": "walk", "who": "chen", "to": "warehouse_boxes"},
+			{"do": "flag", "set": "river_wh_dive", "_note": "10-30 作者：进仓库这段等太久（原来晨自动走过整片开阔海底才放手）。下水以后就放手，晨自己游到箱子跟前触发 warehouse_in（hotspot wh_in）"}
+		],
+		"warehouse_in": [
+			{"do": "flag", "set": "river_wh_in"},
 			{"narr": {"zh": "「借来的」", "en": "\"Borrowed\""}},
 			{"narr": {"zh": "「还不知道是谁的，先放好」", "en": "\"Don't know whose yet. Keep safe.\""}},
 			{"do": "walk", "who": "niff", "to": "warehouse_broken_box"},
@@ -1344,7 +1362,7 @@
 			{"say": "niff", "zh": "给弥洛的信，投进了北岸的旧邮箱。", "en": "Her letter to Milo went in the old mailbox on the north bank.", "added": true},
 			{"say": "niff", "zh": "里面还放了一张纸，", "en": "There was a slip of paper inside, too,", "added": true},
 			{"say": "niff", "zh": "写着新住址和通讯号码。", "en": "with her new address and contact number.", "added": true},
-			{"do": "show", "who": "ting", "at": "river_home_door"},
+			{"do": "show", "who": "ting", "at": "river_home_l2"},
 			{"do": "face", "who": "ting", "to": "niff"},
 			{"say": "ting", "zh": "北岸那只旧邮箱？", "en": "The old mailbox on the north bank?", "added": true},
 			{"say": "ting", "zh": "后一次涨水，冲走了。", "en": "The next flood washed it away.", "added": true},
@@ -1440,7 +1458,7 @@
 				}},
 			{"do": "prop", "id": "southbridge_waterway", "state": "revealed"},
 			{"do": "walk", "who": "chen", "to": "southbridge_arch"},
-			{"do": "walk", "who": "niff", "to": "southbridge_footprints"},
+			{"do": "walk", "who": "niff", "to": "southbridge_footprints", "speed": 110},
 			{"do": "prop", "id": "southbridge_arch", "state": "scratches"},
 			{"do": "anim", "who": "chen", "name": "look_up"},
 			{"say": "chen", "zh": "擦痕这么高。", "en": "The scrape marks are so high up.", "added": true},
@@ -1548,8 +1566,7 @@
 			{"do": "goto", "scene": "dock_plates"}
 		],
 		"south_back": [
-			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_hook", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "oldstreet_niff"},
+			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_hook", "with": ["niff"], "_note": "10-30：原来接着把妮芙 show 到旧街左头（70），再让她游 1000 多像素到钩子这里，晨干等 15 秒；fade_to 的 with 已经把她放在晨旁边"},
 			{"do": "walk", "who": "niff", "to": "oldstreet_hook"},
 			{"do": "anim", "who": "niff", "name": "pickup"},
 			{"do": "sfx", "name": "bell_dull"},
