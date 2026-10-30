@@ -591,8 +591,18 @@ def planet(d, seed, rivers=True):
     return a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
 
 
-# ============================================================ 河流城市（灰绿的清晨；灰色鸽子笼高楼，冷漠）
+# ============================================================ 河流城市（白天；灰色鸽子笼高楼，冷漠）
+# 10-29 第二章开工（docs/river_plan.md 第 0 节）：河流星的身份色是低饱和的石板灰蓝，和第二章河岸那一屏
+# （tools/river_city_art.py）接上；原来这几层是灰绿。构图、亮度都不改，只换色相：墙 / 地按 rcol 映到 h≈238 一带，
+# 水（原来 h 170~182）映到偏青的 h≈218~224；木箱的暖色不动。亮度仍压在驾驶舱舱壁以下。
 G_HUE = 155
+
+
+def rcol(L, C, h):
+    """河流城市的颜色：原来灰绿那套色相（100~190）换成石板灰蓝 / 水的青蓝，其余（木箱的暖色）照旧。"""
+    if 100 <= h <= 190:
+        h = 218 + (h - 170) * 0.5 if h >= 168 else 238 + (h - 155) * 0.3
+    return col(L, C, h)
 
 
 def ground():
@@ -601,13 +611,13 @@ def ground():
     L.a[..., 3] = 255
     for y in range(L.h):
         Lv = .215 - 0.035 * min(1, y / 120)
-        L.a[y, :, :3] = col(Lv - (Lv * 1000 % 7) * 0, .012, G_HUE)
-    L.a[0:2, :, :3] = col(.245, .012, 150)
-    L.a[2:4, :, :3] = col(.23, .012, 152)
+        L.a[y, :, :3] = rcol(Lv - (Lv * 1000 % 7) * 0, .012, G_HUE)
+    L.a[0:2, :, :3] = rcol(.245, .012, 150)
+    L.a[2:4, :, :3] = rcol(.23, .012, 152)
     # 分档（硬边）
     for y0, Lv in ((4, .215), (22, .205), (50, .195), (90, .185)):
-        L.a[y0:, :, :3] = col(Lv, .013, G_HUE)
-    WATER, WLIT = col(.25, .022, P_HUE), col(.275, .022, 172)
+        L.a[y0:, :, :3] = rcol(Lv, .013, G_HUE)
+    WATER, WLIT = rcol(.25, .022, P_HUE), rcol(.275, .022, 172)
     rng = np.random.default_rng(601)
     for i, (y, th, amp) in enumerate(((7, 1, 1), (12, 1, 1.5), (19, 1, 2), (29, 2, 3), (43, 2, 4), (63, 3, 6),
                                       (90, 4, 8), (124, 5, 10))):
@@ -623,7 +633,7 @@ def ground():
         w = 1 + y // 30 + int(rng.integers(0, 3))
         if (L.a[y, x, :3] == WATER).all():
             continue
-        L.a[y, x:x + w, :3] = col(.235, .006, 120)
+        L.a[y, x:x + w, :3] = rcol(.235, .006, 120)
     return L
 
 
@@ -669,13 +679,13 @@ def city_far():
     """远处的城：地平线上一排挤得密密的小楼。"""
     L = Layer(TW, 56)
     rng = np.random.default_rng(701)
-    tones = [col(.205, .006, G_HUE), col(.215, .005, 140), col(.198, .006, 165)]
+    tones = [rcol(.205, .006, G_HUE), rcol(.215, .005, 140), rcol(.198, .006, 165)]
 
     def tone(r):
         b = tones[int(r.integers(0, 3))]
-        return b, col(.185, .006, G_HUE)
-    towers_row(L, rng, (8, 44), (3, 9), (0, 2), tone, (2, 3, 1, 1), col(.235, .006, 140), col(.19, .006, 165),
-               col(.23, .006, 140), col(.18, .006, 165))
+        return b, rcol(.185, .006, G_HUE)
+    towers_row(L, rng, (8, 44), (3, 9), (0, 2), tone, (2, 3, 1, 1), rcol(.235, .006, 140), rcol(.19, .006, 165),
+               rcol(.23, .006, 140), rcol(.18, .006, 165))
     return L
 
 
@@ -683,20 +693,20 @@ def city_mid():
     """鸽子笼高楼：灰色方楼一栋挨一栋，一格一格的小窗，几乎没有灯。"""
     L = Layer(TW, 240)
     rng = np.random.default_rng(702)
-    tones = [(col(.20, .006, G_HUE), col(.155, .007, 170)), (col(.215, .005, 120), col(.165, .006, 160)),
-             (col(.19, .007, 165), col(.15, .007, 175)), (col(.205, .004, 90), col(.16, .006, 160))]
+    tones = [(rcol(.20, .006, G_HUE), rcol(.155, .007, 170)), (rcol(.215, .005, 120), rcol(.165, .006, 160)),
+             (rcol(.19, .007, 165), rcol(.15, .007, 175)), (rcol(.205, .004, 90), rcol(.16, .006, 160))]
 
     def tone(r):
         return tones[int(r.integers(0, len(tones)))]
-    m, blds = towers_row(L, rng, (0, 110), (22, 46), (1, 4), tone, (4, 4, 2, 2), col(.235, .006, 140),
-                         col(.17, .006, 165), col(.24, .006, 130), col(.13, .008, 170), balcony=0.35)
+    m, blds = towers_row(L, rng, (0, 110), (22, 46), (1, 4), tone, (4, 4, 2, 2), rcol(.235, .006, 140),
+                         rcol(.17, .006, 165), rcol(.24, .006, 130), rcol(.13, .008, 170), balcony=0.35)
     # 极少几格亮着的窗（冷的灰绿，不暖）
     for _ in range(14):
         x0, top, w = blds[int(rng.integers(0, len(blds)))]
         xx = x0 + 2 + 4 * int(rng.integers(0, max(1, (w - 4) // 4)))
         yy = top + 3 + 4 * int(rng.integers(0, 30))
         if yy + 1 < L.h:
-            L.paint(L.rect(xx, yy, xx + 1, yy + 1), col(.27, .014, 140))
+            L.paint(L.rect(xx, yy, xx + 1, yy + 1), rcol(.27, .03, 72))      # 琥珀（河流星的暖色只给少数亮窗）
     return L
 
 
@@ -704,7 +714,7 @@ def clocktower():
     """钟楼：老石头方塔，比鸽子笼楼暖一点点；钟面浅灰，指针停着。"""
     w, h = 30, 200
     L = Layer(w, h, tile=False)
-    STONE, LIT, SH_, DARK = col(.215, .012, 70), col(.25, .012, 75), col(.18, .010, 60), col(.13, .008, 60)
+    STONE, LIT, SH_, DARK = rcol(.215, .012, 70), rcol(.25, .012, 75), rcol(.18, .010, 60), rcol(.13, .008, 60)
     L.paint(L.rect(7, 44, 22, h - 1), STONE)                       # 塔身
     L.paint(L.rect(7, 44, 7, h - 1), LIT)
     L.paint(L.rect(21, 44, 22, h - 1), SH_)
@@ -718,14 +728,14 @@ def clocktower():
     L.paint(L.rect(4, 44, 25, 45), LIT)                             # 檐
     L.paint(L.rect(4, 25, 25, 25), LIT)
     face = L.ellipse(14.5, 35, 6.5, 6.5)
-    L.paint(face, col(.25, .008, 90))
-    L.paint(L.ellipse(14.5, 35, 5.5, 5.5), col(.33, .008, 95))
+    L.paint(face, rcol(.25, .008, 90))
+    L.paint(L.ellipse(14.5, 35, 5.5, 5.5), rcol(.33, .008, 95))
     for dx, dy in ((0, -4), (4, 0), (0, 4), (-4, 0)):
-        L.a[35 + dy, 14 + dx, :3] = col(.22, .008, 80)
-    L.paint(L.line([(14, 35), (14, 31)]), col(.17, .008, 70))       # 指针：停在一个时间
-    L.paint(L.line([(14, 35), (17, 37)]), col(.17, .008, 70))
-    L.paint(L.poly([(14.5, 6), (26, 25), (3, 25)]), col(.17, .010, 60))   # 尖顶
-    L.paint(L.poly([(14.5, 6), (3, 25), (8, 25)]), col(.20, .010, 65))
+        L.a[35 + dy, 14 + dx, :3] = rcol(.22, .008, 80)
+    L.paint(L.line([(14, 35), (14, 31)]), rcol(.17, .008, 70))       # 指针：停在一个时间
+    L.paint(L.line([(14, 35), (17, 37)]), rcol(.17, .008, 70))
+    L.paint(L.poly([(14.5, 6), (26, 25), (3, 25)]), rcol(.17, .010, 60))   # 尖顶
+    L.paint(L.poly([(14.5, 6), (3, 25), (8, 25)]), rcol(.20, .010, 65))
     L.paint(L.rect(14, 0, 14, 6), SH_)
     L.a[0, 13:16, :3] = SH_
     L.a[0, 13:16, 3] = 255
@@ -737,16 +747,16 @@ def canal():
     L = Layer(TW, 64)
     rng = np.random.default_rng(801)
     SURF = 14
-    WATER = col(.20, .020, P_HUE)
+    WATER = rcol(.20, .020, P_HUE)
     L.paint(L.rect(0, SURF, TW - 1, L.h - 1), WATER)
-    L.paint(L.rect(0, SURF, TW - 1, SURF), col(.26, .020, 172))
-    L.paint(L.rect(0, SURF + 18, TW - 1, L.h - 1), col(.19, .019, P_HUE + 2))
+    L.paint(L.rect(0, SURF, TW - 1, SURF), rcol(.26, .020, 172))
+    L.paint(L.rect(0, SURF + 18, TW - 1, L.h - 1), rcol(.19, .019, P_HUE + 2))
     for x in range(0, TW, 40):                                        # 水下的跑道虚线
-        L.paint(L.rect(x, SURF + 9, x + 17, SURF + 10), col(.225, .016, 160))
+        L.paint(L.rect(x, SURF + 9, x + 17, SURF + 10), rcol(.225, .016, 160))
     for _ in range(60):                                               # 水面亮痕
         x, y = int(rng.integers(0, TW)), int(rng.integers(SURF + 2, L.h - 2))
-        L.paint(L.rect(x, y, x + int(rng.integers(2, 6)), y), col(.235, .020, 170))
-    HULL, HLIT, CAB, CLIT = col(.19, .018, 55), col(.245, .018, 65), col(.22, .010, 90), col(.26, .010, 95)
+        L.paint(L.rect(x, y, x + int(rng.integers(2, 6)), y), rcol(.235, .020, 170))
+    HULL, HLIT, CAB, CLIT = rcol(.19, .018, 55), rcol(.245, .018, 65), rcol(.22, .010, 90), rcol(.26, .010, 95)
     x = 12
     while x < TW - 10:
         bw = int(rng.integers(18, 30))
@@ -759,11 +769,11 @@ def canal():
         cx = x + int(rng.integers(3, bw - cw - 2))
         L.paint(L.rect(cx, y1 - hh - 4, cx + cw, y1 - hh - 1), CAB)
         L.paint(L.rect(cx, y1 - hh - 4, cx + cw, y1 - hh - 4), CLIT)
-        L.paint(L.rect(cx + 2, y1 - hh - 3, cx + 3, y1 - hh - 2), col(.14, .008, 170))
+        L.paint(L.rect(cx + 2, y1 - hh - 3, cx + 3, y1 - hh - 2), rcol(.14, .008, 170))
         if rng.random() < 0.5:
             mx = x + bw // 2 + int(rng.integers(-3, 4))
             L.paint(L.rect(mx, y1 - hh - 11, mx, y1 - hh - 1), HULL)
-        L.paint(L.rect(x + 3, y1 + 2, x + bw - 3, y1 + 2), col(.16, .016, P_HUE + 4))   # 船底下的影
+        L.paint(L.rect(x + 3, y1 + 2, x + bw - 3, y1 + 2), rcol(.16, .016, P_HUE + 4))   # 船底下的影
         x += bw + int(rng.integers(26, 60))
     return L
 
@@ -772,15 +782,15 @@ def water_near():
     """近处的水面（擦水滑行、落水后）：一条亮的水线 + 一道道往后拖的亮痕。"""
     L = Layer(TW, 90)
     rng = np.random.default_rng(802)
-    L.paint(L.rect(0, 0, TW - 1, L.h - 1), col(.19, .020, P_HUE))
-    L.paint(L.rect(0, 0, TW - 1, 0), col(.27, .020, 170))
-    L.paint(L.rect(0, 1, TW - 1, 2), col(.22, .020, 174))
-    L.paint(L.rect(0, 30, TW - 1, L.h - 1), col(.175, .019, P_HUE + 2))
-    L.paint(L.rect(0, 60, TW - 1, L.h - 1), col(.16, .018, P_HUE + 4))
+    L.paint(L.rect(0, 0, TW - 1, L.h - 1), rcol(.19, .020, P_HUE))
+    L.paint(L.rect(0, 0, TW - 1, 0), rcol(.27, .020, 170))
+    L.paint(L.rect(0, 1, TW - 1, 2), rcol(.22, .020, 174))
+    L.paint(L.rect(0, 30, TW - 1, L.h - 1), rcol(.175, .019, P_HUE + 2))
+    L.paint(L.rect(0, 60, TW - 1, L.h - 1), rcol(.16, .018, P_HUE + 4))
     for _ in range(90):
         x, y = int(rng.integers(0, TW)), int(rng.integers(4, L.h - 2))
         ln = int(rng.integers(3, 12)) + (8 if y < 30 else 0)
-        L.paint(L.rect(x, y, x + ln, y), col(.235 if y < 30 else .21, .020, 170))
+        L.paint(L.rect(x, y, x + ln, y), rcol(.235 if y < 30 else .21, .020, 170))
     return L
 
 
@@ -793,13 +803,13 @@ def spray():
         y = int(rng.integers(16, 44))
         ln = int(rng.integers(6, 16))
         for k in range(ln):
-            c = col(.32, .016, 165) if k < ln - 3 else col(.27, .018, 170)
+            c = rcol(.32, .016, 165) if k < ln - 3 else rcol(.27, .018, 170)
             px, py = (x + k * 2) % TW, y - k // 2
             if 0 <= py < L.h:
                 L.a[py, px, :3] = c
                 L.a[py, px, 3] = 255
                 if k % 3 == 0 and py + 1 < L.h:
-                    L.a[py + 1, px, :3] = col(.25, .018, 170)
+                    L.a[py + 1, px, :3] = rcol(.25, .018, 170)
                     L.a[py + 1, px, 3] = 255
     return L
 
@@ -808,31 +818,31 @@ def wall_channel():
     """落水后的窄水道：对岸是一面灰楼的墙，一格一格的窗，水线以下长着暗绿的苔。"""
     L = Layer(TW, 236)
     rng = np.random.default_rng(901)
-    WALL = col(.19, .006, G_HUE)
+    WALL = rcol(.19, .006, G_HUE)
     L.paint(L.rect(0, 0, TW - 1, L.h - 1), WALL)
     x = 0
     while x < TW:                                                      # 一栋栋楼（宽 70~130），之间一道暗缝
         bw = int(rng.integers(70, 130))
-        tone = [col(.19, .006, G_HUE), col(.20, .005, 120), col(.182, .007, 165)][int(rng.integers(0, 3))]
+        tone = [rcol(.19, .006, G_HUE), rcol(.20, .005, 120), rcol(.182, .007, 165)][int(rng.integers(0, 3))]
         L.paint(L.rect(x, 0, x + bw - 1, L.h - 1), tone)
         for yy in range(6, 200, 18):
             for xx in range(x + 5, x + bw - 12, 14):
-                L.paint(L.rect(xx, yy, xx + 7, yy + 9), col(.145, .007, 170))
-                L.paint(L.rect(xx, yy + 10, xx + 8, yy + 10), col(.22, .006, 130))   # 窗台
+                L.paint(L.rect(xx, yy, xx + 7, yy + 9), rcol(.145, .007, 170))
+                L.paint(L.rect(xx, yy + 10, xx + 8, yy + 10), rcol(.22, .006, 130))   # 窗台
                 if rng.random() < 0.2:                                   # 拉着帘子
-                    L.paint(L.rect(xx + 1, yy + 1, xx + 6, yy + 4), col(.17, .008, 150))
+                    L.paint(L.rect(xx + 1, yy + 1, xx + 6, yy + 4), rcol(.17, .008, 150))
                 if rng.random() < 0.25:                                  # 窗下一道水渍
-                    L.paint(L.rect(xx + 2, yy + 11, xx + 2, yy + 11 + int(rng.integers(3, 8))), col(.17, .006, 150))
-        L.paint(L.rect(x, 0, x, L.h - 1), col(.215, .006, 130))
-        L.paint(L.rect(x + bw - 2, 0, x + bw - 1, L.h - 1), col(.15, .007, 170))
+                    L.paint(L.rect(xx + 2, yy + 11, xx + 2, yy + 11 + int(rng.integers(3, 8))), rcol(.17, .006, 150))
+        L.paint(L.rect(x, 0, x, L.h - 1), rcol(.215, .006, 130))
+        L.paint(L.rect(x + bw - 2, 0, x + bw - 1, L.h - 1), rcol(.15, .007, 170))
         px = x + int(rng.integers(10, bw - 10))                          # 落水管
-        L.paint(L.rect(px, 0, px + 1, L.h - 1), col(.165, .008, 160))
-        L.paint(L.rect(px, 0, px, L.h - 1), col(.205, .008, 140))
+        L.paint(L.rect(px, 0, px + 1, L.h - 1), rcol(.165, .008, 160))
+        L.paint(L.rect(px, 0, px, L.h - 1), rcol(.205, .008, 140))
         x += bw
-    L.paint(L.rect(0, 200, TW - 1, L.h - 1), col(.155, .016, 140))     # 水线以下的苔
+    L.paint(L.rect(0, 200, TW - 1, L.h - 1), rcol(.155, .016, 140))     # 水线以下的苔
     n = pnoise(TW, 902, 3, 20)
     for x in range(TW):
-        L.a[200 - int(2 + 2 * n[x]):200, x, :3] = col(.165, .014, 135)
+        L.a[200 - int(2 + 2 * n[x]):200, x, :3] = rcol(.165, .014, 135)
     return L
 
 
@@ -840,7 +850,7 @@ def crate():
     """漂着的木箱：画里唯一一点暖色，面积很小；下面几行泡在水里。"""
     w, h = 22, 18
     L = Layer(w, h, tile=False)
-    WOOD, LIT, SH_, LINE = col(.29, .030, 62), col(.33, .030, 70), col(.235, .026, 55), col(.215, .024, 52)
+    WOOD, LIT, SH_, LINE = rcol(.29, .030, 62), rcol(.33, .030, 70), rcol(.235, .026, 55), rcol(.215, .024, 52)
     L.paint(L.rect(0, 0, w - 1, h - 1), WOOD)
     L.paint(L.rect(0, 0, w - 1, 0), LIT)
     L.paint(L.rect(0, 0, 0, h - 1), LIT)
@@ -849,11 +859,44 @@ def crate():
         L.paint(L.rect(1, y, w - 3, y), LINE)
     L.paint(L.line([(2, 2), (w - 4, h - 7)]), LINE)
     for x in (3, w - 5):
-        L.a[2, x, :3] = col(.20, .010, 60)
+        L.a[2, x, :3] = rcol(.20, .010, 60)
     wet = np.zeros((h, w), bool)
     wet[h - 5:] = True
-    L.a[wet, :3] = (L.a[wet, :3] * 0.72 + np.array(col(.20, .02, P_HUE)) * 0.28).astype(np.uint8)
-    L.a[h - 5, :, :3] = col(.28, .020, 170)                              # 吃水线
+    L.a[wet, :3] = (L.a[wet, :3] * 0.72 + np.array(rcol(.20, .02, P_HUE)) * 0.28).astype(np.uint8)
+    L.a[h - 5, :, :3] = rcol(.28, .020, 170)                              # 吃水线
+    return L
+
+
+def river_row():
+    """起飞离开河流星（原文 152「飞机升高，河岸的屋子缩小成一排挨着水的色块」）：一排矮屋子，每栋只是一块颜色
+    （灰蓝、旧白、褪色的红和绿，压得很暗），屋顶高低不齐，零星几扇琥珀色的窗；底下一条水，水里一道亮线。
+    妮芙家那块（x≈300）比旁边的高一点、窗是亮的。"""
+    L = Layer(TW, 70)
+    rng = np.random.default_rng(1501)
+    SURF = 52
+    tones = [col(.24, .014, 238), col(.27, .012, 225), col(.22, .016, 250), col(.26, .02, 30), col(.25, .016, 150),
+             col(.29, .012, 85), col(.23, .012, 238)]
+    x = 0
+    while x < TW:
+        w = int(rng.integers(10, 26))
+        if TW - x < 12:
+            w = TW - x
+        top = SURF - int(rng.integers(10, 26))
+        if 290 <= x <= 310:
+            top = SURF - 32
+        c = tones[int(rng.integers(0, len(tones)))]
+        L.paint(L.rect(x, top, x + w - 1, SURF), c)
+        L.paint(L.rect(x, top, x + w - 1, top), col(.31, .012, 230))
+        for wy in range(top + 4, SURF - 3, 6):
+            for wx in range(x + 2, x + w - 3, 5):
+                lit = rng.random() < 0.08 or (290 <= x <= 310)
+                L.paint(L.rect(wx, wy, wx + 1, wy + 1), col(.36, .05, 72) if lit else col(.17, .012, 238))
+        x += w + int(rng.integers(0, 3))
+    L.paint(L.rect(0, SURF + 1, TW - 1, L.h - 1), col(.21, .024, 222))
+    L.paint(L.rect(0, SURF + 1, TW - 1, SURF + 1), col(.33, .02, 215))
+    for _ in range(70):
+        xx, yy = int(rng.integers(0, TW)), int(rng.integers(SURF + 3, L.h - 1))
+        L.paint(L.rect(xx, yy, xx + int(rng.integers(2, 7)), yy), col(.27, .022, 215))
     return L
 
 
@@ -866,8 +909,9 @@ BG = {
     "clouds": ["#09120f", "#1a2622"],
     "debris": ["#08100e", "#171f1c"],
     "space": ["#050b09", "#101b17"],
-    "city": ["#0d1412", "#212b27"],
-    "channel": ["#111917", "#1d2623"],
+    # 10-29 河流星白天的石板灰蓝（原来 #0d1412 / #212b27、#111917 / #1d2623 灰绿的夜）；仍比舱壁暗
+    "city": ["#161d23", "#2a333a"],
+    "channel": ["#161c21", "#232b31"],
 }
 
 LAYERS = {   # 从后往前（draw order）
@@ -892,6 +936,7 @@ LAYERS = {   # 从后往前（draw order）
     "wall_channel": {"img": "wall_channel.png", "tile": True},
     "water_near": {"img": "water_near.png", "tile": True},
     "crate": {"img": "crate.png"},
+    "river_row": {"img": "river_row.png", "tile": True},
     "debris_near": {"img": "debris_near.png", "tile": True},
     "wisps": {"img": "wisps.png", "tile": True},
     "spray": {"img": "spray.png", "tile": True},
@@ -992,20 +1037,25 @@ def states():
         S("city_mid", 44, 6, 0), S("wall_channel", -10, 5, 0), S("water_near", 190, 6, 0)]}
     st["crate"] = {"blend": 1.2, "bg": BG["channel"], "layers": [
         S("wall_channel", -10, 3, 0), S("water_near", 190, 4, 0), S("crate", 177, 0, 0, x=42)]}
+    # ---------- 第二章结尾：从河岸起飞（原文 152）。河岸的屋子缩成一排挨着水的色块，慢慢沉下去；远城在后面也沉
+    st["river_leave"] = {"blend": 2.0, "bg": BG["city"], "layers": [
+        S("city_far", 150, 3, 4), S("river_row", 196, 6, 7)]}
     return st
 
 
 ORDER = ["forest_canopy", "canopy_fall", "forest_below", "forest_far", "turning", "clouds", "debris_wall",
-         "clouds_fast", "river_planet", "river_city", "clocktower", "boats", "tilt", "skid", "channel", "crate"]
+         "clouds_fast", "river_planet", "river_city", "clocktower", "boats", "tilt", "skid", "channel", "crate",
+         "river_leave"]
 
 
-def build():
+def build(only=None):
+    """only = 只写这几张图（加上 sky.json 总是重写）。别人改过的层（森林、驾驶舱碎石……）不在 only 里就不碰。"""
     imgs = {
         "cloud_deck": cloud_deck(), "cloud_far": cloud_far(), "cloud_high": cloud_high(), "wisps": wisps(),
         "streaks": streaks(), "debris_belt": debris_belt(), "debris_near": debris_near(), "stars": stars(),
         "ground": ground(), "city_far": city_far(), "city_mid": city_mid(), "clocktower": clocktower(),
         "canal": canal(), "water_near": water_near(), "spray": spray(), "wall_channel": wall_channel(),
-        "crate": crate(),
+        "crate": crate(), "river_row": river_row(),
     }
     arrs = {k: v.a for k, v in imgs.items()}
     arrs.update(forest_layers())
@@ -1016,9 +1066,11 @@ def build():
         assert (a[..., 3] == 0).sum() + (a[..., 3] == 255).sum() == a[..., 3].size, k   # 只有全透 / 全不透
         if LAYERS[k].get("tile"):
             assert a.shape[1] >= SW, k
-        Image.fromarray(a, "RGBA").save(OUT / f"{k}.png")
-    for n, a in debris_sprites().items():
-        Image.fromarray(a, "RGBA").save(DEBRIS_OUT / f"{n}.png")
+        if only is None or k in only:
+            Image.fromarray(a, "RGBA").save(OUT / f"{k}.png")
+    if only is None:
+        for n, a in debris_sprites().items():
+            Image.fromarray(a, "RGBA").save(DEBRIS_OUT / f"{n}.png")
     st = states()
     for s in ORDER:
         assert s in st, s
@@ -1180,7 +1232,8 @@ def preview(dirpath, arrs, doc):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", default=None, help="预览图写到这个目录")
+    ap.add_argument("--only", default=None, help="只写这几张图（逗号分开，sky.json 总是重写），比如 --only=city_far,city_mid")
     args = ap.parse_args()
-    arrs, doc = build()
+    arrs, doc = build(args.only.split(",") if args.only else None)
     if args.preview:
         preview(args.preview, arrs, doc)

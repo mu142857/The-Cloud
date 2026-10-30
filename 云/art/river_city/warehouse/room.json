@@ -1,0 +1,203 @@
+{
+ "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "size": [
+  720,
+  270
+ ],
+ "env": "underwater",
+ "bg": [
+  "#16242b",
+  "#0d161b"
+ ],
+ "layers": [
+  {
+   "id": "back",
+   "img": "back.png",
+   "scroll": 0.3,
+   "y": 0
+  },
+  {
+   "id": "main",
+   "img": "main.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "shafts",
+   "img": "shafts.png",
+   "scroll": 1.0,
+   "y": 0,
+   "alpha": 0.06,
+   "z": -15
+  },
+  {
+   "id": "front",
+   "img": "front.png",
+   "scroll": 1.2,
+   "y": 0,
+   "front": true
+  }
+ ],
+ "ground": 236,
+ "markers": {
+  "warehouse_cabinet_top": 530,
+  "warehouse_cabinet_foot": 478,
+  "warehouse_entry": 40,
+  "warehouse_niff": 70,
+  "warehouse_rope": 40,
+  "warehouse_boxes": 380,
+  "warehouse_broken_box": 286,
+  "warehouse_float": 440,
+  "warehouse_tall_cabinet": 504,
+  "warehouse_furniture": 528,
+  "warehouse_inner_door": 548,
+  "warehouse_cabinet": 598,
+  "warehouse_sluice_door": 660,
+  "warehouse_exit_light": 33,
+  "warehouse_knot_1": 230,
+  "warehouse_knot_2": 420
+ },
+ "objects": {
+  "warehouse_exit_light": {
+   "x": 25,
+   "y": 134,
+   "w": 16,
+   "h": 8,
+   "frames": 2,
+   "ms": 900,
+   "states": {
+    "default": [
+     0,
+     1
+    ],
+    "on": [
+     0,
+     1
+    ]
+   }
+  },
+  "warehouse_broken_box": {
+   "x": 262,
+   "y": 212,
+   "w": 48,
+   "h": 24,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "spilled": 1
+   }
+  },
+  "warehouse_tall_cabinet": {
+   "x": 470,
+   "y": 172,
+   "w": 68,
+   "h": 64,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "fallen": 0,
+    "lifted": 1
+   }
+  },
+  "warehouse_float": {
+   "x": 430,
+   "y": 156,
+   "w": 112,
+   "h": 80,
+   "frames": 3,
+   "states": {
+    "default": 0,
+    "idle": 0,
+    "tied_warehouse_cabinet_top": 1,
+    "tied_warehouse_cabinet_foot": 2
+   }
+  },
+  "warehouse_furniture": {
+   "x": 510,
+   "y": 192,
+   "w": 40,
+   "h": 44,
+   "frames": 3,
+   "states": {
+    "default": 0,
+    "pinned": 0,
+    "loose": 1,
+    "moved": 2
+   }
+  },
+  "warehouse_inner_door": {
+   "x": 542,
+   "y": 176,
+   "w": 12,
+   "h": 60,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "closed": 0,
+    "open": 1
+   }
+  },
+  "warehouse_sluice_door": {
+   "x": 640,
+   "y": 136,
+   "w": 64,
+   "h": 100,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "log": 0,
+    "signatures": 0,
+    "taken": 1
+   }
+  }
+ },
+ "walk": [
+  24,
+  690
+ ],
+ "rope": {
+  "prop": "warehouse_rope",
+  "on": "on",
+  "anchor": [
+   33,
+   150
+  ],
+  "end": 686,
+  "color": "#8e9a98",
+  "knots": [
+   230,
+   420
+  ]
+ },
+ "portals": [
+  {
+   "to": "oldstreet",
+   "at": "oldstreet_warehouse_entry",
+   "kind": "pan_up",
+   "x": 33
+  }
+ ],
+ "ambient": [
+  {
+   "name": "underwater",
+   "db": -8
+  }
+ ],
+ "scripts": [
+  {
+   "script": "res://scripts/underwater_motes.gd",
+   "x": 0,
+   "y": 0,
+   "z": -12,
+   "params": {
+    "count": 40,
+    "area": [
+     0,
+     40,
+     720,
+     190
+    ]
+   }
+  }
+ ]
+}

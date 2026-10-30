@@ -57,6 +57,13 @@ extends Node2D
 ##   剧本 treeline_match（story_runner.gd）和看树冠缺口的 hotspot（at = treeline_gap）都用这一屏。缺图就什么都不做。
 ##   旧的 broken_treeline.png / .json 留在文件夹里，代码不再用。
 ## 远处有东西走过（elephant_call，sway_canopy）：中远景层上一段树冠从一侧到另一侧依次轻晃 1 像素，不露面。
+## 多房间章节（河流篇起，docs/river_rooms_contract.md）：剧本 rooms 里有 forest / treehouse / cockpit 以外的房间时，
+##   story_runner 调 add_stages：每个房间一个 scripts/room_stage.gd（读 art/river_city/<id>/room.json，缺了用占位）。
+##   这些房间的 markers 填进 markers（世界 x），_marker_room 记它们在哪个房间；resolve / ground_at / walls / set_room / set_prop
+##   碰到这些房间都交给 room_stage。marker 在哪个房间：room.json 的 markers → 名字前缀 <room>_ → story_runner 从剧本推出来的
+##   （hotspot / fade_to 引用它时所在的房间）。room.json 没给坐标的 marker 按剧本里出现的顺序在房间里排开（占位）。
+##   剖面小屋（river_home，kind: house）在 host 房间里：进出屋前墙淡出 / 淡入（和树屋一样），镜头往屋子中心收。
+##   水下（env: underwater）：晨每帧走的距离 ×UNDERWATER_SLOW（_Slow 节点在晨后面处理，动画照常 100ms 一帧），妮芙换 swim 形态。
 ## 看得见的边（不用台词推人）：倒木没推开之前，旧路到倒木为止（倒木右边一点）；塌陷口（hollow）是个坑，晨走到坑边就停住，
 ##   像碰到边（不自动往回走）。
 ##   布条：在雾里每隔 CLOTH_GUST 秒被风吹一下（换帧），同时周围亮一点点（加法的小光晕），让人注意到。
@@ -197,6 +204,13 @@ var thick := false                       # prop fog:thick：旧路后半段的�
 var extra_rects := {}                    # 不归这里管、但 hotspot 要用的东西的矩形：名字 → func() -> Rect2（飞船 wreck）
 var on_pseudo: Callable                  # ship 这种伪物件交给关卡：func(id, state)
 var cockpit: Node2D                      # 驾驶舱（scripts/cockpit_room.gd；剧本 rooms 里有 cockpit 才建，见 add_cockpit）
+const STAGE_GD := preload("res://scripts/room_stage.gd")
+const UNDERWATER_SLOW := 0.55            # 水下晨的移动 ×（只改速度）
+const BUBBLES_GD := "res://scripts/underwater_bubbles.gd"
+var stages := {}                         # 多房间章节：房间 id → room_stage.gd
+var _marker_room := {}                   # 这些房间的 marker → 房间 id
+var _stage_root: Node2D
+var _house_tw := {}                      # 小屋 id → 前墙 tween
 
 
 var _script_markers := {}
@@ -276,6 +290,14 @@ func resolve(at) -> Dictionary:
 		return {"ok": true, "x": s.to_float(), "room": room}
 	if cockpit != null and cockpit.has_marker(s):
 		return {"ok": true, "x": cockpit.mx(s), "room": "cockpit"}
+	if _marker_room.has(s):
+		return {"ok": true, "x": float(markers[s]), "room": str(_marker_room[s])}
+	for r in stages:
+		var sg: Node2D = stages[r]
+		if sg.has_object(s):
+			var rr: Rect2 = sg.object_rect(s)
+			var ox: float = rr.get_center().x if rr.size.x > 0 else sg.to_world(sg.object(s).position).x
+			return {"ok": true, "x": round(ox), "room": str(r)}
 	if markers.has(s):
 		return {"ok": true, "x": float(markers[s]), "room": "treehouse" if s.begins_with("room_") else "forest"}
 	var pid := s.trim_prefix("room_")
@@ -287,6 +309,8 @@ func resolve(at) -> Dictionary:
 
 
 func has_marker(s: String) -> bool:
+	if _marker_room.has(s) or not stage_of_prop(s).is_empty():
+		return true
 	return markers.has(s) or _cfg.has(s) or _cfg.has(s.trim_prefix("room_")) or extra_rects.has(s) or (cockpit != null and cockpit.has_marker(s))
 
 
@@ -302,6 +326,8 @@ func ground_at(x: float, r := "") -> float:
 		return float(house["floor"])
 	if r == "cockpit" and cockpit != null:
 		return cockpit.floor_world()
+	if stages.has(r):
+		return stages[r].ground_y(x)
 	return walk_ground(x)
 
 
@@ -319,7 +345,12 @@ func walk_ground(x: float) -> float:
 
 ## 进屋 / 出屋：前墙淡出 / 淡入（instant = 跳节拍时直接到位），晨的地面换成屋内那条直线
 func set_room(r: String, instant := false) -> void:
+	var was := room
 	room = r
+	if not stages.is_empty():
+		_set_stage_room(r, was, instant)
+		if stages.has(r):
+			return
 	if r == "treehouse":
 		var gy: float = house["floor"]
 		chen.ground_fn = func(_x: float) -> float: return gy
@@ -365,6 +396,8 @@ func near_house(x: float) -> bool:
 
 ## 晨现在这一段的左右墙（世界 x）
 func walls(x: float) -> Vector2:
+	if stages.has(room):
+		return stages[room].walls()
 	if in_room():
 		return house["walk"]
 	if room == "cockpit" and cockpit != null:
@@ -403,6 +436,8 @@ func area_split() -> float:
 
 
 func area_of(x: float) -> String:
+	if stages.has(room):
+		return room
 	if in_room():
 		return "house"
 	if room == "cockpit":
@@ -602,6 +637,12 @@ func set_prop(id: String, state: String, save := true) -> void:
 	id = prop_id(id)
 	if save:
 		StoryState.set_prop(id, state)
+	if id.begins_with("mech."):
+		return                             # 小游戏的进度（story_runner.mech_save），不是物件
+	var sr := stage_of_prop(id)
+	if sr != "":
+		stages[sr].set_prop(id, state, level != null and level.story != null and level.story.ff)
+		return
 	if cockpit != null and cockpit.has_prop(id):
 		cockpit.set_prop(id, state)
 		return
@@ -671,6 +712,9 @@ func prop_state(id: String) -> String:
 
 ## 物件在世界里的矩形（点选、提示箭头放哪）
 func prop_rect(id: String) -> Rect2:
+	var sr := stage_of_prop(id)
+	if sr != "":
+		return stages[sr].object_rect(id)
 	if not props.has(id):
 		return Rect2()
 	var s: Sprite2D = props[id]
@@ -679,6 +723,9 @@ func prop_rect(id: String) -> Rect2:
 
 
 func prop_room(id: String) -> String:
+	var sr := stage_of_prop(id)
+	if sr != "":
+		return sr
 	return str(_cfg.get(id, {}).get("room", "forest"))
 
 
@@ -1234,9 +1281,13 @@ func update(delta: float, cam_center: Vector2) -> void:
 	fog_k = move_toward(fog_k, want, delta * 0.5)
 	if absf(want - fog_k) < 0.002:
 		fog_k = want
-	var off := not fog_enabled or room == "cockpit"     # 驾驶舱里没有雾
+	var off := not fog_enabled or room == "cockpit" or not stages.is_empty()     # 驾驶舱、多房间章节里没有雾
 	if cockpit != null:
 		cockpit.update(delta)
+	for r in stages:
+		var sg: Node2D = stages[r]
+		if sg.visible:
+			sg.update(delta, cam_center)
 	var mb: ShaderMaterial = _fog_back.get_meta("mat")
 	mb.set_shader_parameter("density", FOG_BACK_BASE + (FOG_BACK_A - FOG_BACK_BASE) * fog_k)
 	mb.set_shader_parameter("fill", 0.8 * fog_k * fog_k)
@@ -1269,3 +1320,255 @@ func add_cockpit() -> void:
 
 func in_cockpit() -> bool:
 	return room == "cockpit"
+
+
+# ======================================================================= 多房间章节（河流篇起，room_stage.gd）
+## story_runner 在剧本 rooms 里有别的房间时调。order = 剧本里 marker 出现的先后；inferred = 从剧本推出来的 marker → 房间
+func add_stages(rooms: Array, inferred: Dictionary, order: Array) -> void:
+	if not stages.is_empty():
+		return
+	_stage_root = Node2D.new()
+	_stage_root.name = "RoomStages"
+	level.add_child(_stage_root)
+	level.move_child(_stage_root, chen.get_index())          # 和人物同一个 z 时排在人后面
+	var houses: Array = []
+	for r in rooms:
+		var rid := str(r)
+		if rid in ["forest", "treehouse", "cockpit"]:
+			continue
+		var probe: Dictionary = STAGE_GD.peek(rid)
+		if str(probe.get("kind", "")) == "house":
+			houses.append(rid)                     # 小屋要等 host 建好
+			continue
+		var sg: Node2D = STAGE_GD.new()
+		sg.setup(rid, self)
+		stages[rid] = sg
+		_stage_root.add_child(sg)
+	for rid in houses:
+		var host_id := str(STAGE_GD.peek(rid).get("host", ""))
+		var sg: Node2D = STAGE_GD.new()
+		sg.setup(rid, self, stages.get(host_id, null))
+		stages[rid] = sg
+		_stage_root.add_child(sg)
+	# 有 room.json 但剧本 rooms 里没写的 house（极少）：不管
+	# markers：room.json → 剧本里写了非 0（房间坐标）→ 名字前缀 → 推出来的；没有坐标的按出现顺序排开
+	var pending := {}                         # 房间 → [marker…]
+	for n in order:
+		var nm := str(n)
+		if nm.begins_with("cockpit_") or _marker_room.has(nm):
+			continue
+		var rid := _room_for_marker(nm, inferred)
+		if rid == "":
+			continue
+		var sg: Node2D = stages[rid]
+		_marker_room[nm] = rid
+		var v = _script_markers.get(nm, 0)
+		if (v is float or v is int) and float(v) != 0.0:
+			sg.markers[nm] = float(v)
+		elif not sg.has_marker(nm):
+			if not pending.has(rid):
+				pending[rid] = []
+			(pending[rid] as Array).append(nm)
+	for rid in pending:
+		var sg: Node2D = stages[rid]
+		var list: Array = pending[rid]
+		var w: Vector2 = sg.walls() - Vector2(sg.origin.x, sg.origin.x)
+		var n := list.size()
+		for i in n:
+			var k := (float(i) + 0.5) / n
+			sg.markers[str(list[i])] = round(lerpf(w.x + 24.0, w.y - 24.0, k))
+	for rid in stages:
+		var sg: Node2D = stages[rid]
+		for nm in sg.markers:
+			markers[str(nm)] = sg.mx(str(nm))
+			_marker_room[str(nm)] = rid
+	# 剧本 prop 过、room.json 里没有的物件：在同名 marker 那里放占位
+	for id in _prop_ids:
+		var pr := str(_marker_room.get(id, ""))
+		if pr != "" and not stages[pr].has_object(id):
+			stages[pr].add_placeholder_object(id)
+	for id in StoryState.props:
+		if stage_of_prop(str(id)) != "":
+			set_prop(str(id), str(StoryState.props[id]), false)
+	var slow := Node2D.new()
+	slow.name = "_Slow"
+	slow.set_script(_slow_script())
+	slow.set("world", self)
+	add_child(slow)
+
+
+var _prop_ids: Array = []                   # story_runner 填：剧本 prop 过的 id（占位物件用）
+
+
+func _room_for_marker(nm: String, inferred: Dictionary) -> String:
+	for rid in stages:
+		if stages[rid].has_marker(nm) or stages[rid].has_object(nm):
+			return str(rid)
+	var best := ""
+	for rid in stages:
+		if nm.begins_with(str(rid) + "_") and str(rid).length() > best.length():
+			best = str(rid)
+	if best != "":
+		return best
+	var inf := str(inferred.get(nm, ""))
+	return inf if stages.has(inf) else ""
+
+
+func stage(r: String) -> Node2D:
+	return stages.get(r, null)
+
+
+func cur_stage() -> Node2D:
+	return stages.get(room, null)
+
+
+func is_stage(r: String) -> bool:
+	return stages.has(r)
+
+
+func room_of_marker(nm: String) -> String:
+	if _marker_room.has(nm):
+		return str(_marker_room[nm])
+	if cockpit != null and cockpit.has_marker(nm):
+		return "cockpit"
+	return ""
+
+
+## 哪个房间管这个物件 id（不归房间管 = ""）
+func stage_of_prop(id: String) -> String:
+	for r in stages:
+		if stages[r].owns_prop(id):
+			return str(r)
+	return ""
+
+
+## a、b 是不是「小屋 ↔ 它所在的房间」（进出屋不黑屏，前墙淡出 / 淡入）
+func house_pair(a: String, b: String) -> bool:
+	var sa: Node2D = stages.get(a, null)
+	var sb: Node2D = stages.get(b, null)
+	if sa == null or sb == null:
+		return false
+	return (sa.is_house and sa.host == sb) or (sb.is_house and sb.host == sa)
+
+
+## 一个房间和它的小屋 / host 算「同一处」（环境声、显示）
+func _group_of(r: String) -> String:
+	var sg: Node2D = stages.get(r, null)
+	if sg != null and sg.is_house and sg.host != null:
+		return str(sg.host.id)
+	return r
+
+
+func show_stage(r: String, on: bool) -> void:
+	var sg: Node2D = stages.get(r, null)
+	if sg != null:
+		sg.visible = on
+		for o in stages:
+			if stages[o].is_house and stages[o].host == sg:
+				stages[o].visible = on
+
+
+func _set_stage_room(r: String, was: String, instant: bool) -> void:
+	var g := _group_of(r)
+	for o in stages:
+		var sg: Node2D = stages[o]
+		sg.visible = _group_of(str(o)) == g
+	# 小屋：前墙在屋里淡出、出屋淡回来
+	for o in stages:
+		var sg: Node2D = stages[o]
+		if not sg.is_house or sg.house_front == null:
+			continue
+		var a := 0.0 if str(o) == r else 1.0
+		if _house_tw.has(o) and (_house_tw[o] as Tween).is_valid():
+			(_house_tw[o] as Tween).kill()
+		if instant:
+			sg.house_front.modulate.a = a
+		else:
+			var tw := create_tween()
+			tw.tween_property(sg.house_front, "modulate:a", a, 0.5).set_trans(Tween.TRANS_SINE)
+			_house_tw[o] = tw
+	var sg2: Node2D = stages.get(r, null)
+	if sg2 != null:
+		chen.ground_fn = func(x: float) -> float: return sg2.ground_y(x)
+		var e: String = sg2.env if not (sg2.is_house and sg2.host != null) else sg2.host.env
+		chen.set_env(e)
+		_bubbles(e == "underwater", sg2)
+		_lowpass(e == "underwater")
+	else:
+		chen.set_env("")
+		_bubbles(false, null)
+		_lowpass(false)
+	if _group_of(was) != g:
+		if stages.has(_group_of(was)):
+			stages[_group_of(was)].ambient_enter(false)
+		if stages.has(g):
+			stages[g].ambient_enter(true)
+	if r != was:
+		print("ROOM %s enter" % r)
+
+
+var _bub: Node2D
+
+
+func _bubbles(on: bool, sg: Node2D) -> void:
+	if on and _bub == null and ResourceLoader.exists(BUBBLES_GD):
+		_bub = (load(BUBBLES_GD) as GDScript).new()
+		_bub.name = "ChenBubbles"
+		_bub.set("seed", 12)
+		_bub.set("surface_y", sg.origin.y + 12.0)
+		level.add_child(_bub)
+		_bub.set("_follow", chen)
+	if _bub != null:
+		_bub.visible = on
+		if on:
+			_bub.set("surface_y", sg.origin.y + 12.0)
+	chen.step_bubbles = _bub if on else null
+
+
+## 晨在水下：每帧走的距离缩到 UNDERWATER_SLOW（这个节点在晨后面处理；动画帧速不变）
+static func _slow_script() -> GDScript:
+	var gd := GDScript.new()
+	gd.source_code = "extends Node2D\nvar world: Node2D\nvar _last := NAN\nvar _acc := 0.0\n" + \
+		"func _process(_d: float) -> void:\n" + \
+		"\tvar c: Node2D = world.chen\n" + \
+		"\tvar sg: Node2D = world.cur_stage()\n" + \
+		"\tvar uw: bool = sg != null and sg.env == \"underwater\"\n" + \
+		"\tif uw and not is_nan(_last) and c._vel > 0.0:\n" + \
+		"\t\tvar dx: float = c.position.x - _last\n" + \
+		"\t\tif absf(dx) < 20.0:\n" + \
+		"\t\t\t_acc += dx * world.UNDERWATER_SLOW\n" + \
+		"\t\t\tvar step: float = roundf(_acc)\n" + \
+		"\t\t\t_acc -= step\n" + \
+		"\t\t\tc.position.x = _last + step\n" + \
+		"\telse:\n" + \
+		"\t\t_acc = 0.0\n" + \
+		"\t_last = c.position.x\n"
+	gd.reload()
+	return gd
+
+
+
+## 水下：SFX 总线加一点低通（声音闷一点）；出水关掉
+var _lp_idx := -1
+
+
+func _lowpass(on: bool) -> void:
+	var bus := AudioServer.get_bus_index("SFX")
+	if bus < 0:
+		return
+	if _lp_idx < 0:
+		if not on:
+			return
+		var lp := AudioEffectLowPassFilter.new()
+		lp.cutoff_hz = 1400.0
+		AudioServer.add_bus_effect(bus, lp)
+		_lp_idx = AudioServer.get_bus_effect_count(bus) - 1
+	AudioServer.set_bus_effect_enabled(bus, _lp_idx, on)
+
+
+func _exit_tree() -> void:
+	if _lp_idx >= 0:
+		var bus := AudioServer.get_bus_index("SFX")
+		if bus >= 0 and _lp_idx < AudioServer.get_bus_effect_count(bus):
+			AudioServer.remove_bus_effect(bus, _lp_idx)     # 重新载入关卡（换章 / 重开）时不留在总线上
+		_lp_idx = -1

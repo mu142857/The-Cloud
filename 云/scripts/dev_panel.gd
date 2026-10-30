@@ -2,7 +2,10 @@ extends CanvasLayer
 ## 开发者面板（F8，只在 debug 构建 / 编辑器里运行时有；导出的正式版 level_forest.gd 不建它）。
 ## 右边一条半透明的小面板，游戏照常跑；面板不抢晨的移动键：用鼠标点，或者 1~4 / Tab 切换页签（开着面板时 Tab 不开背包）。
 ## 页签：
-##   1 节拍  所有能跳的 flag（剧本里设过的 + 引擎自己设的），点一下 = 重新载入本章再 --beat 到那里（同一套：flags、物品、NPC 位置补齐）
+##   1 节拍  按章（森林 / 飞行一 / 河流篇）列主线大节点，每章 6~10 个（data/dev_names.json 的 beats，按 docs/剧情简版.md 挑）：
+##           点一下 = 跳到那一段的开头：重新载入那一章再 --beat 到它前面那个 flag（flags、物品、NPC 位置都补齐），能跨章跳。
+##           剧情播着（对话、过场、点选、小游戏）也能跳：面板的 _input 最先拿到点击，旧场景整个扔掉再载入（chapter_flow.hard_reload）。
+##           本章现在在哪一段亮黄。最下面「全部节点」折叠着剧本里所有 flag（细碎，调试用）
 ##   2 传送  所有 markers（按 x 排），点一下晨就到那里；room_* 的点会进屋（前墙淡出），屋外的点会出屋
 ##   3 状态  正在播的 scene 和第几步、晨的 x、在哪、背包；所有 flag 列成按钮，亮的是已设。
 ##           点没亮的 = 从现在接着把剧情瞬间过一遍到它（level.dev_complete：前置的 flag、物品、NPC、房间、目标都补齐，
@@ -13,19 +16,25 @@ extends CanvasLayer
 ## 面板上的字统一中文：flag / marker / scene / 房间 / 状态的中文名在 data/dev_names.json（没写的回退显示原 id），
 ##   原 id 放在按钮的 tooltip 里（鼠标停上去看）；状态页那段文字的 tooltip 是原始 id。背包显示物品的 name.zh。
 ## 用法也写在 docs/forest_chapter.md 末尾「开发者模式（F8）」。
-## 自测：-- --dev_test   每个开关点两下、每个按钮点一下、传送到每个 marker、点掉 / 加上一个 flag，
-##        再从面板挨个跳每个节拍（重新载入本章），跳完关掉面板看晨能不能走；
-##        再抽查几个中后段的（SAMPLES）：从本章开头在状态页点它 / 从节拍页跳过去，然后自动玩，能接着设上新 flag（或到章节结尾）
-##        = 没被前置卡住；全部过了打印 DEV_TEST_DONE 后退出。
+## 自测：-- --dev_test   每个开关点两下、每个按钮点一下、传送到每个 marker、点掉一个 flag；
+##        再挨个跳三章所有大节点，每个跳完自动玩，能走到本章下一个大节点（最后一个 = 章节结尾）= 没被前置卡住；
+##        再在对话 / 点选 / 小游戏 / 驾驶舱小游戏进行中真的按 F8、点大节点按钮跳走（INTERRUPTS）；
+##        最后抽查状态页（SAMPLES：从本章开头原地补齐到中后段的 flag 再接着玩）。全部过了打印 DEV_TEST_DONE 后退出。
 
 const W := 206.0
-const TEST_META := "dev_panel_test_i"
-const SAMPLE_META := "dev_panel_test_sample"
-## 自测抽查：[页, flag]。flag = 状态页点（从本章开头原地补齐），beat = 节拍页跳
+const TEST_META := "dev_panel_test"       # 自测进度（跨重新载入）：{ch0, phase, i, stage…}
+## 自测抽查状态页：从本章开头原地补齐到这个 flag，再接着自动玩
 const SAMPLES := {
-	"forest": [["flag", "bridge_built"], ["flag", "parts_all"], ["flag", "launched"], ["beat", "bridge_built"], ["beat", "parts_all"]],
-	"flight1": [["flag", "flight1_leak_fixed"], ["flag", "flight1_miluo_msg"], ["beat", "flight1_leak_fixed"]],
+	"forest": ["bridge_built", "parts_all", "launched"],
+	"flight1": ["flight1_leak_fixed", "flight1_miluo_msg"],
 }
+## 自测打断：剧情播到这种时候按 F8 点大节点跳走。[什么时候, 从哪段开始 [章, after], 点哪个大节点 [章, after]]
+const INTERRUPTS := [
+	["对话", ["forest", "fuel_full"], ["forest", "shop_done"]],
+	["点选", ["forest", "parts_all"], ["flight1", "flight1_fuel_low"]],
+	["小游戏", ["river", ""], ["river", "river_oldstreet"]],
+	["驾驶舱小游戏", ["flight1", ""], ["forest", "deer_met"]],
+]
 const TABS := ["节拍", "传送", "状态", "开关"]
 const BG := Color(0.02, 0.05, 0.04, 0.78)
 const EDGE := Color(0.5, 0.6, 0.55, 0.35)
@@ -50,6 +59,7 @@ var _refresh_t := 0.0
 var _saved_auto := -1.0
 var _names := {}                 # data/dev_names.json：{flags, markers, scenes, rooms, states} → {id: 中文名}
 var _completing := false         # 状态页点的 flag 正在补齐（快进中），别的点先不理
+var _beat_btns: Array = []       # 节拍页的大节点：[{b, ch, after}]（亮现在在哪一段）
 
 
 func _ready() -> void:
@@ -169,31 +179,134 @@ func all_flags() -> Array[String]:
 
 
 func _build_beats(v: VBoxContainer) -> void:
-	# 换章（chapter_flow.gd）：跳到飞行一 = 带着现在的状态进驾驶舱（在森林中途跳就用森林起飞时的样子）；回森林 = 新游戏
-	if level.chapter == "forest":
-		v.add_child(_btn("▶ 跳到飞行一（驾驶舱）", _goto_chapter.bind("flight1")))
+	var tip := _label("点一下 = 跳到这一段的开头，前面的剧情自动做完（flag、背包、物件都补齐）。剧情播着也能跳；能跨章跳")
+	tip.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	v.add_child(tip)
+	var beats = _names.get("beats", {})
+	for ch in level.CHAPTER_GD.CHAPTERS:
+		var cn := _chapter_name(str(ch))
+		var head := _label("— %s%s —" % [cn, "（现在在这章）" if ch == level.chapter else ""])
+		head.add_theme_font_size_override("font_size", 12)
+		v.add_child(head)
+		var list = beats.get(ch, []) if beats is Dictionary else []
+		for bt in list:
+			var after := str(bt.get("after", ""))
+			var b := _btn("%s · %s" % [cn, str(bt.get("zh", after))], _jump_to.bind(str(ch), after),
+				"%s  %s" % [ch, after if after != "" else "（章节开头）"])
+			v.add_child(b)
+			_beat_btns.append({"b": b, "ch": str(ch), "after": after})
+		if ch == "river":
+			# 原文 119 摸衣袋：飞行一烧的是蓝色石头还是通勤卡（从别的章直接进河流篇用的 SEED）
+			var card := Engine.has_meta(level.CHAPTER_GD.RIVER_SEED_META) and str(Engine.get_meta(level.CHAPTER_GD.RIVER_SEED_META)) == "card"
+			v.add_child(_btn("　河流篇按「烧了%s」进（点换成%s）" % ["通勤卡" if card else "蓝色石头", "蓝色石头" if card else "通勤卡"],
+				_river_seed.bind("" if card else "card")))
+	# 剧本里所有设 flag 的地方（细碎，调试用）：默认收起
+	var flags := all_flags()
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 1)
+	box.visible = false
+	var fold := _btn("", Callable())
+	fold.pressed.connect(func():
+		box.visible = not box.visible
+		fold.text = "%s 全部节点（本章 %d 个，调试用）" % ["▾" if box.visible else "▸", flags.size()])
+	fold.text = "▸ 全部节点（本章 %d 个，调试用）" % flags.size()
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 6)
+	v.add_child(gap)
+	v.add_child(fold)
+	v.add_child(box)
+	for f in flags:
+		box.add_child(_btn(_nm("flags", f), _jump_beat.bind(f), f))
+
+
+func _label(text: String) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", 14)
+	l.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	l.custom_minimum_size = Vector2(W - 16, 0)
+	return l
+
+
+func _chapter_name(ch: String) -> String:
+	var t = _names.get("chapters", {})
+	return str(t.get(ch, ch)) if t is Dictionary else ch
+
+
+## 节拍页的大节点：after 为空 = 这一章从头开始；别的 = 重新载入那一章再 --beat 到 after（同一套快进补齐）
+## 换章：去森林 = 新游戏；去飞行一 / 河流篇 = 带着现在的真实状态（本章已经播完）或者用 SEED（chapter_flow.gd）
+func _jump_to(ch: String, after: String) -> void:
+	if ch != level.chapter:
+		_prep_chapter(ch)
+	if after != "":
+		Engine.set_meta(level.DEV_BEAT_META, after)
+	elif ch == "forest":
+		Engine.set_meta(level.DEV_STAGE_META, "play")     # 森林开头：跳过标题，直接坠毁
+	Engine.set_meta(level.DEV_OPEN_META, true)
+	_reload()
+
+
+## 重新载入本场景（剧情播到一半也行：正在 await 的步骤、对话框、点选、小游戏都跟着旧场景一起扔掉）
+func _reload() -> void:
+	level.CHAPTER_GD.hard_reload(level.get_tree())
+
+
+## 河流篇用哪个 SEED：重新直接进河流篇
+func _river_seed(v: String) -> void:
+	var cf = level.CHAPTER_GD
+	if v == "":
+		Engine.remove_meta(cf.RIVER_SEED_META)
 	else:
-		v.add_child(_btn("▶ 重开飞行一", _goto_chapter.bind(level.chapter)))
-		v.add_child(_btn("◀ 回到森林（新游戏）", _goto_chapter.bind("forest")))
-	for f in all_flags():
-		v.add_child(_btn(_nm("flags", f), _jump_beat.bind(f), f))
+		Engine.set_meta(cf.RIVER_SEED_META, v)
+	if Engine.has_meta(cf.CARRY_META):
+		Engine.remove_meta(cf.CARRY_META)
+	Engine.set_meta(cf.CHAPTER_META, "river")
+	Engine.set_meta(cf.PICK_META, true)
+	Engine.set_meta(level.DEV_OPEN_META, true)
+	_reload()
 
 
-func _goto_chapter(ch: String) -> void:
+## 换到 ch 这一章要准备的 meta（不重新载入）
+func _prep_chapter(ch: String) -> void:
 	var cf = level.CHAPTER_GD
 	if ch == "forest":
 		cf.reset()
-	else:
-		if level.chapter == "forest" and StoryState.has("launched"):
-			Engine.set_meta(cf.CARRY_META, StoryState.to_dict())      # 森林已经起飞了：带着真实的状态过去
-		elif level.chapter == "forest" and Engine.has_meta(cf.CARRY_META):
-			Engine.remove_meta(cf.CARRY_META)                         # 森林中途：用 SEED（森林起飞时的样子）
-		Engine.set_meta(cf.CHAPTER_META, ch)
-	Engine.set_meta(level.DEV_OPEN_META, true)
-	level.get_tree().reload_current_scene()
+	elif ch == "river" and level.chapter == "forest":
+		if Engine.has_meta(cf.CARRY_META):
+			Engine.remove_meta(cf.CARRY_META)                     # 从森林直接跳：用 SEED
+	elif ch == "river" and level.chapter == "flight1" and StoryState.has("flight1_done"):
+		Engine.set_meta(cf.CARRY_META, StoryState.to_dict())      # 飞行一已经降落：带着真实的状态过去
+	elif ch == "river" and level.chapter == "flight1":
+		Engine.remove_meta(cf.CARRY_META)
+	elif level.chapter == "forest" and StoryState.has("launched"):
+		Engine.set_meta(cf.CARRY_META, StoryState.to_dict())      # 森林已经起飞了：带着真实的状态过去
+	elif Engine.has_meta(cf.CARRY_META):
+		Engine.remove_meta(cf.CARRY_META)                         # 森林中途 / 从河流篇回去：用 SEED
+	Engine.set_meta(cf.CHAPTER_META, ch)
+	Engine.set_meta(cf.PICK_META, true)
 
 
 func _build_teleport(v: VBoxContainer) -> void:
+	if not story.world.stages.is_empty():
+		# 多房间章节：按房间分组，组里按 x 排
+		var groups := {}
+		for n in story.world.markers:
+			var r: String = story.world.room_of_marker(str(n))
+			if r == "":
+				continue
+			if not groups.has(r):
+				groups[r] = []
+			(groups[r] as Array).append(str(n))
+		for r in groups:
+			var l := Label.new()
+			l.text = "— " + _nm("rooms", str(r)) + " —"
+			l.add_theme_font_size_override("font_size", 12)
+			v.add_child(l)
+			var arr: Array = groups[r]
+			arr.sort_custom(func(a, b): return float(story.world.markers[a]) < float(story.world.markers[b]))
+			for n in arr:
+				v.add_child(_btn("%s  %d" % [_nm("markers", str(n)), int(story.world.markers[n])], level.dev_teleport.bind(str(n)), str(n)))
+		return
 	var names: Array = story.world.markers.keys()
 	names.sort_custom(func(a, b):
 		var ra := str(a).begins_with("room_")
@@ -245,12 +358,11 @@ func _build_switches(v: VBoxContainer) -> void:
 # ======================================================================= 动作
 func _jump_beat(f: String) -> void:
 	Engine.set_meta(level.DEV_BEAT_META, f)
-	level.get_tree().reload_current_scene()
+	_reload()
 
 
 func _restart() -> void:
-	Engine.set_meta(level.DEV_STAGE_META, "play")
-	level.get_tree().reload_current_scene()
+	_jump_to(str(level.chapter), "")
 
 
 func _toggle_flag(f: String) -> void:
@@ -339,124 +451,223 @@ func _settle(limit: float) -> void:
 
 
 func _self_test() -> void:
-	var flags := all_flags()
-	var i: int = int(Engine.get_meta(TEST_META, -1))
 	await _wait(1.5)
-	if Engine.has_meta(SAMPLE_META):
-		await _check_sample(int(Engine.get_meta(SAMPLE_META)))
+	var d: Dictionary = Engine.get_meta(TEST_META) if Engine.has_meta(TEST_META) else {}
+	if d.is_empty():
+		await _test_buttons()
+		_test_go({"ch0": str(level.chapter), "phase": "beat", "i": 0})
 		return
-	if i >= 0:
-		# 刚从面板跳过来：关掉面板；落地可能接着播剧情（比如走到等着的鹿身边），让对话自己往下走，等到能自由走再试
-		visible = false
-		story.dlg.auto_delay = 0.2
-		var waited := 0.0
-		var reached: bool = StoryState.has(flags[i])
-		while not level.free_play() and waited < 90.0 and not story.ended:
-			await _wait(0.25)
-			waited += 0.25
-			if story.dlg.picking():
-				story.dlg.confirm()                       # 点选 / 菜单：替它选当前那个
-			elif story.dlg.menu_open():
-				story.dlg._menu_choose(story.dlg._menu_sel)
-			elif story.cockpit_ui != null:
-				story.cockpit_ui.dev_skip()               # 驾驶舱的避碎石 / 选纪念品：替它做完
-		story.dlg.auto_delay = -1.0
-		if story.ended:
-			print("DEV_TEST beat %s: %s  (章节结束卡)" % [flags[i], "ok" if reached else "MISSING"])
-			i += 1
-			if i >= flags.size():
-				Engine.remove_meta(TEST_META)
-				_start_sample(0)
-				return
-			Engine.set_meta(TEST_META, i)
-			_jump_beat(flags[i])
-			return
-		var x0: float = level.chen.position.x
-		var ok_state: bool = level.state == level.S.PLAY and level.chen.input_enabled
-		var e := InputEventKey.new()
-		e.keycode = KEY_LEFT if x0 > float(story.world.walls(x0).y) - 30.0 else KEY_RIGHT
-		e.physical_keycode = e.keycode
-		e.pressed = true
-		Input.parse_input_event(e)
-		await _wait(0.6)
-		e.pressed = false
-		Input.parse_input_event(e)
-		var moved: bool = absf(level.chen.position.x - x0) > 4.0
-		print("DEV_TEST beat %s: %s  state_ok=%s moved=%s x=%.0f" % [flags[i], "ok" if reached else "MISSING",
-			ok_state, moved, level.chen.position.x])
-		i += 1
-	else:
-		# 第一轮：开关、按钮、传送、flag
-		for k in _toggles:
-			_switch(str(k))
-			await _wait(0.1)
-			_switch(str(k))
-		_give_all()
-		_fuel_full()
-		# 通讯器剧情播放中不开（open_browse 的规矩）：flight1 一进来就在播起飞过场，先让它自己播到能自由走再试
-		await _settle(90.0)
-		story.phone.dev_open()
-		await _wait(0.3)
-		var phone_ok: bool = story.phone.is_open()
-		story.phone.close()
-		level._close_panels()
-		print("DEV_TEST phone open=%s" % phone_ok)
-		for n in story.world.markers:
-			level.dev_teleport(str(n))
-			await _wait(0.05)
-		level.dev_teleport("chen_start")
-		StoryState.set_flag("zz_test_flag")
-		_toggle_flag("zz_test_flag")              # 点亮的 = 只去掉（没亮的那条路会重新载入，在后面的抽查里测）
-		if StoryState.has("zz_test_flag"):
-			print("DEV_TEST flag clear FAILED")
-		for t in TABS.size():
-			_set_tab(t)
-			await _wait(0.25)
-		print("DEV_TEST buttons ok (toggles %d, markers %d)" % [_toggles.size(), story.world.markers.size()])
-		i = 0
-	if i >= flags.size():
+	match str(d["phase"]):
+		"beat":
+			await _test_beat(d)
+		"int":
+			await _test_interrupt(d)
+		"sample":
+			await _check_sample(d)
+
+
+## 第一轮：开关、按钮、传送、flag、折叠的「全部节点」
+func _test_buttons() -> void:
+	for k in _toggles:
+		_switch(str(k))
+		await _wait(0.1)
+		_switch(str(k))
+	_give_all()
+	_fuel_full()
+	# 通讯器剧情播放中不开（open_browse 的规矩）：flight1 一进来就在播起飞过场，先让它自己播到能自由走再试
+	await _settle(90.0)
+	story.phone.dev_open()
+	await _wait(0.3)
+	var phone_ok: bool = story.phone.is_open()
+	story.phone.close()
+	level._close_panels()
+	print("DEV_TEST phone open=%s" % phone_ok)
+	for n in story.world.markers:
+		level.dev_teleport(str(n))
+		await _wait(0.05)
+	level.dev_teleport("chen_start")
+	StoryState.set_flag("zz_test_flag")
+	_toggle_flag("zz_test_flag")              # 点亮的 = 只去掉（没亮的那条路在后面的抽查里测）
+	if StoryState.has("zz_test_flag"):
+		print("DEV_TEST flag clear FAILED")
+	for t in TABS.size():
+		_set_tab(t)
+		await _wait(0.25)
+	_set_tab(0)
+	print("DEV_TEST buttons ok (toggles %d, markers %d, 大节点 %d)" % [_toggles.size(), story.world.markers.size(), _all_beats().size()])
+
+
+## 所有大节点按章排成一列：[{ch, after, zh}]
+func _all_beats() -> Array:
+	var out: Array = []
+	var beats = _names.get("beats", {})
+	for ch in level.CHAPTER_GD.CHAPTERS:
+		for bt in (beats.get(ch, []) if beats is Dictionary else []):
+			out.append({"ch": str(ch), "after": str(bt.get("after", "")), "zh": "%s · %s" % [_chapter_name(str(ch)), str(bt.get("zh", ""))]})
+	return out
+
+
+## 存好进度，做下一步要的跳转（重新载入以后 _self_test 接着做）
+func _test_go(d: Dictionary) -> void:
+	var beats := _all_beats()
+	if d["phase"] == "beat" and int(d["i"]) >= beats.size():
+		d = {"ch0": d["ch0"], "phase": "int", "i": 0, "stage": "from"}
+	if d["phase"] == "int" and int(d["i"]) >= INTERRUPTS.size():
+		d = {"ch0": d["ch0"], "phase": "sample", "i": 0}
+	if d["phase"] == "sample" and int(d["i"]) >= (SAMPLES.get(str(d["ch0"]), []) as Array).size():
 		Engine.remove_meta(TEST_META)
-		_start_sample(0)
-		return
-	Engine.set_meta(TEST_META, i)
-	_jump_beat(flags[i])
-
-
-## 抽查第 k 个：先重新载入（状态页那种 = 重开本章；节拍页那种 = 跳节拍），载入完 _self_test 接着 _check_sample
-func _start_sample(k: int) -> void:
-	var list: Array = SAMPLES.get(str(level.chapter), [])
-	if k >= list.size():
-		if Engine.has_meta(SAMPLE_META):
-			Engine.remove_meta(SAMPLE_META)
 		print("DEV_TEST_DONE")
 		get_tree().quit()
 		return
-	Engine.set_meta(SAMPLE_META, k)
-	if str(list[k][0]) == "beat":
-		_jump_beat(str(list[k][1]))
+	Engine.set_meta(TEST_META, d)
+	match str(d["phase"]):
+		"beat":
+			_jump_to(beats[int(d["i"])]["ch"], beats[int(d["i"])]["after"])
+		"int":
+			var fr: Array = INTERRUPTS[int(d["i"])][1]
+			_jump_to(str(fr[0]), str(fr[1]))
+		"sample":
+			_jump_to(str(d["ch0"]), "")
+
+
+## 跳到第 i 个大节点以后：到没到；再接着自动玩，能走到本章下一个大节点（本章最后一个 = 走到章节结尾）= 没被前置卡住
+func _test_beat(d: Dictionary) -> void:
+	var beats := _all_beats()
+	var i := int(d["i"])
+	var b: Dictionary = beats[i]
+	visible = false
+	var reached: bool = level.chapter == b["ch"] and (b["after"] == "" or StoryState.has(b["after"]))
+	var nxt := ""
+	if i + 1 < beats.size() and beats[i + 1]["ch"] == b["ch"]:
+		nxt = beats[i + 1]["after"]
+	var n0: int = StoryState.flag_order.size()
+	var cont := await _play_until(nxt, 400.0)
+	print("DEV_TEST beat %s（%s）: %s  接着玩到「%s」: %s  又设上 %d 个 flag" % [b["zh"], b["after"] if b["after"] != "" else "开头",
+		"ok" if reached else "MISSING", _nm("flags", nxt) if nxt != "" else "章节结尾", "ok" if cont else "STUCK",
+		StoryState.flag_order.size() - n0])
+	d["i"] = i + 1
+	_test_go(d)
+
+
+## 自动玩到 flag 设上（flag 为空 = 到章节结尾），最多 limit 秒
+func _play_until(flag: String, limit: float) -> bool:
+	var waited := 0.0
+	story.auto = "main"
+	while waited < limit and not story.ended and not (flag != "" and StoryState.has(flag)):
+		await _wait(0.25)
+		waited += 0.25
+		if story.cockpit_ui != null:
+			story.cockpit_ui.dev_skip()
+	story.auto = ""
+	story.dlg.auto_delay = -1.0
+	return StoryState.has(flag) if flag != "" else story.ended
+
+
+func _in_state(kind: String) -> bool:
+	match kind:
+		"对话":
+			return story.busy and story.dlg.is_open() and not story.dlg.picking() and not story.dlg.menu_open()
+		"点选":
+			return story.dlg.picking() or story.dlg.menu_open()
+		"小游戏":
+			return story.mech_wait or story.mech_running != ""
+		"驾驶舱小游戏":
+			return story.cockpit_ui != null
+	return false
+
+
+## 剧情播到 INTERRUPTS 那种时候：真的按 F8、真的点节拍页的按钮（从 viewport 进输入，和作者手点一样），看能不能干净地跳走
+func _test_interrupt(d: Dictionary) -> void:
+	var it: Array = INTERRUPTS[int(d["i"])]
+	if d["stage"] == "from":
+		visible = false
+		story.auto = "main"
+		var waited := 0.0
+		while not _in_state(str(it[0])) and waited < 300.0 and not story.ended:
+			await get_tree().process_frame
+			waited += get_process_delta_time()
+			if story.cockpit_ui != null and str(it[0]) != "驾驶舱小游戏":
+				story.cockpit_ui.dev_skip()
+		d["hit"] = _in_state(str(it[0]))
+		d["scene"] = str(story._cur_scene) if story.busy else "-"
+		_push(_key(KEY_F8, true))
+		_push(_key(KEY_F8, false))
+		await get_tree().process_frame
+		d["open"] = visible
+		d["stage"] = "to"
+		Engine.set_meta(TEST_META, d)
+		_set_tab(0)
+		var b: Button = null
+		for bb in _beat_btns:
+			if bb["ch"] == str(it[2][0]) and bb["after"] == str(it[2][1]):
+				b = bb["b"]
+		(_pages[0] as ScrollContainer).ensure_control_visible(b)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var c := b.get_global_rect().get_center()
+		_push(_click(c, true))
+		_push(_click(c, false))
+		await _wait(1.0)
+		print("DEV_TEST interrupt %s: 点了按钮没跳 FAILED" % it[0])     # 跳了的话这个节点已经没了，走不到这里
+		d["i"] = int(d["i"]) + 1
+		d["stage"] = "from"
+		_test_go(d)
+		return
+	visible = false
+	var to: Array = it[2]
+	var reached: bool = level.chapter == str(to[0]) and (str(to[1]) == "" or StoryState.has(str(to[1])))
+	var n0: int = StoryState.flag_order.size()
+	var waited := 0.0
+	story.auto = "main"
+	while StoryState.flag_order.size() < n0 + 1 and not story.ended and waited < 200.0:
+		await _wait(0.25)
+		waited += 0.25
+		if story.cockpit_ui != null:
+			story.cockpit_ui.dev_skip()
+	story.auto = ""
+	print("DEV_TEST interrupt %s（%s scene=%s，F8 开面板=%s）→ %s · %s: %s  接着玩: %s" % [it[0],
+		"打断时正在" if d["hit"] else "没等到这种时候 NOT_HIT", d["scene"], d["open"], _chapter_name(str(to[0])),
+		str(to[1]), "ok" if reached else "MISSING", "ok" if story.ended or StoryState.flag_order.size() > n0 else "STUCK"])
+	d["i"] = int(d["i"]) + 1
+	d["stage"] = "from"
+	_test_go(d)
+
+
+func _push(e: InputEvent) -> void:
+	get_viewport().push_input(e, true)
+
+
+func _key(k: Key, down: bool) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.keycode = k
+	e.physical_keycode = k
+	e.pressed = down
+	return e
+
+
+func _click(p: Vector2, down: bool) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.position = p
+	e.global_position = p
+	e.pressed = down
+	return e
+
+
+## 状态页抽查：从本章开头点一个中后段的 flag（原地补齐，不走重新载入），再接着自动玩能设上新 flag（或到章节结尾）
+func _check_sample(d: Dictionary) -> void:
+	var f := str(SAMPLES[str(d["ch0"])][int(d["i"])])
+	await _settle(90.0)                       # 重开本章的开场（森林起身 / 驾驶舱起飞过场）先播完
+	var n0: int = StoryState.flag_order.size()
+	var items0: int = Inventory.owned.size()
+	if StoryState.has(f):
+		print("DEV_TEST sample flag %s: 开场就已经设上了（换个靠后的抽查）" % f)
 	else:
-		_restart()
-
-
-func _check_sample(k: int) -> void:
-	var list: Array = SAMPLES.get(str(level.chapter), [])
-	var page := str(list[k][0])
-	var f := str(list[k][1])
-	var filled := "节拍页：重新载入跳过去"
-	if page == "flag":
-		await _settle(90.0)                       # 重开本章的开场（森林起身 / 驾驶舱起飞过场）先播完
-		var n0: int = StoryState.flag_order.size()
-		var items0: int = Inventory.owned.size()
-		if StoryState.has(f):
-			print("DEV_TEST sample flag %s: 开场就已经设上了（换个靠后的抽查）" % f)
-		else:
-			_set_tab(2)
-			await level.dev_complete(f)           # 状态页点它（不走重新载入的退路：走不到就报 MISSING）
-		filled = "状态页原地补齐 flag +%d 物品 %+d" % [StoryState.flag_order.size() - n0, Inventory.owned.size() - items0]
+		_set_tab(2)
+		await level.dev_complete(f)
+	var filled := "flag +%d 物品 %+d" % [StoryState.flag_order.size() - n0, Inventory.owned.size() - items0]
 	var reached: bool = StoryState.has(f)
-	var obj := str(story.objective().get("zh", ""))
-	await _settle(90.0)                           # 跳完接着播的那段（别的章节停在目标后面的）
-	# 接着自动玩：能再设上两个新 flag，或者走到章节结尾 = 没被前置卡住
+	await _settle(90.0)                       # 跳完接着播的那段（别的章节停在目标后面的）
 	var n1: int = StoryState.flag_order.size()
 	var waited := 0.0
 	if not story.ended:
@@ -469,15 +680,38 @@ func _check_sample(k: int) -> void:
 		story.auto = ""
 		story.dlg.auto_delay = -1.0
 	var cont: bool = story.ended or StoryState.flag_order.size() >= n1 + 2
-	print("DEV_TEST sample %s %s: %s  continue=%s  %s  目标「%s」  接着玩又设上 %d 个%s" % [page, f,
-		"ok" if reached else "MISSING", "ok" if cont else "STUCK", filled, obj,
+	print("DEV_TEST sample flag %s: %s  continue=%s  状态页原地补齐 %s  接着玩又设上 %d 个%s" % [f,
+		"ok" if reached else "MISSING", "ok" if cont else "STUCK", filled,
 		StoryState.flag_order.size() - n1, "（到章节结尾）" if story.ended else ""])
-	_start_sample(k + 1)
+	d["i"] = int(d["i"]) + 1
+	_test_go(d)
 
 
 # ======================================================================= 每帧
+## 面板自己先接输入（它总排在关卡子节点的最后，_input 倒着叫，它最先拿到）：
+## F8 开关面板；面板上的鼠标点击 / 滚轮在这里自己处理掉。不这样的话剧情播着的时候对话框、点选、小游戏的 _input
+## 会先把点击吃了，按钮收不到（「剧情的时候不能跳」）
 func _input(e: InputEvent) -> void:
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F8:
+		get_viewport().set_input_as_handled()
+		toggle()
+		return
 	if not visible:
+		return
+	if e is InputEventMouseButton:
+		var mb := e as InputEventMouseButton
+		if not _root.get_global_rect().has_point(mb.position):
+			return
+		get_viewport().set_input_as_handled()       # 先标掉：按钮可能马上重新载入场景，之后就没有 viewport 了
+		if not mb.pressed:
+			return
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			var b := _hit(mb.position)
+			if b != null and not b.disabled:
+				b.pressed.emit()
+		elif mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			var sc := _pages[_tab] as ScrollContainer
+			sc.scroll_vertical += 24 * (-1 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else 1)
 		return
 	if e is InputEventKey and e.pressed and not e.echo:
 		var k: int = e.keycode
@@ -489,6 +723,21 @@ func _input(e: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
+## 鼠标下面是哪个按钮（页面里的要在滚动框露出来的那部分里）
+func _hit(p: Vector2) -> Button:
+	for n in _root.find_children("*", "Button", true, false):
+		var b := n as Button
+		if not b.is_visible_in_tree() or not b.get_global_rect().has_point(p):
+			continue
+		var sc := b.get_parent()
+		while sc != null and not sc is ScrollContainer and sc != _root:
+			sc = sc.get_parent()
+		if sc is ScrollContainer and not (sc as Control).get_global_rect().has_point(p):
+			continue
+		return b
+	return null
+
+
 func _process(delta: float) -> void:
 	# 快走：只把晨这一帧走的距离再加两倍（这个节点在晨后面处理，晨的动画照常 100ms 一帧）
 	var chen: Node2D = level.chen
@@ -497,6 +746,8 @@ func _process(delta: float) -> void:
 		if absf(dx) < 20.0:
 			chen.position.x = round(chen.position.x + dx * 2.0)
 	_last_x = chen.position.x
+	if get_index() < level.get_child_count() - 1:
+		level.move_child.call_deferred(self, -1)     # 剧情后来加到关卡上的节点（小游戏等）排到面板后面，面板的 _input 还是最先
 	if skip_dialog and story.dlg.auto_delay != 0.15:
 		story.dlg.auto_delay = 0.15
 	_overlay.visible = show_ranges
@@ -521,6 +772,16 @@ func _process(delta: float) -> void:
 		", ".join(Inventory.owned)]
 	for f in _flag_btns:
 		(_flag_btns[f] as Button).modulate = Color(1.35, 1.3, 1.0) if StoryState.has(f) else Color(0.6, 0.6, 0.6)
+	# 节拍页：本章现在在哪一段亮黄，做完的几段暗一点
+	var cur := -1
+	for k in _beat_btns.size():
+		var d: Dictionary = _beat_btns[k]
+		if d["ch"] == level.chapter and (d["after"] == "" or StoryState.has(d["after"])):
+			cur = k
+	for k in _beat_btns.size():
+		var d: Dictionary = _beat_btns[k]
+		var done: bool = d["ch"] == level.chapter and k < cur
+		(d["b"] as Button).modulate = Color(1.4, 1.3, 0.8) if k == cur else (Color(0.65, 0.65, 0.65) if done else Color.WHITE)
 	_sync_switches()
 
 

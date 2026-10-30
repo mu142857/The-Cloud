@@ -1,0 +1,364 @@
+{
+ "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "size": [
+  1280,
+  270
+ ],
+ "env": "river_day",
+ "bg": [
+  "#1b2228",
+  "#3a4752"
+ ],
+ "layers": [
+  {
+   "id": "sky",
+   "img": "res://art/river_city/common/sky.png",
+   "scroll": 0.0,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "far",
+   "img": "res://art/river_city/common/far.png",
+   "scroll": 0.15,
+   "y": -40,
+   "tile": true
+  },
+  {
+   "id": "midfar",
+   "img": "res://art/river_city/common/midfar.png",
+   "scroll": 0.35,
+   "y": -122,
+   "tile": true
+  },
+  {
+   "id": "mid",
+   "img": "mid.png",
+   "scroll": 0.6,
+   "y": 0
+  },
+  {
+   "id": "main",
+   "img": "main.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "shafts",
+   "img": "shafts.png",
+   "scroll": 1.0,
+   "y": 0,
+   "alpha": 0.07,
+   "z": -15
+  },
+  {
+   "id": "rail",
+   "img": "rail.png",
+   "scroll": 1.0,
+   "y": 0,
+   "front": true
+  },
+  {
+   "id": "water",
+   "img": "water.png",
+   "scroll": 1.0,
+   "y": 156,
+   "water": true,
+   "front": true,
+   "alpha": 0.55
+  },
+  {
+   "id": "ripples",
+   "img": "ripples.png",
+   "scroll": 1.0,
+   "y": 155,
+   "water": true,
+   "front": true,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "show": 0.7,
+    "wobble": 1.0
+   }
+  },
+  {
+   "id": "front",
+   "img": "front.png",
+   "scroll": 1.3,
+   "y": 0,
+   "front": true
+  }
+ ],
+ "ground": [
+  [
+   0,
+   150
+  ],
+  [
+   440,
+   150
+  ],
+  [
+   450,
+   156
+  ],
+  [
+   460,
+   162
+  ],
+  [
+   470,
+   168
+  ],
+  [
+   480,
+   174
+  ],
+  [
+   490,
+   180
+  ],
+  [
+   500,
+   186
+  ],
+  [
+   510,
+   193
+  ],
+  [
+   520,
+   199
+  ],
+  [
+   530,
+   205
+  ],
+  [
+   540,
+   211
+  ],
+  [
+   550,
+   217
+  ],
+  [
+   560,
+   223
+  ],
+  [
+   570,
+   229
+  ],
+  [
+   580,
+   236
+  ],
+  [
+   1036,
+   236
+  ],
+  [
+   1076,
+   262
+  ],
+  [
+   1092,
+   262
+  ],
+  [
+   1096,
+   236
+  ],
+  [
+   1280,
+   236
+  ]
+ ],
+ "markers": {
+  "oldstreet_entry": 30,
+  "oldstreet_back": 16,
+  "oldstreet_niff": 70,
+  "oldstreet_railing": 290,
+  "oldstreet_marks": 418,
+  "sluice_wheel_1": 206,
+  "sluice_wheel_2": 252,
+  "sluice_wheel_3": 318,
+  "sluice_pipes": 452,
+  "oldstreet_steps": 470,
+  "oldstreet_signs": 620,
+  "oldstreet_corner": 784,
+  "oldstreet_height_wall": 878,
+  "oldstreet_dry_step": 950,
+  "oldstreet_warehouse_entry": 1066,
+  "oldstreet_hook": 1114,
+  "oldstreet_to_south": 1264
+ },
+ "objects": {
+  "sluice_wheel_1": {
+   "x": 192,
+   "y": 107,
+   "w": 28,
+   "h": 30,
+   "frames": 8,
+   "states": {
+    "pos0": 0,
+    "pos1": 1,
+    "pos2": 2,
+    "pos3": 3,
+    "pos4": 4,
+    "pos5": 5,
+    "pos6": 6,
+    "pos7": 7,
+    "default": 0,
+    "set": 2,
+    "ready": 0
+   }
+  },
+  "sluice_wheel_2": {
+   "x": 238,
+   "y": 107,
+   "w": 28,
+   "h": 30,
+   "frames": 8,
+   "states": {
+    "pos0": 0,
+    "pos1": 1,
+    "pos2": 2,
+    "pos3": 3,
+    "pos4": 4,
+    "pos5": 5,
+    "pos6": 6,
+    "pos7": 7,
+    "default": 0,
+    "set": 2,
+    "ready": 0
+   }
+  },
+  "sluice_wheel_3": {
+   "x": 301,
+   "y": 100,
+   "w": 34,
+   "h": 36,
+   "frames": 8,
+   "states": {
+    "pos0": 0,
+    "pos1": 1,
+    "pos2": 2,
+    "pos3": 3,
+    "pos4": 4,
+    "pos5": 5,
+    "pos6": 6,
+    "pos7": 7,
+    "default": 0,
+    "set": 2,
+    "ready": 0
+   }
+  },
+  "sluice_pipes": {
+   "x": 445,
+   "y": 180,
+   "w": 16,
+   "h": 30,
+   "frames": 7,
+   "fps": 6,
+   "states": {
+    "bubble_3": [
+     0,
+     1
+    ],
+    "bubble_2": [
+     2,
+     3
+    ],
+    "bubble_1": [
+     4,
+     5
+    ],
+    "still": 6,
+    "default": [
+     0,
+     1
+    ]
+   }
+  }
+ },
+ "water": {
+  "y": 156,
+  "prop": "oldstreet_steps",
+  "levels": {
+   "submerged": 156,
+   "l1": 178,
+   "l2": 200,
+   "l3": 222,
+   "revealed": 246
+  },
+  "sec": 1.5
+ },
+ "walk": [
+  12,
+  1268
+ ],
+ "walk_when": [
+  {
+   "prop": "oldstreet_steps=submerged",
+   "walk": [
+    12,
+    446
+   ]
+  },
+  {
+   "prop": "oldstreet_steps=l1",
+   "walk": [
+    12,
+    470
+   ]
+  },
+  {
+   "prop": "oldstreet_steps=l2",
+   "walk": [
+    12,
+    500
+   ]
+  },
+  {
+   "prop": "oldstreet_steps=l3",
+   "walk": [
+    12,
+    540
+   ]
+  }
+ ],
+ "portals": [
+  {
+   "edge": "left",
+   "to": "market",
+   "at": "market_to_oldstreet",
+   "kind": "walk_fade"
+  },
+  {
+   "edge": "right",
+   "to": "southbridge",
+   "at": "southbridge_entry",
+   "kind": "walk_fade"
+  },
+  {
+   "to": "warehouse",
+   "at": "warehouse_entry",
+   "kind": "pan_down",
+   "x": 1066
+  }
+ ],
+ "ambient": [
+  {
+   "name": "pipe_gurgle",
+   "x": 452,
+   "db": -6,
+   "range": 260
+  },
+  {
+   "name": "river_flow",
+   "db": -14
+  }
+ ]
+}

@@ -1,5 +1,40 @@
 {
-	"_comment": "开发者面板（F8，scripts/dev_panel.gd）里显示的中文名。flags = 节拍页 / 状态页的 flag 按钮；markers = 传送页；scenes = 状态页「场景」；rooms = 状态页「房间」；states = 状态页「状态」（level_forest.gd 的 enum S）。没写的回退显示原 id；scenes 里同名 scene 在不同章节意思不同时，用「章节:id」（比如 river:farewell）写，先查它再查 id；原 id 在按钮的 tooltip 里（鼠标停上去）。新加 flag / marker / scene 记得来这里补一个短名。",
+	"_comment": "开发者面板（F8，scripts/dev_panel.gd）里显示的中文名。flags = 节拍页 / 状态页的 flag 按钮；markers = 传送页；scenes = 状态页「场景」；rooms = 状态页「房间」；states = 状态页「状态」（level_forest.gd 的 enum S）。没写的回退显示原 id；scenes 里同名 scene 在不同章节意思不同时，用「章节:id」（比如 river:farewell）写，先查它再查 id；原 id 在按钮的 tooltip 里（鼠标停上去）。新加 flag / marker / scene 记得来这里补一个短名。beats = 节拍页按章列的大节点（按 docs/剧情简版.md 的主线挑）：zh 是这一段的名字，after = 跳到「这个 flag 刚设上」的样子（= 上一段做完，正好站在这一段开头）；after 为空 = 这一章的开头。改了剧本、大节点的前一个 flag 变了，这里跟着改（-- --dev_test 会挨个跳一遍）。",
+	"chapters": {"forest": "森林", "flight1": "飞行一", "river": "河流篇"},
+	"beats": {
+		"forest": [
+			{"zh": "坠毁、翻行李、捡燃料（开场）", "after": ""},
+			{"zh": "启动失败，鹿出现", "after": "fuel_full"},
+			{"zh": "旧路：跟鹿走、挪倒木", "after": "deer_met"},
+			{"zh": "雾里跟蹄印找树屋", "after": "log_cleared"},
+			{"zh": "树屋：弥洛要三样零件", "after": "at_treehouse"},
+			{"zh": "树屋修推进器", "after": "parts_all"},
+			{"zh": "送水泵（空屋、商店）", "after": "gramophone_talk"},
+			{"zh": "坡地真相", "after": "shop_done"},
+			{"zh": "告别弥洛", "after": "slope_talked"},
+			{"zh": "回飞船起飞", "after": "farewell_done"}
+		],
+		"flight1": [
+			{"zh": "起飞、碎石带（开场）", "after": ""},
+			{"zh": "漏气", "after": "flight1_leak"},
+			{"zh": "绕开碎石带", "after": "flight1_leak_fixed"},
+			{"zh": "烧纪念品", "after": "flight1_fuel_low"},
+			{"zh": "弥洛的消息（通讯器）", "after": "flight1_logged"},
+			{"zh": "迫降河流星", "after": "flight1_journal"}
+		],
+		"river": [
+			{"zh": "河岸打捞（开场）", "after": ""},
+			{"zh": "妮芙家：明信片、来客册", "after": "river_landed"},
+			{"zh": "影像盒（看大象）", "after": "river_deer_msg"},
+			{"zh": "高处市集借呼吸装置", "after": "river_need_head"},
+			{"zh": "水闸", "after": "river_oldstreet"},
+			{"zh": "水下仓库（读取头、真相）", "after": "river_sluice_done"},
+			{"zh": "修好影像", "after": "river_back_home"},
+			{"zh": "南桥取景", "after": "river_cup_traced"},
+			{"zh": "货台找船号", "after": "river_prints"},
+			{"zh": "铜铃、修船、告别妮芙", "after": "river_ship_number"}
+		]
+	},
 	"flags": {
 		"crashed": "坠毁了（开场）",
 		"got_luggage": "翻过行李",

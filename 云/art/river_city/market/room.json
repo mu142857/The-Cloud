@@ -1,0 +1,193 @@
+{
+ "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "size": [
+  1440,
+  270
+ ],
+ "env": "river_day",
+ "bg": [
+  "#1b2228",
+  "#3a4752"
+ ],
+ "layers": [
+  {
+   "id": "sky",
+   "img": "res://art/river_city/common/sky.png",
+   "scroll": 0.0,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "far",
+   "img": "res://art/river_city/common/far.png",
+   "scroll": 0.15,
+   "y": 20,
+   "tile": true
+  },
+  {
+   "id": "midfar",
+   "img": "res://art/river_city/common/midfar.png",
+   "scroll": 0.35,
+   "y": -38,
+   "tile": true
+  },
+  {
+   "id": "mid",
+   "img": "mid.png",
+   "scroll": 0.6,
+   "y": 0
+  },
+  {
+   "id": "main",
+   "img": "main.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "shafts",
+   "img": "shafts.png",
+   "scroll": 1.0,
+   "y": 0,
+   "alpha": 0.08,
+   "z": -15
+  },
+  {
+   "id": "rail",
+   "img": "rail.png",
+   "scroll": 1.0,
+   "y": 0,
+   "front": true
+  },
+  {
+   "id": "front",
+   "img": "front.png",
+   "scroll": 1.3,
+   "y": 0,
+   "front": true
+  }
+ ],
+ "ground": 200,
+ "markers": {
+  "market_entry": 1351,
+  "market_back": 1342,
+  "market_niff": 1310,
+  "market_breather_stall": 504,
+  "market_keeper": 510,
+  "market_biscuit_stall": 660,
+  "market_baskets": 90,
+  "market_tool_stall": 330,
+  "market_bridge": 830,
+  "market_to_oldstreet": 16
+ },
+ "objects": {
+  "market_baskets": {
+   "x": 60,
+   "y": 187,
+   "w": 70,
+   "h": 40,
+   "frames": 2,
+   "ms": 600,
+   "front": true,
+   "states": {
+    "default": [
+     0,
+     1
+    ]
+   }
+  },
+  "market_tools": {
+   "x": 300,
+   "y": 168,
+   "w": 76,
+   "h": 26,
+   "frames": 4,
+   "fps": 4,
+   "states": {
+    "default": [
+     0,
+     3
+    ]
+   }
+  },
+  "market_breather_stall": {
+   "x": 489,
+   "y": 171,
+   "w": 30,
+   "h": 22,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "tank_on_counter": 1
+   }
+  }
+ },
+ "walk": [
+  10,
+  1380
+ ],
+ "walkers": [
+  {
+   "npc": "hood_a",
+   "path": [
+    [
+     0,
+     199
+    ],
+    [
+     1440,
+     199
+    ]
+   ],
+   "speed": 12,
+   "z": -20,
+   "loop": "wrap",
+   "count": 5
+  },
+  {
+   "npc": "vendor",
+   "path": [
+    [
+     80,
+     199
+    ],
+    [
+     130,
+     199
+    ]
+   ],
+   "speed": 8,
+   "pause": [
+    4,
+    10
+   ],
+   "z": -20,
+   "loop": "pingpong"
+  }
+ ],
+ "portals": [
+  {
+   "to": "river_bank",
+   "at": "river_bank_to_market",
+   "kind": "pan_down",
+   "x": 1351
+  },
+  {
+   "edge": "left",
+   "to": "oldstreet",
+   "at": "oldstreet_entry",
+   "kind": "walk_fade"
+  }
+ ],
+ "ambient": [
+  {
+   "name": "tools_clink",
+   "x": 330,
+   "db": -10,
+   "range": 300
+  },
+  {
+   "name": "river_flow",
+   "db": -20
+  }
+ ]
+}

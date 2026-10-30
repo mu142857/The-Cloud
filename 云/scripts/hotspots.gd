@@ -8,13 +8,14 @@ extends Node2D
 ##   hide_after：这个 flag 设了以后图也藏起来。
 ##   trigger: "enter"（或 auto: true）：走进范围（range，默认 RANGE）就自己触发，不用按键（塌陷口 hollow）；离开范围 10 像素以后才会再触发。
 ##   range：这个点的范围（像素）。按键互动的点最少 MIN_RANGE（小东西也不用瞄准）。
-##   runner.hotspot_blocked(h) = true 的不出现（发光木头那两个点：由关卡原来的拾取过场负责）。
+##   runner.hotspot_blocked(h) = true 的不出现（发光木头那两个点：由关卡原来的拾取过场负责；小游戏等互动时只有它的临时点）。
+##   多房间章节：at 是房间物件（room.json objects）时，点击框 = 物件的矩形，物件挪了也跟着挪。
 ##
 ## 互动以「靠近 + 按键」为主：晨走进范围就有提示，按 E / 空格 / 回车 / Z（或鼠标点那个东西）就互动「最合适的那个」：
 ##   范围里有好几个时，先选会推进剧情的（设新 flag / 给新东西 / 换地方），再选最近的。
 ##   成组的大物件（GROUP_PROPS，比如倒木）：晨站在它前面时，压在它下面的小东西（两根树枝）都算在范围里——
 ##   走到倒木前按一下拖开一根，再按一下拖另一根，不用分别去对准两根小树枝。
-## 鼠标：点击判定框最少 MIN_CLICK × MIN_CLICK（比图大）；鼠标停在东西上：物件轻轻亮一档 + 显示名字；不在范围里就先走过去再自动互动。
+## 鼠标：点击判定框最少 MIN_CLICK × MIN_CLICK（比图大）；鼠标停在东西上：物件轻轻亮一档 + 显示名字；只有够得着的才亮、才能点；点空地、点远处都不走。
 ## 提示：范围里那个头顶一个小箭头（art/level1/hint_arrow.png）+ 按键图标（键盘：「E」小键帽；最近用的是鼠标：小鼠标）+ 很淡的名字。
 ##   还没用过、会推进剧情的点在屏幕里时，远远地也有一个更淡的小箭头。
 ##   所有可互动的东西在晨走进它范围的那一下轻轻亮一下；按下互动的瞬间：物件闪一下、箭头按下去一下（声音和晨转身由 level_forest.gd 做）。
@@ -197,6 +198,13 @@ func locate(h: Dictionary) -> Dictionary:
 	if not r["ok"]:
 		return {"ok": false}
 	var x: float = r["x"]
+	if at is String and world.stage_of_prop(str(at)) != "":
+		# 多房间章节的物件（room.json objects）：点击框 = 物件的矩形，物件挪了点也跟着挪（at 写物件 id 的「会动的 hotspot」）
+		var orr: Rect2 = world.prop_rect(str(at))
+		if orr.size.x <= 0:
+			return {"ok": false}
+		var sn: Sprite2D = world.stage(world.stage_of_prop(str(at))).object(str(at))
+		return {"ok": true, "x": x, "top": orr.position.y - 4.0, "rect": orr.grow(3), "spr": sn}
 	var room := str(h.get("room", "forest"))
 	var gy: float = round(world.ground_at(x, room)) + 1.0
 	var rect := Rect2(x - 10, gy - 30, 20, 30)
@@ -336,6 +344,8 @@ func update(delta: float, chen: Node2D, cam_left: Vector2, mouse_world = null) -
 		near = nearest(chen.position.x)
 		if mouse_world is Vector2 and use_mouse:
 			hovered = at_point(mouse_world)
+			if not hovered.is_empty() and not in_range(hovered, chen.position.x):
+				hovered = {}              # 够不着的不亮、不显示名字（点了也没用）
 	# 走进范围那一下亮一下
 	var now_in := {}
 	for p in avail:

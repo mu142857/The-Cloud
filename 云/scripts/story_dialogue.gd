@@ -299,6 +299,8 @@ func narr(text: String, hold: float) -> void:
 	var t := 0.0
 	var limit := hold if auto_delay < 0.0 else minf(hold, auto_delay + 0.2)
 	while _narr_wait and t < limit:
+		if not is_inside_tree():
+			return                                # 换场景 / 跳节拍时已经不在树里了
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	_narr_wait = false

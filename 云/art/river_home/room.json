@@ -1,0 +1,214 @@
+{
+ "_comment": "妮芙家（剖面小屋）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。tools/river_home_art.py 生成，别手改。地板下面泡在水里的旧一层（旧门、旧门牌）是会话 C 画在河岸栈道下面的。",
+ "kind": "house",
+ "host": "river_bank",
+ "x": 890,
+ "size": [
+  420,
+  176
+ ],
+ "back": "home_back.png",
+ "front": "home_front.png",
+ "light": "home_light.png",
+ "floor": 175,
+ "walk": [
+  26,
+  392
+ ],
+ "door": 48,
+ "markers": {
+  "river_home_door": 48,
+  "river_home_kitchen": 100,
+  "river_home_jar": 98,
+  "river_home_labels": 114,
+  "river_home_chen": 148,
+  "river_home_table": 162,
+  "river_home_hourglass": 172,
+  "river_home_niff": 198,
+  "river_home_window": 252,
+  "river_home_chair": 250,
+  "river_home_cabinet": 307,
+  "river_home_player": 334
+ },
+ "objects": {
+  "river_home_table": {
+   "img": "obj_table.png",
+   "x": 140,
+   "y": 136,
+   "w": 67,
+   "h": 16,
+   "frames": 11,
+   "states": {
+    "default": 0,
+    "two_bowls_water": 1,
+    "half_back": 2,
+    "cup_bottom": 3,
+    "phone_corner": 4,
+    "old_pages": 5,
+    "sleeves_drying": 6,
+    "phone_under_journal": 7,
+    "phone_at_hand": 8,
+    "cup_stays": 9,
+    "two_cups_tea": 10
+   },
+   "default": "default",
+   "note": "桌面上的东西；沙漏、本子、照片、来客册是单独的物件"
+  },
+  "river_home_hourglass": {
+   "img": "obj_hourglass.png",
+   "x": 168,
+   "y": 138,
+   "w": 10,
+   "h": 14,
+   "frames": 6,
+   "states": {
+    "default": 0,
+    "running": [
+     1,
+     4
+    ],
+    "empty": 5
+   },
+   "default": "default",
+   "note": "右边铁丝挑着的小铃 = 漏完时响的轻铃（sfx bell_soft）"
+  },
+  "niff_notebook": {
+   "img": "obj_notebook.png",
+   "x": 191,
+   "y": 147,
+   "w": 12,
+   "h": 5,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "page1": 1,
+    "page1_circled": 1,
+    "tea_arrow": 1,
+    "circle_not_eaten": 1,
+    "crust_note": 1,
+    "plane_on_shore": 1,
+    "star": 1,
+    "record_behind_photo": 1
+   },
+   "default": "default",
+   "note": "桌上那本：合着 / 摊开；每页的字是特写 art/river_story/closeup_niff_notebook_<state>.png"
+  },
+  "niff_photo": {
+   "img": "obj_photo.png",
+   "x": 180,
+   "y": 149,
+   "w": 9,
+   "h": 3,
+   "frames": 3,
+   "states": {
+    "default": 0,
+    "on_table": 1,
+    "flattened": 2
+   },
+   "default": "default",
+   "note": "特写 closeup_niff_photo.png"
+  },
+  "guestbook": {
+   "img": "obj_guestbook.png",
+   "x": 174,
+   "y": 120,
+   "w": 111,
+   "h": 32,
+   "frames": 8,
+   "states": {
+    "default": 0,
+    "open": 1,
+    "photo_cup": 2,
+    "pages_stuck": 3,
+    "drying": 4,
+    "dry": 5,
+    "closed": 6,
+    "drawing_in": 7
+   },
+   "default": "default",
+   "note": "一帧横跨桌子到窗台：open / photo_cup / pages_stuck / closed / drawing_in 在桌上，drying / dry 在窗台上；特写 closeup_guestbook_<state>.png"
+  },
+  "river_home_chair": {
+   "img": "obj_chair.png",
+   "x": 230,
+   "y": 146,
+   "w": 58,
+   "h": 30,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "by_window": 1
+   },
+   "default": "default",
+   "note": "晨坐的那把：default 靠在柜子边，by_window 在窗边"
+  },
+  "river_home_cabinet": {
+   "img": "obj_cabinet.png",
+   "x": 282,
+   "y": 86,
+   "w": 51,
+   "h": 83,
+   "frames": 3,
+   "states": {
+    "default": 0,
+    "open": 1,
+    "footage_box": 2
+   },
+   "default": "default",
+   "note": "柜门；柜体和柜顶的盒子在 home_back 里"
+  },
+  "river_home_player": {
+   "img": "obj_player.png",
+   "x": 332,
+   "y": 128,
+   "w": 36,
+   "h": 34,
+   "frames": 35,
+   "states": {
+    "default": 0,
+    "footage_part1": [
+     1,
+     8
+    ],
+    "glitch": [
+     9,
+     12
+    ],
+    "stopped": 13,
+    "red_blink": [
+     14,
+     17
+    ],
+    "footage_part2": [
+     18,
+     25
+    ],
+    "camera_tilt": [
+     26,
+     29
+    ],
+    "paused": 30,
+    "ear_swing": [
+     31,
+     34
+    ]
+   },
+   "default": "default",
+   "note": "屏幕里是影像缩小的；影像特写 art/river_story/closeup_footage_<state>.png（一格放大 2 倍），整段动画 art/river_home/footage_<state>.png（多帧横排，每帧 112×80，100ms）"
+  },
+  "river_home_labels": {
+   "img": "obj_labels.png",
+   "x": 25,
+   "y": 62,
+   "w": 373,
+   "h": 109,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "on": 1
+   },
+   "default": "default",
+   "note": "on = 每张标签亮一档（晨注意到屋里几乎每件东西都有标签，原文 81）"
+  }
+ }
+}

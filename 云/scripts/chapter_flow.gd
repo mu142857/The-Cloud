@@ -1,17 +1,25 @@
 extends RefCounted
 ## 章节之间怎么接（level_forest.gd 用；章节都在 scenes/level_forest.tscn 这一个关卡里播，换章 = 带着状态重新载入本场景）。
 ##   forest   木星森林：开场 → 坠毁 → 修船 → 起飞（data/story_forest.json）。剧本 end_chapter：照旧播起飞，黑屏以后接 flight1。
-##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：「未完待续」卡（河流篇还没接）。
+##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：淡到黑，接 river。
+##   river    河流篇「妮芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
+##            end_chapter：驾驶舱里写完日记，「未完待续」卡（终章接上以后改 next = final）。
 ## 带过去的东西：StoryState.to_dict()（flags、日记、物件状态、用过的点、背包）存进 Engine 的 meta CARRY_META，
 ##   新章节 _ready 里 from_dict 恢复；这份一直留着（F8「重开本章」/ 跳节拍从同一个起点重来），回标题时清掉。
 ## 直接进 flight1（--chapter=flight1、F8「跳到飞行一」）又没有带过来的状态：用 SEED（森林自动玩到起飞时的 flags 和背包）。
+## 直接进 river：SEED + SEED_FLIGHT1（flight1 自动玩完：放了蓝色石头）；--river_seed=card / F8 切成「烧了通勤卡」那版（原文 119 摸衣袋两个分支）。
 
 const CHAPTER_META := "the_cloud_chapter"
 const CARRY_META := "the_cloud_carry"
+const RIVER_SEED_META := "the_cloud_river_seed"        # F8：直接进河流篇时用哪个 SEED（"" = 烧了蓝色石头 / "card" = 烧了通勤卡）
+const PICK_META := "the_cloud_chapter_pick"            # F8 跳节拍换了章：CHAPTER_META 比命令行 --chapter= 优先（不然带着 --chapter 跑就跳不过去）
 
 const CHAPTERS := {
 	"forest": {"story": "res://data/story_forest.json", "next": "flight1"},
-	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "",
+	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
+		"items_extra": ["res://data/items_later.json"]},
+	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "",
+		"carry_flags": ["burned_blue_stone", "burned_commute_card"], "hud_fuel": false,
 		"items_extra": ["res://data/items_later.json"]},
 }
 
@@ -30,8 +38,18 @@ const SEED := {
 }
 
 
-## 现在是哪一章：命令行 --chapter=名字 > Engine meta（换章 / F8 跳过来）> --story= 指向某一章的剧本 > forest
+## flight1 自动玩（--story_auto，放第一件 = 蓝色石头）完时多出来的 flags；物品少了被烧掉的那件。10-29 跑出来的
+const SEED_FLIGHT1 := {
+	"flags": ["flight1_started", "flight1_leak", "flight1_leak_wait", "flight1_leak_fixed", "flight1_reroute", "flight1_fuel_low",
+		"burned_blue_stone", "flight1_burned", "flight1_logged", "flight1_miluo_msg", "flight1_journal", "flight1_landing", "flight1_done"],
+	"burned": "blue_stone",
+}
+
+
+## 现在是哪一章：F8 跳节拍选的（PICK_META）> 命令行 --chapter=名字 > Engine meta（换章 / F8 跳过来）> --story= 指向某一章的剧本 > forest
 static func current(story_arg: String) -> String:
+	if Engine.has_meta(PICK_META) and Engine.has_meta(CHAPTER_META) and CHAPTERS.has(str(Engine.get_meta(CHAPTER_META))):
+		return str(Engine.get_meta(CHAPTER_META))
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--chapter="):
 			var c := a.trim_prefix("--chapter=")
@@ -60,7 +78,17 @@ static func restore(ch: String) -> void:
 	if carry is Dictionary and not (carry as Dictionary).is_empty():
 		StoryState.from_dict(carry)
 	else:
-		StoryState.from_dict({"flags": SEED["flags"], "owned": SEED["owned"], "journal": SEED["journal"], "props": {}, "used": []})
+		var flags: Array = SEED["flags"].duplicate()
+		var owned: Array = SEED["owned"].duplicate()
+		if ch == "river":
+			var burned := str(SEED_FLIGHT1["burned"])
+			var fl: Array = SEED_FLIGHT1["flags"].duplicate()
+			if "--river_seed=card" in OS.get_cmdline_user_args() or (Engine.has_meta(RIVER_SEED_META) and str(Engine.get_meta(RIVER_SEED_META)) == "card"):
+				burned = "commute_card"
+				fl[fl.find("burned_blue_stone")] = "burned_commute_card"
+			flags.append_array(fl)
+			owned.erase(burned)
+		StoryState.from_dict({"flags": flags, "owned": owned, "journal": SEED["journal"], "props": {}, "used": []})
 		Engine.set_meta(CARRY_META, StoryState.to_dict())
 
 
@@ -73,8 +101,27 @@ static func go(tree: SceneTree, ch: String) -> void:
 	tree.reload_current_scene.call_deferred()
 
 
+## F8 跳节拍 / 重开：重新载入本场景，剧情播到一半也干净。reload_current_scene 只是先把旧场景移出树、帧末才释放，
+## 这一帧剩下的时间里旧场景里正在 await 的剧情步骤还会被计时器 / process_frame 叫醒，一调 get_tree() 就是 null 报错。
+## 所以等到这一帧的空档（deferred，旧场景自己的回调都退出了）先把旧场景整个 free 掉（挂着的 await 跟着作废）再载入
+static func hard_reload(tree: SceneTree) -> void:
+	_free_and_reload.call_deferred(tree)
+
+
+static func _free_and_reload(tree: SceneTree) -> void:
+	var s := tree.current_scene
+	if s == null:
+		return
+	var path := s.scene_file_path
+	s.get_parent().remove_child(s)
+	s.free()
+	tree.change_scene_to_file(path)
+
+
 ## 回标题（新游戏）：清掉章节和带过去的状态
 static func reset() -> void:
+	if Engine.has_meta(PICK_META):
+		Engine.remove_meta(PICK_META)
 	if Engine.has_meta(CHAPTER_META):
 		Engine.remove_meta(CHAPTER_META)
 	if Engine.has_meta(CARRY_META):

@@ -1,0 +1,428 @@
+{
+ "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "size": [
+  1440,
+  270
+ ],
+ "env": "river_day",
+ "bg": [
+  "#1b2228",
+  "#3a4752"
+ ],
+ "layers": [
+  {
+   "id": "sky",
+   "img": "res://art/river_city/common/sky.png",
+   "scroll": 0.0,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "far",
+   "img": "res://art/river_city/common/far.png",
+   "scroll": 0.15,
+   "y": -40,
+   "tile": true
+  },
+  {
+   "id": "midfar",
+   "img": "res://art/river_city/common/midfar.png",
+   "scroll": 0.35,
+   "y": -122,
+   "tile": true
+  },
+  {
+   "id": "mid",
+   "img": "mid.png",
+   "scroll": 0.6,
+   "y": 0
+  },
+  {
+   "id": "main",
+   "img": "main.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "shafts",
+   "img": "shafts.png",
+   "scroll": 1.0,
+   "y": 0,
+   "alpha": 0.07,
+   "z": -15
+  },
+  {
+   "id": "rail",
+   "img": "rail.png",
+   "scroll": 1.0,
+   "y": 0,
+   "z": -10
+  },
+  {
+   "id": "water",
+   "img": "water.png",
+   "scroll": 1.0,
+   "y": 218,
+   "water": true,
+   "front": true,
+   "alpha": 0.4
+  },
+  {
+   "id": "ripples_back",
+   "img": "ripples_back.png",
+   "scroll": 1.0,
+   "y": 195,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "show": 0.7,
+    "wobble": 1.0
+   },
+   "z": -20
+  },
+  {
+   "id": "ripples",
+   "img": "ripples.png",
+   "scroll": 1.0,
+   "y": 217,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "show": 0.7,
+    "wobble": 1.0
+   },
+   "front": true
+  },
+  {
+   "id": "front",
+   "img": "front.png",
+   "scroll": 1.3,
+   "y": 0,
+   "front": true
+  }
+ ],
+ "ground": [
+  [
+   0,
+   214
+  ],
+  [
+   110,
+   214
+  ],
+  [
+   150,
+   212
+  ],
+  [
+   330,
+   206
+  ],
+  [
+   570,
+   206
+  ],
+  [
+   582,
+   209
+  ],
+  [
+   595,
+   212
+  ],
+  [
+   608,
+   215
+  ],
+  [
+   660,
+   215
+  ],
+  [
+   673,
+   212
+  ],
+  [
+   686,
+   209
+  ],
+  [
+   700,
+   206
+  ],
+  [
+   1100,
+   206
+  ],
+  [
+   1160,
+   213
+  ],
+  [
+   1300,
+   213
+  ],
+  [
+   1312,
+   206
+  ],
+  [
+   1440,
+   206
+  ]
+ ],
+ "markers": {
+  "river_bank_plane": 190,
+  "river_bank_hatch": 196,
+  "river_bank_channel": 90,
+  "river_bank_crates": 456,
+  "river_bank_niff": 470,
+  "river_bank_steps": 626,
+  "river_bank_box": 646,
+  "river_bank_post": 346,
+  "river_bank_ting": 360,
+  "river_bank_shallow": 1220,
+  "river_bank_toolkit": 304,
+  "river_bank_home_door": 722,
+  "river_bank_doorplate": 738,
+  "river_bank_bakery": 1150,
+  "river_bank_postman": 540,
+  "river_bank_to_market": 1351,
+  "river_bank_to_south": 1428,
+  "river_bank_arrive": 1390,
+  "river_bank_drift_start": 236,
+  "river_bank_salvage_lid": 239,
+  "river_bank_salvage_tin": 255,
+  "river_bank_salvage_joint": 271,
+  "river_bank_salvage_bottle": 287,
+  "river_bank_salvage_labels": 303
+ },
+ "objects": {
+  "river_bank_plane": {
+   "x": 40,
+   "y": 130,
+   "w": 300,
+   "h": 96,
+   "frames": 4,
+   "states": {
+    "default": 0,
+    "beached": 1,
+    "straps_drying": 2,
+    "fixed": 3
+   }
+  },
+  "river_bank_crates": {
+   "x": 420,
+   "y": 148,
+   "w": 76,
+   "h": 58,
+   "frames": 3,
+   "ms": 200,
+   "states": {
+    "default": 2,
+    "tail": [
+     0,
+     1
+    ],
+    "tail_still": 2
+   }
+  },
+  "river_bank_box": {
+   "x": 640,
+   "y": 206,
+   "w": 14,
+   "h": 40,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "sunk_shallow": 1
+   }
+  },
+  "river_bank_crate_float": {
+   "x": 20,
+   "y": 209,
+   "w": 22,
+   "h": 18,
+   "frames": 1,
+   "states": {
+    "default": 0
+   }
+  },
+  "river_bank_salvage_lid": {
+   "x": 230,
+   "y": 206,
+   "w": 18,
+   "h": 22,
+   "frames": 5,
+   "default": "hidden",
+   "ms": 500,
+   "states": {
+    "float": [
+     0,
+     1
+    ],
+    "sink1": 2,
+    "sink2": 3,
+    "sunk": 4,
+    "shallow": 1
+   }
+  },
+  "river_bank_salvage_tin": {
+   "x": 246,
+   "y": 206,
+   "w": 18,
+   "h": 22,
+   "frames": 5,
+   "default": "hidden",
+   "ms": 500,
+   "states": {
+    "float": [
+     0,
+     1
+    ],
+    "sink1": 2,
+    "sink2": 3,
+    "sunk": 4,
+    "shallow": 1
+   }
+  },
+  "river_bank_salvage_joint": {
+   "x": 262,
+   "y": 206,
+   "w": 18,
+   "h": 22,
+   "frames": 5,
+   "default": "hidden",
+   "ms": 500,
+   "states": {
+    "float": [
+     0,
+     1
+    ],
+    "sink1": 2,
+    "sink2": 3,
+    "sunk": 4,
+    "shallow": 1
+   }
+  },
+  "river_bank_salvage_bottle": {
+   "x": 278,
+   "y": 206,
+   "w": 18,
+   "h": 22,
+   "frames": 5,
+   "default": "hidden",
+   "ms": 500,
+   "states": {
+    "float": [
+     0,
+     1
+    ],
+    "sink1": 2,
+    "sink2": 3,
+    "sunk": 4,
+    "shallow": 1
+   }
+  },
+  "river_bank_salvage_labels": {
+   "x": 294,
+   "y": 206,
+   "w": 18,
+   "h": 22,
+   "frames": 5,
+   "default": "hidden",
+   "ms": 500,
+   "states": {
+    "float": [
+     0,
+     1
+    ],
+    "sink1": 2,
+    "sink2": 3,
+    "sunk": 4,
+    "shallow": 1
+   }
+  },
+  "river_bank_salvage_wake": {
+   "x": 200,
+   "y": 214,
+   "w": 30,
+   "h": 9,
+   "frames": 2,
+   "default": "hidden",
+   "ms": 300,
+   "states": {
+    "on": [
+     0,
+     1
+    ]
+   }
+  }
+ },
+ "water": {
+  "y": 218
+ },
+ "walk": [
+  150,
+  1430
+ ],
+ "walkers": [
+  {
+   "npc": "postman",
+   "path": [
+    [
+     500,
+     67
+    ],
+    [
+     590,
+     67
+    ]
+   ],
+   "speed": 14,
+   "pause": [
+    3,
+    8
+   ],
+   "z": -20,
+   "loop": "pingpong"
+  },
+  {
+   "npc": "hood_a",
+   "path": [
+    [
+     372,
+     117
+    ],
+    [
+     1300,
+     117
+    ]
+   ],
+   "speed": 10,
+   "z": -20,
+   "loop": "wrap",
+   "count": 3
+  }
+ ],
+ "portals": [
+  {
+   "to": "market",
+   "at": "market_entry",
+   "kind": "pan_up",
+   "x": 1351
+  },
+  {
+   "edge": "right",
+   "to": "southbridge",
+   "at": "southbridge_entry",
+   "kind": "walk_fade"
+  }
+ ],
+ "ambient": [
+  {
+   "name": "river_flow",
+   "db": -12
+  }
+ ]
+}

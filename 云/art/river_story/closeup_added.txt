@@ -1,0 +1,6 @@
+特写图里原文没写、为了画面补的字（tools/river_home_art.py 生成）：
+- niff_notebook_tea_arrow：3 倒进碗里 / 3 Pour into bowls
+- niff_notebook_tea_arrow：先放茶！/ TEA FIRST!（原文只写了「添了个箭头」）
+- niff_notebook_star：影像那两行（原文 123、129 的话改写成她的记录）
+- guestbook_dry：日期和船名只画成一道字迹（原文没写是哪天、哪条船）
+- dock_photo_back：船号写 12（和剧本里编号牌 12「运输船　去往云层星」对上）

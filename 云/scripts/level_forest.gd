@@ -152,7 +152,7 @@ var _rng := RandomNumberGenerator.new()
 var _fireflies: Node2D
 var _ship_frame_t := 0.0
 var _skip_armed := 0.0        # >0：已经按过一次，这段时间内再按就跳过
-var _walk_target := NAN       # 鼠标点地面：走到这个 x
+var _walk_target := NAN       # 自动走到这个 x（点了够不着的东西、剧本让走）
 var _cine_target := NAN       # 拾取过场：自动走到这个 x
 var _moved_from := NAN        # 晨开始能动时的位置（用来藏「← →」提示）
 var _hint_wait := 0.0
@@ -393,9 +393,11 @@ func _ready() -> void:
 		_jump(_debug_stage)
 	if _beat != "":
 		_jump_beat.call_deferred(_beat)
+	# 面板一开始就建好（藏着）：F8 由面板自己先接（剧情里小游戏 / 点选会吃掉按键，关卡的 _input 收不到）
+	if OS.is_debug_build():
+		_make_dev(Engine.has_meta(DEV_OPEN_META))
 	if Engine.has_meta(DEV_OPEN_META):
 		Engine.remove_meta(DEV_OPEN_META)
-		toggle_dev.call_deferred()
 
 
 func _build_story() -> void:
@@ -404,6 +406,7 @@ func _build_story() -> void:
 	story.name = "Story"
 	story.load_story(_story_path)
 	story.entry_scene = str(CHAPTER_GD.info(chapter).get("start", ""))
+	story.carry_flags = CHAPTER_GD.info(chapter).get("carry_flags", [])
 	add_child(story)
 	story.setup(self, root)
 	root.move_child(story.dlg, _dim.get_index())        # 对话框在黑边上面、面板下面
@@ -1342,8 +1345,9 @@ func _update_objective() -> void:
 	_obj_key = key
 	if o.is_empty():
 		_hud_obj.visible = false
-		_hud_flame.visible = true
-		_hud_burn_label.visible = true
+		var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true)    # 河流篇没有燃料表
+		_hud_flame.visible = fuel_ok
+		_hud_burn_label.visible = fuel_ok
 		return
 	_hud_obj.text = story.txt(o)
 	_hud_obj.visible = true
@@ -2236,6 +2240,9 @@ func _input(event: InputEvent) -> void:
 		return
 	# 剧情在播：按键 / 点击给对话框（确认、点选）；鹿带路时方向键照常走
 	if story.busy and not _settings.visible and not _bag.visible:
+		if story.closeup_ui != null and story.closeup_ui.is_open() and story.closeup_ui.handle_input(event):
+			_handled()
+			return
 		if story.dlg.handle_input(event):
 			_handled()
 			return
@@ -2322,32 +2329,19 @@ func _handled() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# 鼠标点地面：晨走过去（点到界面按钮上的点击不会到这里）
+	# 鼠标只能点够得着的东西（走到跟前才能点）；点空地、点远处的东西晨都不动
+	# （10-30 作者：点地走容易点不到东西，晨就走到一边去了；「够不着的东西那就不能点啊」）
 	if not _free() or _settings.visible or _bag.visible:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _dlg_typing():
 			_dlg_chars = 9999.0
 		var sp: Vector2 = (event as InputEventMouseButton).position
-		# 点在左上角「当前目标 / 燃烧值」那几个字上（它们不吃鼠标，点击会漏到这里）：不算点地面，晨不动。
-		# （10-29 作者：「为什么我这里强制往左跑」——点了一下左上角的「回树屋」，晨就往画面最左边跑了）
-		if _hud_burn.visible and _hud_burn.modulate.a > 0.05 and _hud_burn.get_global_rect().grow(4.0).has_point(sp):
-			get_viewport().set_input_as_handled()
-			return
 		var wp: Vector2 = cam_left() + sp     # 用事件自己的位置（乱玩模式的假点击也对）
 		var p: Dictionary = story.hotspots.at_point(wp) if state == S.PLAY else {}
-		_pending_hs = {}
-		if not p.is_empty():
-			# 点到一个能互动的东西：在范围里就直接互动，不然走到它跟前（站在晨这一边）再互动
-			var px := float(p["x"])
-			if story.hotspots.in_range(p, chen.position.x):
-				_interact(p)
-			else:
-				_pending_hs = p
-				_walk_target = px - signf(px - chen.position.x) * 10.0
-		else:
-			_walk_target = wp.x
-		_walk_goal = _walk_target
+		if p.is_empty() or not story.hotspots.in_range(p, chen.position.x):
+			return                            # 点空地、点够不着的东西：什么也不做
+		_interact(p)
 		get_viewport().set_input_as_handled()
 
 
@@ -2444,8 +2438,9 @@ func _update_camera(delta: float) -> void:
 		# 驾驶舱：船上下挪 = 镜头反向偏移（晨、室内、物件一起动；船外背景在 CanvasLayer 里不动）。ship_y() 是整数像素
 		cam.position.y = 135.0 - ck.ship_y()
 	elif is_nan(_cam_override.x):
-		# 平时镜头高度固定；从别处回来时慢慢落回去
-		cam.position.y = 135.0 if absf(cam.position.y - 135.0) < 0.5 else lerpf(cam.position.y, 135.0, 1.0 - exp(-3.0 * delta))
+		# 平时镜头高度固定（多房间章节：房间的中线）；从别处回来时慢慢落回去
+		var cy: float = story.world_cam_y() if story != null and story.world != null else 135.0
+		cam.position.y = cy if absf(cam.position.y - cy) < 0.5 else lerpf(cam.position.y, cy, 1.0 - exp(-3.0 * delta))
 	if _shake > 0.0:
 		_shake -= delta
 		var a := _shake_amp * clampf(_shake / 0.8, 0.0, 1.0)
@@ -2505,6 +2500,13 @@ func _cam_target() -> float:
 		t = lerpf(t, float(story.world.house["cx"]), 0.55)
 	if story != null and story.world.cockpit != null and story.world.in_cockpit():
 		t = story.world.cockpit.center().x           # 驾驶舱一屏：镜头不动
+	var sg: Node2D = story.world.cur_stage() if story != null and story.world != null else null
+	if sg != null and story.mech_running != "" and sg.cfg.has("viewfinder"):
+		t = chen.position.x                             # 南桥取景框（room.json viewfinder 按「镜头正对晨」出的图）：小游戏期间不往前多看
+	if sg != null:
+		if sg.is_house:
+			t = lerpf(t, sg.center().x, 0.55)           # 小屋里往屋子中心收一点（树屋同款）
+		t = sg.clamp_cam_x(t)                          # 多房间章节：镜头夹在房间里
 	return t
 
 
@@ -2689,6 +2691,9 @@ var _walk_goal := NAN              # 走去哪（没被墙夹之前的；走过�
 
 func _update_portal(delta: float) -> void:
 	var w: Node2D = story.world
+	if not w.stages.is_empty():
+		_update_stage_portal(delta)
+		return
 	if not free_play() or not w.markers.has("house_return"):
 		_portal_t = 0.0
 		return
@@ -2728,6 +2733,40 @@ func _update_portal(delta: float) -> void:
 		_walk_target = NAN
 		_walk_goal = NAN
 		story.portal_to(to, from)
+
+
+## 多房间章节：顶着房间两头的墙走 0.35 秒 → 去 room.json portals 里那一头连着的房间（剧本 fade_to 那套转场）
+func _update_stage_portal(delta: float) -> void:
+	var sg: Node2D = story.world.cur_stage()
+	if sg == null or not free_play() or story.mech_wait:
+		_portal_t = 0.0
+		return
+	var dir := Input.get_axis("ui_left", "ui_right")
+	if Input.is_key_pressed(KEY_A):
+		dir -= 1.0
+	if Input.is_key_pressed(KEY_D):
+		dir += 1.0
+	var wl: Vector2 = sg.walls()
+	var edge := ""
+	if chen.position.x <= wl.x + 1.0 and (dir < 0.0 or (not is_nan(_walk_goal) and _walk_goal < wl.x)):
+		edge = "left"
+	elif chen.position.x >= wl.y - 1.0 and (dir > 0.0 or (not is_nan(_walk_goal) and _walk_goal > wl.y)):
+		edge = "right"
+	var pt: Dictionary = {}
+	if edge != "":
+		for p in sg.portals():
+			if p is Dictionary and str(p.get("edge", "")) == edge and sg.portal_open(p):
+				pt = p
+				break
+	if pt.is_empty():
+		_portal_t = 0.0
+		return
+	_portal_t += delta
+	if _portal_t > 0.35:
+		_portal_t = 0.0
+		_walk_target = NAN
+		_walk_goal = NAN
+		story.portal_room(pt)
 
 
 ## 自由走（含鹿带路时：剧情没播完但晨能自己走）
@@ -2948,7 +2987,7 @@ func on_room_changed(snap := true) -> void:
 
 
 func _snap_camera() -> void:
-	cam.position = Vector2(_cam_target(), 135.0)
+	cam.position = Vector2(_cam_target(), story.world_cam_y() if story != null and story.world != null else 135.0)
 	cam.reset_smoothing()
 
 
@@ -3346,9 +3385,12 @@ func _start_chapter(play: bool) -> void:
 	var room := str(info.get("room", "forest"))
 	story.world.set_room(room, true)
 	var x: float = story.world.resolve("cockpit_seat")["x"] if room == "cockpit" else chen.position.x
+	if story.world.is_stage(room):
+		var sp := str(info.get("spawn", ""))
+		x = story.world.resolve(sp)["x"] if sp != "" and story.world.has_marker(sp) else story.world.stage(room).walls().x + 60.0
 	story._place(chen, x, room)
 	chen.visible = true
-	chen._set_facing(-1)                    # 机头在左边，看着前窗
+	chen._set_facing(-1 if room == "cockpit" else 1)   # 驾驶舱：机头在左边，看着前窗
 	_snap_camera()
 	# 驾驶舱里低低的引擎声
 	var hum := "res://audio/sfx/flight_engine_loop.wav"
@@ -3364,7 +3406,16 @@ func _start_chapter(play: bool) -> void:
 	fade.color.a = 1.0
 	_enter_play()
 	_hud_burn.modulate.a = 0.0
-	fade_from_black(0.9)
+	if story.world.is_stage(room) and play:
+		# 河流篇开场（方案 5.2）：接飞行一「卡进狭窄的水道」——黑场 0.6 秒以内，镜头从水面缓缓抬到岸上
+		var top := Vector2(_cam_target(), story.world_cam_y())
+		camera_hold_at(top + Vector2(0, 60))
+		fade_from_black(0.6)
+		(func():
+			await camera_pan(top, 2.4)
+			camera_release()).call()
+	else:
+		fade_from_black(0.9)
 	var start := str(info.get("start", ""))
 	if play and start != "" and story.has_scene(start):
 		story.play.call_deferred(start)
@@ -3373,8 +3424,8 @@ func _start_chapter(play: bool) -> void:
 ## F8「状态」页点一个还没设的 flag：从现在的样子接着把剧情瞬间过一遍到它（和 --beat 同一套 fast_forward，
 ## 前置的 flag、给 / 收的物品、NPC 位置、房间、桥、雾、当前目标都是真播出来的）。剧情在播、不能自由走、或者从现在走不到 → false
 func dev_complete(flag: String) -> bool:
-	if story.busy or not free_play() or StoryState.has(flag):
-		return StoryState.has(flag)
+	if story.busy or not free_play() or StoryState.has(flag) or story.mech_wait:
+		return StoryState.has(flag)       # 小游戏在等玩家互动（mech_wait）时也不补：用跳节拍
 	story.ff = true
 	story.dlg.instant = true
 	if chapter != "forest":
@@ -3496,13 +3547,18 @@ func toggle_dev() -> void:
 	if not OS.is_debug_build():
 		return
 	if _dev == null:
-		_dev = DEV_GD.new()
-		_dev.name = "DevPanel"
-		_dev.level = self
-		add_child(_dev)
-		_dev.call("_set_tab", _dev_tab)
+		_make_dev(true)
 	else:
 		_dev.toggle()
+
+
+func _make_dev(show: bool) -> void:
+	_dev = DEV_GD.new()
+	_dev.name = "DevPanel"
+	_dev.level = self
+	_dev.visible = show
+	add_child(_dev)
+	_dev.call("_set_tab", _dev_tab)
 
 
 ## 面板「传送」：晨直接到 marker（room_* 进屋、别的出屋），剧情在播就先不动
@@ -3513,6 +3569,10 @@ func dev_teleport(name: String) -> void:
 	if not r["ok"]:
 		return
 	var room: String = "treehouse" if name.begins_with("room_") else ("cockpit" if name.begins_with("cockpit_") else "forest")
+	if story.world.room_of_marker(name) != "":
+		room = story.world.room_of_marker(name)
+	elif not story.world.stages.is_empty() and room == "forest":
+		return                              # 多房间章节：森林的 marker 不传
 	if (room == "cockpit") != (story.world.room == "cockpit"):
 		return                              # 驾驶舱和森林不在同一章：不传送过去
 	story._teleport(room, float(r["x"]), [], true)
@@ -3603,7 +3663,7 @@ func _softlock_tick(delta: float) -> void:
 		why = "鹿带路时晨收不到输入"
 	elif state == S.CINE and not story.busy and _seq.is_empty() and is_nan(_cine_target):
 		why = "过场状态但没有剧情在播"
-	elif story.busy and not story.free_walk and not story.dlg.is_open() and not story.dlg.picking() and not story.phone.waiting() and story.cockpit_ui == null and story.step_t > 20.0:
+	elif story.busy and not story.free_walk and not story.dlg.is_open() and not story.dlg.picking() and not story.phone.waiting() and story.cockpit_ui == null and not story.closeup_ui.is_open() and story.step_t > 20.0:
 		why = "剧情一步停了 20 秒（STUCK_SCENE）"
 	if why == "":
 		_lock_t = 0.0

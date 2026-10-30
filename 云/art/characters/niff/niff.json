@@ -1,0 +1,33 @@
+{
+ "_comment": "妮芙 = 美术组的鲸鱼妹（作者 10-29 确认）。swim 是 GIF 原样导入（tools/niff_from_gif.py），不改色不改形，帧长保留 200ms；头朝右，朝左用水平翻转；tint false = 不着色不压暗。land 留空（form 一开始是 land）：岸上的图等美术组交，之前引擎用 color 的浅蓝青竖条占位、打 MISSING_ANIM niff.<名字>。anchor = 鲸壳底边中点（帧内像素坐标）；head = 对话框离脚底多高。",
+ "forms": {
+  "swim": {
+   "sheet": "niff_swim.png",
+   "frame": [
+    71,
+    46
+   ],
+   "anchor": [
+    35,
+    41
+   ],
+   "faces": "right",
+   "anims": {
+    "swim": {
+     "frames": [
+      0,
+      1,
+      2,
+      3
+     ],
+     "ms": 200
+    }
+   }
+  },
+  "land": {}
+ },
+ "form": "land",
+ "tint": false,
+ "head": 44,
+ "color": "#7cc6d6"
+}

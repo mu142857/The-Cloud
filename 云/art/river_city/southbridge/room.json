@@ -1,0 +1,222 @@
+{
+ "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "size": [
+  1500,
+  270
+ ],
+ "env": "river_day",
+ "bg": [
+  "#1b2228",
+  "#3a4752"
+ ],
+ "layers": [
+  {
+   "id": "sky",
+   "img": "res://art/river_city/common/sky.png",
+   "scroll": 0.0,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "far",
+   "img": "res://art/river_city/common/far.png",
+   "scroll": 0.15,
+   "y": -40,
+   "tile": true
+  },
+  {
+   "id": "midfar",
+   "img": "res://art/river_city/common/midfar.png",
+   "scroll": 0.35,
+   "y": -114,
+   "tile": true
+  },
+  {
+   "id": "mid",
+   "img": "mid.png",
+   "scroll": 0.6,
+   "y": 0
+  },
+  {
+   "id": "main",
+   "img": "main.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "shafts",
+   "img": "shafts.png",
+   "scroll": 1.0,
+   "y": 0,
+   "alpha": 0.07,
+   "z": -15
+  },
+  {
+   "id": "water",
+   "img": "water.png",
+   "scroll": 1.0,
+   "y": 248,
+   "water": true,
+   "front": true,
+   "alpha": 0.7
+  },
+  {
+   "id": "ripples",
+   "img": "ripples.png",
+   "scroll": 1.0,
+   "y": 247,
+   "front": true,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "show": 0.7
+   }
+  },
+  {
+   "id": "front",
+   "img": "front.png",
+   "scroll": 1.3,
+   "y": 0,
+   "front": true
+  }
+ ],
+ "ground": [
+  [
+   0,
+   212
+  ],
+  [
+   60,
+   212
+  ],
+  [
+   120,
+   228
+  ],
+  [
+   1186,
+   228
+  ],
+  [
+   1194,
+   220
+  ],
+  [
+   1202,
+   212
+  ],
+  [
+   1210,
+   204
+  ],
+  [
+   1218,
+   196
+  ],
+  [
+   1500,
+   196
+  ]
+ ],
+ "markers": {
+  "southbridge_entry": 24,
+  "southbridge_back": 14,
+  "southbridge_niff": 60,
+  "southbridge_lamp_post": 522,
+  "southbridge_ornament": 1024,
+  "southbridge_arch_wrong": 310,
+  "southbridge_arch": 590,
+  "southbridge_footprints": 596,
+  "southbridge_waterway": 1100,
+  "southbridge_dock": 1262,
+  "southbridge_routemap": 1350,
+  "southbridge_dock_step": 1210,
+  "southbridge_plates": 1450,
+  "southbridge_arch_far": 850,
+  "southbridge_view_spot": 592,
+  "southbridge_plate_07": 1427,
+  "southbridge_plate_12": 1447,
+  "southbridge_plate_21": 1467
+ },
+ "objects": {
+  "southbridge_arch": {
+   "x": 682,
+   "y": 104,
+   "w": 30,
+   "h": 70,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "scratches": 1
+   }
+  },
+  "southbridge_footprints": {
+   "x": 520,
+   "y": 229,
+   "w": 150,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "seen": 1
+   }
+  },
+  "southbridge_waterway": {
+   "x": 1056,
+   "y": 146,
+   "w": 88,
+   "h": 88,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "revealed": 1
+   }
+  },
+  "southbridge_routemap": {
+   "x": 1296,
+   "y": 90,
+   "w": 110,
+   "h": 110,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "fallen": 1
+   }
+  }
+ },
+ "walk": [
+  12,
+  1486
+ ],
+ "walk_when": [
+  {
+   "not": [
+    "river_waterway_open"
+   ],
+   "walk": [
+    12,
+    1054
+   ]
+  }
+ ],
+ "portals": [
+  {
+   "edge": "left",
+   "to": "oldstreet",
+   "at": "oldstreet_to_south",
+   "kind": "walk_fade"
+  }
+ ],
+ "ambient": [
+  {
+   "name": "river_flow",
+   "db": -14
+  }
+ ],
+ "viewfinder": {
+  "img": "viewfinder.png",
+  "cam_x": 352,
+  "chen_x": 592,
+  "note": "镜头左边缘 = cam_x 时对齐；取景框不跟镜头（CanvasLayer），alpha 自己定（建议 0.45）"
+ }
+}

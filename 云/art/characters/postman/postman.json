@@ -1,0 +1,40 @@
+{
+ "_comment": "tools/river_chars.py 生成（agent 画，100ms 一帧）。图里朝右，朝左引擎翻转。",
+ "frame": [
+  40,
+  52
+ ],
+ "sheet": "postman.png",
+ "anchor": [
+  16,
+  51
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": true,
+ "head": 46,
+ "speed": 26,
+ "color": "#4e5868",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "loop": true
+  },
+  "walk": {
+   "frames": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "loop": true
+  }
+ }
+}
