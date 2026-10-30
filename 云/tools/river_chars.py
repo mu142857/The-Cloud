@@ -1,6 +1,8 @@
 """河流篇的配角：阿汀（ting）、摊主（keeper）、卖菜的人（vendor）、邮差（postman）。以后改这些人只改这一个文件。
 
-    "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/river_chars.py [--preview 目录]
+    "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/river_chars.py [--preview 目录] [--ting]
+
+阿汀（10-30 起）：不再用下面的 agent 小人，改用奥斯卡画的「阴险守卫」+ 白胡子（build_ting），默认不重做，--ting 才重做。
 
 画法（docs/river_plan.md 第 2.3 节、作者定）：
 - xiao-oscar 色块派的人：大块平涂、不描边，每块料子只有亮 / 暗两档（光从左上来，亮面偏暖、暗面偏冷），
@@ -282,49 +284,115 @@ def hairline_short(head_c, r):
     return m_ell(head_c[0] - 1.5, head_c[1] - 1.5, r * 0.8, r * 0.9) | m_ell(head_c[0], head_c[1] - r + 0.5, r, r * 0.55)
 
 
-def ting_over(c, sh, hip, lean, p):
-    """防水围裙（原文 78）：从胸口垂到膝盖下面，暗芥末色的胶布，上面一块补丁（原文 146）；腰上一根带子。"""
-    top = (sh[0] + 2.5, sh[1] + 3)
-    bot_y = hip[1] + 10 - p.get("crouch", 0) * 0.3
-    front = hip[0] + 5.5 + math.sin(math.radians(p["legs"][1])) * 3
-    m = m_poly([(top[0] - 2, top[1]), (top[0] + 2.5, top[1]), (front, bot_y), (hip[0] - 1.5, bot_y + 0.5),
-                (hip[0] - 0.5, hip[1] - 2)])
-    paint(c, m, (0.40, 0.045, 92), split=(0.9, 0.3))
-    ys, xs = np.nonzero(m)
-    if len(ys):
-        cx, cy = int(xs.mean()) + 1, int(ys.mean()) + 2
-        for yy in range(cy, cy + 3):                         # 补丁：亮一档、偏暖的方块 + 两针缝线
-            for xx in range(cx, cx + 3):
-                if 0 <= yy < FH and 0 <= xx < FW and m[yy, xx]:
-                    c.put(xx, yy, col(0.47, 0.04, 70))
-        c.put(cx - 1, cy, col(0.30, 0.03, 80))
-        c.put(cx + 3, cy + 2, col(0.30, 0.03, 80))
-    # 腰带
-    wy = int(round(hip[1] - 4))
-    for xx in range(int(hip[0] - 3), int(hip[0] + 5)):
-        if on(c, xx, wy):
-            c.put(xx, wy, col(0.30, 0.03, 85))
+# ============================================================ 阿汀 = 奥斯卡的「阴险守卫」+ 白胡子
+# 10-30 作者定：阿汀不用 agent 画的小人了，用奥斯卡给《Dream of Fantacy》画的旧角色「阴险守卫」当彩蛋，
+# 原话「你加一个白胡子就行了」；后来又要袍子换深蓝。轮廓 / 比例 / 帧 / 帧时长都照奥斯卡原图，不缩放。
+# 原图：~/骑士山城/Dream-of-Fantacy/Assets/幽盲区/战斗场景/阴险守卫/阴险守卫-Sheet.aseprite（单帧单层的 sheet，230×211 一格，
+# 动画分段和帧速在同目录 阴险守卫.tscn 里：Idle = 第 0 行 0~3 格 8fps，Walking = 第 3 行 0~3 格 10fps）。
+# 用到的 8 格原样裁成 92×104（格内 x 108~200、y 96~200，8 格的不透明像素都在里面）存在 art/characters/ting/src/guard_idle_walk.png，
+# 这个函数只读它、往上画胡子、写 ting.png / ting.json。别的动作（攻击、分身、钻地……）当不了递东西 / 检查，不用，剧本里的动作名全别名到待机。
+TING_SRC = ROOT / "art/characters/ting/src/guard_idle_walk.png"
+TING_FW, TING_FH = 92, 104
+TING_BEARD_PAL = {"W": (226, 224, 218, 255), "M": (188, 186, 182, 255), "S": (138, 138, 140, 255)}   # 亮 / 中 / 暗：中性灰白，跟黑团子的灰一路
+TING_BEARD_FRONT = [      # 待机：正脸下巴的白胡子，锚 = 左眼往下两行（dx 从左眼算起），胡子尖往前（左）翘
+    ".WWMMS.",
+    "WWMMMMS",
+    "WMMMMMS",
+    ".WMMMS.",
+    ".WWMMS.",
+    "..WMMS.",
+    "..WMS..",
+    "..MMS..",
+    ".WMS...",
+    ".MS....",
+]
+TING_BEARD_SIDE = [       # 走路：脸藏在兜帽里，只从兜帽口下巴那里垂出来一撮，锚 = 下巴点（第一行左起第二格）
+    ".WMS",
+    "WWMS",
+    "WMMS",
+    "WMS.",
+    "WMS.",
+    ".MS.",
+    "WS..",
+    "S...",
+]
+TING_IDLE_EYE = [(16, 46), (16, 48), (16, 49), (16, 48)]    # 待机 4 帧左眼（亮绿那颗）的位置：脸每帧上下动，胡子跟着
+TING_WALK_CHIN = [(9, 39), (12, 42), (11, 41), (11, 39)]    # 走路 4 帧兜帽口前沿的下巴点
+TING_ALIAS_IDLE = ["talk", "check", "hold_shell", "count", "open_shell", "hand_board", "hand_coat", "hand_bag", "nod",
+                   "show_record", "coat_on_chair", "look_down", "throw_rope", "hand", "give", "throw", "point",
+                   "lift_hand", "repair", "point_log"]
 
 
-def ting_head(c, head_c, r, p):
-    """毛线帽（灰青）+ 白胡茬（下巴一圈亮一点的灰）。"""
-    x, y = head_c
-    for xx in range(int(x - r), int(x + r + 1)):
-        yy = int(round(y - r + 3))
-        if on(c, xx, yy):
-            c.put(xx, yy, col(0.30, 0.03, 200))              # 帽檐翻边
-    for xx in range(int(x + 1), int(x + r + 1)):
-        yy = int(round(y + r - 1))
-        if on(c, xx, yy):
-            c.put(xx, yy, col(0.62, 0.008, 90))              # 胡茬
-    c.put(int(x + r), int(y + r - 2), col(0.62, 0.008, 90))
+# 10-30 作者又定：橙袍子换成深蓝（更融进月夜河岸）。只换色相：原来每一档橙（色相 15~25°、饱和 > 0.9）按明度一一对到深蓝的一档，
+# 明暗层次照奥斯卡原图；深棕内衬对到近黑的藏青。绿脸、白胡子、背后的黑团子不动。
+TING_ROBE_HUE, TING_ROBE_SAT = 222, 0.62
+TING_ROBE_V = (0.53, 0.80, 0.24, 0.46)       # 原图橙的明度范围 → 深蓝的明度范围
+TING_LINING = (0.10, 0.55)                   # 深棕内衬 → 明度 / 饱和
 
 
-TING = dict(leg=19, leg_w=4.2, boot_h=6, torso=14, stoop=8, neck_fwd=1, head_r=5, body_w=10, belly=1.5,
-            arm=15, arm_w=3.2,
-            skin=(0.56, 0.045, 50), hair=(0.34, 0.03, 200), eye=col(0.22, 0.02, 250),
-            shirt=(0.34, 0.025, 240), sleeve=(0.34, 0.025, 240), pants=(0.27, 0.012, 240), boots=(0.22, 0.012, 230),
-            hairline=hairline_cap, over=ting_over, head_extra=ting_head)
+def ting_robe(fr: Image.Image):
+    import colorsys
+    px = fr.load()
+    lo, hi, v0, v1 = TING_ROBE_V
+    for y in range(fr.height):
+        for x in range(fr.width):
+            r, g, b, a = px[x, y]
+            if a == 0:
+                continue
+            h, sat, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            if not (15 <= h * 360 <= 25 and sat > 0.9):
+                continue
+            nv, ns = TING_LINING if v < 0.2 else (v0 + (v - lo) / (hi - lo) * (v1 - v0), TING_ROBE_SAT)
+            rr, gg, bb = colorsys.hsv_to_rgb(TING_ROBE_HUE / 360, ns, nv)
+            px[x, y] = (round(rr * 255), round(gg * 255), round(bb * 255), a)
+
+
+def ting_beard(fr: Image.Image, tpl, ox, oy):
+    px = fr.load()
+    for j, row in enumerate(tpl):
+        for i, ch in enumerate(row):
+            if ch != ".":
+                px[ox + i, oy + j] = TING_BEARD_PAL[ch]
+
+
+def build_ting():
+    src = Image.open(TING_SRC).convert("RGBA")
+    frames = []
+    for k in range(8):
+        fr = src.crop((k * TING_FW, 0, (k + 1) * TING_FW, TING_FH))
+        ting_robe(fr)
+        if k < 4:
+            ex, ey = TING_IDLE_EYE[k]
+            ting_beard(fr, TING_BEARD_FRONT, ex, ey + 2)
+        else:
+            cx, cy = TING_WALK_CHIN[k - 4]
+            ting_beard(fr, TING_BEARD_SIDE, cx - 1, cy)
+        frames.append(fr)
+    sheet = Image.new("RGBA", (TING_FW * 8, TING_FH))
+    for k, fr in enumerate(frames):
+        sheet.paste(fr, (k * TING_FW, 0))
+    out = ROOT / "art/characters/ting"
+    sheet.save(out / "ting.png")
+    meta = {
+        "_comment": "阿汀 = 奥斯卡给《Dream of Fantacy》画的「阴险守卫」（Assets/幽盲区/战斗场景/阴险守卫/阴险守卫-Sheet.aseprite），"
+                    "彩蛋（作者 10-30 定），加了白胡子、橙袍子换成深蓝（作者 10-30 又定，更融进月夜；tools/river_chars.py 的 build_ting，原帧在 src/）。"
+                    "原像素尺寸不缩放：92×104 一格，人比晨（40×52）大一倍。帧时长照原图：待机 125ms（8fps）、走路 100ms（10fps）。"
+                    "图里朝左，朝右引擎翻转。anchor = 兜帽里那个人的脚底中点（不算背后的黑团子和拖地的斗篷下摆，"
+                    "转身时人站着不动、黑团子换到另一边；和原工程一样待机 / 走路同一个 x，走路的斗篷拖地低 2 像素，y 单独给）。"
+                    "原图只有待机 / 走路能用（别的段是攻击、分身、钻地），剧本里的动作名全别名到待机。",
+        "frame": [TING_FW, TING_FH], "sheet": "ting.png", "anchor": [28, 97], "faces": "left", "tint": True,
+        "head": 94, "speed": 40, "color": "#6b6a58",
+        "anims": {"idle": {"frames": [0, 1, 2, 3], "ms": 125, "loop": True},
+                  "walk": {"frames": [4, 5, 6, 7], "ms": 100, "loop": True, "anchor": [28, 99]}},
+        "alias": {n: "idle" for n in TING_ALIAS_IDLE},
+        # 他比晨大一倍：剧情里站位自动和别人隔开（story_runner.gd 的 _clear_x），也不挡飞机舱门（深色门板 + 门框的世界 x）
+        "keep_clear": True,
+        "avoid": [{"room": "river_bank", "prop": "river_bank_plane", "states": ["", "default"], "x": [138, 158]},
+                  {"room": "river_bank", "prop": "river_bank_plane", "states": ["beached", "straps_drying", "fixed"],
+                   "x": [204, 224]}],
+    }
+    (out / "ting.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    return frames, meta
 
 
 def keeper_over(c, sh, hip, lean, p):
@@ -431,42 +499,6 @@ def walk(slow=1.0, **kw):
     return out
 
 
-def ting_anims():
-    A = {}
-    A["idle"] = idle()
-    A["walk"] = walk(0.8)
-    A["talk"] = [dict(), dict(near=(20, 35)), dict(near=(22, 45)), dict(near=(20, 35))]
-    A["throw_rope"] = [dict(near=(-20, 60), item="rope"), dict(near=(-40, 80), item="rope", lean=-4),
-                       dict(near=(10, 70), item="rope", lean=4), dict(near=(70, 20), lean=8),
-                       dict(near=(85, 0), lean=8), dict(near=(40, 10), lean=4)]
-    A["check"] = [dict(lean=10, head=(1, 1), near=(25, 10)), dict(lean=22, head=(2, 2), near=(40, 10), crouch=1),
-                  dict(lean=30, head=(2, 3), near=(50, 5), crouch=2), dict(lean=30, head=(2, 3), near=(55, 0), crouch=2)]
-    A["hold_shell"] = [dict(lean=10, near=(40, 30)), dict(lean=18, near=(60, 20), crouch=1),
-                       dict(lean=20, near=(70, 15), crouch=1)]
-    A["open_shell"] = [dict(lean=18, near=(60, 30), far=(40, 40), crouch=1), dict(lean=18, near=(70, 10), far=(50, 30), crouch=1),
-                       dict(lean=18, near=(55, 40), far=(60, 20), crouch=1), dict(lean=18, near=(70, 20), far=(45, 40), crouch=1)]
-    give = lambda it: [dict(near=(20, 40), item=it), dict(near=(45, 30), item=it, lean=3),  # noqa: E731
-                       dict(near=(70, 15), item=it, lean=6), dict(near=(80, 5), item=it, lean=6)]
-    A["hand_coat"] = give("coat")
-    A["hand_bag"] = give("bag")
-    A["hand_board"] = give("board")
-    A["coat_on_chair"] = [dict(near=(30, 40), item="coat"), dict(near=(-10, 60), item="coat", lean=-3),
-                          dict(near=(-30, 50), item="coat", lean=-6, head=(-1, 0)),
-                          dict(near=(-35, 30), lean=-6, head=(-1, 0)), dict(near=(-10, 20), lean=-2)]
-    A["nod"] = [dict(head=(0, 1)), dict(head=(1, 2), lean=3), dict(head=(0, 1)), dict()]
-    A["look_down"] = [dict(head=(1, 1), lean=4), dict(head=(1, 2), lean=8), dict(head=(1, 3), lean=10, near=(5, 10))]
-    A["count"] = [dict(near=(30, 60)), dict(near=(32, 70), head=(0, 1)), dict(near=(30, 60)),
-                  dict(near=(32, 70), head=(0, 1)), dict(near=(30, 60)), dict(near=(20, 40))]
-    A["show_record"] = [dict(near=(30, 50), far=(30, 50), item="paper"), dict(near=(45, 50), far=(40, 55), item="paper"),
-                        dict(near=(55, 45), far=(45, 55), item="paper", head=(0, 1))]
-    A["hold_shell"][-1]["crouch"] = 1
-    hold = {"check", "hold_shell", "hand_coat", "hand_bag", "hand_board", "look_down", "show_record"}
-    loop = {"idle", "walk", "talk", "open_shell"}
-    alias = {"hand": "hand_bag", "give": "hand_bag", "throw": "throw_rope", "point": "talk", "lift_hand": "talk",
-             "repair": "open_shell", "point_log": "talk"}
-    return A, hold, loop, alias
-
-
 def keeper_anims():
     A = {}
     A["idle"] = idle()
@@ -498,8 +530,7 @@ def postman_anims():
     return A, set(), {"idle", "walk"}, {}
 
 
-CHARS = {
-    "ting": (TING, ting_anims, dict(head=46, speed=24, color="#6b6a58")),
+CHARS = {               # 阿汀不在这里了：改用奥斯卡的阴险守卫，见 build_ting（--ting 才重做）
     "keeper": (KEEPER, keeper_anims, dict(head=46, speed=30, color="#6a5e54")),
     "vendor": (VENDOR, vendor_anims, dict(head=46, speed=20, color="#5e6a5a")),
     "postman": (POSTMAN, postman_anims, dict(head=46, speed=26, color="#4e5868")),
@@ -576,7 +607,11 @@ def preview(out_dir: Path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", type=Path)
+    ap.add_argument("--ting", action="store_true", help="重做阿汀（阴险守卫 + 白胡子），不加就不碰 art/characters/ting/")
     a = ap.parse_args()
+    if a.ting:
+        frames, meta = build_ting()
+        print("ting", len(frames), "帧", list(meta["anims"]))
     for cid in CHARS:
         frames, meta = build_char(cid)
         print(cid, len(frames), "帧", list(meta["anims"]))

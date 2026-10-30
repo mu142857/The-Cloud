@@ -83,7 +83,8 @@ const TREELINE_VIEW_ANCHOR := Vector2(240, 234)   # 树冠缺口那一屏里对�
 const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "take", "flag", "journal", "sfx",
 	"fade_to", "anim", "prop", "guide", "goto", "pick", "end_chapter", "if", "ambient", "show_item",
 	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match", "fuel", "camera",
-	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup"]   # 后六个：多房间章节（docs/river_rooms_contract.md）
+	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup",   # 后六个：多房间章节（docs/river_rooms_contract.md）
+	"pose"]   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
@@ -141,6 +142,7 @@ var busy := false
 var free_walk := false             # guide：剧情没播完，但晨可以自己走
 var auto := ""                     # "" / "main" / "full"
 var ff := false                    # 跳节拍：每步瞬间完成
+var free_roam := false             # F8「探索」（level_forest.gd 自由探索）：不播任何剧情、不触发 hotspot、不说卡关提示
 var shots_dir := ""
 var shot_delay := 0.5
 var ended := false
@@ -376,6 +378,8 @@ func _warn_once(msg: String) -> void:
 
 # ======================================================================= 播
 func play(id: String, manage := true, from_index := 0) -> void:
+	if free_roam:
+		return
 	if busy:
 		_warn_once("已经在播，忽略 " + id)
 		return
@@ -384,6 +388,7 @@ func play(id: String, manage := true, from_index := 0) -> void:
 	if manage and not ff:
 		level.story_begin(_wants_bars(id))
 		dlg.top_limit = level.BAR_H + 4.0 if level.bars_on() else 4.0
+		await _settle_start()                  # 晨站在别人身上 / 跟着的人压在晨身上：先让开
 	var view: bool = _scene_view == "treeline" and manage and not ff and world.has_treeline_view()
 	_scene_view = ""
 	if view:
@@ -409,7 +414,10 @@ func play(id: String, manage := true, from_index := 0) -> void:
 			step_t = 0.0
 			if not st is Dictionary:
 				continue
+			var t_step := _game_t
 			var g: String = await _step(st)
+			if not ff:
+				_count_wait(cur, st, _game_t - t_step)
 			if ended:
 				break
 			if g == "__pause__":
@@ -504,7 +512,7 @@ func _step(st: Dictionary) -> String:
 			_face(st)
 		"wait":
 			if not ff:
-				await _wait(float(st.get("sec", 0.5)))
+				await _wait(maxf(float(st.get("sec", 0.5)) * WAIT_SCALE, 0.3))
 		"show":
 			_show(st, true)
 		"hide":
@@ -576,6 +584,8 @@ func _step(st: Dictionary) -> String:
 			var fn := npc(str(st.get("who", "")))
 			if fn != null and fn.has_method("set_form"):
 				fn.set_form(str(st.get("form", "land")))
+		"pose":
+			await _pose(st)
 		"follow":
 			var who_f := str(st.get("who", ""))
 			if st.get("on", true):
@@ -772,6 +782,8 @@ func _walk(st: Dictionary) -> void:
 		_warn_once("walk：不认识 " + who)
 		return
 	var tlv := _lv_target(st.get("to", 0), n)
+	x = _no_pass_chen(n, x, tlv)
+	x = _clear_x(n, x, world.room if n == chen else _room_of(n), tlv, n.position.x, n == chen)    # 人和人不叠（晨走过去时跟着的人自己让）
 	if ff:
 		_place(n, x, world.room if n == chen else _room_of(n), tlv)
 		return
@@ -792,6 +804,7 @@ func _walk(st: Dictionary) -> void:
 				_warn_once("walk：晨的 speed 不支持（晨的速度在 chen.gd 里，不改），按平常速度走")
 			var w: Vector2 = world.walls(chen.position.x)
 			x = clampf(x, w.x + 4.0, w.y - 4.0)
+			_chen_goal = x                       # 还在走的时候别人按这里躲（_clear_blocks）；走到了在 _chen_walk 里清掉
 			if str(st.get("pace", "")) == "walk":
 				# "pace": "walk"（10-29）：走路的速度，慢慢起步、慢慢停（level_forest.gd 的 stroll_to；动画照旧 100ms 一帧）
 				if wait:
@@ -809,7 +822,13 @@ func _walk(st: Dictionary) -> void:
 				await get_tree().process_frame
 		_ when npcs.values().has(n):
 			n.visible = true
-			n.walk_to(x, float(st.get("speed", -1.0)))
+			var nsp := float(st.get("speed", -1.0))
+			if nsp <= 0.0:
+				nsp = float(n.get("speed"))
+			if wait and not ff:
+				# 晨被锁着等人走路：一段最多等 WALK_WAIT_MAX 秒，远的就走快一点（最多快到 WALK_HURRY 倍，不会嗖地飞过去）
+				nsp = clampf(absf(x - n.position.x) / WALK_WAIT_MAX, nsp, nsp * WALK_HURRY)
+			n.walk_to(x, nsp)
 			while wait and n.is_walking():
 				await get_tree().process_frame
 		_:
@@ -853,7 +872,17 @@ func _lv_walk(n: Node2D, sg: Node2D, to_lv: int, x: float, st := {}) -> void:
 	var sp := float(st.get("speed", -1.0))
 	if sp <= 0.0 and n != chen:
 		sp = maxf(float(n.get("speed")), 56.0)      # 换层的路远：妮芙飘得快一点（剧本没写速度时）
-	for e in sg.route(_lv_of(n, sg), to_lv):
+	var route: Array = sg.route(_lv_of(n, sg), to_lv)
+	if n != chen and st.get("wait", true) and not ff:
+		# 晨被锁着等人上下楼：整段路（到楼梯口、楼梯、到目标）最多等 WALK_WAIT_MAX + 1 秒，远的就快一点（最多 WALK_HURRY 倍）
+		var px := n.position.x
+		var path_len := 0.0
+		for e in route:
+			path_len += absf(float(e["x0"]) - px) + absf(float(e["x1"]) - float(e["x0"]))
+			px = float(e["x1"])
+		path_len += absf(x - px)
+		sp = clampf(path_len / (WALK_WAIT_MAX + 1.0), sp, sp * WALK_HURRY)
+	for e in route:
 		if n == chen:
 			await _chen_walk(float(e["x0"]))
 			sg.chen_stair = int(e["si"])
@@ -929,6 +958,7 @@ func _chen_walk(x: float) -> void:
 			chen.position.x = x
 			break
 	chen.auto_dir = 0.0
+	_chen_goal = NAN
 	t = 0.0
 	while chen._vel > 0.0 and t < 1.0:
 		await get_tree().process_frame
@@ -964,7 +994,8 @@ func _show(st: Dictionary, on: bool) -> void:
 	if st.has("at"):
 		var r: Dictionary = world.resolve(st["at"])
 		if r["ok"]:
-			_place(n, r["x"], r["room"], _lv_target(st["at"], n) if _lv_stage(str(r["room"])) != null else -1)
+			var slv := _lv_target(st["at"], n) if _lv_stage(str(r["room"])) != null else -1
+			_place(n, _clear_x(n, r["x"], str(r["room"]), slv), r["room"], slv)     # 人和人不叠
 		else:
 			_warn_once("show：找不到 " + str(st["at"]))
 	# "fade": 秒（10-29）：按 4 档透明度淡入 / 淡出（鹿走进雾里、慢慢出现），不突然出现 / 消失；不等它淡完就播下一步
@@ -1447,6 +1478,8 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		fade_music_family()                 # 出了树屋：留声机 / 音乐盒的长声淡掉
 	var old_room: String = world.room
 	world.set_room(room, ff)
+	var tlv := _arrive_lv if _lv_stage(room) != null else -1
+	x = _clear_x(chen, x, room, tlv)          # 人和人不叠：落脚点上站着人就挪开一点
 	_place(chen, x, room)
 	chen.visible = true
 	var w: Vector2 = world.walls(x)
@@ -1464,6 +1497,7 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		var nx := x - off
 		if nx < w.x + 10.0:
 			nx = x + off
+		nx = _clear_x(n, nx, room, tlv)        # 人和人不叠（也躲开房间里站着的人）
 		_place(n, nx, room)
 		n.visible = true
 		n._set_facing(1 if x > nx else -1)
@@ -1680,6 +1714,8 @@ func play_end() -> void:
 
 ## 晨按了互动（或自动玩走到了）：播它的 scene
 func trigger(p: Dictionary) -> void:
+	if free_roam:
+		return
 	var h: Dictionary = p["h"]
 	if not ff and quick.is_quick(h):
 		await quick.pickup(p)           # 走过去就捡：不锁人
@@ -2158,9 +2194,11 @@ func _process(delta: float) -> void:
 		deer.visible = false               # 鹿、弥洛是森林的节点：多房间章节（河流篇）里一律不显示
 		miluo.visible = false              # （10-30 作者：旧街水里站着一只第一章的鹿）
 	_update_follow(delta)
+	if _overlap_log and not ff:
+		_check_overlap()
 	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood")):
 		alarm(false)
-	if not ended and not ff:
+	if not ended and not ff and not free_roam:
 		_update_nudge(delta)
 		if guide_ready() and level.free_play():
 			resume_guide()
@@ -2301,7 +2339,60 @@ func _leads_to(s: String, flag: String) -> bool:
 	return false
 
 
+## 等多久（10-30 作者：等 NPC / 晨自己走的时间整体太久、很不自由）：每段剧情里晨被锁着时，
+## 等别人走路（npc）、剧本让晨自己走（chen）、干等（wait）各花了几秒。台词不算（自动玩的台词时长是假的）；小游戏、鹿带路不算（能自由动）。
+var wait_stats := {}
+const WAIT_SCALE := 0.6      # 剧本里 wait 的停顿统一乘这个（最短 0.3 秒）：节奏还在，只是不拖
+const WALK_WAIT_MAX := 2.5   # 剧情里等一个人走路最多等几秒
+const WALK_HURRY := 2.2      # 为了不超过上面那个时间，最多走快到平时的几倍
+
+
+func _count_wait(scene: String, st: Dictionary, dt: float) -> void:
+	if dt <= 0.05 or st.has("say") or st.has("narr"):
+		return
+	var d := str(st.get("do", ""))
+	var k := ""
+	match d:
+		"walk":
+			k = "chen" if str(st.get("who", "")) == "chen" else "npc"
+		"wait":
+			k = "wait"
+		"pose", "fade_to", "anim":
+			k = d
+		_:
+			return
+	if not wait_stats.has(scene):
+		wait_stats[scene] = {}
+	wait_stats[scene][k] = float(wait_stats[scene].get(k, 0.0)) + dt
+
+
+func print_wait_stats() -> void:
+	var rows: Array = []
+	var tot := {}
+	for sc in wait_stats:
+		var sum := 0.0
+		for k in wait_stats[sc]:
+			sum += float(wait_stats[sc][k])
+			tot[k] = float(tot.get(k, 0.0)) + float(wait_stats[sc][k])
+		rows.append([sum, sc])
+	rows.sort_custom(func(a, b): return a[0] > b[0])
+	var all := 0.0
+	var parts: Array = []
+	for k in tot:
+		all += float(tot[k])
+		parts.append("%s=%.1f" % [k, tot[k]])
+	print("STORY_WAIT_TOTAL %.1fs %s" % [all, " ".join(parts)])
+	for r in rows:
+		if float(r[0]) < 2.0:
+			break
+		var ps: Array = []
+		for k in wait_stats[r[1]]:
+			ps.append("%s=%.1f" % [k, wait_stats[r[1]][k]])
+		print("STORY_WAIT %5.1fs %s  %s" % [r[0], r[1], " ".join(ps)])
+
+
 func print_stats(tag: String) -> void:
+	print_wait_stats()
 	var real := (Time.get_ticks_msec() - _t0_ms) / 1000.0
 	var unplayed: Array = []
 	for id in scenes:
@@ -2803,7 +2894,7 @@ func _sync_generic_vis(instant: bool) -> void:
 		var r := str(_npc_room.get(n.name, ""))
 		var rs: Node2D = world.stage(r)
 		var cs: Node2D = world.cur_stage()
-		n.z_index = -2 if rs != null and rs.is_house and world.room != r else 0
+		n.z_index = -2 if rs != null and rs.is_house and world.room != r else int(n.get_meta("pose_z", 0))   # pose 压到物件后面的保留
 		var a := 1.0
 		if cs != null and cs.is_house and r != world.room and world.house_pair(r, world.room):
 			if n.position.x > cs.origin.x and n.position.x < cs.origin.x + cs.size.x:
@@ -2819,9 +2910,34 @@ func _sync_generic_vis(instant: bool) -> void:
 			n.set_meta("sync_tw", tw)
 
 
+## pose：通用角色的图（spr）绕脚底转 rot 度、挪 dx / dy 像素，sec 秒平滑过去（sine，物理一点）；z 给了就改人的前后
+## （物件默认 z −1：z −2 = 压到物件后面）。{"rot": 0, "dx": 0, "dy": 0} = 回到原样；z 写 0 回到平常。wait:false 不等。
+## 10-30 作者：河岸遇见妮芙，箱子后面先露出鲸鱼壳的尾巴（妮芙原图斜着扎进箱子后面），再转过来——不另画尾巴、不凭空出现。
+func _pose(st: Dictionary) -> void:
+	var n := npc(str(st.get("who", "")))
+	if n == null or not npcs.values().has(n):
+		return
+	var spr: Node2D = n.spr
+	if st.has("z"):
+		n.z_index = int(st["z"])
+		n.set_meta("pose_z", int(st["z"]))
+	var rot := deg_to_rad(float(st.get("rot", 0.0)))
+	var pos := Vector2(float(st.get("dx", 0.0)), float(st.get("dy", 0.0)))
+	var sec := float(st.get("sec", 0.6))
+	if ff or sec <= 0.0:
+		spr.rotation = rot
+		spr.position = pos
+		return
+	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(spr, "rotation", rot, sec)
+	tw.tween_method(func(p: Vector2): spr.position = p.round(), spr.position, pos, sec)   # 位置取整到像素
+	if st.get("wait", true):
+		await tw.finished
+
+
 ## 跟着晨走（follow）：自由走动时（剧情没在播、或小游戏在等互动）每帧追晨身后 gap 像素
 func _update_follow(delta: float) -> void:
-	if follow.is_empty() or ff:
+	if ff:
 		return
 	var free: bool = (not busy or free_walk or mech_wait) and level.free_play()
 	for who in follow:
@@ -2830,23 +2946,47 @@ func _update_follow(delta: float) -> void:
 			continue
 		if str(_npc_room.get(n.name, "")) != world.room:
 			continue
-		if not free:
-			continue
 		var fsg := _lv_stage()
 		if fsg != null and _lv_of(n, fsg) != fsg.chen_lv:
-			if not n.has_meta("lv_climbing") and fsg.chen_stair < 0:
+			if free and not n.has_meta("lv_climbing") and fsg.chen_stair < 0:
 				_lv_walk(n, fsg, fsg.chen_lv, chen.position.x - (FOLLOW_GAP if chen.facing > 0 else -FOLLOW_GAP))   # 跟着晨上 / 下楼
 			continue
 		if n.has_meta("lv_climbing"):
 			continue
-		var gap := _side_gap(n, float(follow[who]))
-		var side := -1.0 if chen.facing > 0 else 1.0
-		var tx := chen.position.x + side * gap
-		var w: Vector2 = world.walls(chen.position.x)
-		tx = clampf(tx, w.x + 4.0, w.y - 4.0)
+		_make_way(n, _side_gap(n, float(follow[who])), free, delta)
+	# 没在跟着晨、但会飘开让路的（妮芙的鲸鱼壳悬浮着：hover）：晨走过来也让开
+	for n in npcs.values():
+		if follow.has(str(n.get("npc_id"))) or not n.visible or _room_of(n) != world.room or n.has_meta("lv_climbing"):
+			continue
+		if not (n.get("cur") is Dictionary and float((n.get("cur") as Dictionary).get("hover", 0.0)) > 0.0):
+			continue
+		var hsg := _lv_stage()
+		if hsg != null and _lv_of(n, hsg) != hsg.chen_lv:
+			continue
+		_make_way(n, _side_gap(n, FOLLOW_GAP), false, delta)
+
+
+## 人和人不叠：跟着晨 / 会让路的人待在她现在那一边（晨转身她不从晨身上穿过去），只有被挤到墙边才绕到另一边。
+## follow = 自由走的时候跟在晨这一边 gap 远；不跟的时候只在晨冲她走过来时让开（弹簧平滑飘开，追不上再硬推）
+func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
+	var dx := n.position.x - chen.position.x
+	var side := signf(dx) if absf(dx) >= 1.0 else (-1.0 if chen.facing > 0 else 1.0)
+	var w: Vector2 = world.walls(chen.position.x)
+	var swap := false
+	if chen.position.x + side * gap < w.x + 4.0 or chen.position.x + side * gap > w.y - 4.0:
+		side = -side
+		swap = true
+	var tx := clampf(chen.position.x + side * gap, w.x + 4.0, w.y - 4.0)
+	if follow_on:
 		if absf(tx - n.position.x) < 4.0 and chen._vel <= 0.0:
 			tx = n.position.x
 		n.follow_to(tx, chen.position.x, delta)
+	elif not n.is_walking() and chen._vel > 0.0 and dx * side < gap + 16.0 and signf(chen.facing) == side:
+		n.follow_to(tx, chen.position.x, delta)           # 晨冲她走过来：先飘开
+	# 弹簧追不上（晨跑过来、过场里晨走过她身边）：直接推开，鲸鱼壳不压到晨身上
+	if not swap and not n.is_walking() and dx * side < gap - 0.5 and absf(tx - chen.position.x) >= gap - 0.5:
+		n.position.x = round(tx)
+		n._snap_y()
 
 
 ## 跟在晨旁边至少隔多远才不叠到晨身上：比人宽的（妮芙的鲸鱼壳 71 宽，锚点到边 36）= 锚点到最远一边 + 晨半个身子 12；
@@ -2858,7 +2998,204 @@ func _side_gap(n: Node2D, base: float) -> float:
 	var fr: Array = c["frame"]
 	var an: Array = c.get("anchor", [float(fr[0]) / 2.0, 0])
 	var half := maxf(float(an[0]), float(fr[0]) - float(an[0]))
-	return maxf(base, half + 12.0) if half > 28.0 else base
+	return maxf(base, half + 12.0 + CLEAR_GAP) if half > 28.0 else base     # 鲸鱼壳和晨之间留 CLEAR_GAP
+
+
+## 人和人不叠（10-30，作者：人物互相穿插就是 bug）：晨和通用角色（妮芙、阿汀、摊主……）谁也不压到谁身上，两边轮廓隔开 CLEAR_GAP。
+##   剧本让人站的位置（walk / show / 换房间放下来）压到别人 → 挪到最近的空地（优先停在走过来的这一边，不穿过人站到对面）；
+##   场景开始时晨站在别人身上（走进人身子里按的互动）→ 晨先退开，跟着晨的人压在晨身上 → 她飘开；
+##   跟着晨的人（_update_follow）待在她现在那一边，晨冲她走过来就被推着走，不从晨身上穿过去。
+##   宽度 = 锚点到身子最远一边：晨 12；妮芙的鲸鱼壳 36；一般大小的人（帧 40 宽）当晨算 12。
+##   json 写 "keep_clear": true 的（阿汀 = 奥斯卡的阴险守卫，比晨大一倍，会转身、背后的黑团子换边）按帧算两边里远的那边，
+##   还能写 "avoid": [{"room", "x": [x0, x1], "prop", "states": [...]}]：物件是这些状态时他的轮廓也不压到这段（飞机舱门）。
+##   背景走过的小人（shadow = false）不算。玩家自己走路穿过站着的人不拦。
+const CLEAR_GAP := 4.0
+const CLEAR_CHEN_HALF := 12.0
+var _chen_goal := NAN                   # 剧本让晨走去的地方（还在走）：别人按这里躲
+
+
+func _keeps_clear(n: Node2D) -> bool:
+	if n == null or not npcs.values().has(n):
+		return false
+	var c = n.get("cur")
+	return c is Dictionary and bool((c as Dictionary).get("keep_clear", false))
+
+
+## 算不算一个占地方的人：晨、通用角色（背景小人不算）
+func _is_body(n: Node2D) -> bool:
+	if n == chen:
+		return true
+	return n != null and npcs.values().has(n) and bool(n.get("shadow"))
+
+
+## 锚点到身子最远一边多远
+func _half_w(n: Node2D) -> float:
+	var c = n.get("cur") if n != chen else null
+	if not c is Dictionary or not (c as Dictionary).has("frame"):
+		return CLEAR_CHEN_HALF
+	var fr: Array = c["frame"]
+	var an: Array = c.get("anchor", [float(fr[0]) / 2.0, 0])
+	var half := maxf(float(an[0]), float(fr[0]) - float(an[0]))
+	return half if half > 28.0 or bool(c.get("keep_clear", false)) else CLEAR_CHEN_HALF
+
+
+## 晨和 n 站多远才不叠（找人说话的范围也用它）
+func clear_dist(n: Node2D) -> float:
+	return _half_w(n) + CLEAR_CHEN_HALF + CLEAR_GAP
+
+
+## mover 的锚点不能落进去的区间（开区间 x..y）：同一间房、同一层、看得见的人 + 他要躲的物件。skip_follow = 跟着晨的人不算（她们自己让）
+func _clear_blocks(mover: Node2D, room: String, lv: int, skip_follow := false) -> Array:
+	var out := []
+	if not _is_body(mover):
+		return out
+	var mh := _half_w(mover)
+	var sg := _lv_stage(room)
+	var others: Array = [chen]
+	others.append_array(npcs.values())
+	for o in others:
+		if o == mover or not o.visible or not _is_body(o):
+			continue
+		if skip_follow and o != chen and follow.has(str(o.get("npc_id"))):
+			continue
+		if (world.room if o == chen else _room_of(o)) != room:
+			continue
+		if sg != null and lv >= 0 and _lv_of(o, sg) != lv:
+			continue
+		var ox: float = o.position.x
+		if o == chen and not is_nan(_chen_goal) and (chen.auto_dir != 0.0 or level.strolling()):
+			ox = _chen_goal                         # 晨还在走：按他要停的地方算
+		elif o != chen and o.is_walking():
+			ox = float(o.get("_walk_x"))
+		var d := mh + _half_w(o) + CLEAR_GAP
+		out.append(Vector2(ox - d, ox + d))
+	if _keeps_clear(mover):
+		for z in (mover.get("cur") as Dictionary).get("avoid", []):
+			if not z is Dictionary or str(z.get("room", "")) != room:
+				continue
+			if z.has("prop") and not (z.get("states", []) as Array).has(world.prop_state(str(z["prop"]))):
+				continue
+			var zx: Array = z.get("x", [0, 0])
+			out.append(Vector2(float(zx[0]) - mh - CLEAR_GAP, float(zx[1]) + mh + CLEAR_GAP))
+	return out
+
+
+## 剧本让别人走到晨的另一边：一维的画面里绕不过去，路上一定穿过晨 → 停在自己这一边、晨旁边（人和人不叠）
+func _no_pass_chen(n: Node2D, x: float, lv: int) -> float:
+	if n == chen or not _is_body(n) or not chen.visible or _room_of(n) != world.room:
+		return x
+	var sg := _lv_stage()
+	if sg != null and (lv >= 0 and lv != int(sg.chen_lv) or _lv_of(n, sg) != int(sg.chen_lv)):
+		return x                                  # 不在晨这一层（或者要换层）：路上碰不到晨
+	var cx := chen.position.x
+	var d := _half_w(n) + CLEAR_CHEN_HALF + CLEAR_GAP
+	if n.position.x <= cx - d and x > cx - d:
+		print("KEEP_CLEAR %s %d → %d（不穿过晨）" % [n.name, int(x), int(cx - d)])
+		return cx - d
+	if n.position.x >= cx + d and x < cx + d:
+		print("KEEP_CLEAR %s %d → %d（不穿过晨）" % [n.name, int(x), int(cx + d)])
+		return cx + d
+	return x
+
+
+## 想站 x：压到人 / 物件就挪到最近的空地。from_x = 从哪边走过来：优先停在这一边（不穿过别人站到对面），这边没地方才去另一边
+func _clear_x(mover: Node2D, x: float, room: String, lv := -1, from_x := NAN, skip_follow := false) -> float:
+	var bl := _clear_blocks(mover, room, lv, skip_follow)
+	if bl.is_empty():
+		return x
+	var stg: Node2D = world.stage(room) if world.is_stage(room) else null
+	var w: Vector2 = stg.walls() if stg != null else world.walls(x)
+	var cands: Array = [x]
+	for b in bl:
+		cands.append(ceilf(b.x) - 1.0)
+		cands.append(floorf(b.y) + 1.0)
+	var best := x
+	var best_s := INF
+	for c in cands:
+		if c < w.x + 4.0 or c > w.y - 4.0:
+			continue
+		var ok := true
+		for b in bl:
+			if c > b.x and c < b.y:
+				ok = false
+				break
+		if not ok:
+			continue
+		var s := absf(c - x)
+		if not is_nan(from_x) and absf(from_x - x) > 1.0 and absf(c - x) > 0.5 and signf(c - x) != signf(from_x - x):
+			s += 100000.0
+		if s < best_s:
+			best_s = s
+			best = c
+	if absf(best - x) >= 1.0:
+		print("KEEP_CLEAR %s %d → %d（%s）" % [mover.name, int(x), int(round(best)), room])
+	return round(best)
+
+
+## 调试（--overlap_log）：每帧查同一间房、同一层看得见的人有没有叠在一起（轮廓压上，不算 CLEAR_GAP），
+## 打印 OVERLAP 谁 谁 dx、scene、是剧情里还是自由走（free = 玩家自己走路穿过人，不拦）。同一对连着叠只打一次。
+var _overlap_log := "--overlap_log" in OS.get_cmdline_user_args()
+var _overlap_on := {}
+
+
+func _check_overlap() -> void:
+	var bodies: Array = [chen]
+	for n in npcs.values():
+		bodies.append(n)
+	var sg := _lv_stage()
+	var free: bool = (not busy or free_walk or mech_wait) and level.free_play()
+	for i in bodies.size():
+		var a: Node2D = bodies[i]
+		if not a.visible or not _is_body(a):
+			continue
+		for j in range(i + 1, bodies.size()):
+			var b: Node2D = bodies[j]
+			if not b.visible or not _is_body(b):
+				continue
+			var ra: String = world.room if a == chen else _room_of(a)
+			var rb: String = _room_of(b)
+			var key := a.name + "|" + b.name
+			var hit: bool = ra == world.room and rb == world.room and (sg == null or _lv_of(a, sg) == _lv_of(b, sg)) \
+				and absf(a.position.x - b.position.x) < _half_w(a) + _half_w(b) - 0.5
+			if hit and not _overlap_on.has(key):
+				print("OVERLAP %s %s dx=%d scene=%s step=%d %s | %s | %s" % [a.name, b.name, int(absf(a.position.x - b.position.x)), _cur_scene, step_i,
+					"free" if free else "story", _body_state(a), _body_state(b)])
+			if hit:
+				_overlap_on[key] = true
+			else:
+				_overlap_on.erase(key)
+
+
+func _body_state(n: Node2D) -> String:
+	if n == chen:
+		return "chen x=%d vel=%.0f auto=%.0f goal=%s" % [int(chen.position.x), chen._vel, chen.auto_dir, str(_chen_goal)]
+	return "%s x=%d walk=%s follow=%s" % [n.name, int(n.position.x), str(n.is_walking()), str(follow.has(str(n.get("npc_id"))))]
+
+
+## 场景开始：晨站在别人身上（走进人身子里按的互动）→ 晨先退到旁边空地、转回来；跟着晨的人压在晨身上 → 她飘开
+func _settle_start() -> void:
+	if not chen.visible:
+		return
+	var sg := _lv_stage()
+	var lv := int(sg.chen_lv) if sg != null else -1
+	var x := _clear_x(chen, chen.position.x, world.room, lv, NAN, true)
+	if absf(x - chen.position.x) >= 1.0:
+		var back := chen.position.x
+		await _chen_walk(x)
+		chen._set_facing(1 if back > chen.position.x else -1)
+	for who in follow:
+		var n := npc(str(who))
+		if n == null or not n.visible or _room_of(n) != world.room or n.is_walking():
+			continue
+		if sg != null and _lv_of(n, sg) != lv:
+			continue
+		var nx := _clear_x(n, n.position.x, world.room, lv)
+		if absf(nx - n.position.x) < 1.0:
+			continue
+		n.walk_to(nx)
+		while n.is_walking():
+			await get_tree().process_frame
+		n._set_facing(1 if chen.position.x > n.position.x else -1)
 
 
 # ----------------------------------------------------------------------- 房间之间的转场
@@ -3120,6 +3457,10 @@ func _validate_room_step(id: String, kind: String, st: Dictionary, refs: Diction
 		"follow":
 			if npc(str(st.get("who", ""))) == null:
 				out.append("scene %s：follow 的 who 不认识 %s" % [id, st.get("who")])
+		"pose":
+			var pn := npc(str(st.get("who", "")))
+			if pn == null or not npcs.values().has(pn):
+				out.append("scene %s：pose 的 who %s 不是通用角色" % [id, st.get("who")])
 		"water":
 			if world.stage(str(st.get("room", ""))) == null:
 				out.append("scene %s：water 的 room 不认识 %s" % [id, st.get("room")])

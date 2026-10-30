@@ -40,9 +40,9 @@
   },
   {
    "id": "far_ripples",
-   "img": "res://art/river/ripples.png",
+   "img": "far_ripples.png",
    "scroll": 0.3,
-   "y": 151,
+   "y": 157,
    "tile": true,
    "shader": "water",
    "shader_params": {
@@ -55,29 +55,39 @@
   },
   {
    "id": "glints",
-   "img": "res://art/river/glints.png",
+   "img": "moonpath.png",
    "scroll": 0.0,
-   "y": 155,
-   "shader": "water",
+   "y": 157,
+   "shader": "moonpath",
    "shader_params": {
-    "palette_mode": true,
     "speed": 1.0,
-    "wobble": 2.0,
-    "flicker": 0.9,
-    "show": 0.6
+    "wobble": 1.5,
+    "flicker": 0.9
    }
+  },
+  {
+   "id": "mid_far",
+   "img": "mid_far.png",
+   "scroll": 0.3,
+   "y": 0
   },
   {
    "id": "far_water",
    "img": "res://art/river/water.png",
    "scroll": 0.42,
-   "y": 0,
+   "y": 6,
    "tile": true
   },
   {
    "id": "mid",
    "img": "mid.png",
    "scroll": 0.55,
+   "y": 0
+  },
+  {
+   "id": "mid_near",
+   "img": "mid_near.png",
+   "scroll": 0.75,
    "y": 0
   },
   {
@@ -94,6 +104,20 @@
    "water": true,
    "front": true,
    "alpha": 0.5
+  },
+  {
+   "id": "near_glints",
+   "img": "moonpath_near.png",
+   "scroll": 0.0,
+   "y": 218,
+   "water": true,
+   "front": true,
+   "shader": "moonpath",
+   "shader_params": {
+    "speed": 1.0,
+    "wobble": 1.5,
+    "flicker": 0.9
+   }
   },
   {
    "id": "ripples",
@@ -420,7 +444,7 @@
     "river_ashore"
    ],
    "not": [
-    "river_salvaged"
+    "river_met"
    ],
    "walk": [
     150,
@@ -433,12 +457,12 @@
    "script": "res://scripts/river_far_lantern.gd",
    "x": 0,
    "y": 0,
-   "z": -93,
+   "z": -92,
    "params": {
     "scroll": 0.55,
     "x0": 534,
     "x1": 558,
-    "y": 105
+    "y": 100
    }
   }
  ],

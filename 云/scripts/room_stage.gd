@@ -37,7 +37,7 @@ const PH_GROUND := Color("#2c343a")
 const PH_WATER := Color(0.30, 0.40, 0.48, 0.55)
 const PH_OBJ := Color("#6b7680")
 const SHADERS := {"water": "res://scripts/river_water.gdshader", "wet": "res://scripts/city_wet.gdshader",
-	"sway": "res://scripts/underwater_sway.gdshader"}
+	"sway": "res://scripts/underwater_sway.gdshader", "moonpath": "res://scripts/river_moonpath.gdshader"}
 const HIDE_STATES := ["hidden", "hide", "gone", "taken"]
 const SHOW_STATES := ["show", "shown", "default", ""]
 

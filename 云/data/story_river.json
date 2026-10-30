@@ -127,7 +127,8 @@
 		{"need": ["river_footage_broken"], "not": ["river_need_head"], "zh": "把影像盒拿给阿汀", "en": "Take the footage box to Ting", "show_fuel": false, "added": true},
 		{"need": ["river_book_drying"], "not": ["river_sat_down"], "zh": "等来客册晾干", "en": "Wait for the guestbook to dry", "show_fuel": false, "added": true},
 		{"need": ["river_landed"], "not": ["river_bread"], "zh": "去妮芙家", "en": "Go to Niff's house", "show_fuel": false, "added": true},
-		{"need": ["river_ashore"], "not": ["river_salvaged"], "zh": "沿着河岸走走", "en": "Walk along the bank", "show_fuel": false, "added": true}
+		{"need": ["river_met"], "not": ["river_salvaged"], "zh": "帮妮芙把漂走的东西捞上来", "en": "Help Niff fish out what drifted off", "show_fuel": false, "added": true},
+		{"need": ["river_ashore"], "not": ["river_met"], "zh": "沿着河岸走走", "en": "Walk along the bank", "show_fuel": false, "added": true}
 	],
 	"hints": [
 		{"need": ["river_plane_fixed"], "not": ["river_farewell"], "lines": [{"zh": "走之前，要先说再见。", "en": "Say goodbye before leaving.", "added": true}, {"zh": "她会写下来的。", "en": "She'll write it down.", "added": true}]},
@@ -221,17 +222,23 @@
 			{"narr": {"zh": "晨趴在操纵台上，缓了一会儿。", "en": "Chen slumped over the console for a while."}},
 			{"do": "wait", "sec": 0.8},
 			{"say": "chen", "zh": "行。至少到了。", "en": "Okay. At least I made it."},
-			{"do": "show", "who": "chen", "at": "river_bank_hatch"},
+			{"do": "show", "who": "niff", "at": "river_bank_crates", "_note": "10-30 作者：箱子后面的尾巴别另画、别凭空冒出来——妮芙原图斜着扎在箱子后面翻东西，只露出鲸鱼壳的尾巴；晨走过来远远就看得到"},
+			{"do": "prop", "id": "river_bank_crates", "state": "tail_still"},
+			{"do": "pose", "who": "niff", "rot": 55, "dx": -14, "dy": -16, "z": -2, "sec": 0},
 			{"do": "sfx", "name": "hatch_open"},
+			{"do": "wait", "sec": 0.4},
+			{"do": "show", "who": "chen", "at": "river_bank_hatch", "fade": 0.6, "_note": "10-30 作者：晨在飞机那里突然出现很奇怪——舱门响了以后淡出来，再自己走两步下来"},
+			{"do": "wait", "sec": 0.6},
+			{"do": "walk", "who": "chen", "to": 226, "pace": "walk"},
 			{"do": "flag", "set": "river_ashore"}
 		],
 		"bank_meet": [
-			{"do": "prop", "id": "river_bank_crates", "state": "tail"},
-			{"do": "wait", "sec": 1.0},
+			{"do": "flag", "set": "river_met", "_note": "撤掉河岸 walk_when 的墙（打捞时东西漂到下游浅滩 1250，要走过去捞）"},
+			{"do": "wait", "sec": 0.6},
 			{"say": "chen", "zh": "你好？", "en": "Hello?"},
-			{"do": "prop", "id": "river_bank_crates", "state": "tail_still"},
-			{"do": "show", "who": "niff", "at": "river_bank_crates"},
-			{"do": "anim", "who": "niff", "name": "stand_up"},
+			{"do": "pose", "who": "niff", "rot": 0, "dy": -6, "sec": 0.9, "_note": "10-30 作者：用原角色转过来——扎在箱子后面的妮芙慢慢转正、浮起来，再从箱子后面飘出来"},
+			{"do": "walk", "who": "niff", "to": 1016, "speed": 60},
+			{"do": "pose", "who": "niff", "dy": 0, "z": 0, "sec": 0.3},
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"do": "wait", "sec": 0.5},
 			{"do": "face", "who": "niff", "to": "river_bank_plane"},
@@ -552,12 +559,12 @@
 			{"do": "anim", "who": "niff", "name": "hold_page"},
 			{"say": "niff", "zh": "轻一点呀，这里已经掉过字了。", "en": "Gently. Some of the writing's already come off."},
 			{"do": "anim", "who": "chen", "name": "let_go"},
-			{"do": "walk", "who": "niff", "to": "river_home_window"},
+			{"do": "walk", "who": "niff", "to": "river_home_window", "wait": false},
 			{"do": "prop", "id": "guestbook", "state": "drying"},
 			{"say": "chen", "zh": "还要多久？", "en": "How much longer?", "added": true},
 			{"do": "face", "who": "niff", "to": "river_home_window"},
 			{"say": "niff", "zh": "要等它干。你瞪着它也不会快啦，我试过。", "en": "It has to dry. Staring won't make it faster. I've tried."},
-			{"do": "walk", "who": "niff", "to": "river_home_niff"},
+			{"do": "walk", "who": "niff", "to": "river_home_niff", "wait": false},
 			{"do": "flag", "set": "river_book_drying"}
 		],
 		"book_peek": [
@@ -1600,7 +1607,7 @@
 		],
 		"plane_fix": [
 			{"do": "walk", "who": "chen", "to": "river_bank_plane"},
-			{"do": "walk", "who": "niff", "to": "river_bank_toolkit"},
+			{"do": "walk", "who": "niff", "to": "river_bank_toolkit", "wait": false},
 			{"do": "take", "item": "pipe_joint"},
 			{"do": "take", "item": "float_seal"},
 			{"do": "anim", "who": "chen", "name": "repair"},

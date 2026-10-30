@@ -135,10 +135,17 @@ static func is_enter(h: Dictionary) -> bool:
 	return str(h.get("trigger", "")) == "enter" or bool(h.get("auto", false))
 
 
-## 范围：按键互动的点最少 MIN_RANGE；走进来触发的照剧本给的
-static func range_of(h: Dictionary) -> float:
+## 范围：按键互动的点最少 MIN_RANGE；走进来触发的照剧本给的。
+## 找人说话（妮芙、阿汀、摊主……）：站在他身子外面就够得着，晨不用走进人身子里（人和人不叠，story_runner.gd 的 clear_dist）
+func range_of(h: Dictionary) -> float:
 	var r := float(h.get("range", RANGE))
-	return r if is_enter(h) else maxf(r, MIN_RANGE)
+	if is_enter(h):
+		return r
+	var at = h.get("at", 0)
+	var n: Node2D = runner.npc(str(at)) if at is String and runner != null else null
+	if n != null and runner._is_body(n) and n != runner.chen:
+		r = maxf(r, runner.clear_dist(n) + 8.0)
+	return maxf(r, MIN_RANGE)
 
 
 ## 这个 hotspot 现在能不能用（不管位置）
@@ -190,6 +197,11 @@ func locate(h: Dictionary) -> Dictionary:
 		if not world.stages.is_empty() and str(runner._npc_room.get(npc.name, h.get("room", ""))) != str(h.get("room", "forest")):
 			return {"ok": false}             # 多房间章节：人不在这个点的房间（市集在河岸正上方、x 重叠，不然会在没人的地方冒提示）
 		var x := npc.position.x
+		var sp = npc.get("spr")
+		if runner._keeps_clear(npc) and sp is Sprite2D and (sp as Sprite2D).texture != null:
+			# 大个子：点选框 = 他整张图（不是晨那么大的 28×52）
+			var gr: Rect2 = (sp as Sprite2D).get_global_transform() * (sp as Sprite2D).get_rect()
+			return {"ok": true, "x": x, "top": npc.position.y - float(npc.get("head")) + 4.0, "rect": gr, "spr": null}
 		return {"ok": true, "x": x, "top": npc.position.y - 56.0, "rect": Rect2(x - 14, npc.position.y - 52, 28, 52), "spr": null}
 	if at is String and world.extra_rects.has(str(at)):
 		var er: Rect2 = (world.extra_rects[str(at)] as Callable).call()

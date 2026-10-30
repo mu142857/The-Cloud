@@ -48,6 +48,11 @@ extends Node2D
 ##   F8（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
 ##                      见 scripts/dev_panel.gd 和 docs/forest_chapter.md 末尾
 ##   --chen_x=x         （和 --beat 一起）跳完以后让晨站到这个 x（截互动提示用）
+##   --free=场景        直接进自由探索（F8 第 5 页「探索」同一套）：forest / treehouse / cockpit / river_bank / river_home / market /
+##                      oldstreet / warehouse / southbridge，或者小样场景名（city_test、river_test……）。不播开场、剧情、对话、提示，
+##                      剧情的墙都不算，NPC 藏着。和 --chen_x=x|left|mid|right、--shot= 一起拍截图（面板不开；要开加 --dev）
+##   --free_check       （和 --free= 一起）自测：晨从最左一直走到最右（多层小屋再上楼、下楼），打印 FREE_CHECK（走到哪、
+##                      有没有剧情 / 对话 / 点选 / 提示出来过）后退出
 ##   --open_bag=物品id [--bag_line=n]  （和 --beat 一起）跳完以后打开背包、选中这件，描述翻到第 n 行（截背包 / 日记用）
 ## 例：Godot --path . --fixed-fps 60 -- --stage=crash --shot=/tmp/a.png --shot_at=3.6
 ##     Godot --path . --fixed-fps 60 -- --story_auto --story_shots=/tmp/shots
@@ -77,6 +82,12 @@ const STRUCK_C := Color("#6f877b")
 const KEEPSAKE_C := Color("#dcc39a")         # 背包里纪念品名字的暖色
 const DEV_BEAT_META := "level_forest_dev_beat"
 const DEV_STAGE_META := "level_forest_dev_stage"
+const DEV_FREE_META := "level_forest_dev_free"   # F8「探索」：自由探索哪个场景（跨重新载入一直留着，退出探索时清掉）
+const FREE_CLI_META := "level_forest_free_cli"   # --free= 只在第一次载入时用（退出探索重开本章时不再进去）
+## 自由探索能去的场景：id → 章节（id 就是房间名；river_home 是河岸里的小屋，treehouse 是森林里的树屋）
+const FREE_ROOMS := {"forest": "forest", "treehouse": "forest", "cockpit": "flight1", "river_bank": "river", "river_home": "river",
+	"market": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river"}
+const FREE_SHIFT := 1.0            # 自由探索按住 Shift：晨每帧走的距离再多这么多倍（chen.gd 的 Shift 已经 ×1.5，合起来 ×3；动画帧速不变）
 const DEV_OPEN_META := "level_forest_dev_open"   # 开场的外星人同伴：森林里不出现（那套图以后是河边的泥芙）
 ## 晨的精灵配置里有没有「趴着 / 爬起来」两段（tools/level1_chen_getup.py）。没有就退回把站立帧转 90° 的老办法。
 var _has_getup: bool = CHEN_GD.ANIMS.has("lie") and CHEN_GD.ANIMS.has("getup")
@@ -247,6 +258,12 @@ var _dbg_hide: PackedStringArray = []
 var _dbg_chen_x := NAN
 var _dbg_bag := ""
 var _dbg_bag_line := -1
+var free_roam := ""                # 自由探索的场景 id（"" = 正常游戏）
+var free_npcs := false             # 自由探索：角色、路人显示出来（排在晨旁边）
+var _free_cli := ""
+var _free_pos := ""                # --chen_x=left|mid|right
+var _free_climb := false
+var _free_check := false
 # ---- 章节（scripts/chapter_flow.gd）：forest = 森林（默认）；flight1 = 驾驶舱，同一个关卡、不播开场
 const CHAPTER_GD := preload("res://scripts/chapter_flow.gd")
 var chapter := "forest"
@@ -333,7 +350,15 @@ func _ready() -> void:
 		elif a.begins_with("--seed="):
 			_fuzz_rng.seed = int(a.trim_prefix("--seed="))
 		elif a.begins_with("--chen_x="):
-			_dbg_chen_x = float(a.trim_prefix("--chen_x="))
+			var v := a.trim_prefix("--chen_x=")
+			if v in ["left", "mid", "right"]:
+				_free_pos = v
+			else:
+				_dbg_chen_x = float(v)
+		elif a.begins_with("--free="):
+			_free_cli = a.trim_prefix("--free=")
+		elif a == "--free_check":
+			_free_check = true
 		elif a.begins_with("--open_bag="):
 			_dbg_bag = a.trim_prefix("--open_bag=")
 		elif a.begins_with("--bag_line="):
@@ -354,6 +379,7 @@ func _ready() -> void:
 	# 没有存档：每次进第一关都是新游戏；别的章节（换章 / --chapter=）恢复带过来的状态（chapter_flow.gd）
 	Inventory.owned.clear()
 	StoryState.reset()
+	_free_pick()
 	chapter = CHAPTER_GD.current(_story_path)
 	if chapter != "forest" and _story_path == "":
 		_story_path = str(CHAPTER_GD.info(chapter)["story"])
@@ -370,9 +396,10 @@ func _ready() -> void:
 	_build_story()
 	_retext()
 	_enter_headphones()
-	if Engine.has_meta(BACK_META):          # 从测试场景按 Esc 回来：直接到标题（雨声照常）
+	if Engine.has_meta(BACK_META):          # 从测试场景按 Esc 回来：直接到标题（雨声照常）；自由探索里去的就回自由探索
 		Engine.remove_meta(BACK_META)
-		_skip_to_title()
+		if free_roam == "":
+			_skip_to_title()
 	if _story_check:
 		for line in story.validate():
 			print("STORY_CHECK " + line)
@@ -390,13 +417,16 @@ func _ready() -> void:
 		_beat = ""
 		Engine.remove_meta(DEV_STAGE_META)
 		Engine.set_meta(DEV_OPEN_META, true)
-	if chapter != "forest":
-		_debug_stage = ""                   # 别的章节没有开场 / 标题 / 坠毁（「重开本章」= 从这一章的开头）
-		_start_chapter(_beat == "")
-	if _debug_stage != "":
-		_jump(_debug_stage)
-	if _beat != "":
-		_jump_beat.call_deferred(_beat)
+	if free_roam != "":
+		_start_free()
+	else:
+		if chapter != "forest":
+			_debug_stage = ""                   # 别的章节没有开场 / 标题 / 坠毁（「重开本章」= 从这一章的开头）
+			_start_chapter(_beat == "")
+		if _debug_stage != "":
+			_jump(_debug_stage)
+		if _beat != "":
+			_jump_beat.call_deferred(_beat)
 	# 面板一开始就建好（藏着）：F8 由面板自己先接（剧情里小游戏 / 点选会吃掉按键，关卡的 _input 收不到）
 	if OS.is_debug_build():
 		_make_dev(Engine.has_meta(DEV_OPEN_META))
@@ -2320,7 +2350,11 @@ func _input(event: InputEvent) -> void:
 					_skip_armed = 2.0
 					_skip_label.modulate.a = 1.0
 		S.PLAY, S.CINE:
-			if state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
+			if free_roam != "":
+				if state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
+						and event.keycode in [KEY_UP, KEY_W, KEY_DOWN, KEY_S]:
+					free_stairs(1 if event.keycode in [KEY_UP, KEY_W] else -1)     # 多层小屋：↑ 上楼、↓ 下楼
+			elif state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
 					and event.keycode in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and not story.hotspots.near.is_empty():
 				_handled()
 				_interact(story.hotspots.near)
@@ -2339,7 +2373,7 @@ func _handled() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# 鼠标只能点够得着的东西（走到跟前才能点）；点空地、点远处的东西晨都不动
 	# （10-30 作者：点地走容易点不到东西，晨就走到一边去了；「够不着的东西那就不能点啊」）
-	if not _free() or _settings.visible or _bag.visible:
+	if not _free() or _settings.visible or _bag.visible or free_roam != "":
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _dlg_typing():
@@ -2372,8 +2406,11 @@ func _process(delta: float) -> void:
 			create_tween().tween_property(_skip_label, "modulate:a", 0.0, 0.4)
 
 	_update_walls()
-	_update_portal(delta)
-	_update_objective()
+	if free_roam != "":
+		_free_tick()
+	else:
+		_update_portal(delta)
+		_update_objective()
 	_update_front(delta)
 	_update_camera(delta)
 	_apply_flash()
@@ -2382,7 +2419,7 @@ func _process(delta: float) -> void:
 	_update_hints(delta)
 	var cc := cam.get_screen_center_position()
 	story.world.update(delta, cc)
-	story.hotspots.active = state == S.PLAY and not story.busy and not _settings.visible and not _bag.visible
+	story.hotspots.active = state == S.PLAY and not story.busy and not _settings.visible and not _bag.visible and free_roam == ""
 	story.hotspots.update(delta, chen, cc - Vector2(240, 135), get_global_mouse_position())
 	_update_edge_arrow(cc)
 	if story.ended and _end_t >= 0.0:
@@ -2550,7 +2587,9 @@ func _update_world(delta: float) -> void:
 					_walk_goal = NAN
 			else:
 				chen.auto_dir = signf(d)
-		if state == S.PLAY and wood_available() and absf(chen.position.x - WOOD_X) <= PICK_DIST:
+		if free_roam != "":
+			pass                            # 自由探索：木头不捡、hotspot 不触发
+		elif state == S.PLAY and wood_available() and absf(chen.position.x - WOOD_X) <= PICK_DIST:
 			chen.auto_dir = 0.0
 			_pending_hs = {}
 			_start_pickup()
@@ -2603,7 +2642,7 @@ func _interact(p: Dictionary) -> void:
 func _update_edge_arrow(cc: Vector2) -> void:
 	var side := 0
 	var y := 180.0
-	if free_play():
+	if free_play() and free_roam == "":
 		var t: Dictionary = story.main_target()
 		if not t.is_empty():
 			var sx := float(t["x"]) - (cc.x - 240.0)
@@ -2619,7 +2658,7 @@ func _update_edge_arrow(cc: Vector2) -> void:
 func _update_walls() -> void:
 	if state == S.HEADPHONES or state == S.INTRO or state == S.TITLE or state == S.CRASH:
 		return
-	var w: Vector2 = story.world.walls(chen.position.x)
+	var w: Vector2 = free_walls() if free_roam != "" else story.world.walls(chen.position.x)
 	if chen.position.x < w.x:
 		chen.position.x = w.x
 	elif chen.position.x > w.y:
@@ -2784,14 +2823,14 @@ func _free() -> bool:
 
 func _update_hints(delta: float) -> void:
 	# 木头上方的小箭头：能走以后 2.5 秒出现，上下浮 1 像素，很淡地闪
-	if state == S.PLAY and wood.visible:
+	if state == S.PLAY and wood.visible and free_roam == "":
 		_hint_wait += delta
 		if _hint_wait > 2.5:
 			wood_hint.visible = true
 			wood_hint.position.y = -16.0 - (1.0 if fmod(_t, 1.2) < 0.6 else 0.0)
 			wood_hint.modulate.a = clampf((_hint_wait - 2.5) / 0.8, 0.0, 1.0) * (0.55 + 0.35 * sin(_t * 3.0))
 	# 「← →」：能走以后 1.5 秒还没动就在晨脚下出现，动了就消失
-	var show_keys := state == S.PLAY and wood.visible and not is_nan(_moved_from) \
+	var show_keys := state == S.PLAY and wood.visible and free_roam == "" and not is_nan(_moved_from) \
 		and absf(chen.position.x - _moved_from) < 14.0 and _state_t > 1.5 and not _bag.visible and not _settings.visible
 	var target_a := (0.35 + 0.2 * sin(_t * 2.6)) if show_keys else 0.0
 	_keys_hint.modulate.a = move_toward(_keys_hint.modulate.a, target_a, delta * 1.5)
@@ -3571,7 +3610,10 @@ func _make_dev(show: bool) -> void:
 	_dev.level = self
 	_dev.visible = show
 	add_child(_dev)
-	_dev.call("_set_tab", _dev_tab)
+	var tab := _dev_tab
+	if free_roam != "" and not " ".join(OS.get_cmdline_user_args()).contains("--dev_tab="):
+		tab = 4                               # 自由探索：一打开就是「探索」页
+	_dev.call("_set_tab", tab)
 
 
 ## 面板「传送」：晨直接到 marker（room_* 进屋、别的出屋），剧情在播就先不动
@@ -3590,6 +3632,243 @@ func dev_teleport(name: String) -> void:
 		return                              # 驾驶舱和森林不在同一章：不传送过去
 	story._teleport(room, float(r["x"]), [], true)
 	_walk_target = NAN
+
+
+# ======================================================================= 调试：自由探索（F8「探索」/ --free=）
+## 进哪个场景：面板选的（DEV_FREE_META，重新载入后还在）> 命令行 --free=（只第一次）。章节跟着场景走（CHAPTER_META + PICK_META）
+func _free_pick() -> void:
+	if not OS.is_debug_build():
+		return
+	if _free_cli != "" and not Engine.has_meta(FREE_CLI_META):
+		Engine.set_meta(FREE_CLI_META, true)
+		if FREE_ROOMS.has(_free_cli):
+			Engine.set_meta(DEV_FREE_META, _free_cli)
+		elif ResourceLoader.exists("res://scenes/%s.tscn" % _free_cli):
+			_open_test_scene.call_deferred("res://scenes/%s.tscn" % _free_cli)      # 小样场景：直接换过去（Esc 回来）
+		else:
+			push_warning("--free= 没有这个场景：%s（有：%s）" % [_free_cli, ", ".join(FREE_ROOMS.keys())])
+	if not Engine.has_meta(DEV_FREE_META) or not FREE_ROOMS.has(str(Engine.get_meta(DEV_FREE_META))):
+		return
+	free_roam = str(Engine.get_meta(DEV_FREE_META))
+	Engine.set_meta(CHAPTER_GD.CHAPTER_META, FREE_ROOMS[free_roam])
+	Engine.set_meta(CHAPTER_GD.PICK_META, true)
+	for m in [DEV_BEAT_META, DEV_STAGE_META]:
+		if Engine.has_meta(m):
+			Engine.remove_meta(m)
+
+
+## 不播开场、标题、坠毁、章节入口 scene：晨直接站在场景里能走。剧本整个关掉（story.free_roam：play / trigger / 卡关提示都不做）
+func _start_free() -> void:
+	story.free_roam = true
+	_beat = ""
+	_debug_stage = ""
+	_kill_cine()
+	_hp_root.modulate.a = 0.0
+	_title_root.visible = false
+	if chapter == "forest":
+		fade.color.a = 0.0
+		_rain.play()
+		_rain.volume_db = -9.0
+		_show_wreck()
+		chen.visible = true
+		_chen_stand()
+		chen._set_facing(1)
+		story._place(chen, CHEN_X, "forest")
+		_enter_play()
+	else:
+		_start_chapter(false)
+	free_teleport(free_roam)
+	if _free_pos != "":
+		free_place(_free_pos)
+	elif not is_nan(_dbg_chen_x):
+		story._place(chen, _dbg_chen_x, story.world.room)
+		_snap_camera()
+	for n in _dbg_hide:
+		var node := find_child(n, true, false)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = false
+	_stage_t = 0.0
+	var w := free_walls()
+	print("FREE_ROAM %s chapter=%s room=%s walk=%d..%d x=%d" % [free_roam, chapter, story.world.room, w.x, w.y, chen.position.x])
+	if _free_check:
+		_free_check_run.call_deferred()
+
+
+## --free_check：按住「往右」从最左走到最右，一路看有没有剧情 / 对话 / 点选 / 小气泡 / 互动提示出来
+func _free_check_run() -> void:
+	await get_tree().create_timer(1.2).timeout
+	free_place("left")
+	var w := free_walls()
+	var seen := []
+	var t := 0.0
+	var x0 := chen.position.x
+	chen.auto_dir = 1.0
+	while chen.position.x < w.y - 2.0 and t < 60.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		chen.auto_dir = 1.0
+		for k in [["剧情", story.busy], ["对话", story.dlg.is_open()], ["点选", story.dlg.picking() or story.dlg.menu_open()],
+				["互动提示", not story.hotspots.near.is_empty()], ["背包按钮", _bag_btn.visible], ["目标", _hud_burn.modulate.a > 0.01]]:
+			if k[1] and not seen.has(k[0]):
+				seen.append(k[0])
+	chen.auto_dir = 0.0
+	var x1 := chen.position.x
+	var lv := ""
+	var sg: Node2D = story.world.cur_stage()
+	if sg != null and sg.has_levels():
+		var got := []
+		for d in [1, 1, -1, -1]:
+			await free_stairs(d)
+			got.append(sg.chen_lv)
+		lv = " 上下楼 层=%s" % str(got)
+	print("FREE_CHECK %s room=%s 墙 %d..%d 从 %d 走到 %d（%.1f 秒）%s 出现过: %s%s" % [free_roam, story.world.room, w.x, w.y, x0,
+		x1, t, "到头 ok" if x1 >= w.y - 2.0 else "没到头 BLOCKED",
+		"、".join(seen) if not seen.is_empty() else "无", lv])
+	get_tree().quit()
+
+
+## 自由探索里换到同一章的另一个场景（不重新载入）：晨落在那里的左头（小屋：中间）
+func free_teleport(id: String) -> void:
+	free_roam = id
+	Engine.set_meta(DEV_FREE_META, id)
+	_free_climb = false
+	var w: Node2D = story.world
+	var x := chen.position.x
+	if id == "forest":
+		x = CHEN_X
+	elif id == "treehouse":
+		var hw: Vector2 = w.house["walk"]
+		x = (hw.x + hw.y) / 2.0
+	elif w.is_stage(id):
+		var sg: Node2D = w.stage(id)
+		if sg.has_levels():
+			sg.chen_lv = 0
+			sg.chen_stair = -1
+		var fw := _free_walls_of(sg)
+		x = (fw.x + fw.y) / 2.0 if sg.is_house else fw.x + 40.0
+	if id != "cockpit":
+		story._teleport(id, x, [], true)
+	_walk_target = NAN
+	_enter_play()
+	_free_tick()
+
+
+## 自由探索能走的左右：剧情加的墙（walk_when、小游戏改的范围、导绳、倒木、塌陷口、两段之间的入口）都不算
+func free_walls() -> Vector2:
+	var w: Node2D = story.world
+	var sg: Node2D = w.cur_stage()
+	if sg != null:
+		return _free_walls_of(sg)
+	if w.in_room() or w.room == "cockpit":
+		return w.walls(chen.position.x)
+	return Vector2(w.mx("wall_left"), w.mx("wall_right"))
+
+
+func _free_walls_of(sg: Node2D) -> Vector2:
+	var v: Vector2 = sg._v2(sg.cfg.get("walk", [16, sg.size.x - 16]), Vector2(16, sg.size.x - 16))
+	if sg.has_levels():
+		v = sg.level_walk(sg.chen_lv)
+		if sg.chen_stair >= 0:
+			var st: Dictionary = sg._stairs[sg.chen_stair]
+			v = Vector2(minf(st["xa"], st["xb"]), maxf(st["xa"], st["xb"]))
+	return Vector2(sg.origin.x + v.x, sg.origin.x + v.y)
+
+
+## 一键到左头 / 中间 / 右头（left / mid / right）
+func free_place(where: String) -> void:
+	var w := free_walls()
+	var x := (w.x + w.y) / 2.0
+	if where == "left":
+		x = w.x + 12.0
+	elif where == "right":
+		x = w.y - 12.0
+	_walk_target = NAN
+	story._place(chen, x, story.world.room)
+	_snap_camera()
+
+
+## 多层小屋：沿石阶走到上一层 / 下一层（dir = 1 / −1）。没有爬楼梯的帧，走路动画沿斜线走（和剧情里 _lv_walk 一样）
+func free_stairs(dir: int) -> void:
+	var sg: Node2D = story.world.cur_stage()
+	if sg == null or not sg.has_levels() or _free_climb:
+		return
+	var route: Array = sg.route(sg.chen_lv, sg.chen_lv + dir)
+	if route.is_empty():
+		return
+	_free_climb = true
+	for e in route:
+		await _free_walk(float(e["x0"]))
+		if not _free_climb:
+			return
+		sg.chen_stair = int(e["si"])
+		await _free_walk(float(e["x1"]))
+		if not _free_climb:
+			return
+		sg.chen_stair = -1
+		sg.chen_lv = int(e["to"])
+	_free_climb = false
+
+
+func _free_walk(x: float) -> void:
+	walk_to(x)
+	var t := 0.0
+	while not is_nan(_walk_target) and t < 10.0 and _free_climb:
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return
+		t += get_process_delta_time()
+	_walk_target = NAN
+	chen.auto_dir = 0.0
+	chen.position.x = round(x)                 # 被方向键打断也落到楼梯口，不停在楼梯半路
+
+
+## 每帧：HUD、背包、目标都藏着；角色和路人按 free_npcs 藏 / 显示
+func _free_tick() -> void:
+	_hud_burn.modulate.a = 0.0
+	_bag_btn.visible = false
+	for n in free_people():
+		if not free_npcs:
+			(n as CanvasItem).visible = false
+
+
+## 场景里的人：剧本的角色（鹿、弥洛、妮芙、阿汀……）+ 房间 walkers 路人（+ 森林的外星人同伴）
+func free_people() -> Array:
+	var out: Array = []
+	for n in [story.deer, story.miluo, alien]:
+		if n != null:
+			out.append(n)
+	for k in story.npcs:
+		out.append(story.npcs[k])
+	for r in story.world.stages:
+		for wk in story.world.stages[r].walkers:
+			out.append(wk["npc"])
+	return out
+
+
+## 面板「显示角色」：路人照常走；本章剧本里的角色一字排开站在晨右边（看图用，森林的鹿 / 弥洛也算，河流篇里不放它们）
+func free_show_npcs(on: bool) -> void:
+	free_npcs = on
+	if not on:
+		_free_tick()
+		return
+	for r in story.world.stages:
+		for wk in story.world.stages[r].walkers:
+			(wk["npc"] as CanvasItem).visible = true
+	var names: Array = story._npc_names.keys()
+	if not story.world.is_stage(story.world.room) and story.world.room != "cockpit":
+		names = ["deer", "miluo"] + names
+	var w := free_walls()
+	var x := chen.position.x + 40.0
+	for who in names:
+		var n: Node2D = story.npc(str(who))
+		if n == null or n == chen:
+			continue
+		if x > w.y - 10.0:
+			x = w.x + 10.0
+		story._place(n, x, story.world.room)
+		n.visible = true
+		n.modulate.a = 1.0
+		x += 34.0
 
 
 func _fuzz_key(k: int, pressed: bool) -> void:

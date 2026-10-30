@@ -725,14 +725,28 @@ def rows_of(img, ox, oy, y):
 # ============================================================ 河岸：中景（scroll 0.55）——河里几块凿了窗的石头、一颗半沉的石头人头
 
 MID_S = 0.55
-MID_WL = 197                     # 中景的水线（码头上沿后面一点）
+MID_WL = 192                     # 中景的水线（第七版从 197 抬到 192：远 172 / 中 192 / 近中 200，柱脚不在一条线上；和市集中景一样）
 MID_FOOT = MID_WL + 1            # 中景里立在水里的东西，水面和石身相交的那一行
 MID_REFL_END = 215               # 中景倒影一直盖到这一行：主层码头上沿最低到 215（台阶、浅滩那里），月光碎片 glints 到 210
 WATER_FAR = (6, 13, 28)          # 中景那截远水（art/river/water.png，一行 (6,13,28) 一行 (4,9,23)）
 WET = B(.065, .03, 232)          # 贴水那几行湿石头
 
 
-def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=()):
+_WATER_ROWS = None
+
+
+def water_at(y):
+    """远水在房间第 y 行的颜色（天、远岸、雾、远水纹、远水几层叠起来，横向取中位数）：越近地平线越亮越雾。
+    远层 / 近中层的倒影按自己那一行的水色来定深浅。"""
+    global _WATER_ROWS
+    if _WATER_ROWS is None:
+        stub = {"size": [W, SH], "layers": [l for l in BG_LAYERS if l.get("shader") != "moonpath"], "objects": {}}
+        a = np.concatenate([render(stub, BANK_DIR, c) for c in (0, 400, 800, 1200, 1600)], axis=1)
+        _WATER_ROWS = [tuple(int(v) for v in np.median(a[r], axis=0)) for r in range(SH)]
+    return _WATER_ROWS[int(np.clip(y, 0, SH - 1))]
+
+
+def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=(), wy=None, depth=0.5):
     """（第五版：作者说中景的石头一个水线是虚线、一个底下啥也没有像浮着）把一张立在水里的图（石柱、石屋、石像）
     在本地第 wl 行切开，接上「立在水里」的接触：
     - 水线以上四行越近水越深越湿（灯和暖光不动）；
@@ -741,8 +755,18 @@ def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=
       底色比远水深一档，受光的亮边翻成亮的，暖的窗和灯翻成暖的水影，几道很淡的横水纹；
     - 两边各一两道很短很淡的涟漪，往外渐隐，位置和长短不等。
     lamps = 本地 x 的列表：那里有灯 / 亮窗，水里从水线往下一串竖着的暖色水影（一行一小段，左右晃，往下变短变淡）。
-    返回 (新图, pad)：新图比原图宽 2*pad、高 wl+1+refl；贴的时候 x 往左挪 pad，第 wl 行对准水线。light 调水线和涟漪的亮度。"""
+    返回 (新图, pad)：新图比原图宽 2*pad、高 wl+1+refl；贴的时候 x 往左挪 pad，第 wl 行对准水线。light 调水线和涟漪的亮度。
+    （河岸第七版：中景拆成远 / 中 / 近中三层）wy = 水线在房间里的 y：给了就按那一行往下的真实水色（water_at）定深浅；
+    depth 0 远 … 0.5 中（默认，和以前一样）… 1 近：越近倒影底色越深；越远倒影越往下越淡，到底和水一个色（仍不透明，照样挡月光）。"""
     rng = np.random.default_rng(seed)
+    if wy is not None:
+        water = water_at(wy)
+
+    def wc(d):
+        return water_at(wy + d) if wy is not None else water
+
+    dk = 0.15 + 0.5 * depth
+    fade = max(0.0, 1.0 - 2.0 * depth)
     h, w = img.shape[:2]
     out = np.zeros((wl + 1 + refl, w + 2 * pad, 4), np.uint8)
     out[:wl, pad:pad + w] = img[:wl]
@@ -781,8 +805,6 @@ def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=
         sh.append(int(round(a * math.sin(1.9 * d + ph))))
     # 第六版（作者：柱子前面的月光碎片没被挡住，看着像漂浮）：倒影整块不透明，一直盖到 refl 行（中景看得见的远水底边），
     # 宽度是石身那一行的竖直镜像（中间不留洞），底色比远水深一档；受月光的亮边翻成亮的，暖窗 / 灯翻成暖影；几道很淡的横水纹
-    base_c = mixc(water, (1, 3, 11), 0.4)
-    sheen = mixc(base_c, B(.2, .025, 250), 0.25)
     for d in range(1, refl + 1):
         y, src = wl + d, wl - d
         if src < 0:
@@ -791,6 +813,8 @@ def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=
         if not len(xs):
             continue
         f = d / refl
+        base_c = mixc(wc(d), (1, 3, 11), dk)
+        sheen = mixc(base_c, B(.2, .025, 250), 0.25)
         line = d % 4 == 2                                          # 这一行有一道横水纹
         for x in range(int(xs[0]), int(xs[-1]) + 1):
             if al[src, x]:
@@ -805,6 +829,8 @@ def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=
                 col = base_c
             if line and not warm(col) and _hash01(x // 4, d, seed + 3) > 0.4:
                 col = mixc(col, sheen, 0.7)
+            if fade:
+                col = mixc(col, wc(d), fade * f ** 0.8)
             put(x + sh[d], y, col)
     for lx in lamps:                                               # 灯在水里的暖影（一串竖的，一行一小段，往下变短变淡）
         for d in range(1, refl + 1):
@@ -812,6 +838,7 @@ def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=
                 continue
             ln = max(1, 3 - d // 4)
             xx = int(lx) + pad + sh[d] + (1 if d % 3 == 1 else 0) - ln // 2
+            base_c = mixc(wc(d), (1, 3, 11), dk)
             for i in range(ln):
                 put(xx + i, wl + d, mixc(WARM_REF[1] if d < 4 else WARM_REF[0], base_c, 0.1 + 0.55 * d / refl))
     for side in (-1, 1):                                           # 两边的涟漪：一两道，短、淡、往外渐隐
@@ -979,9 +1006,8 @@ def bank_mid():
     global FAR_BRIDGE
     w = int(math.ceil(SW + (W - SW) * MID_S))
     cv = Cv(w, SH)
-    # 空的那一段：光秃的远石柱
-    for i, (xw, h, wd, kind) in enumerate(((420, 118, 16, "spire"), (600, 92, 13, "hoodoo"), (1000, 136, 20, "twin"))):
-        mid_pillar(cv, wm(xw), wd, h, 3120 + i, kind)
+    # 空的那一段：光秃的远石柱（第七版：420 的 spire、600 的 hoodoo 拿掉了，远近各一层另画，见 bank_far / bank_near）
+    mid_pillar(cv, wm(1000), 20, 136, 3122, "twin")
     rock_dwelling(cv, wm(520), 3110, 40, 13, ((20, True),), "stack")
     # 箱子以后：人家
     lantern_statue(cv, wm(1300), MID_FOOT)         # 提灯人：两人一起往人家走的那段（作者：石头人头留给水底）
@@ -1027,6 +1053,101 @@ def mid_pillar(cv: Cv, x, w, h, seed, kind):
     """中景一根光秃的远石柱，立在水里（第五版：柱脚接水线和倒影，不再浮在远水上）。"""
     img = stone_pillar(w, h, seed, ROCK_FAR, crown=[B(.07, .02, 258), B(.1, .022, 252)], kind=kind)
     return paste_in_water(cv, img, x, MID_FOOT, seed)
+
+
+# ============================================================ 河岸：远层（scroll 0.3）、近中层（scroll 0.75）
+# 第七版（作者 10-30：「后面的石柱全是在一条线上的，这样不就没有视差背景了吗？没有层次感了」，参照森林前后几层错开的树）：
+# 中景拆成三层，柱脚的水线跟着深度走——远层高、贴近地平线，细、淡、偏雾蓝，倒影短、往下淡到和水一个色；
+# 近中层低、贴着码头，粗、暗、对比强，倒影深。各层倒影都不透明，挡住后面钉在屏幕上的月光碎片，各层挡的那段以不同速度移动。
+
+FAR_S = 0.3
+FAR_WL = 172                     # 远层的水线（地平线 151 和中景水线 192 之间）
+FAR_FOOT = FAR_WL + 1
+NEAR_S = 0.75
+NEAR_WL = 200                    # 近中层的水线：码头上沿 206 后面，留出水线和几行倒影看得见
+NEAR_FOOT = NEAR_WL + 1
+FOG = (21, 36, 54)               # 远层的雾蓝（地平线那条雾 (33,56,76) 和远水 (11,22,38) 之间）
+
+
+def wx(xw, s):
+    """主层的 x（晨走到那里、它在屏幕正中时）→ scroll 为 s 的层图里的 x。"""
+    return int(round((xw - SW / 2) * s + SW / 2))
+
+
+def fogged(img, k, col=FOG):
+    """远层：整块往雾蓝里推 k，再把明暗压扁一点（几乎是剪影，受光的右边还留一点亮）。暖色的窗留一半暖。"""
+    out = img.copy()
+    for y, x in zip(*np.nonzero(img[..., 3])):
+        c = tuple(int(v) for v in img[y, x, :3])
+        lab = to_lab(c)
+        warm_ = math.hypot(lab[1], lab[2]) > 0.05 and lab[2] > 0.02
+        out[y, x, :3] = mixc(c, col, k * (0.45 if warm_ else 1.0))
+    return out
+
+
+FAR_PILLARS = (  # (主层 x, 宽, 高, 形, 种子)：疏密不等——空河岸那段一根、一对挨着的、再空一大段
+    (372, 9, 66, "spire", 3201), (588, 11, 52, "hoodoo", 3202), (612, 8, 74, "spire", 3203),
+    (930, 10, 58, "stack", 3204), (1188, 12, 78, "tower", 3205), (1640, 9, 60, "spire", 3206),
+    (1990, 11, 70, "hoodoo", 3207), (2230, 9, 54, "stack", 3208))
+FAR_HOMES = ((1240, 12, 40, 3211), (2120, 10, 34, 3212))        # 远处两块有一扇暖窗的石头（人家那段才有）
+
+
+def bank_far():
+    """远层：很远的石柱，几乎是雾里的剪影；水线贴近地平线。"""
+    w = int(math.ceil(SW + (W - SW) * FAR_S))
+    cv = Cv(w, SH)
+    crown = [mixc(B(.07, .02, 258), FOG, 0.5), mixc(B(.1, .022, 252), FOG, 0.5)]
+    for (xw, wd, h, kind, sd) in FAR_PILLARS:
+        img = fogged(stone_pillar(wd, h, sd, STONE_FAR, crown=crown, kind=kind, moss=0.2), 0.62)
+        paste_in_water(cv, img, wx(xw, FAR_S), FAR_FOOT, sd, cut=3, refl=int(h * 0.45), pad=8, light=0.55,
+                       wy=FAR_FOOT, depth=0.0)
+    for (xw, wd, h, sd) in FAR_HOMES:
+        img = stone_pillar(wd, h, sd, STONE_FAR, crown=None, kind="hoodoo", moss=0.2)
+        ys = np.nonzero(img[..., 3].any(axis=1))[0]
+        wy_ = int(ys[0]) + (img.shape[0] - int(ys[0])) // 3
+        r = np.nonzero(img[wy_, :, 3])[0]
+        cx_ = (int(r[0]) + int(r[-1])) // 2
+        img[wy_:wy_ + 2, cx_:cx_ + 1, :3] = WARM[2]
+        img[wy_, cx_, :3] = WARM[1]
+        img = fogged(img, 0.6)
+        paste_in_water(cv, img, wx(xw, FAR_S), FAR_FOOT, sd, cut=3, refl=int(h * 0.45), pad=8, light=0.55,
+                       wy=FAR_FOOT, depth=0.0)
+    return cv
+
+
+NEAR_PILLARS = (  # (主层 x, 宽, 高, 形, 断, 种子)：原来主层贴着码头的两根（470、690）挪到这里；台阶后一根、浅滩后一根
+    (452, 30, 158, "hoodoo", False, 3301), (706, 22, 122, "spire", True, 3302),
+    (1128, 26, 168, "tower", False, 3303), (1236, 18, 96, "stack", True, 3304))
+
+
+def moon_rim(img, seed, dark=0.35, hi=None, mid_=None):
+    """近处的石头对比更强：右边（月光那边）贴边一像素亮棱、里面一像素半亮，断断续续；左边背光那几列再压暗。"""
+    out = img.copy()
+    hi, mid_ = hi or B(.27, .03, 248), mid_ or B(.19, .028, 252)
+    for y in range(img.shape[0]):
+        xs = np.nonzero(img[y, :, 3])[0]
+        if len(xs) < 4:
+            continue
+        a, b = int(xs[0]), int(xs[-1])
+        c = tuple(int(v) for v in img[y, b, :3])
+        if _hash01(y // 3, 1, seed) > 0.18:
+            out[y, b, :3] = mixc(c, hi, 0.75)
+            out[y, b - 1, :3] = mixc(tuple(int(v) for v in img[y, b - 1, :3]), mid_, 0.45)
+        for k in range(min(3, (b - a) // 4)):
+            out[y, a + k, :3] = mixc(tuple(int(v) for v in img[y, a + k, :3]), (2, 4, 12), dark * (1 - k / 3))
+    return out
+
+
+def bank_near():
+    """近中层：贴着码头后面的水里，石柱粗、暗、对比强；倒影深，盖到码头上沿最低处（台阶、浅滩那里看得见）。"""
+    w = int(math.ceil(SW + (W - SW) * NEAR_S))
+    cv = Cv(w, SH)
+    for (xw, wd, h, kind, broken, sd) in NEAR_PILLARS:
+        img = moon_rim(stone_pillar(wd, h, sd, ROCK, crown=[B(.06, .02, 260), B(.085, .022, 254)], kind=kind,
+                                    broken=broken), sd)
+        paste_in_water(cv, img, wx(xw, NEAR_S), NEAR_FOOT, sd, refl=MID_REFL_END + 1 - NEAR_FOOT, pad=12,
+                       wy=NEAR_FOOT, depth=1.0)
+    return cv
 
 
 def reflect_down(cv: Cv, wl, length, seed, x_range=None):
@@ -1407,9 +1528,8 @@ def plane_beach(cv: Cv, rng):
 
 
 def lone_stretch(cv: Cv):
-    """空的那一段（LONE）：晨一个人走。只有石柱、垂枝树、几块礁石和芦苇；没有灯、没有人家、没有能点的东西。"""
-    pillar_at(cv, 470, G + 2, 30, 168, 4511, kind="hoodoo", broken=False)
-    pillar_at(cv, 690, G + 2, 22, 120, 4512, kind="spire", crown=True, broken=True)
+    """空的那一段（LONE）：晨一个人走。只有石柱、垂枝树、几块礁石和芦苇；没有灯、没有人家、没有能点的东西。
+    （第七版：原来贴着码头的两根石柱 470、690 挪到近中层 bank_near，不再和中景排成一线。）"""
     weeping(cv, 420, G, 72, 60, 4513)
     weeping(cv, 610, G, 44, 34, 4514, kind="young")
     weeping(cv, 780, G, 58, 46, 4515)
@@ -1520,7 +1640,16 @@ def bank_front():
             ra.blade(tmp, x + off, SH + 4, h * (0.3 + 0.6 * f), off / 14 + rng.uniform(-0.4, 0.4),
                      int(rng.choice([3, 3, 4])), dark)
         cv.paste(tmp.a, 0, 0)
+    # 第七版：空河岸那段，码头前面的水里一根近黑的石柱（森林那种最前面一层，顶出画面），晨从它后面走过去一下
+    for (xw, wd, h, sd) in FRONT_PILLARS:
+        img = stone_pillar(wd, h, sd, ra.bramp(5, .022, .07, 266, 258), crown=None, kind="tower", broken=False,
+                           moss=0.0, stains=0.3)
+        img = moon_rim(img, sd, dark=0.5, hi=B(.13, .025, 252), mid_=B(.09, .022, 256))
+        cv.paste(img, fx(xw) - img.shape[1] // 2, SH + 24 - img.shape[0])
     return cv
+
+
+FRONT_PILLARS = ((648, 30, 330, 4920),)             # (主层 x, 宽, 高, 种子)：比一屏高，柱顶在画面外
 
 
 # ============================================================ 物件：借 river_city_art 的形状，换成月夜颜色
@@ -1697,21 +1826,122 @@ HDY = 30                         # 比 D 的图高多少
 
 # ============================================================ 河岸 room.json
 
+# （10-30 作者：远处的水纹太靠上，盖到对岸的岸上了）远岸 shore.png 的岸是一道 151–155 行的暗带（各列底边 154–156），
+# 原来 far_ripples 从 151、glints 从 155 开始，又画在 shore 后面，就盖到了岸上。shore 和水纹滚得不一样快，没法逐列对齐，
+# 所以水纹整层从岸的最低处以下开始：自己裁一份 art/river/ripples.png（不改原图），头两行稀一点当淡出；月光碎片也挪到岸下。
+SHORE_WL = 157                   # 远岸最低的那一行再往下一行：远处的水纹、月光碎片都从这一行开始
+FAR_RIPPLES_Y = SHORE_WL
+# art/river/water.png 里那几块小礁石（scroll 0.42，比远层近、比中景远）原来水线在 178~186，正好卡在对岸石柱倒影的尾巴上（倒影到 179），
+# 看着像石头搁在影子上。整层往下挪 6 行（不改原图）：石身都落到 179 以下，水线 184~192，夹在远层 172 和中景 192 之间。
+# 它也要画在远层 mid_far 后面，不然更远的石柱倒影会压住更近的礁石，见 bank_json。
+FAR_WATER_DY = 6
+
+
+def far_ripples_img():
+    """art/river/ripples.png（原来贴在 y=151）裁掉 SHORE_WL 以上的行；剩下最上面两行只留一部分（越往上越稀），水纹贴着岸淡出。"""
+    a = np.array(Image.open(RIVER / "ripples.png").convert("RGBA"))[SHORE_WL - 151:].copy()
+    for r, keep in ((0, 0.35), (1, 0.7)):
+        for x in np.nonzero(a[r, :, 3])[0]:
+            if _hash01(x // 2, r, 77) > keep:
+                a[r, x] = 0
+    return a
+
+
+# ---------------------------------------------------------------- 月光倒影（第九版）
+# 作者：「这个月光好像在平移一样，理论上是合理的，但是看起来总觉得有问题」。原来 glints 是 art/river/glints.png 整张钉在屏幕上
+# （scroll 0），碎光的样子也钉住了，脚下的水、水纹、石柱都在走，像一张贴纸在水面上滑；而且它到码头就断了，前景的近水里没有，
+# 看着是浮在半空的一块长方形。现在拆成两半（scripts/river_moonpath.gdshader）：
+# - 这里画的是遮罩，钉在屏幕上、对着月亮（MOON_X）：越往近处越宽、越稀、越暗一点，边缘抖开；一直铺到画面最下面（码头前的近水）。
+# - 碎光由 shader 按「这一行水面的世界 x」切出来：每一行有自己的视差 scroll（贴着哪一层的水线就跟那一层一样快），
+#   镜头走，碎光跟着水往后退，月光条留在月亮底下。
+MOON_X = 340                     # sky.png 里月亮的中心（326~355），sky scroll 0
+MOON_SCROLL = ((155, 0.16), (172, FAR_S), (184, 0.42), (192, MID_S), (200, NEAR_S), (206, 0.95), (217, 1.0))
+MOON_PARAMS = {"speed": 1.0, "wobble": 1.5, "flicker": 0.9}
+
+
+def moon_scroll(y):
+    """第 y 行水面的视差 scroll：按各层水线插值（远岸 0.16 … 远层 0.3 … 礁石 0.42 … 中景 0.55 … 近中 0.75 … 码头 1.0）。"""
+    ys, ss = zip(*MOON_SCROLL)
+    return float(np.interp(y, ys, ss))
+
+
+def moonpath_img(y0, y1):
+    """屏幕第 y0..y1-1 行的月光遮罩：A = 能不能有碎光，R = 最亮档，B = 密度，G = scroll / 2。"""
+    a = np.zeros((y1 - y0, SW, 4), np.uint8)
+    for y in range(y0, y1):
+        d = y - SHORE_WL
+        hw = 6.0 + 0.58 * d                          # 地平线下窄，往近处越来越宽（透视）
+        dens = np.interp(d, (0, 20, 55, 112), (0.8, 0.62, 0.4, 0.22))
+        if _hash01(0, y, 13) < 0.3:                  # 有几行稀一点：一行一行的水波，不是均匀撒的点
+            dens *= 0.4
+        lvl = np.interp(d, (0, 30, 60, 112), (1.0, 0.9, 0.72, 0.58))   # 越近越暗一点，别抢晨
+        for x in range(SW):
+            u = abs(x + 0.5 - MOON_X) / hw
+            edge = 1.0 + 0.3 * (_hash01(x // 2, y, 91) - 0.5)   # 边缘抖开，不是一条直线
+            if u > edge:
+                continue
+            f = max(0.0, 1.0 - (u / edge) ** 2)
+            a[y - y0, x] = (int(255 * lvl * (0.6 + 0.4 * f)), int(round(moon_scroll(y) / 2 * 255)),
+                            int(255 * dens * (0.25 + 0.75 * f)), 255)
+    return a
+
+
+def moonpath_rgb(a, cam, t=0.0, params=MOON_PARAMS):
+    """预览：照 river_moonpath.gdshader 算一帧（cam = 镜头左边缘的房间 x）。"""
+    def h(px, py):
+        px = np.mod(px, 997.0); py = np.mod(py, 991.0)
+        v = np.sin(px * 127.1 + py * 311.7) * 43758.5453
+        return v - np.floor(v)
+    hgt, wid = a.shape[:2]
+    py, px = np.mgrid[0:hgt, 0:wid].astype(float)
+    m = a[..., 3] >= 128
+    sc = a[..., 1] / 255.0 * 2
+    w = params["wobble"] * np.clip(sc, 0.3, 1.0)
+    sp = params["speed"]
+    off = np.round(w * (0.65 * np.sin(t * sp * 0.9 + py * 0.71) + 0.35 * np.sin(t * sp * 2.3 + py * 1.93)))
+    wx = px - off + np.floor(cam * sc + 0.5)
+    cell = np.clip(np.floor(4.0 + 7.0 * sc + 0.5), 4, 12)
+    ci = np.floor(wx / cell)
+    k = wx - ci * cell
+    h1 = h(ci, py); h2 = h(ci + 31, py + 17); h3 = h(ci + 57, py + 3); h4 = h(ci + 11, py + 41)
+    lv = (a[..., 0] / 255.0) * 3 * (0.55 + 0.45 * h3) + 0.25 + params["flicker"] * np.sin(t * sp * (0.8 + h4 * 2.4) + h2 * 6.2832)
+    on = m & (h1 <= a[..., 2] / 255.0) & (k < np.maximum(1, np.floor((0.35 + 0.65 * h2) * (cell - 1)))) & (lv >= 0)
+    out = np.zeros_like(a)
+    pal = [B(*c) for c in ra.GLINT_PAL]
+    li = np.clip(np.floor(lv), 0, 3).astype(int)
+    for i in range(4):
+        mm = on & (li == i)
+        out[mm, :3] = pal[i]
+        out[mm, 3] = 255
+    return out
+
+
+BG_LAYERS = [
+    {"id": "sky", "img": "res://art/river/sky.png", "scroll": 0.0, "y": 0},
+    {"id": "ridge", "img": "res://art/river/ridge.png", "scroll": 0.05, "y": 0, "tile": True},
+    {"id": "mist", "img": "res://art/river/mist.png", "scroll": 0.1, "y": 0, "tile": True, "drift": -2.5},
+    {"id": "shore", "img": "res://art/river/shore.png", "scroll": 0.16, "y": 0, "tile": True},
+    {"id": "far_ripples", "img": "far_ripples.png", "scroll": 0.3, "y": FAR_RIPPLES_Y, "tile": True,
+     "shader": "water", "shader_params": {"palette_mode": False, "speed": 0.7, "wobble": 2.0, "flicker": 0.0,
+                                          "show": 0.62}},
+    {"id": "glints", "img": "moonpath.png", "scroll": 0.0, "y": SHORE_WL, "shader": "moonpath",
+     "shader_params": MOON_PARAMS},
+    {"id": "far_water", "img": "res://art/river/water.png", "scroll": 0.42, "y": FAR_WATER_DY, "tile": True},
+]
+
+
 def bank_json(objs):
-    layers = [
-        {"id": "sky", "img": "res://art/river/sky.png", "scroll": 0.0, "y": 0},
-        {"id": "ridge", "img": "res://art/river/ridge.png", "scroll": 0.05, "y": 0, "tile": True},
-        {"id": "mist", "img": "res://art/river/mist.png", "scroll": 0.1, "y": 0, "tile": True, "drift": -2.5},
-        {"id": "shore", "img": "res://art/river/shore.png", "scroll": 0.16, "y": 0, "tile": True},
-        {"id": "far_ripples", "img": "res://art/river/ripples.png", "scroll": 0.3, "y": 151, "tile": True,
-         "shader": "water", "shader_params": {"palette_mode": False, "speed": 0.7, "wobble": 2.0, "flicker": 0.0,
-                                              "show": 0.62}},
-        {"id": "glints", "img": "res://art/river/glints.png", "scroll": 0.0, "y": 155, "shader": "water",
-         "shader_params": {"palette_mode": True, "speed": 1.0, "wobble": 2.0, "flicker": 0.9, "show": 0.6}},
-        {"id": "far_water", "img": "res://art/river/water.png", "scroll": 0.42, "y": 0, "tile": True},
+    far_water = BG_LAYERS[-1]
+    assert far_water["id"] == "far_water"
+    layers = BG_LAYERS[:-1] + [
+        {"id": "mid_far", "img": "mid_far.png", "scroll": FAR_S, "y": 0},      # 第七版：远 / 中 / 近中三层
+        far_water,                                                             # 礁石 0.42 比远层近，画在它后面
         {"id": "mid", "img": "mid.png", "scroll": MID_S, "y": 0},
+        {"id": "mid_near", "img": "mid_near.png", "scroll": NEAR_S, "y": 0},
         {"id": "main", "img": "main.png", "scroll": 1.0, "y": 0},
         {"id": "water", "img": "water.png", "scroll": 1.0, "y": WL, "water": True, "front": True, "alpha": 0.5},
+        {"id": "near_glints", "img": "moonpath_near.png", "scroll": 0.0, "y": WL, "water": True, "front": True,
+         "shader": "moonpath", "shader_params": MOON_PARAMS},                 # 月光一直铺到码头前的近水
         {"id": "ripples", "img": "ripples.png", "scroll": 1.0, "y": WL, "shader": "water",
          "shader_params": {"palette_mode": False, "show": 0.62, "wobble": 1.5, "speed": 0.8}, "front": True},
         {"id": "front", "img": "front.png", "scroll": FRONT_S, "y": 0, "front": True},
@@ -1738,9 +1968,10 @@ def bank_json(objs):
         "water": {"y": WL}, "walk": [150, W - 10],
         # 没遇到妮芙以前最远走到箱子跟前（停在 meet_niff 的触发范围里：路过时正好在播别的、没触发，停下来也会补上）
         # （10-30 作者：晨一个人走过了箱子、一直走到妮芙家门口，没有妮芙、没有任何提示）
-        "walk_when": [{"need": ["river_ashore"], "not": ["river_salvaged"],
+        "walk_when": [{"need": ["river_ashore"], "not": ["river_met"],
                        "walk": [150, markers["river_bank_crates"] + 50]}],
-        "scripts": [{"script": "res://scripts/river_far_lantern.gd", "x": 0, "y": 0, "z": -93,
+        "scripts": [{"script": "res://scripts/river_far_lantern.gd", "x": 0, "y": 0,
+                     "z": -100 + [l["id"] for l in layers].index("mid"),             # 和中景一层（在近中层后面）
                      "params": {"scroll": MID_S, "x0": FAR_BRIDGE[0], "x1": FAR_BRIDGE[1], "y": FAR_BRIDGE[2]}}],
         "portals": [{"to": "market", "at": "market_entry", "kind": "pan_up", "x": STAIR},
                     {"edge": "right", "to": "southbridge", "at": "southbridge_entry", "kind": "walk_fade"}],
@@ -2206,7 +2437,9 @@ def render(room, base, cam_x, states=None, chen_x=None, house=None, house_front=
     for z, kind, s in sorted(items, key=lambda q: q[0]):
         if kind == "layer":
             a = load_res(s["img"], base)
-            if s["id"] == "glints":
+            if s.get("shader") == "moonpath":
+                a = moonpath_rgb(a, cam_x)
+            elif s["id"] == "glints":
                 a = glint_rgb(a)
             y = s["y"]
             sx = int(round(cam_x * s["scroll"])) - s.get("x", 0)
@@ -2259,7 +2492,12 @@ def build_bank():
     for old in ("mid.png", "main.png", "water.png", "ripples.png", "ripples_back.png", "front.png", "rail.png",
                 "shafts.png"):
         pass
+    save_png(far_ripples_img(), BANK_DIR / "far_ripples.png")      # 先存：water_at() 叠远水时要用
+    save_png(moonpath_img(SHORE_WL, WL), BANK_DIR / "moonpath.png")
+    save_png(moonpath_img(WL, SH), BANK_DIR / "moonpath_near.png")
+    save_png(bank_far().a, BANK_DIR / "mid_far.png")
     save_png(bank_mid().a, BANK_DIR / "mid.png")
+    save_png(bank_near().a, BANK_DIR / "mid_near.png")
     save_png(bank_main().a, BANK_DIR / "main.png")
     save_png(water_front().a, BANK_DIR / "water.png")
     save_png(water_ripples().a, BANK_DIR / "ripples.png")
