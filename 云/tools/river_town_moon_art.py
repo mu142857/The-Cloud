@@ -812,13 +812,61 @@ def lamp_post(cv, x, base, h=26, pal=None):
     cv.hline(x - 2, x + 3, top - 11, pal[3])
 
 
+IRON = BM.B(.07, .015, 262)
+IRON_LIT = BM.B(.15, .02, 248)                    # 铁件朝月光的那一格 / 铆钉
+
+
+def stone_edge(cv, x, y, side):
+    """这一行石头朝 side 那边的最外一格（x 在石头里就往外走到边，在石头外就往回找到边）。"""
+    a = cv.a[int(y), :, 3]
+    xx = int(x)
+    if a[xx]:
+        while 0 <= xx + side < cv.w and a[xx + side]:
+            xx += side
+    else:
+        while 0 <= xx < cv.w and not a[xx]:
+            xx -= side
+    return xx
+
+
 def bracket_lamp(cv, x, y, side=1, arm=6):
-    """石柱上钉一根铁臂，臂头挂一盏小提灯（柱上挂的路灯）。(x, y) = 铁臂钉进石头的地方。"""
-    iron = BM.B(.07, .015, 262)
-    ex = x + side * arm
-    cv.line(x, y, ex, y, iron)
-    cv.line(x, y + 3, x + side * (arm - 3), y, iron)
+    """石柱上钉一根铁臂，臂头挂一盏小提灯。x 只是大概位置：先找到这一行石头的边，铁臂从石头里钉出来——
+    石面上一块铁板（一颗铆钉亮）、一根平臂、一根斜撑，斜撑的脚也钉在石头上。
+    （10-30 作者实机：铁臂后面什么都没有、灯悬在半空。灯一定要挂在实物上。）"""
+    w0 = stone_edge(cv, x, y, side)
+    w1 = stone_edge(cv, w0, y + 5, side)
+    ex = w0 + side * arm
+    for (wx, wy) in ((w0, y), (w1, y + 5)):       # 两块钉在石面上的铁板
+        cv.rect(min(wx, wx - side), wy - 1, max(wx, wx - side) + 1, wy + 2, IRON)
+        cv.px(wx - side, wy, IRON_LIT)
+    cv.line(w0, y, ex, y, IRON)
+    cv.line(w0 + side, y - 1, ex - side, y - 1, IRON_LIT)     # 平臂上沿接一点月光
+    cv.line(w1 + side, y + 5, w0 + side * (arm - 2), y, IRON)
+    cv.px(ex + side, y + 1, IRON)                 # 臂头往下一勾
     BM.lantern(cv, ex, y + 6, "hang", r=10)
+
+
+def hang_chain(cv, x, y0, y1, pal=None):
+    """一根从 y0（石头底面）垂到 y1 的铁链：一格亮一格暗，看得出是链子；顶上一个钉进石头的环，挨着灯的两格被灯照暖。"""
+    pal = pal or BM.STONE
+    for yy in range(y0, y1):
+        cv.px(x, yy, pal[3] if (yy - y0) % 2 == 0 else pal[1])
+    cv.hline(x - 1, x + 1, y0, IRON_LIT)
+    cv.px(x, y1 - 1, HUSK)
+    cv.px(x, y1 - 2, BM.WARM[0])
+
+
+def chain_lamp(cv, x, y, ceil):
+    """拱顶 / 门洞顶上一根铁链吊下来的提灯。ceil = 拱顶石头最下一行，y = 灯芯。"""
+    BM.lantern(cv, x, y, "hang")
+    hang_chain(cv, x, ceil + 1, y - 2)
+
+
+def lamp_niche(cv, x, y, pal=None):
+    """石头上凿进去的一个灯龛，里面坐着一盏方灯（嵌在石头里的灯）。(x, y) = 龛的左上，龛 7×10。"""
+    opening(cv, x, y, 7, 10, "arch", False, pal=pal or BM.STONE)
+    BM.lantern(cv, x + 3, y + 6, "post", r=9)
+    cv.hline(x, x + 7, y + 10, (pal or BM.STONE)[4])      # 龛底的石台受光
 
 
 W_LAMP = [BM.WARM[1], BM.WARM[2], BM.WARM[3], BM.WARM[4]]
@@ -913,7 +961,7 @@ def rock_town(width, spots, seed, foot=H + 6, pal=None):
             if r and r[1] - r[0] > 10:
                 cx_ = (r[0] + r[1]) // 2
                 opening(cv, cx_ - 2, ty + 4, 5, 8, "arch", True, True, pal=pal, glow_r=7, spill=False)
-                lantern(cv, cx_ + 5, ty + 5, hang=2)
+                lantern(cv, min(cx_ + 5, r[1] - 4), ty + 5, hang=2)     # 灯整盏落在柱面上（挂在门边石头上，不伸出柱外）
         tops.append((x, ty, pw))
     return cv, tops
 
@@ -1041,7 +1089,7 @@ def market_layers():
     mid, tops = rock_town(mw, spots, 300)
     # 提灯人（中景，晨走到留白那段时它在雾里）：半截泡在水里，水线在平台上沿上面一点，灯在水里拖一道断续的倒影
     # 第六版：直接用河岸的 BM.lantern_statue（整章一个样式），换个 seed
-    BM.lantern_statue(mid, 760, 192, seed=4150)
+    BM.lantern_statue(mid, 760, 192, seed=4150, refl_to=MK_G + 2)   # 倒影整块不透明，盖到主层路面下（挡住后面的月光碎片）
     for i in (0, 4):                              # 只有两处拉着细桥
         (xa, ta, pa), (xb, tb, pb) = tops[i], tops[i + 1]
         rope_bridge(mid, xa + pa // 2 - 2, ta + 6, xb - pb // 2 + 2, tb + 6, sag=5, lamps=(0.5,))
@@ -1069,8 +1117,9 @@ def market_layers():
         if len(col) and col[-1] + G < H - 1:
             m.px(x, col[-1] + G, DARK)
     road_top(m, lambda x: G, 0, MK_W, 31)          # 平台朝上的路面（不悬空）
-    for p0, p1 in [(150, 300), (640, 800), (960, 1130)]:
-        BM.lantern(m, (p0 + p1) // 2, 222, "hang")
+    for p0, p1 in [(150, 300), (640, 800), (960, 1130)]:  # 拱洞里的灯：一根铁链挂在拱顶上（不悬空）
+        lx = (p0 + p1) // 2
+        chain_lamp(m, lx, 222, int(np.nonzero(shelf[:, lx])[0][-1]) + G)
     for i, (p0, p1) in enumerate(zip(piers[:-1], piers[1:])):    # 拱洞里挂下来的根须
         vines(m, p0 + 14, p1 - 14, 216, 900 + i, n=3, max_len=16)
     # 往下去河岸的路（1351，pan_down）：不画大楼梯——平台边上凿出几级窄台阶，往下拐进岩架的影子里就看不见了
@@ -1082,10 +1131,9 @@ def market_layers():
         m.hline(1366 + i // 3, 1382, G + 26 + i, DARK)
 
     gb = G - 1                                    # 屋子的最下一行（踩在平台上）
-    # 左头：一块巨石里凿穿的拱门（去旧街），门洞里挂一盏灯
-    rock(m, 0, 40, gb, 112, 401, p=5)
-    opening(m, 9, 150, 20, 50, "arch", False, pal=BM.STONE)
-    BM.lantern(m, 19, 158, "hang")
+    # 左头：到头了——一面一直升到画面外的石壁，脚下一道苔、两根垂下来的根须（10-30：旧街改在右头，这头不通）
+    img_, ox_, oy_ = pillar_rock(m, 10, gb, 56, 230, 405)
+    vines(m, 2, 30, 120, 406, n=2, max_len=22)
     # 吊篮那家：一根石柱，柱身上凿出门窗（吊篮挂在栏杆外，门在篮子右边）
     dwelling_pillar(m, 112, gb, 40, 168, 441, [(-17, "arch", 8, 17, True, True), (-46, "arch", 5, 7, True, False),
                                                (-84, "round", 5, 5, True, False), (-118, "arch", 4, 6, False, False),
@@ -1166,6 +1214,7 @@ def market_layers():
         m.hline(bx, bx + 3, 182, C(.3, 70, .04))
         m.hline(bx, bx + 3, 183, C(.26, 70, .04))
     BM.lantern(m, 678, 168, "hang")
+    m.px(678, 162, IRON_LIT)                      # 灯挂在钉进石头的铁钉上
     # 屋顶之间的细桥：两根石柱，柱身上凿出人家，门口各伸出一块石台，石台之间一座绳桥
     pa = dwelling_pillar(m, 772, gb, 42, 120, 450, [(-30, "arch", 4, 6, True, False), (-62, "arch", 4, 6, False, False)],
                          door_y=104, door_side=1)
@@ -1181,9 +1230,12 @@ def market_layers():
                                                 (-152, "arch", 4, 6, True, False)])
     bracket_lamp(m, 1282, 158, side=1, arm=7)
     lamp_post(m, 1332, gb, 20)                    # 下去河岸的口上一盏矮路灯
-    # 右头：一根巨大的石柱的边（镇子就靠着它）
-    big = RA.pillar(40, 280, 77, BM.ROCK, kind="tower")
-    m.paste(big, 1440 - big.shape[1] // 2 + 6, G + 40 - big.shape[0])
+    # 右头：石桥走到头，一根大石柱脚下凿穿一道拱门——穿过去就是旧街（10-30：旧街在世界里本来就在右边）；
+    # 门洞里黑，拱顶一根铁链吊一盏灯，门槛一道月光
+    img_, ox_, oy_ = pillar_rock(m, 1424, gb, 60, 240, 77)
+    opening(m, 1410, 150, 22, 50, "arch", False, pal=BM.STONE)
+    chain_lamp(m, 1421, 163, 152)
+    m.hline(1410, 1432, gb, BM.STONE[4])
     for bx in (212, 586):                         # 地上几只木桶
         m.rect(bx, G - 8, bx + 6, G, BM.WOOD[2])
         m.hline(bx, bx + 6, G - 8, BM.WOOD[4])
@@ -1196,7 +1248,7 @@ def market_layers():
 
     # ---- rail（人前面）：平台外沿的木栏杆，只在左边一段和楼梯井口
     rail = Cv(MK_W)
-    for i, (x0, x1) in enumerate([(36, 136), (176, 252), (1296, 1334), (1372, 1430)]):
+    for i, (x0, x1) in enumerate([(36, 136), (176, 252), (1296, 1334), (1372, 1402)]):
         wood_rail(rail, x0, x1, 186, G, 600 + i, mid=194)
     L["rail"] = rail
 
@@ -1574,12 +1626,11 @@ def oldstreet_layers():
     opening(m, 628, 206, 6, 8, "arch", False, pal=BM.STONE)
     opening(m, 664, 206, 6, 8, "arch", False, pal=BM.STONE)
     carved_sign(m, 638, 194, "cup")
-    BM.lantern(m, 699, 150, "hang")
-    m.hline(692, 700, 145, BM.B(.07, .015, 262))
+    bracket_lamp(m, 684, 145, side=1, arm=7)      # 铁臂钉在石柱右边上（10-30：原来那根铁臂没挨着石头）
     # 拐角：一块方一点的石头，角上凿了个灯龛
     pillar_rock(m, 766, lb, 74, 150, 922)
     opening(m, 772, 96, 4, 6, "arch", True)
-    bracket_lamp(m, 805, 150, side=1, arm=6)
+    lamp_niche(m, 790, 146)                       # 拐角石头上凿的灯龛（原来是一根悬空的铁臂）
     opening(m, 736, 128, 5, 7, "arch", True, pal=BM.STONE)
     opening(m, 786, 130, 5, 7, "arch", True, pal=BM.STONE)
     opening(m, 760, 140, 7, 10, "arch", True, pal=BM.STONE)

@@ -414,6 +414,20 @@
   150,
   2310
  ],
+ "walk_when": [
+  {
+   "need": [
+    "river_ashore"
+   ],
+   "not": [
+    "river_salvaged"
+   ],
+   "walk": [
+    150,
+    990
+   ]
+  }
+ ],
  "scripts": [
   {
    "script": "res://scripts/river_far_lantern.gd",

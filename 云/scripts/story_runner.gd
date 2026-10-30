@@ -2154,6 +2154,9 @@ func _process(delta: float) -> void:
 	step_t += delta
 	_update_item_show(delta)
 	_update_miluo_layer()
+	if world.is_stage(world.room) and (deer.visible or miluo.visible):
+		deer.visible = false               # 鹿、弥洛是森林的节点：多房间章节（河流篇）里一律不显示
+		miluo.visible = false              # （10-30 作者：旧街水里站着一只第一章的鹿）
 	_update_follow(delta)
 	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood")):
 		alarm(false)

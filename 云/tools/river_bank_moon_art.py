@@ -726,25 +726,138 @@ def rows_of(img, ox, oy, y):
 
 MID_S = 0.55
 MID_WL = 197                     # 中景的水线（码头上沿后面一点）
+MID_FOOT = MID_WL + 1            # 中景里立在水里的东西，水面和石身相交的那一行
+MID_REFL_END = 215               # 中景倒影一直盖到这一行：主层码头上沿最低到 215（台阶、浅滩那里），月光碎片 glints 到 210
+WATER_FAR = (6, 13, 28)          # 中景那截远水（art/river/water.png，一行 (6,13,28) 一行 (4,9,23)）
+WET = B(.065, .03, 232)          # 贴水那几行湿石头
+
+
+def water_foot(img, wl, seed, refl=7, pad=11, water=WATER_FAR, light=1.0, lamps=()):
+    """（第五版：作者说中景的石头一个水线是虚线、一个底下啥也没有像浮着）把一张立在水里的图（石柱、石屋、石像）
+    在本地第 wl 行切开，接上「立在水里」的接触：
+    - 水线以上四行越近水越深越湿（灯和暖光不动）；
+    - 第 wl 行贴着石身一条连续的湿亮线，比石脚宽出一像素（月光从右上来：右边亮、左边暗）；
+    - 再往下是石身的倒影：竖直镜像、整块不透明（要挡住后面月光碎片 glints 层），一直到 refl 行；每行被水波横着错开 0~2 像素，
+      底色比远水深一档，受光的亮边翻成亮的，暖的窗和灯翻成暖的水影，几道很淡的横水纹；
+    - 两边各一两道很短很淡的涟漪，往外渐隐，位置和长短不等。
+    lamps = 本地 x 的列表：那里有灯 / 亮窗，水里从水线往下一串竖着的暖色水影（一行一小段，左右晃，往下变短变淡）。
+    返回 (新图, pad)：新图比原图宽 2*pad、高 wl+1+refl；贴的时候 x 往左挪 pad，第 wl 行对准水线。light 调水线和涟漪的亮度。"""
+    rng = np.random.default_rng(seed)
+    h, w = img.shape[:2]
+    out = np.zeros((wl + 1 + refl, w + 2 * pad, 4), np.uint8)
+    out[:wl, pad:pad + w] = img[:wl]
+    src_img = out.copy()                                           # 倒影翻的是没打湿的颜色
+    al = out[..., 3] > 0
+
+    def warm(c):
+        lab = to_lab(c)
+        return math.hypot(lab[1], lab[2]) > 0.05 and lab[2] > 0.02
+
+    def put(x, y, c):
+        if 0 <= x < out.shape[1] and 0 <= y < out.shape[0]:
+            out[y, x] = (*c, 255)
+
+    for k, t in enumerate((0.55, 0.4, 0.25, 0.12), 1):            # 湿的那一截
+        y = wl - k
+        if y < 0:
+            break
+        for x in np.nonzero(al[y])[0]:
+            c = tuple(int(v) for v in out[y, x, :3])
+            if not warm(c):
+                out[y, x, :3] = mixc(c, WET, t)
+    base = np.nonzero(al[wl - 1])[0]
+    if not len(base):
+        return out, pad
+    x0, x1 = int(base[0]) - 1, int(base[-1]) + 1
+    lo, hi = mixc(water, B(.2, .025, 250), light), mixc(water, SILVER[1], light)
+    for x in range(x0, x1 + 1):                                    # 贴着石身的湿亮线：连续一行，亮度一小段一小段地起伏
+        u = (x - x0) / max(1, x1 - x0)
+        k = 0.7 + 0.45 * _hash01(x // 3, wl, seed + 5)
+        put(x, wl, mixc(lo, hi, min(1.0, k * u ** 1.4)))
+    sh = [0]                                                       # 倒影：每行横着错开多少（水波，最多两像素）
+    ph = rng.uniform(0, 6.3)
+    for d in range(1, refl + 1):
+        a = min(2.0, 0.6 + 0.15 * d)
+        sh.append(int(round(a * math.sin(1.9 * d + ph))))
+    # 第六版（作者：柱子前面的月光碎片没被挡住，看着像漂浮）：倒影整块不透明，一直盖到 refl 行（中景看得见的远水底边），
+    # 宽度是石身那一行的竖直镜像（中间不留洞），底色比远水深一档；受月光的亮边翻成亮的，暖窗 / 灯翻成暖影；几道很淡的横水纹
+    base_c = mixc(water, (1, 3, 11), 0.4)
+    sheen = mixc(base_c, B(.2, .025, 250), 0.25)
+    for d in range(1, refl + 1):
+        y, src = wl + d, wl - d
+        if src < 0:
+            break
+        xs = np.nonzero(al[src])[0]
+        if not len(xs):
+            continue
+        f = d / refl
+        line = d % 4 == 2                                          # 这一行有一道横水纹
+        for x in range(int(xs[0]), int(xs[-1]) + 1):
+            if al[src, x]:
+                c = tuple(int(v) for v in src_img[src, x, :3])
+                if warm(c):
+                    col = mixc(WARM_REF[1] if d < 4 else WARM_REF[0], base_c, 0.15 + 0.4 * f)
+                elif to_lab(c)[0] > 0.2:
+                    col = mixc(c, base_c, 0.45 + 0.35 * f)
+                else:
+                    col = mixc(c, base_c, 0.7)
+            else:
+                col = base_c
+            if line and not warm(col) and _hash01(x // 4, d, seed + 3) > 0.4:
+                col = mixc(col, sheen, 0.7)
+            put(x + sh[d], y, col)
+    for lx in lamps:                                               # 灯在水里的暖影（一串竖的，一行一小段，往下变短变淡）
+        for d in range(1, refl + 1):
+            if _hash01(lx, d, seed + 9) < 0.2 * d / refl:
+                continue
+            ln = max(1, 3 - d // 4)
+            xx = int(lx) + pad + sh[d] + (1 if d % 3 == 1 else 0) - ln // 2
+            for i in range(ln):
+                put(xx + i, wl + d, mixc(WARM_REF[1] if d < 4 else WARM_REF[0], base_c, 0.1 + 0.55 * d / refl))
+    for side in (-1, 1):                                           # 两边的涟漪：一两道，短、淡、往外渐隐
+        x = x1 + 1 if side > 0 else x0 - 1
+        b = (0.5 if side > 0 else 0.32) * light
+        for j in range(int(rng.integers(1, 3)) if side < 0 else 2):
+            x += side * int(rng.integers(1, 3 + 2 * j))
+            ln = int(rng.integers(2, 5 - j))
+            y = wl + (0 if j == 0 else int(rng.integers(0, 3)))
+            for i in range(ln):
+                put(x + side * i, y, mixc(water, SILVER[0], b * (1 - 0.55 * i / ln)))
+            x += side * ln
+            b *= 0.5
+    return out, pad
+
+
+def paste_in_water(cv: Cv, img, cx, wl, seed, cut=4, refl=None, **kw):
+    """把一根石柱 / 一块石头立进水里：图的最下 cut 行（柱脚那圈外撇）沉到水下，接 water_foot。cx = 中心，wl = 水线。
+    返回 (ox, oy)：原图左上角在 cv 里的位置。"""
+    lw = img.shape[0] - cut
+    out, pad = water_foot(img, lw, seed, refl=MID_REFL_END - wl if refl is None else refl, **kw)
+    ox, oy = int(cx - img.shape[1] // 2), int(wl - lw)
+    cv.paste(out, ox - pad, oy)
+    return ox, oy
 
 
 def rock_dwelling(cv: Cv, x, seed, h, w, wins, kind="hoodoo"):
     """河里一块凿了窗的石头（中景，比近处淡一档）：几扇小窗透暖光，一扇门洞贴着水，门口一块踏脚石。"""
     img = stone_pillar(w, h, seed, STONE_FAR, crown=[B(.11, .02, 256), B(.14, .022, 250)], kind=kind)
-    ox, oy = int(x - img.shape[1] // 2), int(MID_WL + 3 - img.shape[0] + 1)
-    cv.paste(img, ox, oy)
+    c = Cv(img.shape[1] + 8, img.shape[0])           # 先画在自己的小画布上（两边各留 4 给门口的踏脚石），再整块立进水里
+    c.paste(img, 4, 0)
+    oy = MID_FOOT - (img.shape[0] - 4)               # 小画布第 0 行在中景里的 y（paste_in_water 默认沉 4 行）
     for (dy, lit) in wins:
-        r = rows_of(img, ox, oy, MID_WL - dy)
+        y = MID_WL - dy - oy
+        r = rows_of(img, 4, 0, y)
         if r is None:
             continue
         cx_ = (r[0] + r[1]) // 2
-        cv.rect(cx_ - 1, MID_WL - dy, cx_ + 2, MID_WL - dy + 3, WARM[2] if lit else B(.07, .02, 262))
-        cv.px(cx_ - 1, MID_WL - dy, WARM[1] if lit else DARK)
-    r = rows_of(img, ox, oy, MID_WL - 6)
+        c.rect(cx_ - 1, y, cx_ + 2, y + 3, WARM[2] if lit else B(.07, .02, 262))
+        c.px(cx_ - 1, y, WARM[1] if lit else DARK)
+    r = rows_of(img, 4, 0, MID_WL - 6 - oy)
     if r:
         cx_ = (r[0] + r[1]) // 2 + 2
-        cv.rect(cx_ - 2, MID_WL - 7, cx_ + 2, MID_WL + 1, B(.05, .02, 264))
-        cv.hline(cx_ - 4, cx_ + 4, MID_WL + 1, STONE_FAR[3])
+        c.rect(cx_ - 2, MID_WL - 7 - oy, cx_ + 2, MID_WL - oy, B(.05, .02, 264))
+        c.hline(cx_ - 4, cx_ + 4, MID_WL - oy, STONE_FAR[3])
+    paste_in_water(cv, c.a, x, MID_FOOT, seed)
 
 
 def stone_head(cv: Cv, x, wl):
@@ -762,7 +875,7 @@ def stone_head(cv: Cv, x, wl):
     return ox, sub
 
 
-def lantern_statue(cv: Cv, x, wl, seed=3150):
+def lantern_statue(cv: Cv, x, wl, seed=3150, refl_to=None):
     """提灯人：半截泡在河里的石雕人像，披着兜帽斗篷、低着头，两手在胸前捧着一盏真点着的小灯（住户给它点的）。
     画法照 xiao-oscar 的帽兜人形（oscarkit.paint.light_planes：一个光向、大块亮面暗面、斜的衣褶楔形 + 亮棱），
     颜色换成石头；月光从右上打在肩和兜帽上，灯从下面把胸前、袖口照暖；石面上苔藓、几道旧水位的刻痕，
@@ -839,34 +952,16 @@ def lantern_statue(cv: Cv, x, wl, seed=3150):
                 c.px(xx, ty, cc)
                 if m[ty - 1, xx]:
                     c.px(xx, ty - 1, mixc(tuple(int(v) for v in c.a[ty - 1, xx, :3]), R[6], 0.35))
-    for yy in range(48, WLL):
+    for yy in range(48, WLL):                         # （第五版减轻：太黑的话下半截像一个墩子，倒影也翻不出来）
         for xx in np.nonzero(m[yy])[0]:
             col = tuple(int(v) for v in c.a[yy, xx, :3])
-            c.a[yy, xx, :3] = mixc(col, B(.07, .03, 236), 0.3 + 0.03 * (yy - 48))
-    # 水下那截：压暗发青，被横的波纹切碎，越往下越淡（隔行断开）
-    for yy in range(WLL, Hd):
-        dd = yy - WLL
-        for xx in np.nonzero(m[yy])[0]:
-            if _hash01(xx // 3, yy, 4) < 0.15 + 0.07 * dd or (dd > 3 and (yy % 2)):
-                c.a[yy, xx, 3] = 0
-                continue
-            col = tuple(int(v) for v in c.a[yy, xx, :3])
-            c.a[yy, xx, :3] = mixc(col, B(.1, .035, 240), 0.55 + 0.03 * dd)
-    # 水线：一圈涟漪（银），身子两边各伸出去一截
-    xs = np.nonzero(m[WLL])[0]
-    for k in range(3):
-        a0, a1 = xs[0] - 3 - 4 * k, xs[-1] + 3 + 5 * k
-        yy = WLL + k
-        xx = a0
-        while xx <= a1:
-            ln = 1 + int(_hash01(xx, yy, 6) * (4 - k))
-            if xx < xs[0] - 1 or xx > xs[-1] + 1 or k == 0:
-                for j in range(ln):
-                    c.px(xx + j, yy, SILVER[2 - k])
-            xx += ln + 1 + int(_hash01(xx, yy, 8) * (2 + 2 * k))
+            c.a[yy, xx, :3] = mixc(col, B(.07, .03, 236), 0.12 + 0.015 * (yy - 48))
+    # 水线以下：第五版不再画「被波纹切碎的水下那截 + 三行虚线涟漪」（作者说像虚线），换成 water_foot：
+    # 一行连续的湿亮水线、石身的暗倒影被水波错开、两边很短很淡的涟漪；第六版倒影不透明、盖到 refl_to 行（默认 MID_REFL_END），挡住后面的月光碎片
+    out, pad = water_foot(c.a, WLL, seed, refl=max(4, (refl_to or MID_REFL_END) - wl), lamps=(lx + 2,))
     ox, oy = int(x - Wd // 2), int(wl - WLL)
-    cv.paste(c.a, ox, oy)
-    return ox, c.a
+    cv.paste(out, ox - pad, oy)
+    return ox, out[:, pad:pad + Wd]
 
 
 def wm(xw):
@@ -886,22 +981,21 @@ def bank_mid():
     cv = Cv(w, SH)
     # 空的那一段：光秃的远石柱
     for i, (xw, h, wd, kind) in enumerate(((420, 118, 16, "spire"), (600, 92, 13, "hoodoo"), (1000, 136, 20, "twin"))):
-        pillar_at(cv, wm(xw), MID_WL + 3, wd, h, 3120 + i, kind=kind, pal=ROCK_FAR)
+        mid_pillar(cv, wm(xw), wd, h, 3120 + i, kind)
     rock_dwelling(cv, wm(520), 3110, 40, 13, ((20, True),), "stack")
     # 箱子以后：人家
-    lantern_statue(cv, wm(1300), MID_WL + 2)         # 提灯人：两人一起往人家走的那段（作者：石头人头留给水底）
+    lantern_statue(cv, wm(1300), MID_FOOT)         # 提灯人：两人一起往人家走的那段（作者：石头人头留给水底）
     for i, (xw, h, wd, wins, kind) in enumerate((
             (1430, 46, 14, ((22, True),), "hoodoo"), (1690, 58, 16, ((20, True), (36, True)), "tower"),
             (1880, 34, 12, ((16, False),), "stack"), (2010, 52, 15, ((24, True),), "hoodoo"))):
         rock_dwelling(cv, wm(xw), 3111 + i, h, wd, wins, kind)
-    pillar_at(cv, wm(1560), MID_WL + 3, 18, 128, 3130, kind="twin", pal=ROCK_FAR)
-    pillar_at(cv, wm(2300), MID_WL + 3, 16, 120, 3131, kind="spire", pal=ROCK_FAR)
+    mid_pillar(cv, wm(1560), 18, 128, 3130, "twin")
+    mid_pillar(cv, wm(2300), 16, 120, 3131, "spire")
     # 远处两根光秃的石柱 + 顶上的细桥：空的那一段尽头，很远处一个提灯的小人慢慢走过（唯一会动的一点灯）
     ims = []
     for (xw, h, wd, sd, kind) in ((740, 112, 18, 3140, "tower"), (850, 104, 16, 3141, "stack")):
         img = stone_pillar(wd, h, sd, STONE_FAR, crown=[B(.11, .02, 256), B(.14, .022, 250)], kind=kind)
-        ox, oy = wm(xw) - img.shape[1] // 2, MID_WL + 3 - img.shape[0] + 1
-        cv.paste(img, ox, oy)
+        ox, oy = paste_in_water(cv, img, wm(xw), MID_FOOT, sd)
         ims.append((img, ox, oy))
     by = MID_WL - 92
     r1 = rows_of(*ims[0], by)
@@ -916,14 +1010,23 @@ def bank_mid():
             cv.px(x, yy - 2, B(.11, .02, 256))
     rope_line(cv, x0, by - 4, x1, by - 4, 1.5, B(.12, .02, 254))
     FAR_BRIDGE = (int(x0) + 2, int(x1) - 2, int(by))
-    # 石头之间几块露出水面的踏脚石
+    # 石头之间几块露出水面的踏脚石（也接水线和一点倒影；第五版去掉了 reflect_down 那层稀疏的点）
     for xw in (1470, 1740, 1960):
         a = wm(xw)
-        for xx in range(a, a + 22, 7):
-            cv.rect(xx, MID_WL - 1, xx + 4, MID_WL + 1, STONE_FAR[2])
-            cv.hline(xx, xx + 4, MID_WL - 1, STONE_FAR[4])
-    reflect_down(cv, MID_WL + 2, 10, seed=3130)
+        for j, xx in enumerate(range(a, a + 22, 7)):
+            st = Cv(5, 3)
+            st.rect(0, 0, 5, 3, STONE_FAR[2])
+            st.hline(0, 5, 0, STONE_FAR[4])
+            st.px(4, 0, STONE_FAR[3])
+            st.px(0, 0, STONE_FAR[3])
+            paste_in_water(cv, st.a, xx + 2, MID_FOOT, 3170 + xw + j, cut=1, pad=6, light=0.6)
     return cv
+
+
+def mid_pillar(cv: Cv, x, w, h, seed, kind):
+    """中景一根光秃的远石柱，立在水里（第五版：柱脚接水线和倒影，不再浮在远水上）。"""
+    img = stone_pillar(w, h, seed, ROCK_FAR, crown=[B(.07, .02, 258), B(.1, .022, 252)], kind=kind)
+    return paste_in_water(cv, img, x, MID_FOOT, seed)
 
 
 def reflect_down(cv: Cv, wl, length, seed, x_range=None):
