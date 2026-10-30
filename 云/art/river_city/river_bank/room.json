@@ -1,40 +1,83 @@
 {
- "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "_note": "tools/river_bank_moon_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。月夜：天、远岸、雾、碎光沿用 art/river/。",
  "size": [
   1440,
   270
  ],
- "env": "river_day",
+ "env": "river",
  "bg": [
-  "#1b2228",
-  "#3a4752"
+  "#0b1220",
+  "#141d2c"
  ],
  "layers": [
   {
    "id": "sky",
-   "img": "res://art/river_city/common/sky.png",
+   "img": "res://art/river/sky.png",
    "scroll": 0.0,
+   "y": 0
+  },
+  {
+   "id": "ridge",
+   "img": "res://art/river/ridge.png",
+   "scroll": 0.05,
    "y": 0,
    "tile": true
   },
   {
-   "id": "far",
-   "img": "res://art/river_city/common/far.png",
-   "scroll": 0.15,
-   "y": -40,
+   "id": "mist",
+   "img": "res://art/river/mist.png",
+   "scroll": 0.1,
+   "y": 0,
+   "tile": true,
+   "drift": -2.5
+  },
+  {
+   "id": "shore",
+   "img": "res://art/river/shore.png",
+   "scroll": 0.16,
+   "y": 0,
    "tile": true
   },
   {
-   "id": "midfar",
-   "img": "res://art/river_city/common/midfar.png",
-   "scroll": 0.35,
-   "y": -122,
+   "id": "far_ripples",
+   "img": "res://art/river/ripples.png",
+   "scroll": 0.3,
+   "y": 151,
+   "tile": true,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "speed": 0.7,
+    "wobble": 2.0,
+    "flicker": 0.0,
+    "show": 0.62
+   }
+  },
+  {
+   "id": "glints",
+   "img": "res://art/river/glints.png",
+   "scroll": 0.0,
+   "y": 155,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": true,
+    "speed": 1.0,
+    "wobble": 2.0,
+    "flicker": 0.9,
+    "show": 0.6
+   }
+  },
+  {
+   "id": "far_water",
+   "img": "res://art/river/water.png",
+   "scroll": 0.42,
+   "y": 0,
    "tile": true
   },
   {
    "id": "mid",
    "img": "mid.png",
-   "scroll": 0.6,
+   "scroll": 0.55,
    "y": 0
   },
   {
@@ -44,52 +87,25 @@
    "y": 0
   },
   {
-   "id": "shafts",
-   "img": "shafts.png",
-   "scroll": 1.0,
-   "y": 0,
-   "alpha": 0.07,
-   "z": -15
-  },
-  {
-   "id": "rail",
-   "img": "rail.png",
-   "scroll": 1.0,
-   "y": 0,
-   "z": -10
-  },
-  {
    "id": "water",
    "img": "water.png",
    "scroll": 1.0,
    "y": 218,
    "water": true,
    "front": true,
-   "alpha": 0.4
-  },
-  {
-   "id": "ripples_back",
-   "img": "ripples_back.png",
-   "scroll": 1.0,
-   "y": 195,
-   "shader": "water",
-   "shader_params": {
-    "palette_mode": false,
-    "show": 0.7,
-    "wobble": 1.0
-   },
-   "z": -20
+   "alpha": 0.5
   },
   {
    "id": "ripples",
    "img": "ripples.png",
    "scroll": 1.0,
-   "y": 217,
+   "y": 218,
    "shader": "water",
    "shader_params": {
     "palette_mode": false,
-    "show": 0.7,
-    "wobble": 1.0
+    "show": 0.62,
+    "wobble": 1.5,
+    "speed": 0.8
    },
    "front": true
   },
@@ -183,10 +199,10 @@
   "river_bank_ting": 360,
   "river_bank_shallow": 1220,
   "river_bank_toolkit": 304,
-  "river_bank_home_door": 722,
-  "river_bank_doorplate": 738,
+  "river_bank_home_door": 728,
+  "river_bank_doorplate": 751,
   "river_bank_bakery": 1150,
-  "river_bank_postman": 540,
+  "river_bank_postman": 556,
   "river_bank_to_market": 1351,
   "river_bank_to_south": 1428,
   "river_bank_arrive": 1390,
@@ -371,38 +387,21 @@
    "npc": "postman",
    "path": [
     [
-     500,
-     67
+     528,
+     68
     ],
     [
-     590,
-     67
+     588,
+     68
     ]
    ],
-   "speed": 14,
+   "speed": 12,
    "pause": [
     3,
     8
    ],
    "z": -20,
    "loop": "pingpong"
-  },
-  {
-   "npc": "hood_a",
-   "path": [
-    [
-     372,
-     117
-    ],
-    [
-     1300,
-     117
-    ]
-   ],
-   "speed": 10,
-   "z": -20,
-   "loop": "wrap",
-   "count": 3
   }
  ],
  "portals": [

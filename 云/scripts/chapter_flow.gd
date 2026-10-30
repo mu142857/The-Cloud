@@ -1,7 +1,8 @@
 extends RefCounted
 ## 章节之间怎么接（level_forest.gd 用；章节都在 scenes/level_forest.tscn 这一个关卡里播，换章 = 带着状态重新载入本场景）。
 ##   forest   木星森林：开场 → 坠毁 → 修船 → 起飞（data/story_forest.json）。剧本 end_chapter：照旧播起飞，黑屏以后接 flight1。
-##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：淡到黑，接 river。
+##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：往前一冲（cockpit_dash）、淡到黑、
+##            「第一章 完」卡（end_card：go() 在黑屏上淡入、停一会儿，载入下一章以后再淡掉），接 river。
 ##   river    河流篇「妮芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
 ##            end_chapter：驾驶舱里写完日记，「未完待续」卡（终章接上以后改 next = final）。
 ## 带过去的东西：StoryState.to_dict()（flags、日记、物件状态、用过的点、背包）存进 Engine 的 meta CARRY_META，
@@ -17,7 +18,8 @@ const PICK_META := "the_cloud_chapter_pick"            # F8 跳节拍换了章�
 const CHAPTERS := {
 	"forest": {"story": "res://data/story_forest.json", "next": "flight1"},
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
-		"items_extra": ["res://data/items_later.json"]},
+		"items_extra": ["res://data/items_later.json"],
+		"end_card": {"zh": "第一章　完", "en": "End of Chapter One"}},
 	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "",
 		"carry_flags": ["burned_blue_stone", "burned_commute_card"], "hud_fuel": false,
 		"items_extra": ["res://data/items_later.json"]},
@@ -98,7 +100,44 @@ static func go(tree: SceneTree, ch: String) -> void:
 		register_items(str(p))
 	Engine.set_meta(CARRY_META, StoryState.to_dict())
 	Engine.set_meta(CHAPTER_META, ch)
+	for prev in CHAPTERS:
+		if CHAPTERS[prev].get("next", "") == ch and CHAPTERS[prev].has("end_card"):
+			await _end_card(tree, CHAPTERS[prev]["end_card"])
 	tree.reload_current_scene.call_deferred()
+
+
+## 上一章的结束卡（「第一章 完」）：挂在根节点上的黑底 + 两行字（当前语言一行、另一种语言小字一行），在已经黑了的屏幕上淡入、停住；
+## 换章重新载入时它不在场景里，留着盖住，新章节开始以后再慢慢淡掉、删掉。
+static func _end_card(tree: SceneTree, card: Dictionary) -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 120
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.theme = UITheme.get_theme()
+	var bg := ColorRect.new()
+	bg.color = Color.BLACK
+	bg.size = Vector2(480, 270)
+	root.add_child(bg)
+	var other := "en" if I18n.is_zh() else "zh"
+	for i in 2:
+		var l := Label.new()
+		l.text = I18n.pick(card) if i == 0 else str(card.get(other, ""))
+		l.add_theme_font_size_override("font_size", 28 if i == 0 else 14)
+		l.add_theme_color_override("font_color", Color("#b9cdc1") if i == 0 else Color("#6f877b"))
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		l.size = Vector2(480, 32 if i == 0 else 16)
+		l.position = Vector2(0, 112 if i == 0 else 150)
+		l.modulate.a = 0.0
+		root.add_child(l)
+		tree.create_tween().tween_property(l, "modulate:a", 1.0, 1.4).set_delay(0.4 + 0.5 * i).set_trans(Tween.TRANS_SINE)
+	cl.add_child(root)
+	tree.root.add_child(cl)
+	await tree.create_timer(3.6).timeout
+	var tw := tree.create_tween()
+	tw.tween_interval(0.6)                       # 新章节载入、自己的黑屏接上以后
+	tw.tween_property(root, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(cl.queue_free)
 
 
 ## F8 跳节拍 / 重开：重新载入本场景，剧情播到一半也干净。reload_current_scene 只是先把旧场景移出树、帧末才释放，

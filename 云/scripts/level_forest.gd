@@ -3101,9 +3101,10 @@ func _restore_chen_order() -> void:
 ## 1 帧 = 机头拔出来以后的坑）。-17° 那帧 + 土 和坠毁图逐像素一样，换的那一下不跳。
 ## 扎在土里的那截机头：_lift 用 shader 按坠毁图的地面线裁掉，船升起来它就从土里「拔」出来。
 ##   1. 预热 TAKEOFF_WARM 秒：引擎声；喷口里亮起暗暗的余火（闪两下再亮住），船身 1 像素的抖越来越密，
-##      船底的反重力泛光（scripts/ship_glow.gd，和驾驶舱同一个）慢慢亮到一档，船腹底下的尘土往两边吹
+##      船身外一圈热光（scripts/ship_glow.gd 的 heat = 1：暖红，推进器那头最亮；10-30 作者：「最开始上升的时候没有外侧的光，
+##      我觉得红光不错」）慢慢亮到 TAKEOFF_GLOW_WARM，船腹底下的尘土往两边吹
 ##   2. 离地 TAKEOFF_LIFT 秒：竖直升 TAKEOFF_RISE 像素（smoothstep，速度先加后减），边升边把机头摆平到 TAKEOFF_LEVEL_ANG；
-##      泛光跟着竖直速度走（ship_glow.drive）；机头拔出土的时候土块往下掉（落到地上停住、慢慢淡掉），坑露出来、扬一小团尘
+##      热光托底 TAKEOFF_GLOW_WARM、再跟着竖直速度往上加（ship_glow.drive），悬停时收到一点底，尾焰点着以后慢慢熄；机头拔出土的时候土块往下掉（落到地上停住、慢慢淡掉），坑露出来、扬一小团尘
 ##   3. 悬停 TAKEOFF_HOVER 秒：上下 1 像素慢慢起伏，泛光留一点底
 ##   4. 走：尾焰点着（两帧 100ms 交替），机头继续慢慢抬到 TAKEOFF_PITCH_ANG；速度从 0 开始 ease-in（v = TAKEOFF_ACC·t²），
 ##      方向一直是机头朝向（角度连续变，所以路径是一条往左上弯的平滑曲线），出了画面左边 → 停 0.6 秒 → 淡到黑
@@ -3126,6 +3127,7 @@ const TAKEOFF_HOVER := 0.7
 const TAKEOFF_PITCH_ANG := 9.0
 const TAKEOFF_PITCH_T := 1.6       # 从摆平抬到 TAKEOFF_PITCH_ANG 用多久（和加速同时开始）
 const TAKEOFF_ACC := 150.0         # 速度 = TAKEOFF_ACC · t²（像素 / 秒）
+const TAKEOFF_GLOW_WARM := 0.55   # 预热时热光亮到多少（离地后按竖直速度再往上，满亮约 1）
 const TAKEOFF_CAM_DX := 70.0       # 起飞时镜头停在哪（相对 wreck.x）：船在画面左半边、鹿在右边，船往左飞有地方
 const CLIP_SHADER := "shader_type canvas_item;\nuniform float clip_y = 100000.0;\nvarying float wy;\n" + \
 	"void vertex() { wy = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).y; }\n" + \
@@ -3188,8 +3190,7 @@ func story_takeoff() -> void:
 		if _rng.randf() < 0.08 + 0.4 * k:
 			jit.x = _rng.randi_range(-1, 1)
 		_lift_pos = c0 + jit
-		_lift_glow.strength = 0.32 * smoothstep(0.2, 1.0, k)
-		_lift_glow.dir = 0.0
+		_lift_glow.strength = TAKEOFF_GLOW_WARM * smoothstep(0.2, 1.0, k)
 		_lift_glow.step(dt)
 		_lift_show()
 		if _rng.randf() < dt * (4.0 + 14.0 * k):
@@ -3197,6 +3198,8 @@ func story_takeoff() -> void:
 			puffs_back.burst(Vector2(gx, _ground(gx)), 1, puffs_back.PRESETS.dust_small.merged(
 				{"vx": Vector2(-30, -8) if gx < c0.x else Vector2(8, 30), "vy": Vector2(-8, -2)}))
 	_lift_row = 1
+	_lift_glow.hold = TAKEOFF_GLOW_WARM               # 托底：升的时候至少这么亮（再按竖直速度往上加），也让它一直是热光
+	_lift_glow.hold_goal = TAKEOFF_GLOW_WARM
 	# ---- 2. 离地（反重力：竖直往上，机头慢慢摆平）
 	_shake = 0.5
 	_shake_amp = 1.0
@@ -3214,7 +3217,6 @@ func story_takeoff() -> void:
 		_lift_ang = lerpf(float(LIFT_ANG0), TAKEOFF_LEVEL_ANG, smoothstep(0.25, 1.0, k))
 		_lift_pos = Vector2(c0.x, y)
 		_lift_glow.drive((y - y_prev) / maxf(dt, 0.001), dt)
-		_lift_glow.strength = maxf(_lift_glow.strength, 0.32)
 		y_prev = y
 		_lift_show()
 		# 机头拔出土：那一点还在地面以下时往下掉土块；一出来就露出坑、扬一小团尘
@@ -3232,6 +3234,7 @@ func story_takeoff() -> void:
 			_drop_clod(nose + Vector2(_rng.randf_range(0.0, 30.0), -2.0), w0.y)   # 船腹上沾的最后几块
 	# ---- 3. 悬停
 	var hover := _lift_pos
+	_lift_glow.hold_goal = 0.3                       # 悬停：慢慢收到一点底
 	t = 0.0
 	y_prev = hover.y
 	while t < TAKEOFF_HOVER:
@@ -3241,7 +3244,6 @@ func story_takeoff() -> void:
 		var y := hover.y - roundf(sin(t / TAKEOFF_HOVER * PI))
 		_lift_pos = Vector2(hover.x, y)
 		_lift_glow.drive(0.0, dt)
-		_lift_glow.strength = maxf(_lift_glow.strength, 0.25)
 		_lift_show()
 	_lift_pos = hover
 	# ---- 4. 尾焰点着，机头抬起，沿机头方向 ease-in 加速飞走
@@ -3254,7 +3256,6 @@ func story_takeoff() -> void:
 	t = 0.0
 	var a0 := _lift_ang
 	var p := _lift_pos
-	y_prev = p.y
 	while t < 5.0:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
@@ -3265,8 +3266,8 @@ func story_takeoff() -> void:
 		var v := TAKEOFF_ACC * t * t
 		p += Vector2(-cos(a), -sin(a)) * v * dt      # 机头朝向（机头朝左：-x；角度正 = 机头往上）
 		_lift_pos = p
-		_lift_glow.drive((p.y - y_prev) / maxf(dt, 0.001), dt)
-		y_prev = p.y
+		_lift_glow.strength = move_toward(_lift_glow.strength, 0.0, 0.5 * dt)   # 尾焰点着以后热光慢慢收掉（不按速度再亮）
+		_lift_glow.step(dt)
 		_lift_show()
 		puffs_back.set_source_pos("trail", _lift_engine())
 		puffs_back.set_source_pos("trail_sparks", _lift_engine())
@@ -3323,6 +3324,10 @@ func _lift_setup() -> void:
 	_lift_row = 0
 	_lift_hull_ang = 999
 	_lift_glow.strength = 0.0
+	_lift_glow.heat = 1.0                              # 起飞一直是热光（暖红，推进器那头最亮）
+	_lift_glow.heat_goal = 1.0
+	_lift_glow.hold = 0.0
+	_lift_glow.hold_goal = 0.0
 	_lift.visible = true
 	wreck.texture = CRATER_TEX
 	wreck.hframes = 2

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dgnt460qh87rk"
-path="res://.godot/imported/warehouse_cabinet.png-cbbb8488b9a70f7ae0865e5155c193fe.ctex"
+uid="uid://csg077wcbws48"
+path="res://.godot/imported/oldstreet_height_wall.png-ce5cfd34cd4e8a1796ec8fd8a7e1a662.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/warehouse/warehouse_cabinet.png"
-dest_files=["res://.godot/imported/warehouse_cabinet.png-cbbb8488b9a70f7ae0865e5155c193fe.ctex"]
+source_file="res://art/river_city/oldstreet/oldstreet_height_wall.png"
+dest_files=["res://.godot/imported/oldstreet_height_wall.png-ce5cfd34cd4e8a1796ec8fd8a7e1a662.ctex"]
 
 [params]
 

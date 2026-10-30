@@ -84,7 +84,8 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match", "fuel", "camera",
 	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup"]   # 后六个：多房间章节（docs/river_rooms_contract.md）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
-const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd"}   # 驾驶舱
+const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
+	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
 const HOOKS := {
 	"crash": ["crash_wake", "wake", "crash", "intro", "opening"],
 	"wood": ["wood_found", "wood", "wood_pickup", "pickup_wood", "glowing_wood"],
@@ -632,7 +633,7 @@ func _step(st: Dictionary) -> String:
 			await _camera(st)
 		"phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft":
 			await phone.step(st)
-		"debris_steer", "keepsake_choice":
+		"debris_steer", "keepsake_choice", "cockpit_dash":
 			var cs2: String = await _cockpit_step(d, st)     # 驾驶舱的两个小玩法（cockpit_debris.gd / cockpit_keepsake.gd）
 			return cs2
 		_:
@@ -2422,6 +2423,8 @@ func _validate_cockpit(id: String, kind: String, st: Dictionary, refs: Dictionar
 	if kind == "debris_steer":
 		if not (st.get("sec", 40) is float or st.get("sec", 40) is int):
 			out.append("scene %s：debris_steer 的 sec 要是数字" % id)
+		return out
+	if kind == "cockpit_dash":
 		return out
 	var items: Array = st.get("items", [])
 	var sc: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}

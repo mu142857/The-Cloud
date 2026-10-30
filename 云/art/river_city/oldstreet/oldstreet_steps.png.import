@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bkjfsmi2iwx23"
-path="res://.godot/imported/back.png-6f20dbb866d2593b5722a0abd2e0a8ce.ctex"
+uid="uid://dnvhbi66bn784"
+path="res://.godot/imported/oldstreet_steps.png-659396ff1985e2e62783a88f2924cc08.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/warehouse/back.png"
-dest_files=["res://.godot/imported/back.png-6f20dbb866d2593b5722a0abd2e0a8ce.ctex"]
+source_file="res://art/river_city/oldstreet/oldstreet_steps.png"
+dest_files=["res://.godot/imported/oldstreet_steps.png-659396ff1985e2e62783a88f2924cc08.ctex"]
 
 [params]
 

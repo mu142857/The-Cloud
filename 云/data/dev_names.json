@@ -3,36 +3,36 @@
 	"chapters": {"forest": "森林", "flight1": "飞行一", "river": "河流篇"},
 	"beats": {
 		"forest": [
-			{"zh": "坠毁、翻行李、捡燃料（开场）", "after": ""},
-			{"zh": "启动失败，鹿出现", "after": "fuel_full"},
-			{"zh": "旧路：跟鹿走、挪倒木", "after": "deer_met"},
-			{"zh": "雾里跟蹄印找树屋", "after": "log_cleared"},
-			{"zh": "树屋：弥洛要三样零件", "after": "at_treehouse"},
+			{"zh": "坠毁（开场）", "after": ""},
+			{"zh": "启动失败、鹿出现", "after": "fuel_full"},
+			{"zh": "旧路挪倒木", "after": "deer_met"},
+			{"zh": "雾里找树屋", "after": "log_cleared"},
+			{"zh": "弥洛要三样零件", "after": "at_treehouse"},
 			{"zh": "树屋修推进器", "after": "parts_all"},
-			{"zh": "送水泵（空屋、商店）", "after": "gramophone_talk"},
+			{"zh": "送水泵", "after": "gramophone_talk"},
 			{"zh": "坡地真相", "after": "shop_done"},
 			{"zh": "告别弥洛", "after": "slope_talked"},
 			{"zh": "回飞船起飞", "after": "farewell_done"}
 		],
 		"flight1": [
-			{"zh": "起飞、碎石带（开场）", "after": ""},
+			{"zh": "碎石带（开场）", "after": ""},
 			{"zh": "漏气", "after": "flight1_leak"},
 			{"zh": "绕开碎石带", "after": "flight1_leak_fixed"},
 			{"zh": "烧纪念品", "after": "flight1_fuel_low"},
-			{"zh": "弥洛的消息（通讯器）", "after": "flight1_logged"},
+			{"zh": "弥洛的消息", "after": "flight1_logged"},
 			{"zh": "迫降河流星", "after": "flight1_journal"}
 		],
 		"river": [
 			{"zh": "河岸打捞（开场）", "after": ""},
-			{"zh": "妮芙家：明信片、来客册", "after": "river_landed"},
-			{"zh": "影像盒（看大象）", "after": "river_deer_msg"},
-			{"zh": "高处市集借呼吸装置", "after": "river_need_head"},
+			{"zh": "妮芙家、来客册", "after": "river_landed"},
+			{"zh": "影像盒", "after": "river_deer_msg"},
+			{"zh": "市集借呼吸装置", "after": "river_need_head"},
 			{"zh": "水闸", "after": "river_oldstreet"},
-			{"zh": "水下仓库（读取头、真相）", "after": "river_sluice_done"},
+			{"zh": "水下仓库、真相", "after": "river_sluice_done"},
 			{"zh": "修好影像", "after": "river_back_home"},
 			{"zh": "南桥取景", "after": "river_cup_traced"},
 			{"zh": "货台找船号", "after": "river_prints"},
-			{"zh": "铜铃、修船、告别妮芙", "after": "river_ship_number"}
+			{"zh": "告别妮芙", "after": "river_ship_number"}
 		]
 	},
 	"flags": {

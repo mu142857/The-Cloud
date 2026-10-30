@@ -60,6 +60,9 @@ var _saved_auto := -1.0
 var _names := {}                 # data/dev_names.json：{flags, markers, scenes, rooms, states} → {id: 中文名}
 var _completing := false         # 状态页点的 flag 正在补齐（快进中），别的点先不理
 var _beat_btns: Array = []       # 节拍页的大节点：[{b, ch, after}]（亮现在在哪一段）
+var _all_box: VBoxContainer      # 节拍页最下面折叠的「全部节点」
+var _all_fold: Button
+var _cur_head: Label             # 节拍页现在这章的标题（打开时滚到它）
 
 
 func _ready() -> void:
@@ -109,12 +112,21 @@ func _ready() -> void:
 	_overlay.draw.connect(_draw_overlay)
 	level.add_child(_overlay)
 	_set_tab(0)
+	_scroll_to_chapter.call_deferred()
 	if "--dev_test" in OS.get_cmdline_user_args():
 		_self_test.call_deferred()
 
 
 func toggle() -> void:
 	visible = not visible
+
+
+## 节拍页滚到现在这一章（排好版以后才知道位置，等两帧）
+func _scroll_to_chapter() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _cur_head != null:
+		(_pages[0] as ScrollContainer).scroll_vertical = int(_cur_head.position.y)
 
 
 ## 名字表：kind = flags / markers / scenes / rooms / states。scenes 先查「章节:id」（不同章节同名 scene），查不到回退原 id
@@ -179,19 +191,22 @@ func all_flags() -> Array[String]:
 
 
 func _build_beats(v: VBoxContainer) -> void:
-	var tip := _label("点一下 = 跳到这一段的开头，前面的剧情自动做完（flag、背包、物件都补齐）。剧情播着也能跳；能跨章跳")
+	var tip := _label("点 = 跳到这段开头，前面的自动做完；剧情播着也能跳")
 	tip.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	tip.add_theme_font_size_override("font_size", 12)
 	v.add_child(tip)
 	var beats = _names.get("beats", {})
 	for ch in level.CHAPTER_GD.CHAPTERS:
 		var cn := _chapter_name(str(ch))
-		var head := _label("— %s%s —" % [cn, "（现在在这章）" if ch == level.chapter else ""])
+		var head := _label("— %s%s —" % [cn, "（现在）" if ch == level.chapter else ""])
 		head.add_theme_font_size_override("font_size", 12)
 		v.add_child(head)
+		if ch == level.chapter:
+			_cur_head = head
 		var list = beats.get(ch, []) if beats is Dictionary else []
 		for bt in list:
 			var after := str(bt.get("after", ""))
-			var b := _btn("%s · %s" % [cn, str(bt.get("zh", after))], _jump_to.bind(str(ch), after),
+			var b := _btn("%s·%s" % [cn, str(bt.get("zh", after))], _jump_to.bind(str(ch), after),
 				"%s  %s" % [ch, after if after != "" else "（章节开头）"])
 			v.add_child(b)
 			_beat_btns.append({"b": b, "ch": str(ch), "after": after})
@@ -201,22 +216,25 @@ func _build_beats(v: VBoxContainer) -> void:
 			v.add_child(_btn("　河流篇按「烧了%s」进（点换成%s）" % ["通勤卡" if card else "蓝色石头", "蓝色石头" if card else "通勤卡"],
 				_river_seed.bind("" if card else "card")))
 	# 剧本里所有设 flag 的地方（细碎，调试用）：默认收起
-	var flags := all_flags()
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 1)
-	box.visible = false
-	var fold := _btn("", Callable())
-	fold.pressed.connect(func():
-		box.visible = not box.visible
-		fold.text = "%s 全部节点（本章 %d 个，调试用）" % ["▾" if box.visible else "▸", flags.size()])
-	fold.text = "▸ 全部节点（本章 %d 个，调试用）" % flags.size()
+	_all_box = VBoxContainer.new()
+	_all_box.add_theme_constant_override("separation", 1)
+	_all_box.visible = false
+	_all_fold = _btn("", _toggle_all)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 6)
 	v.add_child(gap)
-	v.add_child(fold)
-	v.add_child(box)
-	for f in flags:
-		box.add_child(_btn(_nm("flags", f), _jump_beat.bind(f), f))
+	v.add_child(_all_fold)
+	v.add_child(_all_box)
+	for f in all_flags():
+		_all_box.add_child(_btn(_nm("flags", f), _jump_beat.bind(f), f))
+	_all_box.visible = true
+	_toggle_all()
+
+
+## 「全部节点」展开 / 收起
+func _toggle_all() -> void:
+	_all_box.visible = not _all_box.visible
+	_all_fold.text = "%s 全部节点（本章 %d 个，调试用）" % ["▾" if _all_box.visible else "▸", _all_box.get_child_count()]
 
 
 func _label(text: String) -> Label:
@@ -494,6 +512,11 @@ func _test_buttons() -> void:
 		_set_tab(t)
 		await _wait(0.25)
 	_set_tab(0)
+	_toggle_all()
+	var fold_ok := _all_box.visible
+	_toggle_all()
+	if not fold_ok or _all_box.visible:
+		print("DEV_TEST 全部节点折叠 FAILED")
 	print("DEV_TEST buttons ok (toggles %d, markers %d, 大节点 %d)" % [_toggles.size(), story.world.markers.size(), _all_beats().size()])
 
 
@@ -627,7 +650,7 @@ func _test_interrupt(d: Dictionary) -> void:
 	story.auto = ""
 	print("DEV_TEST interrupt %s（%s scene=%s，F8 开面板=%s）→ %s · %s: %s  接着玩: %s" % [it[0],
 		"打断时正在" if d["hit"] else "没等到这种时候 NOT_HIT", d["scene"], d["open"], _chapter_name(str(to[0])),
-		str(to[1]), "ok" if reached else "MISSING", "ok" if story.ended or StoryState.flag_order.size() > n0 else "STUCK"])
+		_nm("flags", str(to[1])), "ok" if reached else "MISSING", "ok" if story.ended or StoryState.flag_order.size() > n0 else "STUCK"])
 	d["i"] = int(d["i"]) + 1
 	d["stage"] = "from"
 	_test_go(d)

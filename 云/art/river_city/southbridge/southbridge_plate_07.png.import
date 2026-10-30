@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ce8tq0d1nnljw"
-path="res://.godot/imported/wall_channel.png-da9dad11449219ea2e3ce70e594b375c.ctex"
+uid="uid://csbf4dgos1bo"
+path="res://.godot/imported/southbridge_plate_07.png-ed94a75e323b1f1d6491366e292c1c0f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/cockpit/sky/wall_channel.png"
-dest_files=["res://.godot/imported/wall_channel.png-da9dad11449219ea2e3ce70e594b375c.ctex"]
+source_file="res://art/river_city/southbridge/southbridge_plate_07.png"
+dest_files=["res://.godot/imported/southbridge_plate_07.png-ed94a75e323b1f1d6491366e292c1c0f.ctex"]
 
 [params]
 

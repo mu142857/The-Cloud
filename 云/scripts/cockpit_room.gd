@@ -48,7 +48,8 @@ extends Node2D
 ##   没在躲碎石（steering = false）时 ship_goal 每秒 SHIP_RETURN 像素回 0。ship_reset()：直接回中间、泛光熄掉。
 ## 反重力泛光（10-29 作者：「直接上下平移看着很奇怪……周围泛光，毕竟外星科技」）：glow = scripts/ship_glow.gd，
 ##   当室内图 _back_spr 的子节点（画在它后面），轮廓从 cockpit_back.png 的不透明像素算；每帧 glow.drive(ship_vy, delta)：
-##   跟着船的竖直速度亮（整艘船一圈：船底一直是主光，往上挪时上沿也亮，两侧带一点），停住以后约 0.6 秒慢慢熄；
+##   跟着船的竖直速度亮（整艘船均匀的一圈，10-30 改：原来船底厚上沿薄），停住以后约 0.6 秒慢慢熄；
+##   flight1 开头往上升那几秒改亮暖红的热光（_climb_glow）；
 ##   平时的 ±1 像素起伏不算进 ship_vy，完全不亮。船在画面上很大，glow.reach_scale = 1.5（光照得更远）。
 ##   hull()：从 cockpit_back.png 的不透明像素算出的船身轮廓（每列上下沿，屏幕坐标；尾翼那种比主船身高出去的部分夹到主船身的上下沿），
 ##   躲碎石的碰撞用它。
@@ -72,6 +73,8 @@ const SKY_M := 48                       # 船外背景比屏幕每边大这么�
 const BOB_SEC := 5.5                    # 平时飞行的上下起伏：一个来回多少秒（±1 像素）
 const SHIP_W := 10.0                    # 船跟着 ship_goal 走的弹簧：角频率（越大跟得越紧）
 const SHIP_Z := 0.6                     # 阻尼比（< 1：停下时冲过头 1 像素再回来；0.6 实测 28 → 29 → 28）
+const CLIMB_STATES := ["canopy_fall", "forest_below"]   # 窗外是这几个状态时船在往上升：船外亮热光（_climb_glow）
+const CLIMB_GLOW := 0.5                 # 上升时热光亮到多少
 const SHIP_RETURN := 8.0                # 不在躲碎石时 ship_goal 每秒回中间多少像素
 const SHIP_GLOW := preload("res://scripts/ship_glow.gd")
 const OUT_DIR := "res://art/cockpit/ship_out/"
@@ -539,6 +542,7 @@ func set_prop(id: String, st: String) -> void:
 		var story = level.get("story") if level != null else null
 		var ff: bool = story != null and bool(story.get("ff"))
 		_sky_go(st, ff or not visible or _sky_state == "")
+		_climb_glow(st)
 		return
 	if not objects.has(id):
 		_warn_once("没有物件 %s 的位置（cockpit.json 里没有），只记状态 %s" % [id, st])
@@ -930,6 +934,21 @@ func _draw_sky() -> void:
 			c.draw_texture(tex, Vector2(roundf(float(L["x"])), y), col)
 
 
+## flight1 开头船往上升那几秒（窗外 CLIMB_STATES）：船身外一圈热光（ship_glow 的 heat：暖红、推进器那头最亮），
+## 慢慢亮到 CLIMB_GLOW、升完慢慢收掉（10-30 作者：「为什么最开始上升的时候没有外侧的光，我觉得红光不错」）。
+## 之后躲碎石一按速度挪，ship_glow 自己平滑换回青绿。
+func _climb_glow(st: String) -> void:
+	if glow == null:
+		return
+	if st in CLIMB_STATES:
+		if glow.strength <= 0.0:
+			glow.heat = 1.0                          # 从熄着开始：直接是红的，不先绿一下
+		glow.heat_goal = 1.0
+		glow.hold_goal = CLIMB_GLOW
+	else:
+		glow.hold_goal = 0.0
+
+
 ## 船追 ship_goal：欠阻尼弹簧（先缓起、再缓停，停下时冲过头 1 像素左右再回来），按 1/60 秒分步算（帧率低也稳）；泛光跟着速度亮 / 熄
 func _ship_step(delta: float) -> void:
 	var left := delta
@@ -954,6 +973,8 @@ func ship_reset() -> void:
 	ship_vy = 0.0
 	if glow != null:
 		glow.strength = 0.0
+		glow.hold = 0.0
+		glow.hold_goal = 0.0
 	if far_glow != null:
 		far_glow.strength = 0.0
 	far_snap(false)

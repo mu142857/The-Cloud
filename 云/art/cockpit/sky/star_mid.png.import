@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d2fkexslqyosp"
-path="res://.godot/imported/ripples.png-73c0591ac298546c8b9bbfa8309b2d6a.ctex"
+uid="uid://d0qyvf8foyjep"
+path="res://.godot/imported/star_mid.png-de2785e4ead0f783649af14437b1a01b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/southbridge/ripples.png"
-dest_files=["res://.godot/imported/ripples.png-73c0591ac298546c8b9bbfa8309b2d6a.ctex"]
+source_file="res://art/cockpit/sky/star_mid.png"
+dest_files=["res://.godot/imported/star_mid.png-de2785e4ead0f783649af14437b1a01b.ctex"]
 
 [params]
 

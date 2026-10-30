@@ -1,34 +1,76 @@
 {
- "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "_note": "tools/river_warehouse_bridge_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。远景层是原来的蓝色月夜河岸（art/river）。",
  "size": [
   1500,
   270
  ],
- "env": "river_day",
+ "env": "river",
  "bg": [
-  "#1b2228",
-  "#3a4752"
+  "#0b1424",
+  "#06101c"
  ],
  "layers": [
   {
    "id": "sky",
-   "img": "res://art/river_city/common/sky.png",
+   "img": "res://art/river/sky.png",
    "scroll": 0.0,
+   "y": 0
+  },
+  {
+   "id": "ridge",
+   "img": "res://art/river/ridge.png",
+   "scroll": 0.05,
    "y": 0,
    "tile": true
   },
   {
-   "id": "far",
-   "img": "res://art/river_city/common/far.png",
-   "scroll": 0.15,
-   "y": -40,
+   "id": "mist",
+   "img": "res://art/river/mist.png",
+   "scroll": 0.1,
+   "y": 0,
    "tile": true
   },
   {
-   "id": "midfar",
-   "img": "res://art/river_city/common/midfar.png",
-   "scroll": 0.35,
-   "y": -114,
+   "id": "shore",
+   "img": "res://art/river/shore.png",
+   "scroll": 0.16,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "ripples",
+   "img": "res://art/river/ripples.png",
+   "scroll": 0.3,
+   "y": 151,
+   "tile": true,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "speed": 0.7,
+    "wobble": 2.0,
+    "flicker": 0.0,
+    "show": 0.62
+   }
+  },
+  {
+   "id": "glints",
+   "img": "res://art/river/glints.png",
+   "scroll": 0.0,
+   "y": 155,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": true,
+    "speed": 1.0,
+    "wobble": 2.0,
+    "flicker": 0.9,
+    "show": 0.6
+   }
+  },
+  {
+   "id": "water",
+   "img": "res://art/river/water.png",
+   "scroll": 0.42,
+   "y": 0,
    "tile": true
   },
   {
@@ -42,35 +84,6 @@
    "img": "main.png",
    "scroll": 1.0,
    "y": 0
-  },
-  {
-   "id": "shafts",
-   "img": "shafts.png",
-   "scroll": 1.0,
-   "y": 0,
-   "alpha": 0.07,
-   "z": -15
-  },
-  {
-   "id": "water",
-   "img": "water.png",
-   "scroll": 1.0,
-   "y": 248,
-   "water": true,
-   "front": true,
-   "alpha": 0.7
-  },
-  {
-   "id": "ripples",
-   "img": "ripples.png",
-   "scroll": 1.0,
-   "y": 247,
-   "front": true,
-   "shader": "water",
-   "shader_params": {
-    "palette_mode": false,
-    "show": 0.7
-   }
   },
   {
    "id": "front",
@@ -123,7 +136,7 @@
   "southbridge_back": 14,
   "southbridge_niff": 60,
   "southbridge_lamp_post": 522,
-  "southbridge_ornament": 1024,
+  "southbridge_ornament": 1028,
   "southbridge_arch_wrong": 310,
   "southbridge_arch": 590,
   "southbridge_footprints": 596,
@@ -134,55 +147,9 @@
   "southbridge_plates": 1450,
   "southbridge_arch_far": 850,
   "southbridge_view_spot": 592,
-  "southbridge_plate_07": 1427,
-  "southbridge_plate_12": 1447,
-  "southbridge_plate_21": 1467
- },
- "objects": {
-  "southbridge_arch": {
-   "x": 682,
-   "y": 104,
-   "w": 30,
-   "h": 70,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "scratches": 1
-   }
-  },
-  "southbridge_footprints": {
-   "x": 520,
-   "y": 229,
-   "w": 150,
-   "h": 14,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "seen": 1
-   }
-  },
-  "southbridge_waterway": {
-   "x": 1056,
-   "y": 146,
-   "w": 88,
-   "h": 88,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "revealed": 1
-   }
-  },
-  "southbridge_routemap": {
-   "x": 1296,
-   "y": 90,
-   "w": 110,
-   "h": 110,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "fallen": 1
-   }
-  }
+  "southbridge_plate_07": 1420,
+  "southbridge_plate_12": 1440,
+  "southbridge_plate_21": 1460
  },
  "walk": [
   12,
@@ -213,10 +180,111 @@
    "db": -14
   }
  ],
+ "scripts": [],
  "viewfinder": {
   "img": "viewfinder.png",
   "cam_x": 352,
   "chen_x": 592,
-  "note": "镜头左边缘 = cam_x 时对齐；取景框不跟镜头（CanvasLayer），alpha 自己定（建议 0.45）"
+  "note": "镜头左边缘 = cam_x 时对齐；用这几层按引擎视差公式合成后压成影像（tools/river_warehouse_bridge_art.py 每次重出）"
+ },
+ "objects": {
+  "southbridge_arch": {
+   "x": 528,
+   "y": 66,
+   "w": 124,
+   "h": 40,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "scratches": 1
+   },
+   "click": [
+    560,
+    100,
+    60,
+    128
+   ]
+  },
+  "southbridge_footprints": {
+   "x": 520,
+   "y": 229,
+   "w": 150,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "seen": 1
+   }
+  },
+  "southbridge_waterway": {
+   "x": 1050,
+   "y": 138,
+   "w": 100,
+   "h": 92,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "revealed": 1
+   },
+   "click": [
+    1060,
+    150,
+    80,
+    78
+   ]
+  },
+  "southbridge_routemap": {
+   "x": 1286,
+   "y": 84,
+   "w": 130,
+   "h": 116,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "fallen": 1
+   },
+   "click": [
+    1292,
+    88,
+    118,
+    108
+   ]
+  },
+  "southbridge_plate_07": {
+   "x": 1412,
+   "y": 105,
+   "w": 16,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "back": 0,
+    "held": 1
+   }
+  },
+  "southbridge_plate_12": {
+   "x": 1432,
+   "y": 105,
+   "w": 16,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "back": 0,
+    "held": 1
+   }
+  },
+  "southbridge_plate_21": {
+   "x": 1452,
+   "y": 105,
+   "w": 16,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "back": 0,
+    "held": 1
+   }
+  }
  }
 }

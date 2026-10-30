@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4bimqktwgpl6"
-path="res://.godot/imported/rail.png-fa2981aac8d68596c949dddec493bd47.ctex"
+uid="uid://bej6xrb4ppb73"
+path="res://.godot/imported/southbridge_plate_12.png-413e90a6302a070345d7d23d95a56152.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/oldstreet/rail.png"
-dest_files=["res://.godot/imported/rail.png-fa2981aac8d68596c949dddec493bd47.ctex"]
+source_file="res://art/river_city/southbridge/southbridge_plate_12.png"
+dest_files=["res://.godot/imported/southbridge_plate_12.png-413e90a6302a070345d7d23d95a56152.ctex"]
 
 [params]
 

@@ -35,6 +35,7 @@
 - 鸽子群（scripts/city_pigeons.gd）：远、中远、中景各一群淡灰白的鸽子在楼间慢慢盘旋，像流体一样拉长挤扁，
   转向时一只接一只翻过来；中景还有一群歇在高架轨道梁上，列车开过来时被惊起，绕一圈再落回梁上另一处。
 - 下雨（scripts/city_rain.gd）：远、中、近、前景四层斜雨，整像素硬边；街面上溅小水花。
+  （第十二版换成非像素的 GPUParticles2D 细雨，见文末。）
 - 湿街面（scripts/city_wet.gdshader）：把地面线以上的亮东西（窗、霾缝、日光灯、信号灯、列车车窗、人影、晨）
   上下翻转照进街面，断成竖条、随雨抖动，几处积水更清楚；晨自己的倒影压得很淡。
 - 墙面：窗下、楼板下拖出长短不一的水渍和几道淡锈痕；一排排重复的空调外机；楼梯间竖条窗里的冷白日光灯
@@ -81,6 +82,13 @@
 - 每排人都踩在看得见的地上：三条高架步道是实的（湿路面 + 外沿亮边 + 暗桥身 + 底下影子，越远越窄越高，少褪雾 air），
   街面一面平的楼底座墙（PLINTH_TOP..SW_BACK）+ 湿人行道（比鞋亮）+ 接触影子，路沿立面 CURB_FACE 行，下面才是镜子。
 - 湿街面倒影压暗（refl_near 0.4 / refl_far 0.18），竖光条只取真正亮的灯。
+第十二版（2026-10-30，作者：「这个下雨能不能不用像素雨，用 Until Someone Passes 的那种非像素的绵绵细雨，GPUParticle 2D 的」）：
+- 雨（scripts/city_rain.gd + city_rain.gdshader）改成 GPUParticles2D：每滴一根很细、柔边、半透明的斜线（贴图开场现生成，
+  线性过滤；canvas_items 拉伸下按窗口分辨率画，芯约 1 个屏幕像素），出生淡入、到点淡出，打到地面那一行裁掉。
+  中景（Mid）、街面（Main）、灯下（LampRain，只在光锥里、密、亮）、前景（Front）四层，越近越长越快越亮。
+  远景（Far）那层雨被前面的楼整个挡住，去掉了。整齐匀速，不阵雨；最亮的灯下雨丝也比晨的白发暗。
+- 街面上的小涟漪（scripts/city_ripples.gd，节点 Ripples）：压扁的细环撑开淡掉，画在镜子后面、不进倒影。
+- 特效 lite 时雨和涟漪的粒子数 × 0.4。
 除了天，每层宽 960、左右无缝。所有随机都固定 seed。
 """
 from __future__ import annotations
@@ -1643,6 +1651,7 @@ def write_scene(layers, hood_w, passer_fs=(150, 270)):
         ('Script', 'res://scripts/city_rain.gd', '27_rain'),
         ('Script', 'res://scripts/city_flicker.gd', '28_flicker'),
         ('Shader', 'res://scripts/city_wet.gdshader', '29_wet'),
+        ('Script', 'res://scripts/city_ripples.gd', '30_ripples'),
         ('PackedScene', 'res://scenes/chen.tscn', '40_chen'),
         ('Texture2D', 'res://art/city/passer.png', '51_passer'),
         ('Texture2D', 'res://art/city/car.png', '52_car'),
@@ -1707,19 +1716,32 @@ def write_scene(layers, hood_w, passer_fs=(150, 270)):
                         f"interval = Vector2({iv[0]}, {iv[1]})", f"dir = {d}", f"far = {'true' if parent == 'Far' else 'false'}", ""]
         return []
 
-    def rain(parent, n, ln, v, col, seed, ground=(228, 228), splash=False, dim=(0.17, 0.175, 0.19), area_y=-10,
-             name="Rain", lit=False, only_lit=False):
-        out = [f'[node name="{name}" type="Node2D" parent="{parent}"]', 'script = ExtResource("27_rain")',
-               f"count = {n}", f"length = {ln}", f"speed = {v}", f"color = Color({col[0]}, {col[1]}, {col[2]}, 1)",
-               f"color_dim = Color({dim[0]}, {dim[1]}, {dim[2]}, 1)", f"area = Rect2(0, {area_y}, 960, 240)",
-               f"ground = Vector2({ground[0]}, {ground[1]})", f"splash = {'true' if splash else 'false'}",
-               f"seed = {seed}"]
+    def rain(parent, n, life, seed, ln, w, v, col, bottom, area_y=-10, y_dim=183, dim=0.45, name="Rain",
+             lit=False, only_lit=False):
+        # GPUParticles2D 细雨（scripts/city_rain.gd）：n 粒、活 life 秒、长 ln、图宽 w、竖直速度 v、颜色 col（带 alpha）
+        out = [f'[node name="{name}" type="GPUParticles2D" parent="{parent}"]', f"amount = {n}", f"lifetime = {life}",
+               f"seed = {seed}", 'script = ExtResource("27_rain")', f"length = {ln}", f"width = {w}", f"speed = {v}",
+               f"color = Color({col[0]}, {col[1]}, {col[2]}, {col[3]})", f"area = Rect2(0, {area_y}, 960, 240)",
+               f"bottom = {bottom}", f"y_dim = {y_dim}", f"dim = {dim}"]
         if lit:     # 路灯光锥里的雨丝亮起来（和 cones() 同一组光锥）
             ls = ", ".join(f"{lx + LAMP_ARM + 0.5}, {LAMP_LENS_Y + 2}, {CONE_TOP_W / 2}, {CONE_BOT_W / 2 - 4}" for lx in LAMPS)
-            r_, g_, b_ = (v_ / 255 for v_ in COLD_L(0.6, 0.02, 205))
             out += [f"lights = PackedVector4Array({ls})", f"light_bottom = {GROUND}.0",
-                    f"color_lit = Color({r_:.3f}, {g_:.3f}, {b_:.3f}, 1)", f"only_lit = {'true' if only_lit else 'false'}"]
+                    "color_lit = Color(0.66, 0.72, 0.75, 1)", "lit_boost = 3.0"]
+            if only_lit:
+                out += ["only_lit = true"]
         return out + [""]
+
+    def ripples():
+        # 街面上的小涟漪（scripts/city_ripples.gd）：远处一条小的、近处一条大的；画在镜子后面
+        out = ['[node name="Ripples" type="Parallax2D" parent="."]', f"scroll_scale = Vector2({SCROLL['main']}, 1)",
+               "repeat_size = Vector2(960, 0)", "repeat_times = 2", ""]
+        top = GROUND + CURB_FACE + 3
+        for name, n, life, seed, y0, h, size, a in (("Far", 40, 0.7, 46, top, 20, 5.0, 0.22),
+                                                   ("Near", 36, 0.8, 47, top + 21, 52, 10.0, 0.26)):
+            out += [f'[node name="{name}" type="GPUParticles2D" parent="Ripples"]', f"amount = {n}", f"lifetime = {life}",
+                    f"seed = {seed}", 'script = ExtResource("30_ripples")', f"area = Rect2(0, {y0}, 960, {h})",
+                    f"size = {size}", f"color = Color(0.62, 0.67, 0.72, {a})", ""]
+        return out
 
     def passers():
         P = PASSERS
@@ -1750,7 +1772,6 @@ def write_scene(layers, hood_w, passer_fs=(150, 270)):
     s += crowd("Far", "Far", 3)
     s += train("Far")
     s += sig("Far", "far", 2)
-    s += rain("Far", 240, 3, 110, (0.25, 0.265, 0.28), 41, ground=(150, 236), dim=(0.2, 0.205, 0.22))
     s += para("MidFar", "midfar", "4_midfar")
     s += crowd("MidFar", "MidFar", 5)
     s += flicker("MidFar", "midfar", 8, 0.35)
@@ -1760,12 +1781,12 @@ def write_scene(layers, hood_w, passer_fs=(150, 270)):
     s += sig("Mid", "mid", 6)
     s += flicker("Mid", "mid", 9, 0.3)
     s += train("Mid")
-    s += rain("Mid", 150, 5, 220, (0.27, 0.285, 0.3), 42, ground=(170, 236))
+    s += rain("Mid", 700, 1.3, 42, 6, 0.9, 105, (0.62, 0.66, 0.7, 0.3), 236)
     s += para("Main", "main", "6_main")
     s += street_row(STREET_ROWS[0])
     s += street_row(STREET_ROWS[1])
-    s += rain("Main", 80, 7, 380, (0.3, 0.315, 0.33), 43, ground=(229, 268), splash=True, lit=True)
-    s += rain("Main", 700, 6, 380, (0.38, 0.39, 0.41), 45, ground=(229, 232), name="LampRain", lit=True, only_lit=True)
+    s += rain("Main", 800, 1.1, 43, 9, 1.0, 150, (0.62, 0.66, 0.7, 0.36), GROUND, lit=True)
+    s += rain("Main", 800, 0.9, 45, 9, 1.0, 150, (0.62, 0.66, 0.7, 0.3), GROUND, name="LampRain", lit=True, only_lit=True)
     s += cones()
     s += ['[node name="Chen" parent="." instance=ExtResource("40_chen")]', f"position = Vector2(204, {GROUND + 1})", ""]
     # 晨同一条街、画在她前面的那几个人（同一个深度、同一个视差）
@@ -1775,6 +1796,7 @@ def write_scene(layers, hood_w, passer_fs=(150, 270)):
     s += ['[node name="Wet" type="Parallax2D" parent="."]', "scroll_scale = Vector2(0, 0)", "",
           '[node name="Rect" type="ColorRect" parent="Wet"]', 'material = SubResource("wet")',
           f"offset_top = {GROUND - CAM_DY + CURB_FACE + 1}.0", "offset_right = 480.0", "offset_bottom = 270.0", "mouse_filter = 2", ""]
+    s += ripples()
     # 冷光源的光晕：灯头一圈、灯下湿地上一摊（叠加；画在镜子后面，所以不会在倒影里再被照一次）
     s += ['[node name="Glow" type="Parallax2D" parent="."]', f"scroll_scale = Vector2({SCROLL['main']}, 1)",
           "repeat_size = Vector2(960, 0)", "repeat_times = 2", ""]
@@ -1787,7 +1809,7 @@ def write_scene(layers, hood_w, passer_fs=(150, 270)):
         s += [f'[node name="G{i}" type="Sprite2D" parent="Glow"]', 'material = SubResource("add")',
               f'texture = ExtResource("{tex}")', f"position = Vector2({gx}, {gy})", ""]
     s += para("Front", "front", "7_front")
-    s += rain("Front", 14, 12, 620, (0.3, 0.31, 0.33), 44, ground=(240, 290), dim=(0.3, 0.31, 0.33), area_y=-40)
+    s += rain("Front", 70, 1.0, 44, 16, 1.4, 240, (0.6, 0.64, 0.68, 0.24), 310, area_y=20, y_dim=9999, dim=1.0)
     s += passers()
     s += ['[node name="Camera" type="Camera2D" parent="."]', f"position = Vector2(240, {135 + CAM_DY})", "",
           '[node name="Overlay" type="CanvasLayer" parent="."]', "layer = 10", "",

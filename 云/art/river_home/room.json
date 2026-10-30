@@ -1,16 +1,16 @@
 {
- "_comment": "妮芙家（剖面小屋）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。tools/river_home_art.py 生成，别手改。地板下面泡在水里的旧一层（旧门、旧门牌）是会话 C 画在河岸栈道下面的。",
+ "_comment": "妮芙家（剖面小屋，月夜）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。tools/river_bank_moon_art.py 生成（屋内借 tools/river_home_art.py 的画法重新上色），别手改。地板下面泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
  "kind": "house",
  "host": "river_bank",
  "x": 890,
  "size": [
   420,
-  176
+  206
  ],
  "back": "home_back.png",
  "front": "home_front.png",
  "light": "home_light.png",
- "floor": 175,
+ "floor": 205,
  "walk": [
   26,
   392
@@ -34,7 +34,7 @@
   "river_home_table": {
    "img": "obj_table.png",
    "x": 140,
-   "y": 136,
+   "y": 166,
    "w": 67,
    "h": 16,
    "frames": 11,
@@ -57,7 +57,7 @@
   "river_home_hourglass": {
    "img": "obj_hourglass.png",
    "x": 168,
-   "y": 138,
+   "y": 168,
    "w": 10,
    "h": 14,
    "frames": 6,
@@ -75,7 +75,7 @@
   "niff_notebook": {
    "img": "obj_notebook.png",
    "x": 191,
-   "y": 147,
+   "y": 177,
    "w": 12,
    "h": 5,
    "frames": 2,
@@ -96,7 +96,7 @@
   "niff_photo": {
    "img": "obj_photo.png",
    "x": 180,
-   "y": 149,
+   "y": 179,
    "w": 9,
    "h": 3,
    "frames": 3,
@@ -111,7 +111,7 @@
   "guestbook": {
    "img": "obj_guestbook.png",
    "x": 174,
-   "y": 120,
+   "y": 150,
    "w": 111,
    "h": 32,
    "frames": 8,
@@ -131,7 +131,7 @@
   "river_home_chair": {
    "img": "obj_chair.png",
    "x": 230,
-   "y": 146,
+   "y": 176,
    "w": 58,
    "h": 30,
    "frames": 2,
@@ -145,7 +145,7 @@
   "river_home_cabinet": {
    "img": "obj_cabinet.png",
    "x": 282,
-   "y": 86,
+   "y": 116,
    "w": 51,
    "h": 83,
    "frames": 3,
@@ -160,7 +160,7 @@
   "river_home_player": {
    "img": "obj_player.png",
    "x": 332,
-   "y": 128,
+   "y": 158,
    "w": 36,
    "h": 34,
    "frames": 35,
@@ -199,7 +199,7 @@
   "river_home_labels": {
    "img": "obj_labels.png",
    "x": 25,
-   "y": 62,
+   "y": 92,
    "w": 373,
    "h": 109,
    "frames": 2,

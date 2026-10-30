@@ -1,5 +1,5 @@
 {
-	"_comment": "河流城市「妮芙的三分钟」剧本（剧情姐合订稿 in1030/yun1.txt 第 73–152 行）。通讯器用 phone_* 步骤（docs/phone_and_cockpit_contract.md）：鹿借弥洛通讯器留言 river_msg_deer、告别时 phone_add nifu。生成脚本 scratchpad/later/gen_river.py。妮芙的记忆用沙漏 + 轻铃（sfx bell_soft）+ 她的本子（prop niff_notebook）表现，不计时。水下仓库里两人不说话（她说过不要隔着面罩喊）。markers 坐标都是占位 0。带 \"added\": true 的是补写。",
+	"_comment": "河流城市「妮芙的三分钟」剧本（剧情姐合订稿 in1030/yun1.txt 第 73–152 行）。通讯器用 phone_* 步骤（docs/phone_and_cockpit_contract.md）：鹿借弥洛通讯器留言 river_msg_deer、告别时 phone_add nifu。生成脚本 scratchpad/later/gen_river.py。妮芙的记忆用沙漏 + 轻铃（sfx bell_soft）+ 她的本子（prop niff_notebook）表现，不计时。水下仓库里两人不说话（她说过不要隔着面罩喊）。markers 坐标都是占位 0。带 \"added\": true 的是补写。 10-30：飞行一结尾改成往前一冲进黑色星空、第一章结束（不再降落），原文 71–72 的降落（城市沿水道铺开……趴在操纵台上缓了一会儿）挪到 start_river 开头：晨先藏起来，河岸画面淡入时用 narr 念完、配推进器关掉 / 撞浮木的声音，晨说「行。至少到了。」以后再从舱门出来。手改的，重新跑生成脚本会丢，要一起改进去。",
 	"speakers": {
 		"chen": {"zh": "晨", "en": "Chen"},
 		"niff": {"zh": "妮芙", "en": "Niff"},
@@ -196,6 +196,20 @@
 	],
 	"scenes": {
 		"start_river": [
+			{"do": "hide", "who": "chen"},
+			{"narr": {"zh": "河流星。城市沿着水道铺开，细桥连着屋顶，低处的街道泛着水光。", "en": "The river planet. The city spread out along its waterways, thin bridges linking the rooftops, the low streets shining with water."}},
+			{"narr": {"zh": "地图上的降落广场只露出一截钟楼，跑道上停着船。", "en": "Of the landing square on the map, only the top of a clock tower showed. There were boats on the runway."}},
+			{"do": "sfx", "name": "thruster_off"},
+			{"narr": {"zh": "晨关掉主推进器，锁住受损的管道。", "en": "Chen cut the main thruster and locked off the damaged pipe."}},
+			{"do": "sfx", "name": "wood_knock", "pan": -0.5},
+			{"do": "wait", "sec": 0.3},
+			{"do": "sfx", "name": "wood_knock", "pan": 0.4},
+			{"do": "wait", "sec": 0.3},
+			{"do": "sfx", "name": "thud"},
+			{"narr": {"zh": "飞机撞散一片浮木，卡进一条窄水道。", "en": "The plane broke through a raft of driftwood and wedged itself into a narrow channel."}},
+			{"narr": {"zh": "晨趴在操纵台上，缓了一会儿。", "en": "Chen slumped over the console for a while."}},
+			{"do": "wait", "sec": 0.8},
+			{"say": "chen", "zh": "行。至少到了。", "en": "Okay. At least I made it."},
 			{"do": "show", "who": "chen", "at": "river_bank_hatch"},
 			{"do": "sfx", "name": "hatch_open"},
 			{"do": "prop", "id": "river_bank_crates", "state": "tail"},

@@ -1,34 +1,52 @@
 {
- "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "_note": "tools/river_town_moon_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
  "size": [
   1440,
   270
  ],
- "env": "river_day",
+ "env": "river",
  "bg": [
-  "#1b2228",
-  "#3a4752"
+  "#03060f",
+  "#0a1424"
  ],
  "layers": [
   {
    "id": "sky",
-   "img": "res://art/river_city/common/sky.png",
+   "img": "res://art/river/sky.png",
    "scroll": 0.0,
+   "y": 0
+  },
+  {
+   "id": "ridge",
+   "img": "res://art/river/ridge.png",
+   "scroll": 0.05,
    "y": 0,
    "tile": true
   },
   {
-   "id": "far",
-   "img": "res://art/river_city/common/far.png",
-   "scroll": 0.15,
-   "y": 20,
-   "tile": true
+   "id": "mist",
+   "img": "res://art/river/mist.png",
+   "scroll": 0.1,
+   "y": 0,
+   "tile": true,
+   "drift": -2.5
   },
   {
-   "id": "midfar",
-   "img": "res://art/river_city/common/midfar.png",
-   "scroll": 0.35,
-   "y": -38,
+   "id": "glints",
+   "img": "res://art/river/glints.png",
+   "scroll": 0.0,
+   "y": 155,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": true,
+    "wobble": 2.0
+   }
+  },
+  {
+   "id": "far",
+   "img": "far.png",
+   "scroll": 0.2,
+   "y": 0,
    "tile": true
   },
   {
@@ -42,14 +60,6 @@
    "img": "main.png",
    "scroll": 1.0,
    "y": 0
-  },
-  {
-   "id": "shafts",
-   "img": "shafts.png",
-   "scroll": 1.0,
-   "y": 0,
-   "alpha": 0.08,
-   "z": -15
   },
   {
    "id": "rail",
@@ -81,7 +91,7 @@
  },
  "objects": {
   "market_baskets": {
-   "x": 60,
+   "x": 46,
    "y": 187,
    "w": 70,
    "h": 40,
@@ -127,31 +137,14 @@
  ],
  "walkers": [
   {
-   "npc": "hood_a",
-   "path": [
-    [
-     0,
-     199
-    ],
-    [
-     1440,
-     199
-    ]
-   ],
-   "speed": 12,
-   "z": -20,
-   "loop": "wrap",
-   "count": 5
-  },
-  {
    "npc": "vendor",
    "path": [
     [
-     80,
+     160,
      199
     ],
     [
-     130,
+     250,
      199
     ]
    ],

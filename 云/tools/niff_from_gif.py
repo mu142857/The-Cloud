@@ -4,13 +4,13 @@
 只有三处不同：
   1. 不清杂点：鲸鱼尾旁边那几颗分开的水花像素是画师故意画的，一颗都不去。
   2. 不换纯黑：这张图里没有不透明的纯黑（有的话直接报错，让人来看，而不是偷偷换色）。
-  3. 写 niff.json（forms.swim；forms.land 留空，等美术组的岸上图）。
+  3. 写 niff.json（岸上 land、水下 swim 都用这张图；岸上悬浮，见 json 的 _comment）。
 步骤：找放大倍数（每 s×s 一格纯色）→ 按每格中心像素缩回 → GIF 透明色 → alpha 0，其余 255 →
 所有帧同一块裁剪（不透明像素并集，四周留 PAD 格透明）→ 横排写 png → 自检：缩回的图放大 s 倍和原 GIF 逐像素一样。
 
 用法（工程根目录下）：
   "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/niff_from_gif.py [源文件.gif]
-美术组以后交岸上的图，照同样的方法放进 art/characters/niff/，写进 niff.json 的 forms.land。
+美术组以后交别的动作，照同样的方法放进 art/characters/niff/，写进 niff.json 的 anims。
 """
 import json
 import shutil
@@ -94,23 +94,22 @@ def main():
     print(f"每帧最下一行 {bottoms} → 锚点 {anchor}；共 {len(colors)} 色")
 
     meta = {
-        "_comment": "妮芙 = 美术组的鲸鱼妹（作者 10-29 确认）。swim 是 GIF 原样导入（tools/niff_from_gif.py），不改色不改形，"
-                    "帧长保留 200ms；头朝右，朝左用水平翻转；tint false = 不着色不压暗。land 留空（form 一开始是 land）：岸上的图等美术组交，"
-                    "之前引擎用 color 的浅蓝青竖条占位、打 MISSING_ANIM niff.<名字>。anchor = 鲸壳底边中点（帧内像素坐标）；head = 对话框离脚底多高。",
+        "_comment": "妮芙 = 美术组的鲸鱼妹（作者 10-29 确认；10-30 作者定：整个河流篇都用这张鲸鱼壳动图，岸上不用占位）。swim 是 GIF 原样导入（tools/niff_from_gif.py），不改色不改形不缩放，"
+                    "帧长保留 200ms；头朝右，朝左用水平翻转；tint false = 不着色不压暗。两套形态都用这张图：land = 坐在水壳里悬浮在地面上方 hover 像素、"
+                    "整只上下 bob 像素（平滑正弦，bob_s 秒一圈，只动位置不改帧），地上留影子；swim = 水下，只浮 1 像素、没影子。alias 把 idle/walk/talk 都接到 swim；"
+                    "剧本里别的动作（tail_up、write……）没有帧，退回这张动图并打 MISSING_ANIM niff.<名字>。anchor = 鲸壳底边中点（帧内像素坐标）；head = 对话框离脚底多高。",
+        "sheet": "niff_swim.png",
+        "frame": [fw, fh],
+        "anchor": anchor,
+        "faces": "right",
+        "anims": {"swim": {"frames": list(range(len(crop))), "ms": ms[0] if len(set(ms)) == 1 else ms}},
+        "alias": {"idle": "swim", "walk": "swim", "talk": "swim"},
         "forms": {
-            "swim": {
-                "sheet": "niff_swim.png",
-                "frame": [fw, fh],
-                "anchor": anchor,
-                "faces": "right",
-                "anims": {"swim": {"frames": list(range(len(crop))), "ms": ms[0] if len(set(ms)) == 1 else ms}},
-            },
-            "land": {},
+            "land": {"hover": 2, "bob": 3, "bob_s": 2.8, "head": 48},
+            "swim": {"bob": 1, "bob_s": 2.4, "head": 44},
         },
         "form": "land",
         "tint": False,
-        "head": 44,
-        "color": "#7cc6d6",
     }
     (DIR / "niff.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print("→ niff.json")

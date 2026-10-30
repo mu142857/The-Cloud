@@ -1,5 +1,5 @@
 {
- "_note": "tools/river_city_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。",
+ "_note": "tools/river_warehouse_bridge_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。远景层是原来的水底（art/underwater）。",
  "size": [
   720,
   270
@@ -11,10 +11,70 @@
  ],
  "layers": [
   {
-   "id": "back",
-   "img": "back.png",
-   "scroll": 0.3,
+   "id": "deep",
+   "img": "res://art/underwater/deep.png",
+   "scroll": 0.0,
    "y": 0
+  },
+  {
+   "id": "distant",
+   "img": "res://art/underwater/distant.png",
+   "scroll": 0.05,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "far",
+   "img": "res://art/underwater/far.png",
+   "scroll": 0.08,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "midfar",
+   "img": "res://art/underwater/midfar.png",
+   "scroll": 0.17,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "head",
+   "img": "res://art/underwater/head.png",
+   "scroll": 0.3,
+   "x": -215,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "headweeds",
+   "img": "res://art/underwater/headweeds.png",
+   "scroll": 0.3,
+   "x": -215,
+   "y": 182,
+   "tile": true,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 2.0,
+    "speed": 0.55,
+    "wavelength": 120.0,
+    "power": 1.4,
+    "bend": 0.12
+   }
+  },
+  {
+   "id": "kelp",
+   "img": "res://art/underwater/kelp.png",
+   "scroll": 0.52,
+   "y": 20,
+   "tile": true,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 4.0,
+    "speed": 0.5,
+    "wavelength": 160.0,
+    "power": 1.7,
+    "bend": 0.05
+   }
   },
   {
    "id": "main",
@@ -27,7 +87,7 @@
    "img": "shafts.png",
    "scroll": 1.0,
    "y": 0,
-   "alpha": 0.06,
+   "alpha": 0.1,
    "z": -15
   },
   {
@@ -40,116 +100,22 @@
  ],
  "ground": 236,
  "markers": {
-  "warehouse_cabinet_top": 530,
+  "warehouse_cabinet_top": 534,
   "warehouse_cabinet_foot": 478,
   "warehouse_entry": 40,
-  "warehouse_niff": 70,
+  "warehouse_niff": 72,
   "warehouse_rope": 40,
-  "warehouse_boxes": 380,
-  "warehouse_broken_box": 286,
-  "warehouse_float": 440,
-  "warehouse_tall_cabinet": 504,
-  "warehouse_furniture": 528,
-  "warehouse_inner_door": 548,
+  "warehouse_boxes": 368,
+  "warehouse_broken_box": 284,
+  "warehouse_float": 442,
+  "warehouse_tall_cabinet": 500,
+  "warehouse_furniture": 527,
+  "warehouse_inner_door": 550,
   "warehouse_cabinet": 598,
-  "warehouse_sluice_door": 660,
+  "warehouse_sluice_door": 664,
   "warehouse_exit_light": 33,
   "warehouse_knot_1": 230,
   "warehouse_knot_2": 420
- },
- "objects": {
-  "warehouse_exit_light": {
-   "x": 25,
-   "y": 134,
-   "w": 16,
-   "h": 8,
-   "frames": 2,
-   "ms": 900,
-   "states": {
-    "default": [
-     0,
-     1
-    ],
-    "on": [
-     0,
-     1
-    ]
-   }
-  },
-  "warehouse_broken_box": {
-   "x": 262,
-   "y": 212,
-   "w": 48,
-   "h": 24,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "spilled": 1
-   }
-  },
-  "warehouse_tall_cabinet": {
-   "x": 470,
-   "y": 172,
-   "w": 68,
-   "h": 64,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "fallen": 0,
-    "lifted": 1
-   }
-  },
-  "warehouse_float": {
-   "x": 430,
-   "y": 156,
-   "w": 112,
-   "h": 80,
-   "frames": 3,
-   "states": {
-    "default": 0,
-    "idle": 0,
-    "tied_warehouse_cabinet_top": 1,
-    "tied_warehouse_cabinet_foot": 2
-   }
-  },
-  "warehouse_furniture": {
-   "x": 510,
-   "y": 192,
-   "w": 40,
-   "h": 44,
-   "frames": 3,
-   "states": {
-    "default": 0,
-    "pinned": 0,
-    "loose": 1,
-    "moved": 2
-   }
-  },
-  "warehouse_inner_door": {
-   "x": 542,
-   "y": 176,
-   "w": 12,
-   "h": 60,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "closed": 0,
-    "open": 1
-   }
-  },
-  "warehouse_sluice_door": {
-   "x": 640,
-   "y": 136,
-   "w": 64,
-   "h": 100,
-   "frames": 2,
-   "states": {
-    "default": 0,
-    "log": 0,
-    "signatures": 0,
-    "taken": 1
-   }
-  }
  },
  "walk": [
   24,
@@ -163,7 +129,7 @@
    150
   ],
   "end": 686,
-  "color": "#8e9a98",
+  "color": "#7b8a8a",
   "knots": [
    230,
    420
@@ -199,5 +165,146 @@
     ]
    }
   }
- ]
+ ],
+ "objects": {
+  "warehouse_float": {
+   "x": 420,
+   "y": 118,
+   "w": 146,
+   "h": 119,
+   "frames": 4,
+   "z": -1,
+   "click": [
+    430,
+    200,
+    24,
+    36
+   ],
+   "states": {
+    "default": 0,
+    "idle": 0,
+    "tied_warehouse_cabinet_top": 1,
+    "tied_warehouse_cabinet_foot": 2,
+    "held": 3
+   }
+  },
+  "warehouse_tall_cabinet": {
+   "x": 420,
+   "y": 118,
+   "w": 146,
+   "h": 119,
+   "frames": 3,
+   "z": -2,
+   "click": [
+    470,
+    196,
+    74,
+    40
+   ],
+   "states": {
+    "default": 0,
+    "fallen": 0,
+    "lifted": 1,
+    "tilt_wrong": 2
+   }
+  },
+  "warehouse_furniture": {
+   "x": 420,
+   "y": 118,
+   "w": 146,
+   "h": 119,
+   "frames": 4,
+   "z": -3,
+   "click": [
+    508,
+    200,
+    38,
+    36
+   ],
+   "states": {
+    "default": 0,
+    "pinned": 0,
+    "wiggle": 1,
+    "loose": 2,
+    "moved": 3
+   }
+  },
+  "warehouse_inner_door": {
+   "x": 545,
+   "y": 174,
+   "w": 10,
+   "h": 62,
+   "frames": 2,
+   "z": -2,
+   "states": {
+    "default": 0,
+    "closed": 0,
+    "open": 1
+   }
+  },
+  "warehouse_exit_light": {
+   "x": 25,
+   "y": 134,
+   "w": 16,
+   "h": 8,
+   "frames": 2,
+   "ms": 900,
+   "states": {
+    "default": [
+     0,
+     1
+    ],
+    "on": [
+     0,
+     1
+    ]
+   }
+  },
+  "warehouse_broken_box": {
+   "x": 258,
+   "y": 207,
+   "w": 56,
+   "h": 30,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "spilled": 1
+   }
+  },
+  "warehouse_knot_1": {
+   "x": 226,
+   "y": 148,
+   "w": 9,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "warehouse_knot_2": {
+   "x": 416,
+   "y": 148,
+   "w": 9,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "warehouse_sluice_door": {
+   "x": 640,
+   "y": 124,
+   "w": 70,
+   "h": 112,
+   "frames": 3,
+   "states": {
+    "default": 0,
+    "log": 0,
+    "signatures": 1,
+    "taken": 2
+   }
+  }
+ }
 }

@@ -1,5 +1,5 @@
 {
-	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接降落。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。",
+	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。",
 	"speakers": {
 		"chen": {
 			"zh": "晨",
@@ -53,8 +53,8 @@
 			"not": [
 				"flight1_done"
 			],
-			"zh": "降落",
-			"en": "Land",
+			"zh": "全速前进",
+			"en": "Full speed ahead",
 			"show_fuel": false,
 			"added": true
 		},
@@ -1381,22 +1381,12 @@
 				"to": "cockpit_window"
 			},
 			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "river_planet"
+				"do": "flag",
+				"set": "flight1_landing"
 			},
 			{
 				"do": "wait",
-				"sec": 2.0
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "river_city"
-			},
-			{
-				"do": "wait",
-				"sec": 2.0
+				"sec": 1.0
 			},
 			{
 				"do": "walk",
@@ -1409,193 +1399,18 @@
 				"to": "cockpit_window"
 			},
 			{
-				"do": "flag",
-				"set": "flight1_landing"
-			},
-			{
-				"do": "show_item",
-				"item": "travel_map"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_nav",
-				"state": "landing_zone"
-			},
-			{
-				"narr": {
-					"zh": "降落区",
-					"en": "Landing zone"
-				},
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "降落区……在这儿。",
-				"en": "Landing zone... here.",
-				"added": true
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "clocktower"
-			},
-			{
-				"say": "chen",
-				"zh": "……广场呢？",
-				"en": "...Where's the square?",
-				"added": true
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "boats"
-			},
-			{
-				"say": "chen",
-				"zh": "跑道上怎么停着船？",
-				"en": "Why are there boats on the runway?",
-				"added": true
-			},
-			{
-				"do": "sfx",
-				"name": "alarm"
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "pull_up"
-			},
-			{
-				"do": "sfx",
-				"name": "wire_scrape",
-				"pan": 0.6
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "tilt"
-			},
-			{
-				"do": "sfx",
-				"name": "splash"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "skid"
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_splashdown"
-			}
-		],
-		"flight1_splashdown": [
-			{
 				"do": "anim",
 				"who": "chen",
 				"name": "adjust_console"
 			},
 			{
-				"do": "sfx",
-				"name": "thruster_off"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_console",
-				"state": "main_off"
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "lock_pipe"
-			},
-			{
-				"do": "sfx",
-				"name": "valve_lock"
-			},
-			{
-				"do": "wait",
-				"sec": 0.6
-			},
-			{
-				"do": "sfx",
-				"name": "wood_knock",
-				"pan": -0.5
-			},
-			{
-				"do": "wait",
-				"sec": 0.3
-			},
-			{
-				"do": "sfx",
-				"name": "wood_knock",
-				"pan": 0.4
-			},
-			{
-				"do": "wait",
-				"sec": 0.3
-			},
-			{
-				"do": "sfx",
-				"name": "wood_knock",
-				"pan": 0.0
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "channel"
-			},
-			{
-				"do": "sfx",
-				"name": "thud"
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
-			},
-			{
-				"do": "sfx",
-				"name": "alarm_stop"
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "slump_console"
-			},
-			{
-				"do": "wait",
-				"sec": 2.5
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "idle"
-			},
-			{
 				"say": "chen",
-				"zh": "行。至少到了。",
-				"en": "Okay. At least I made it."
+				"zh": "走吧。",
+				"en": "Let's go.",
+				"added": true
 			},
 			{
-				"do": "prop",
-				"id": "cockpit_window",
-				"state": "crate"
-			},
-			{
-				"do": "wait",
-				"sec": 1.5
-			},
-			{
-				"do": "sfx",
-				"name": "crate_bump"
-			},
-			{
-				"do": "wait",
-				"sec": 1.5
+				"do": "cockpit_dash"
 			},
 			{
 				"do": "flag",

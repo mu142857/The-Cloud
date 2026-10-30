@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3]
+[gd_scene load_steps=32 format=3]
 
 [ext_resource type="Texture2D" path="res://art/city/sky.png" id="1_sky"]
 [ext_resource type="Texture2D" path="res://art/city/ridge.png" id="2_ridge"]
@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://scripts/city_rain.gd" id="27_rain"]
 [ext_resource type="Script" path="res://scripts/city_flicker.gd" id="28_flicker"]
 [ext_resource type="Shader" path="res://scripts/city_wet.gdshader" id="29_wet"]
+[ext_resource type="Script" path="res://scripts/city_ripples.gd" id="30_ripples"]
 [ext_resource type="PackedScene" path="res://scenes/chen.tscn" id="40_chen"]
 [ext_resource type="Texture2D" path="res://art/city/passer.png" id="51_passer"]
 [ext_resource type="Texture2D" path="res://art/city/car.png" id="52_car"]
@@ -109,18 +110,6 @@ points = PackedVector2Array(67, 100, 127, 116, 187, 22, 247, 116, 307, 76, 367, 
 dot = 1
 seed = 2
 
-[node name="Rain" type="Node2D" parent="Far"]
-script = ExtResource("27_rain")
-count = 240
-length = 3
-speed = 110
-color = Color(0.25, 0.265, 0.28, 1)
-color_dim = Color(0.2, 0.205, 0.22, 1)
-area = Rect2(0, -10, 960, 240)
-ground = Vector2(150, 236)
-splash = false
-seed = 41
-
 [node name="MidFar" type="Parallax2D" parent="."]
 scroll_scale = Vector2(0.38, 1)
 repeat_size = Vector2(960, 0)
@@ -208,17 +197,19 @@ interval = Vector2(10.0, 16.0)
 dir = 1
 far = false
 
-[node name="Rain" type="Node2D" parent="Mid"]
-script = ExtResource("27_rain")
-count = 150
-length = 5
-speed = 220
-color = Color(0.27, 0.285, 0.3, 1)
-color_dim = Color(0.17, 0.175, 0.19, 1)
-area = Rect2(0, -10, 960, 240)
-ground = Vector2(170, 236)
-splash = false
+[node name="Rain" type="GPUParticles2D" parent="Mid"]
+amount = 700
+lifetime = 1.3
 seed = 42
+script = ExtResource("27_rain")
+length = 6
+width = 0.9
+speed = 105
+color = Color(0.62, 0.66, 0.7, 0.3)
+area = Rect2(0, -10, 960, 240)
+bottom = 236
+y_dim = 183
+dim = 0.45
 
 [node name="Main" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.0, 1)
@@ -274,36 +265,41 @@ hi = Color(0.212, 0.220, 0.235, 1)
 rim = Color(0.447, 0.459, 0.475, 1)
 glow = Color(0.380, 0.490, 0.525, 1)
 
-[node name="Rain" type="Node2D" parent="Main"]
-script = ExtResource("27_rain")
-count = 80
-length = 7
-speed = 380
-color = Color(0.3, 0.315, 0.33, 1)
-color_dim = Color(0.17, 0.175, 0.19, 1)
-area = Rect2(0, -10, 960, 240)
-ground = Vector2(229, 268)
-splash = true
+[node name="Rain" type="GPUParticles2D" parent="Main"]
+amount = 800
+lifetime = 1.1
 seed = 43
-lights = PackedVector4Array(130.5, 118, 3.5, 35.0, 370.5, 118, 3.5, 35.0, 610.5, 118, 3.5, 35.0, 850.5, 118, 3.5, 35.0)
-light_bottom = 228.0
-color_lit = Color(0.451, 0.518, 0.525, 1)
-only_lit = false
-
-[node name="LampRain" type="Node2D" parent="Main"]
 script = ExtResource("27_rain")
-count = 700
-length = 6
-speed = 380
-color = Color(0.38, 0.39, 0.41, 1)
-color_dim = Color(0.17, 0.175, 0.19, 1)
+length = 9
+width = 1.0
+speed = 150
+color = Color(0.62, 0.66, 0.7, 0.36)
 area = Rect2(0, -10, 960, 240)
-ground = Vector2(229, 232)
-splash = false
-seed = 45
+bottom = 228
+y_dim = 183
+dim = 0.45
 lights = PackedVector4Array(130.5, 118, 3.5, 35.0, 370.5, 118, 3.5, 35.0, 610.5, 118, 3.5, 35.0, 850.5, 118, 3.5, 35.0)
 light_bottom = 228.0
-color_lit = Color(0.451, 0.518, 0.525, 1)
+color_lit = Color(0.66, 0.72, 0.75, 1)
+lit_boost = 3.0
+
+[node name="LampRain" type="GPUParticles2D" parent="Main"]
+amount = 800
+lifetime = 0.9
+seed = 45
+script = ExtResource("27_rain")
+length = 9
+width = 1.0
+speed = 150
+color = Color(0.62, 0.66, 0.7, 0.3)
+area = Rect2(0, -10, 960, 240)
+bottom = 228
+y_dim = 183
+dim = 0.45
+lights = PackedVector4Array(130.5, 118, 3.5, 35.0, 370.5, 118, 3.5, 35.0, 610.5, 118, 3.5, 35.0, 850.5, 118, 3.5, 35.0)
+light_bottom = 228.0
+color_lit = Color(0.66, 0.72, 0.75, 1)
+lit_boost = 3.0
 only_lit = true
 
 [node name="Shafts" type="Parallax2D" parent="."]
@@ -369,6 +365,29 @@ offset_top = 193.0
 offset_right = 480.0
 offset_bottom = 270.0
 mouse_filter = 2
+
+[node name="Ripples" type="Parallax2D" parent="."]
+scroll_scale = Vector2(1.0, 1)
+repeat_size = Vector2(960, 0)
+repeat_times = 2
+
+[node name="Far" type="GPUParticles2D" parent="Ripples"]
+amount = 40
+lifetime = 0.7
+seed = 46
+script = ExtResource("30_ripples")
+area = Rect2(0, 235, 960, 20)
+size = 5.0
+color = Color(0.62, 0.67, 0.72, 0.22)
+
+[node name="Near" type="GPUParticles2D" parent="Ripples"]
+amount = 36
+lifetime = 0.8
+seed = 47
+script = ExtResource("30_ripples")
+area = Rect2(0, 256, 960, 52)
+size = 10.0
+color = Color(0.62, 0.67, 0.72, 0.26)
 
 [node name="Glow" type="Parallax2D" parent="."]
 scroll_scale = Vector2(1.0, 1)
@@ -437,17 +456,19 @@ position = Vector2(0, 299)
 region_enabled = true
 region_rect = Rect2(0, 299, 960, 11)
 
-[node name="Rain" type="Node2D" parent="Front"]
-script = ExtResource("27_rain")
-count = 14
-length = 12
-speed = 620
-color = Color(0.3, 0.31, 0.33, 1)
-color_dim = Color(0.3, 0.31, 0.33, 1)
-area = Rect2(0, -40, 960, 240)
-ground = Vector2(240, 290)
-splash = false
+[node name="Rain" type="GPUParticles2D" parent="Front"]
+amount = 70
+lifetime = 1.0
 seed = 44
+script = ExtResource("27_rain")
+length = 16
+width = 1.4
+speed = 240
+color = Color(0.6, 0.64, 0.68, 0.24)
+area = Rect2(0, 20, 960, 240)
+bottom = 310
+y_dim = 9999
+dim = 1.0
 
 [node name="Passers" type="CanvasLayer" parent="."]
 layer = 1

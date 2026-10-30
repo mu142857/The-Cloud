@@ -5,7 +5,8 @@ extends Node2D
 ## 节点的 position = 脚底（踩在地面那一行下面一格，和晨一样：position.y = round(地面) + 1）。
 ## 帧时长：每个动作自己的 ms（默认 json 顶层 ms，再默认 100）；绝不加速，走得快慢只改移动速度。
 ## 找动作：anims[名字] → alias[名字] → GENERIC_ALIAS → idle（resolve 返回 "" 时由 story_runner 打 MISSING_ANIM）。
-## forms：多套形态（妮芙 land / swim），每套里写的键覆盖顶层；空的那套 = 占位色块。swim 形态整只上下 1 像素慢浮（不改图）。
+## forms：多套形态（妮芙 land / swim），每套里写的键覆盖顶层；没有图的那套 = 占位色块。
+## hover / bob / bob_s（可选）：整只离地 hover 像素悬浮、上下浮 bob 像素（平滑正弦，bob_s 秒一圈，取整到像素，不改帧）。
 ## 缺图 / 没有 json：画 color 的竖条色块 + 名字（森林规矩：缺图不卡）。
 ## 跟随（story_runner 的 follow）：follow_to(x) 每帧给目标，弹簧追（先缓起再缓停），停下转向晨；走路动画帧速不变。
 
@@ -97,7 +98,7 @@ func set_form(f: String) -> void:
 		spr.vframes = 1
 		spr.frame = 0
 		_label.text = npc_id + ("·" + f if f != "" else "")
-		_label.visible = shadow                # 背景走过的小人（shadow = false）占位不写名字
+		_label.visible = shadow and npc_id != "niff"   # 背景走过的小人（shadow = false）占位不写名字；妮芙有图，万一缺图也不写
 	else:
 		_label.visible = false
 	var tint: bool = cur.get("tint", true)
@@ -283,9 +284,10 @@ func _process(delta: float) -> void:
 func _show_frame() -> void:
 	if spr == null:
 		return
-	var bob := 0.0
-	if form == "swim":
-		bob = -1.0 if fmod(_t, 2.4) < 1.2 else 0.0          # 整只上下 1 像素慢浮
+	var bob := -float(cur.get("hover", 0.0))
+	var amp := float(cur.get("bob", 0.0))
+	if amp > 0.0:
+		bob -= round(amp * (0.5 - 0.5 * cos(TAU * _t / maxf(float(cur.get("bob_s", 2.4)), 0.1))))
 	if _ph:
 		spr.offset = Vector2(-PH_SIZE.x / 2, -PH_SIZE.y + bob)
 		spr.flip_h = facing < 0
@@ -323,6 +325,7 @@ func _show_frame() -> void:
 	var ax := an.x if not spr.flip_h else fr.x - 1.0 - an.x
 	spr.offset = Vector2(-ax, -an.y - 1.0 + bob)
 	_shadow.visible = shadow and form != "swim"
+	_shadow.scale.x = 2.0 if cur.get("hover", 0.0) > 0.0 else 1.0      # 悬浮的鲸壳比人宽，影子拉宽一倍
 
 
 static func _v2(v) -> Vector2:

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dl2gsltpa0i0m"
-path="res://.godot/imported/shafts.png-36888cde0b85e00ad04cb86887e88809.ctex"
+uid="uid://emrwtnxe38dy"
+path="res://.godot/imported/river_sky.png-18b9d25886d1b90348588accb791c06d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/southbridge/shafts.png"
-dest_files=["res://.godot/imported/shafts.png-36888cde0b85e00ad04cb86887e88809.ctex"]
+source_file="res://art/cockpit/sky/river_sky.png"
+dest_files=["res://.godot/imported/river_sky.png-18b9d25886d1b90348588accb791c06d.ctex"]
 
 [params]
 

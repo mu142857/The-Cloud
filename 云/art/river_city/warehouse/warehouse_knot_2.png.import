@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://25g04csibdji"
-path="res://.godot/imported/shafts.png-ab398494ffd2ea8bbd4c685d2de07fba.ctex"
+uid="uid://kek4qva8f3ne"
+path="res://.godot/imported/warehouse_knot_2.png-5e64cc57e708fd39e2840ff8bade7927.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/market/shafts.png"
-dest_files=["res://.godot/imported/shafts.png-ab398494ffd2ea8bbd4c685d2de07fba.ctex"]
+source_file="res://art/river_city/warehouse/warehouse_knot_2.png"
+dest_files=["res://.godot/imported/warehouse_knot_2.png-5e64cc57e708fd39e2840ff8bade7927.ctex"]
 
 [params]
 

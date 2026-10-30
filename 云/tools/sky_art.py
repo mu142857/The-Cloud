@@ -255,146 +255,241 @@ def forest_layers():
     return out
 
 
-# ============================================================ 云（穿云、云海、碎石带、加速）
-C_HUE = 165
+
+# ============================================================ 颜色：向量化的 sRGB <-> OKLab（整张图换色用）
+def _lin(c):
+    c = c / 255.0
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
 
 
-def bumps(L: Layer, rng, y0, rmin, rmax, gmin, gmax, ry_k=0.75, sign=-1, ynoise=None):
-    """一排鼓包（椭圆的并），sign=-1 往上鼓（云顶），+1 往下垂（云底）。"""
-    m = np.zeros((L.h, L.w), bool)
-    for x in spaced(rng, TW, gmin, gmax):
-        r = int(rng.integers(rmin, rmax + 1))
-        yy = y0 + (ynoise[x % TW] if ynoise is not None else 0)
-        m |= L.ellipse(x, yy + sign * r * 0.25, r, r * ry_k)
-    return m
+def _gam(c):
+    c = np.clip(c, 0, 1)
+    return np.where(c <= 0.0031308, 12.92 * c, 1.055 * c ** (1 / 2.4) - 0.055)
 
 
-def contour_bands(m, top_line, steps):
-    """按离云顶多深分档：steps = [(深度上限, 颜色), ...]，返回 [(mask, 颜色)]。"""
-    H = m.shape[0]
-    depth = np.arange(H)[:, None] - top_line[None, :]
-    out = []
-    lo = -10 ** 9
-    for hi, c in steps:
-        out.append((m & (depth >= lo) & (depth < hi), c))
-        lo = hi
+def rgb2lab(rgb):
+    r, g, b = np.moveaxis(_lin(np.asarray(rgb, float)), -1, 0)
+    l = np.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+    m = np.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+    s = np.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+    return np.stack([0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+                     1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+                     0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s], -1)
+
+
+def lab2rgb(lab):
+    L, a, b = np.moveaxis(np.asarray(lab, float), -1, 0)
+    l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+    m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+    s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3
+    rgb = np.stack([4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+                    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+                    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s], -1)
+    return (_gam(rgb) * 255).round().astype(np.uint8)
+
+
+def renight(a, L_of, h_dark, h_lit, L_lo=.08, L_hi=.30, c_k=0.45, c_max=0.034):
+    """作者的图整张换色：亮度按 L_of 映射（保住明暗结构、一档一档的台阶也照旧），色相按新亮度在 h_dark..h_lit 之间走，
+    色度乘 c_k、封顶 c_max。只换颜色，不动一个像素的位置。"""
+    out = a.copy()
+    m = a[..., 3] > 0
+    cols, inv = np.unique(a[m][:, :3], axis=0, return_inverse=True)
+    lab = rgb2lab(cols)
+    L2 = L_of(lab[:, 0])
+    C2 = np.minimum(np.hypot(lab[:, 1], lab[:, 2]) * c_k, c_max)
+    t = np.clip((L2 - L_lo) / (L_hi - L_lo), 0, 1)
+    h = np.radians(h_dark + (h_lit - h_dark) * t)
+    new = lab2rgb(np.stack([L2, C2 * np.cos(h), C2 * np.sin(h)], -1))
+    out[m, :3] = new[inv.ravel()]
     return out
 
 
-def first_row(m):
-    """每列最上面那个实心像素的行号（空列给 H）。"""
-    H = m.shape[0]
-    has = m.any(0)
-    return np.where(has, m.argmax(0), H)
+SKY_PAD = 48           # 整屏的天（不 tile）四边各多画这么多：引擎的背景比屏幕每边大 SKY_M = 48，镜头抖不露出底色的色带
 
 
-def cloud_deck():
-    """整块云层：上面是鼓鼓的受光云顶，下面是垂下来的暗云底。穿云时它从屏幕上面整个扫下来，最后变成云海。"""
-    L = Layer(TW, 300)
-    rng = np.random.default_rng(201)
-    top_n = 6 * pnoise(TW, 11, 1, 6)
-    bot_n = 6 * pnoise(TW, 12, 1, 6)
-    m = np.zeros((L.h, L.w), bool)
-    m[34:270] = True
-    m |= bumps(L, rng, 34, 10, 30, 14, 30, 0.7, -1, top_n)
-    m |= bumps(L, rng, 262, 8, 22, 12, 26, 0.6, +1, bot_n)
-    # 云底的边可以超过画布，裁掉
-    top = first_row(m)
-    for mm, c in contour_bands(m, top, [(2, col(.265, .016, 150)), (9, col(.235, .018, 158)),
-                                        (26, col(.215, .018, C_HUE)), (70, col(.20, .018, C_HUE)),
-                                        (10 ** 6, col(.19, .017, C_HUE + 4))]):
-        L.paint(mm, c)
-    # 云顶里一团团的分界（鼓包的右下沿暗一档）
-    for x in spaced(rng, TW, 22, 46):
-        r = int(rng.integers(10, 22))
-        yy = 34 + top_n[x % TW] + int(rng.integers(6, 20))
-        e = L.ellipse(x, yy, r, r * 0.6)
-        edge = e & ~up(e) & m & ~right(e)
-        edge = e & ~down(e)
-        L.paint(edge & m & (np.arange(L.h)[:, None] > top[None, :] + 3), col(.205, .018, C_HUE))
-    # 云底：下沿往上 6 像素暗一档、最下沿再暗
-    bot_line = L.h - 1 - first_row(m[::-1])
-    depth_b = bot_line[None, :] - np.arange(L.h)[:, None]
-    L.paint(m & (depth_b < 7) & (depth_b >= 0), col(.175, .016, C_HUE + 6))
-    L.paint(m & (depth_b < 2) & (depth_b >= 0), col(.165, .015, C_HUE + 8))
-    return L
+def widen(a, pad=SKY_PAD):
+    """480×270 的天往四边镜像出 pad 像素（镜像不会把星星拉成线）。用的时候 x = y = -pad。"""
+    return np.pad(a, ((pad, pad), (pad, pad), (0, 0)), mode="symmetric")
 
 
-def cloud_far():
-    """远处的云海（地平线上那一层），小鼓包、对比很低。"""
-    L = Layer(TW, 110)
-    rng = np.random.default_rng(202)
-    n = 3 * pnoise(TW, 21, 1, 7)
-    m = np.zeros((L.h, L.w), bool)
-    m[12:] = True
-    m |= bumps(L, rng, 12, 3, 10, 5, 13, 0.6, -1, n)
-    top = first_row(m)
-    for mm, c in contour_bands(m, top, [(1, col(.245, .016, 152)), (6, col(.225, .017, 160)),
-                                        (30, col(.21, .017, C_HUE)), (10 ** 6, col(.20, .017, C_HUE + 4))]):
-        L.paint(mm, c)
-    # 远处一两道云缝
-    for y, amp in ((24, 2), (44, 3), (70, 3)):
-        nn = pnoise(TW, 22 + y, 2, 9)
-        for x in range(TW):
-            if nn[x] > 0.35:
-                L.a[int(y + amp * nn[x]), x, :3] = col(.195, .017, C_HUE + 4)
-    return L
+def pad_foot(a, n):
+    """图下面再接 n 行最后一行（层往上挪时下沿不露缝）。"""
+    return np.concatenate([a, np.repeat(a[-1:], n, axis=0)], axis=0)
+
+
+def crop_rows(a, pad=1):
+    r = np.nonzero(a[..., 3].any(1))[0]
+    y0 = max(0, r.min() - pad)
+    return a[y0:r.max() + 1 + pad], int(y0)
+
+
+# ============================================================ 云（穿云、云海、碎石带、加速）：作者的云海场景（scenes/cloud_test.tscn）
+# 10-30 作者：「可以但是细节处理的不好」，原来的云是扁椭圆 + 三档平涂，没有体积。现在：
+# - 天：就是作者云海场景的天（art/cloud/sky.png：余晖在地平线左边、扇形光芒、星、银河），整张换成月夜的青绿（renight）。
+#   余晖在机头前方（往那边飞），是第一眼的焦点；最亮压到 L≈.31（比舱壁亮的部分暗）。
+# - 高云：作者的 high.png（几条被余晖从下面照亮的薄云）同样换色。
+# - 云海：直接调 tools/cloud_art.py 的 Field / sea_row / sea_layer2（球堆 + 菜花小球、朝光走几步出团来分明暗），
+#   远 / 中远 / 中三层的参数照作者的 build_far / build_midfar / build_mid 抄（云山也在；云象不放——那是最后一站的）。
+#   只把色阶换成月夜：暗端深青（h 206）、受光往青绿（h 172），不是作者那颗星的玫瑰紫。
+# - cloud_deck（穿云 + 脚下最近的云海）：同一套画法，团顶照作者的 build_near，肚子里再几排更近更暗的菜花团，
+#   下沿是一排垂下来的云底：穿云时一团团往下掠，不是一整块平涂。
+# - wisps：近处掠过的小云团也是菜花球（不是扁椭圆），下半截暗一档，有体积。
+sys.path.insert(0, str(ROOT / "tools"))
+import cloud_art as CA  # noqa: E402
+
+CL_HUE = (206, 172)    # 云：暗端色相、受光端色相
+
+
+def cl_pal(lo, hi, n, c_lo=.018, c_hi=.036):
+    return CA.cloud_pal(lo, hi, n, C_lo=c_lo, C_hi=c_hi, h_lo=CL_HUE[0], h_hi=CL_HUE[1])
+
+
+def _sky_L(L):
+    return np.clip(.078 + .44 * (L - .06), .07, .33)
+
+
+_CSKY = {}
+
+
+def cloud_sky_full():
+    """作者云海场景的天，换成月夜青绿，四边镜像出 SKY_PAD。"""
+    if "a" not in _CSKY:
+        a = np.array(Image.open(CA.OUT / "sky.png").convert("RGBA"))
+        _CSKY["a"] = widen(renight(a, _sky_L, 214, 168, L_lo=.07, L_hi=.30, c_k=.5, c_max=.036))
+    return _CSKY["a"]
+
+
+def sky_row(y):
+    """云海场景里第 y 行天的颜色（余晖右边那一段的平均）：远处的云往这个色里褪。"""
+    a = cloud_sky_full()[y + SKY_PAD, SKY_PAD + 260:SKY_PAD + 480, :3]
+    lab = rgb2lab(a).mean(0)
+    return tuple(int(v) for v in lab2rgb(lab[None])[0])
 
 
 def cloud_high():
-    """高空的薄云条（扁长、稀），在天上很慢地走。"""
-    L = Layer(TW, 100)
-    rng = np.random.default_rng(203)
-    for _ in range(16):
-        x = int(rng.integers(0, TW))
-        y = int(rng.integers(8, 92))
-        rx = int(rng.integers(30, 110))
-        ry = int(rng.integers(2, 5))
-        e = L.ellipse(x, y, rx, ry)
-        e |= L.ellipse(x + rx * 0.35, y - ry * 0.6, rx * 0.45, ry)
-        L.paint(e, col(.225, .016, C_HUE))            # 比起飞段的天（.20～.31）亮一点，爬升时看得出云在往下压
-        L.paint(e & ~up(e), col(.255, .016, 158))
-    return L
+    """作者的 high.png（余晖右边几条被从下面照亮的薄云）换色；只留有东西的那几行。"""
+    a = np.array(Image.open(CA.OUT / "high.png").convert("RGBA"))
+    a = renight(a, _sky_L, 214, 168, L_lo=.07, L_hi=.30, c_k=.5, c_max=.036)
+    a, y0 = crop_rows(a)
+    return a, y0
+
+
+def cloud_sea(which):
+    """远 / 中远 / 中三层云海：作者 build_far / build_midfar / build_mid 的参数，月夜色阶。返回 (960×(270+120), 0)。"""
+    if which == "far":
+        rows = [dict(base=146, z=0, scale=4, sq=0.36, fog=0.36, n=14, h=(1, 5), w=(14, 36), deck=1.0, wave=2.0, big=0.1,
+                     rmin=1.2, depth=1),
+                dict(base=153, z=20, scale=5.5, sq=0.4, fog=0.24, n=14, h=(2, 8), w=(20, 46), deck=1.5, wave=4.5,
+                     big=0.35, rmin=1.4, depth=1),
+                dict(base=162, z=40, scale=7, sq=0.44, fog=0.12, n=11, h=(3, 10), w=(26, 56), deck=2.0, wave=5.5,
+                     big=0.35, rmin=1.6, depth=2)]
+        lay = CA.sea_layer2(rows, cl_pal(.20, .345, 6, .02, .036), sky_row(147), 21, body=2, rim=(1.0, 2.0),
+                            crease=1.0, bands=(1.3,), run_bands=(3,), rim_lv=(3, 2))
+    elif which == "midfar":
+        flats = ((250, 45, 5), (700, 40, 4))
+        rows = [dict(base=166, z=0, scale=8, sq=0.5, fog=0.24, n=10, h=(3, 11), w=(26, 70), deck=2, wave=6, big=0.2,
+                     rmin=1.6, flats=flats),
+                dict(base=177, z=30, scale=11, sq=0.54, fog=0.12, n=8, h=(4, 13), w=(36, 80), deck=2.5, wave=6,
+                     big=0.15, rmin=1.8, flats=flats)]
+        bigs = (dict(x=560, base=170, h=24, w=70, z=4, sq=0.55, fog=0.18, lean=4, tiers=3),)
+        lay = CA.sea_layer2(rows, cl_pal(.17, .325, 6, .02, .036), sky_row(160), 31, bigs=bigs,
+                            big_pal=cl_pal(.175, .335, 6, .02, .038), big_kw=dict(rim=(1.5, 3.5), gap=2.0, shadow=3.0,
+                                                                                    dark_y=178),
+                            body=2, rim=(1.0, 2.5), crease=1.5, bands=(1.0, 2.2), run_bands=(3, 8), rim_lv=(3, 2))
+    else:
+        flats = ((120, 70, 9), (560, 55, 8), (905, 45, 7))
+        rows = [dict(base=190, z=0, scale=15, sq=0.62, fog=0.12, n=6, h=(4, 12), w=(50, 100), deck=3, wave=5.5,
+                     big=0.0, kids=(2, 4), ks=(0.35, 0.6), flats=flats),
+                dict(base=203, z=40, scale=19, sq=0.66, fog=0.0, n=5, h=(4, 11), w=(60, 120), deck=3, wave=4, big=0.0,
+                     kids=(2, 4), ks=(0.35, 0.6), dark=0.12, flats=flats)]
+        bigs = (dict(x=335, base=189, h=58, w=100, z=6, sq=0.72, fog=0.06, lean=8, tiers=4, seed=4),
+                dict(x=760, base=192, h=41, w=70, z=6, sq=0.7, fog=0.06, lean=4, tiers=4, seed=8))
+        lay = CA.sea_layer2(rows, cl_pal(.125, .29, 6, .018, .034), sky_row(190), 41, bigs=bigs,
+                            big_pal=cl_pal(.13, .32, 7, .018, .038),
+                            big_kw=dict(rim=(2.5, 5.0), gap=4.0, shadow=4.0, dark_y=177, ramp=12, w_lit=(0.55, 1.05)),
+                            body=2, rim=(1.5, 3.0), crease=2.0, bands=(0.7, 1.5, 2.6), run_bands=(5, 12, 22),
+                            rim_lv=(2, 1))
+    return pad_foot(lay.a, 120)
+
+
+DECK_H = 330           # cloud_deck 的高
+DECK_TOP = 40          # 团顶大概在第几行
+
+
+def cloud_deck():
+    """整块云层（穿云 + 脚下最近的云海）：上面是作者 build_near 那样的大团云顶（受光边一小块一小块），
+    肚子里三排更近、更暗的菜花团（穿云时一团团往下掠），最下面一排垂下来的云底。"""
+    F = CA.Field(TW, DECK_H)
+    rng = np.random.default_rng(211)
+    CA.sea_row(F, rng, DECK_TOP + 6, 0, 24, 0.72, 0.0, 4, (6, 16), (80, 150), 3, depth=2, wave=4, big=0.1,
+               kids=(2, 4), ks=(0.35, 0.58), rmin=3.0)
+    CA.sea_row(F, rng, DECK_TOP + 17, 50, 26, 0.75, 0.0, 4, (4, 10), (80, 150), 4, depth=1, wave=3,
+               kids=(2, 4), ks=(0.35, 0.58), rmin=3.0)
+    for k, (dy, dark, n, rr) in enumerate(((58, 0.6, 14, (16, 30)), (118, 1.2, 12, (18, 34)), (178, 1.8, 11, (20, 36)))):
+        for cx in np.sort(rng.uniform(0, TW, n)):
+            r = rng.uniform(*rr)
+            F.new_group()
+            F.row = 10 + k
+            top = DECK_TOP + dy + rng.uniform(-8, 8)
+            F.cauli(cx, top + r * 0.6 * rng.uniform(0.4, 0.9), r, 100 + 40 * k, rng, sq=0.6, depth=2, kids=(2, 4),
+                    ks=(0.32, 0.55), dark=dark, rmin=3.0, spread=(-165, -15), ref=top, unit=10)
+    pal = cl_pal(.11, .285, 6, .016, .034)
+    a = F.render(pal, body=2, rim=(1.5, 3.0), crease=2.0, bands=(0.8, 1.8), run_bands=(6, 15))
+    # 云底：另画一排云顶、上下翻过来，接在最下面 UH 行：垂下来的一团团，受光边翻到了下沿 = 被下面的云海映亮的一圈
+    UH = 46
+    U = CA.Field(TW, UH)
+    ru = np.random.default_rng(212)
+    CA.sea_row(U, ru, UH - 4, 0, 13, 0.6, 0.0, 9, (3, 10), (34, 80), 2, depth=2, wave=3, kids=(2, 4), rmin=2.0)
+    ua = U.render(cl_pal(.11, .19, 4, .016, .026), body=0, rim=(1.0, 2.0), crease=1.5, bands=(), run_bands=())[::-1]
+    a[DECK_H - UH:] = 0
+    m = ua[..., 3] > 0
+    a[DECK_H - UH:][m] = ua[m]
+    a[DECK_H - UH:DECK_H - UH + 6][a[DECK_H - UH:DECK_H - UH + 6, :, 3] == 0] = tuple(pal[0]) + (255,)
+    return a
 
 
 def wisps():
-    """近处掠过的云丝：扁长的小团，飞得快，给速度感。多放在船的上下两条（船挡着中间）。"""
-    L = Layer(TW, 270)
+    """近处掠过的小云团：一串菜花球（不连到底），下半截暗一档。多放在船的上下两条（船挡着中间）。"""
+    F = CA.Field(TW, 270)
     rng = np.random.default_rng(204)
-    bands = [(4, 56)] * 6 + [(208, 266)] * 6 + [(60, 205)] * 3
-    for i, (y0, y1) in enumerate(bands):
-        x = int(i * TW / len(bands) + rng.integers(-30, 30))
-        y = int(rng.integers(y0, y1))
-        rx = int(rng.integers(26, 72))
-        ry = int(rng.integers(3, 7))
-        e = L.ellipse(x, y, rx, ry)
-        for k in range(int(rng.integers(1, 3))):
-            e |= L.ellipse(x + int(rng.integers(-rx // 2, rx // 2)), y - ry + int(rng.integers(0, 3)),
-                           int(rx * rng.uniform(0.25, 0.5)), ry)
-        e |= L.ellipse(x + rx * 0.9, y + 1, rx * 0.5, max(1, ry // 3))      # 往后拖的尾巴
-        L.paint(e, col(.215, .016, C_HUE))
-        L.paint(e & ~up(e), col(.25, .016, 155))
-        L.paint(e & ~down(e), col(.195, .016, C_HUE + 4))
-    return L
+    bands = [(10, 50)] * 6 + [(216, 262)] * 6 + [(62, 200)] * 3
+    order = rng.permutation(len(bands))
+    for i, bi in enumerate(order):
+        y0, y1 = bands[bi]
+        x = i * TW / len(bands) + rng.uniform(-30, 30)
+        y = rng.uniform(y0, y1)
+        ln = rng.uniform(36, 100)
+        r0 = rng.uniform(5, 9)
+        F.new_group()
+        F.row += 1
+        k = int(ln / (r0 * 1.3)) + 1
+        for j in range(k):
+            u = (j / (k - 1) * 2 - 1) if k > 1 else 0.0
+            r = r0 * (1 - 0.45 * abs(u)) * rng.uniform(0.8, 1.2)
+            F.cauli(x + u * ln / 2, y + abs(u) * r0 * 0.5, r, (1 - abs(u)) * 4 + rng.uniform(0, 2), rng, sq=0.55,
+                    depth=1, kids=(2, 3), ks=(0.35, 0.55), body=False, rmin=1.6, spread=(-160, -20), core=True)
+    return F.render(cl_pal(.15, .31, 5, .016, .032), body=2, rim=(1.0, 2.5), crease=1.5, bands=(), lower=0.25)
 
 
 def streaks():
-    """加速时的速度线：1 像素的虚线，很稀。"""
+    """加速时的速度线：1 像素的虚线，很稀；一头亮一头淡（往后拖）。"""
     L = Layer(TW, 270)
     rng = np.random.default_rng(205)
     for i in range(34):
         y = int(rng.integers(2, 268))
+        if 64 < y < 206 and rng.random() < 0.6:           # 船挡着的中间那条少放
+            continue
         x0 = int(rng.integers(0, TW))
-        ln = int(rng.integers(14, 46))
-        c = col(.25 if i % 3 else .28, .014, 160)
+        ln = int(rng.integers(16, 50))
         for x in range(x0, x0 + ln):
-            if (x - x0) % 7 < 5:
-                L.a[y, x % TW, :3] = c
+            k = (x - x0) / ln
+            if (x - x0) % 7 < 5 and not (k > 0.7 and (x - x0) % 2):
+                L.a[y, x % TW, :3] = col(.30 - .06 * k, .016, 172)
                 L.a[y, x % TW, 3] = 255
     return L
 
 
-# ============================================================ 碎石
+# ============================================================ 碎石：有棱有面的石头（光从左上，按面分明暗）
 R_HUE = 55
 
 
@@ -418,6 +513,898 @@ def rock_mask(rng, w, h):
     return m
 
 
+LIGHT3 = np.array([-0.55, -0.6, 0.58]) / np.linalg.norm([-0.55, -0.6, 0.58])
+
+
+def facet_rock(rng, w, h, tones, rim, m=None):
+    """有体积的碎石：从一个偏心的「顶点」往外切成 4~6 个面，每个面一个朝向，按光（左上偏前）分档；
+    朝光的外沿一道亮边，背光的下沿最暗。tones 从暗到亮。返回 RGBA。"""
+    m = rock_mask(rng, w, h) if m is None else m
+    yy, xx = np.mgrid[0:h, 0:w]
+    ax = (w - 1) / 2 + rng.uniform(-0.18, 0.18) * w
+    ay = (h - 1) / 2 + rng.uniform(-0.18, 0.18) * h
+    n = int(rng.integers(4, 7))
+    a0 = rng.uniform(0, 2 * math.pi)
+    sec = (((np.arctan2(yy - ay, xx - ax) - a0) % (2 * math.pi)) // (2 * math.pi / n)).astype(int)
+    mids = a0 + (np.arange(n) + 0.5) * 2 * math.pi / n + rng.uniform(-0.3, 0.3, n)
+    tilt = rng.uniform(0.6, 0.85, n)
+    nx, ny = np.cos(mids) * tilt, np.sin(mids) * tilt
+    nz = np.sqrt(1 - tilt ** 2)
+    lam = (nx * LIGHT3[0] + ny * LIGHT3[1] + nz * LIGHT3[2])[sec]
+    # 离中心越远越朝外（边上更暗或更亮），让面不是一块平的
+    r = np.hypot((xx - ax) / (w / 2), (yy - ay) / (h / 2))
+    lam = lam * (0.75 + 0.35 * np.clip(r, 0, 1))
+    q = np.clip(np.digitize(lam, [-0.15, 0.2, 0.5]), 0, len(tones) - 1)
+    a = np.zeros((h, w, 4), np.uint8)
+    for i, c in enumerate(tones):
+        a[m & (q == i), :3] = c[:3]
+    a[m, 3] = 255
+    pad = np.pad(m, 1)
+    edge_lit = m & (~pad[:-2, 1:-1] | ~pad[1:-1, :-2])          # 上面或左边是空的
+    edge_dark = m & (~pad[2:, 1:-1] | ~pad[1:-1, 2:])            # 下面或右边是空的
+    a[edge_dark & (q <= 1), :3] = tones[0][:3]
+    a[edge_lit & (lam > 0.0), :3] = rim[:3]
+    return a
+
+
+def stamp(L, a, x, y):
+    h, w = a.shape[:2]
+    for yy in range(h):
+        if not 0 <= y + yy < L.h:
+            continue
+        for xx in range(w):
+            if a[yy, xx, 3]:
+                L.a[y + yy, (x + xx) % TW] = a[yy, xx]
+
+
+def debris_belt():
+    """远处的碎石墙：一条横穿天空的带。三种大小（密的小碎粒、中块、少数几块有棱有面的大块），
+    一团团扎堆、不匀；小的往天色里褪（远），带子中间一层稀疏抖动的尘。"""
+    L = Layer(TW, 120)
+    rng = np.random.default_rng(301)
+    fogc = col(.15, .014, 190)
+    cen = 60 + 9 * pnoise(TW, 31, 1, 4)
+    clump = 0.5 + 0.5 * pnoise(TW, 32, 2, 9)                  # 0..1，扎堆的地方密
+    # 尘：两档、Bayer 稀疏抖动，中间密两头稀
+    dust = [col(.155, .012, 120), col(.17, .012, 100)]
+    for x in range(TW):
+        for y in range(int(cen[x]) - 20, int(cen[x]) + 21):
+            d = abs(y - cen[x]) / 13
+            dens = math.exp(-d * d) * (0.35 + 0.65 * clump[x]) * 0.42
+            r = rng.random()
+            if r < dens * 0.5:
+                L.a[y, x, :3] = dust[1 if r < dens * 0.12 else 0]
+                L.a[y, x, 3] = 255
+
+    def pick_x():
+        while True:
+            x = int(rng.integers(0, TW))
+            if rng.random() < 0.25 + 0.75 * clump[x]:
+                return x
+    far_t = [col(.15, .008, R_HUE + 10), col(.17, .009, R_HUE), col(.19, .010, R_HUE - 5)]
+    for i in range(900):                                      # 小碎粒（1~3 像素），一半往雾里褪
+        x = pick_x()
+        y = int(cen[x] + rng.normal(0, 13))
+        s = int(rng.integers(1, 4))
+        c = far_t[int(rng.integers(0, 3))]
+        if rng.random() < 0.5:
+            c = tuple(int(v) for v in CA.mix(tuple(c[:3]), fogc, 0.45))
+        for yy in range(s if s < 3 else 2):
+            for xx in range(s):
+                if 0 <= y + yy < L.h:
+                    L.a[y + yy, (x + xx) % TW, :3] = c[:3]
+                    L.a[y + yy, (x + xx) % TW, 3] = 255
+    mid_t = [col(.12, .008, R_HUE + 10), col(.155, .009, R_HUE), col(.19, .010, R_HUE - 5), col(.225, .011, R_HUE - 8)]
+    for i in range(170):                                      # 中块 4~7
+        x = pick_x()
+        s = int(rng.integers(4, 8))
+        stamp(L, facet_rock(rng, s, max(3, int(s * rng.uniform(0.6, 0.95))), mid_t, col(.29, .02, 165)),
+              x, int(cen[x] + rng.normal(0, 11)) - s // 2)
+    big_t = [col(.11, .008, R_HUE + 10), col(.15, .009, R_HUE), col(.19, .011, R_HUE - 5), col(.235, .012, R_HUE - 8)]
+    for i in range(22):                                       # 大块 9~15，几块就够
+        x = int(i * TW / 22 + rng.integers(0, 30))
+        s = int(rng.integers(9, 16))
+        stamp(L, facet_rock(rng, s, max(6, int(s * rng.uniform(0.6, 0.85))), big_t, col(.33, .022, 165)),
+              x, int(cen[x] + rng.normal(0, 8)) - s // 2)
+    return L
+
+
+def debris_near():
+    """碎石墙前面零星漂过的几块中号碎石（10~18 像素，有棱有面），每块后面跟两三粒小碎屑。"""
+    L = Layer(TW, 270)
+    rng = np.random.default_rng(302)
+    tones = [col(.12, .008, R_HUE + 10), col(.16, .009, R_HUE), col(.20, .011, R_HUE - 5), col(.24, .012, R_HUE - 8)]
+    rim = col(.36, .022, 165)                                 # 亮边是余晖 / 月光的青绿
+    for i in range(12):
+        x = int(i * TW / 12 + rng.integers(0, 40))
+        y = int(rng.choice([rng.integers(6, 66), rng.integers(214, 252)]))
+        s = int(rng.integers(10, 19))
+        a = facet_rock(rng, s, max(7, int(s * rng.uniform(0.6, 0.85))), tones, rim)
+        stamp(L, a, x, y)
+        for k in range(int(rng.integers(2, 4))):
+            ss = int(rng.integers(2, 4))
+            stamp(L, facet_rock(rng, ss + 1, ss, tones, rim), x + s + 4 + k * int(rng.integers(5, 10)),
+                  y + int(rng.integers(0, s)))
+    return L
+
+
+# ============================================================ 星空和河流星球
+P_HUE = 250
+
+
+def space_sky():
+    """太空：整屏的天（576×366，不 tile，x = y = -48），盖住引擎那 10 条底色带。上暗下略亮，
+    两档之间只在交界留 2 行稀疏抖动；一道很淡的星河斜着过；星分三档，几颗带十字。"""
+    Wd, Hd = SW + 2 * SKY_PAD, SH + 2 * SKY_PAD
+    a = np.zeros((Hd, Wd, 4), np.uint8)
+    a[..., 3] = 255
+    xs = np.arange(Wd)
+    Ls = np.interp(np.arange(Hd), [0, Hd * 0.6, Hd], [.06, .085, .105])
+    STEP = .008
+    rng = np.random.default_rng(401)
+    yy, xx = np.mgrid[0:Hd, 0:Wd]
+    band = np.exp(-(((yy - 0.55 * xx - 40) / 46.0) ** 2))         # 斜的星河
+    lumps = np.zeros_like(band)
+    for _ in range(40):
+        cx, cy, r = rng.uniform(0, Wd), rng.uniform(0, Hd), rng.uniform(10, 40)
+        lumps += np.exp(-((xx - cx) ** 2 + (yy - cy) ** 2) / (2 * r * r))
+    mw = band * np.clip(lumps / lumps.max() * 1.6, 0, 1) * .022
+    cache = {}
+    for y in range(Hd):
+        L = Ls[y] + mw[y]
+        lo = np.floor(L / STEP)
+        idx = lo + (CA.BAYER[y % 4, xs % 4] < (L / STEP - lo) * (np.abs(L / STEP - lo - 0.5) > 0.3))
+        for x in range(Wd):
+            k = int(idx[x])
+            if k not in cache:
+                cache[k] = col(k * STEP, .012, 200)
+            a[y, x, :3] = cache[k]
+    for i in range(420):
+        x, y = int(rng.integers(0, Wd)), int(rng.integers(0, Hd))
+        if rng.random() > 0.25 + 3 * mw[y, x] / .022:
+            continue
+        L = float(rng.choice([.17, .21, .26, .32], p=[.45, .3, .17, .08]))
+        a[y, x, :3] = col(L, .014, 180 if rng.random() < .7 else 60)
+    for x, y in ((40, 30), (150, 70), (420, 40), (530, 90), (300, 20), (80, 300), (500, 320)):
+        a[y, x, :3] = col(.42, .014, 170)
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            a[y + dy, x + dx, :3] = col(.25, .014, 175)
+    return a
+
+
+# ---------- 飞行一结尾（10-30 作者：「往前一冲，冲入黑色的星空，场景渐暗，第一章就结束了」）
+STAR_SEED = 411
+
+
+def void_sky():
+    """黑色星空的底：整屏（576×366，x = y = -48），几乎是黑的（L .03 → .045，上下只差一档、交界两行稀疏抖动），
+    零星几颗极暗的远星（不动）。前面的星点 / 星线是 tile 的层，往右卷。"""
+    Wd, Hd = SW + 2 * SKY_PAD, SH + 2 * SKY_PAD
+    a = np.zeros((Hd, Wd, 4), np.uint8)
+    a[..., 3] = 255
+    lo, hi = col(.03, .006, 200), col(.042, .008, 200)
+    edge = int(Hd * 0.55)
+    xs = np.arange(Wd)
+    for y in range(Hd):
+        c = lo if y < edge else hi
+        a[y, :, :3] = c[:3]
+        if edge - 2 <= y < edge:
+            a[y, CA.BAYER[y % 4, xs % 4] < 0.25, :3] = hi[:3]
+    rng = np.random.default_rng(STAR_SEED - 1)
+    for _ in range(160):
+        x, y = int(rng.integers(0, Wd)), int(rng.integers(0, Hd))
+        a[y, x, :3] = col(float(rng.choice([.09, .12, .15])), .01, 190)[:3]
+    return a
+
+
+def _star_list():
+    """前景的星（tile 层）：位置、亮度。星点和星线用同一张表，换层时星还在原来的地方。"""
+    rng = np.random.default_rng(STAR_SEED)
+    out = []
+    for _ in range(260):
+        x, y = int(rng.integers(0, TW)), int(rng.integers(0, SH + 2 * SKY_PAD))
+        L = float(rng.choice([.30, .38, .47, .58], p=[.4, .3, .2, .1]))
+        out.append((x, y, L))
+    return out
+
+
+def star_layer(stretch):
+    """星点（stretch = 0）或拉长的星线：机头朝左往前冲，星往右飞，尾巴拖在左边——头亮、往左一档档变暗、末端隔点断开。
+    越亮的星拖得越长（近）。tile，960 × 366，y = -48。"""
+    L_ = Layer(TW, SH + 2 * SKY_PAD)
+    for x, y, L in _star_list():
+        n = 0 if stretch == 0 else int(round(stretch * (0.45 + 1.4 * (L - .30) / .28)))
+        for k in range(n, -1, -1):
+            t = k / max(1, n)
+            if k > 0 and t > 0.7 and k % 2:
+                continue
+            c = col(.16 + (L - .16) * (1 - t) ** 1.1, .014, 175)
+            L_.a[y, (x - k) % TW, :3] = c
+            L_.a[y, (x - k) % TW, 3] = 255
+        if stretch == 0 and L >= .58:                        # 最亮的几颗带个小十字
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                if 0 <= y + dy < L_.h:
+                    L_.a[y + dy, (x + dx) % TW, :3] = col(.28, .014, 175)
+                    L_.a[y + dy, (x + dx) % TW, 3] = 255
+    return L_.a
+
+
+def planet(d, seed, rivers=True):
+    """河流星球（夜里的那一面朝着我们）：深蓝的海、暗青的陆，亮的河弯弯曲曲，月光从左上照着一弯；
+    右下大半在夜里，夜里那半边陆地上零星几点暖的灯（小镇）。左上一圈大气亮边。"""
+    pad = 2
+    n = d + 2 * pad
+    a = np.zeros((n, n, 4), np.uint8)
+    yy, xx = np.mgrid[0:n, 0:n]
+    c = (n - 1) / 2
+    r = d / 2
+    dist = np.hypot(xx - c, yy - c)
+    disc = dist <= r - 0.3
+    rng = np.random.default_rng(seed)
+    land = np.zeros_like(disc)
+    for _ in range(max(3, d // 7)):
+        lx, ly = rng.uniform(c - r * 0.8, c + r * 0.8), rng.uniform(c - r * 0.7, c + r * 0.7)
+        lr = rng.uniform(r * 0.18, r * 0.42)
+        land |= (np.hypot((xx - lx) * 0.8, yy - ly) < lr)
+    land &= disc
+    nx, ny = (xx - c) / r, (yy - c) / r
+    nz = np.sqrt(np.clip(1 - nx ** 2 - ny ** 2, 0, 1))
+    lam = -0.62 * nx - 0.55 * ny + 0.55 * nz
+    q = np.digitize(lam, [0.0, 0.35, 0.7])                          # 0 夜 / 1 暗 / 2 中 / 3 亮
+    sea = [col(.13, .03, P_HUE + 6), col(.18, .045, P_HUE + 2), col(.235, .05, P_HUE - 2), col(.29, .045, P_HUE - 8)]
+    gnd = [col(.12, .016, 200), col(.16, .022, 190), col(.20, .026, 180), col(.245, .028, 175)]
+    for i in range(4):
+        a[disc & ~land & (q == i), :3] = sea[i]
+        a[disc & land & (q == i), :3] = gnd[i]
+    if rivers and d >= 30:
+        img = Image.fromarray(a)
+        dr = ImageDraw.Draw(img)
+        for k in range(2):
+            pts = []
+            x0 = c - r * 0.6 + k * r * 0.5
+            for t in range(0, int(r * 1.3), 3):
+                pts.append((x0 + t * 0.7 + 2.5 * math.sin(t / 3 + k), c - r * 0.6 + t * 0.85 + 2 * math.cos(t / 4 + k)))
+            dr.line(pts, fill=(255, 0, 255, 255), width=1)
+        b = np.array(img)
+        rv = (b[..., :3] == (255, 0, 255)).all(-1) & land
+        a[rv & (q >= 2), :3] = col(.34, .04, 235)
+        a[rv & (q == 1), :3] = col(.26, .04, 240)
+        a[rv & (q == 0), :3] = col(.17, .03, 245)
+        # 夜里那半边：陆地上几点暖的灯
+        night = disc & land & (q == 0) & ~rv
+        ys, xs_ = np.nonzero(night)
+        for i in rng.choice(len(ys), min(len(ys), d // 6), replace=False):
+            a[ys[i], xs_[i], :3] = col(.42, .08, 75)
+    a[disc, 3] = 255
+    ring = (dist > r - 0.3) & (dist <= r + 0.9)
+    lit_side = (-(xx - c) - (yy - c)) > -r * 0.2
+    a[ring & lit_side, :3] = col(.30, .04, 225)
+    a[ring & lit_side, 3] = 255
+    inner = disc & (dist > r - 1.4) & lit_side & (lam > 0.3)
+    a[inner, :3] = col(.34, .04, 222)
+    ys, xs = np.nonzero(a[..., 3])
+    return a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
+# ============================================================ 河流星：月夜的水上小镇（作者的蓝色月夜河岸 scenes/river_test.tscn）
+# 10-30：降落几段原来是灰蓝白天的鸽子笼城市。河流篇按作者的蓝色月夜河岸重做（满月、石柱、垂枝树、雾、水面碎光），
+# 风格是月夜里的水上小镇——石像、暖黄的灯、小房子分开不重叠，不是灰色大都市。所以：
+# - 天 / 远岸石柱 / 雾 / 近岸的怪树：直接用作者的 art/river/sky.png、ridge.png、mist.png、shore.png（月亮在屏幕 x≈338）。
+# - 月亮在水里碎成的亮纹（moon_glint）：作者 river_art.glints() 那道，按 GLINT_PAL 直接上色（船外背景没有 shader，不闪）。
+# - 自己画的：河面（ground）、远处一排小镇（city_far）、近处的水上小镇（city_mid）、钟楼、水道和停着的小船（canal）、
+#   近水（water_near）、水花、木箱、起飞离开时的一排屋子（river_row）。
+# - 落水卡进窄水道那两屏（channel_mid / channel_bank）直接是河岸开场那一屏（bank_mid / bank_main），和第二章开场接上。
+#   颜色照 river_art：亮面偏青银、暗面偏深蓝（river_art.lch 按亮度转色相），光从右上（月亮）来，
+#   亮度压在驾驶舱以下；只有窗、灯是暖黄的小点（和水里的倒影）。
+import river_art as RA  # noqa: E402
+import river_bank_moon_art as RB  # noqa: E402
+
+WARM_HI = col(.66, .085, 78)        # 亮着的窗 / 灯芯（和 river_bank_moon_art 的 WARM 同一套，最亮 .66 比晨暗）
+WARM = col(.58, .09, 70)
+WARM_LO = col(.48, .085, 64)        # 窗框里暗一点的那格、远处的灯
+WARM_REF = col(.34, .06, 60)        # 水里的暖倒影
+DARK_WIN = RA.lch(.10, .02, 258)
+
+
+def rl(L, C=None, h=256.0):
+    """河流星的颜色（river_art.lch：按亮度转色相，暗的偏靛、亮的偏青银）。"""
+    return RA.lch(L, C, h)
+
+
+def river_sky():
+    return widen(np.array(Image.open(RA.OUT / "sky.png").convert("RGBA")))
+
+
+def river_layer(name):
+    return np.array(Image.open(RA.OUT / f"{name}.png").convert("RGBA"))
+
+
+def moon_glint():
+    """月亮在河面上碎成的那道亮纹（作者 glints()，R 是亮度档）：480×60，贴在屏幕 y = 155。"""
+    g = RA.glints()
+    out = np.zeros_like(g)
+    m = g[..., 3] > 0
+    tone = g[..., 0] / 255.0
+    pal = [from_lch(*p) for p in RA.GLINT_PAL]
+    idx = np.clip(np.round(tone * 3), 0, 3).astype(int)
+    for i, c in enumerate(pal):
+        sel = m & (idx == i) & (tone > 0.12)
+        out[sel, :3] = c[:3]
+        out[sel, 3] = 255
+    return out
+
+
+class Px:
+    """直接点像素的画布（左右绕回）。"""
+
+    def __init__(self, w, h, tile=True):
+        self.w, self.h, self.tile = w, h, tile
+        self.a = np.zeros((h, w, 4), np.uint8)
+
+    def put(self, x, y, c):
+        x, y = int(round(x)), int(round(y))
+        if self.tile:
+            x %= self.w
+        if 0 <= y < self.h and 0 <= x < self.w:
+            self.a[y, x, :3] = c[:3]
+            self.a[y, x, 3] = 255
+
+    def fill(self, x0, y0, x1, y1, c):
+        x0, x1 = int(round(x0)), int(round(x1))
+        y0, y1 = max(0, int(round(y0))), min(self.h - 1, int(round(y1)))
+        if y1 < y0 or x1 < x0:
+            return
+        xs = np.arange(x0, x1 + 1)
+        if self.tile:
+            xs %= self.w
+        else:
+            xs = xs[(xs >= 0) & (xs < self.w)]
+        self.a[y0:y1 + 1, xs, :3] = c[:3]
+        self.a[y0:y1 + 1, xs, 3] = 255
+
+    def paste(self, img, x, y):
+        h, w = img.shape[:2]
+        for yy in range(h):
+            if not 0 <= y + yy < self.h:
+                continue
+            m = img[yy, :, 3] > 0
+            xs = np.arange(x, x + w)[m]
+            if self.tile:
+                xs %= self.w
+            else:
+                keep = (xs >= 0) & (xs < self.w)
+                xs, m2 = xs[keep], np.nonzero(m)[0][keep]
+                self.a[y + yy, xs] = img[yy, m2]
+                continue
+            self.a[y + yy, xs] = img[yy, m]
+
+
+def house(P, x, base, w, h, rng, s=1.0, lit_p=0.55, stilts=0, wall=None):
+    """一栋小房子：墙、坡屋顶（人字 / 单坡 / 平顶带烟囱）、门、一两扇窗（多半亮着暖黄的灯）。
+    光从右上：墙的右边一列亮一档，屋顶右坡和屋脊亮；左边一列暗。stilts > 0 = 底下几根桩子插进水里。"""
+    wall = wall if wall is not None else rl(rng.choice([.15, .17, .19]) * 1.0, .02, rng.choice([250, 256, 262]))
+    wall_lit = tuple(int(v) for v in CA.mix(tuple(wall[:3]), tuple(rl(.30, .02, 246)[:3]), 0.35))
+    wall_dk = tuple(int(v) for v in CA.mix(tuple(wall[:3]), (6, 9, 16), 0.3))
+    roof = rl(rng.choice([.105, .12]), .02, 258)
+    roof_lit = rl(.27, .02, 246)
+    top = base - h
+    P.fill(x, top, x + w - 1, base, wall)
+    P.fill(x + w - 1, top, x + w - 1, base, wall_lit)
+    P.fill(x, top, x, base, wall_dk)
+    kind = rng.choice(["gable", "gable", "shed", "flat"])
+    if kind == "gable":
+        rh = max(3, int(round(w * rng.uniform(0.35, 0.5))))
+        for k in range(rh + 1):
+            y = top - k
+            x0 = x - 1 + k * (w + 1) / (2 * rh)
+            x1 = x + w - k * (w + 1) / (2 * rh)
+            P.fill(x0, y, x1, y, roof)
+            P.put(x1, y, roof_lit)
+            if k == rh:
+                P.fill(x0, y, x1, y, roof_lit)
+        P.fill(x - 1, top, x + w, top, roof)
+    elif kind == "shed":                                     # 单坡：左高右低
+        rh = max(2, int(round(w * 0.3)))
+        for k in range(rh + 1):
+            x1 = x - 1 + int((w + 1) * (1 - k / (rh + 1)))
+            P.fill(x - 1, top - k, x1, top - k, roof)
+            P.put(x1, top - k, roof_lit)
+        P.fill(x - 1, top - rh, x - 1 + int((w + 1) / (rh + 1)), top - rh, roof_lit)
+    else:
+        P.fill(x - 1, top - 1, x + w, top, roof)
+        P.fill(x - 1, top - 1, x + w, top - 1, roof_lit)
+        cx = x + int(rng.integers(1, max(2, w - 3)))
+        P.fill(cx, top - 4, cx + 1, top - 2, roof)
+        P.put(cx + 1, top - 4, roof_lit)
+    # 窗：2×2（远的小房子 1×1），多半亮着
+    ww = 1 if w < 9 else 2
+    wy = top + max(2, int(h * 0.3))
+    nwin = max(1, (w - 2) // (ww + 3))
+    for i in range(nwin):
+        wx = x + 2 + i * (ww + 3) + (1 if w >= 9 else 0)
+        if wx + ww > x + w - 2:
+            break
+        lit = rng.random() < lit_p
+        if lit:
+            P.fill(wx, wy, wx + ww - 1, wy + ww - 1, WARM)
+            P.put(wx + ww - 1, wy, WARM_HI)
+            if ww == 2 and rng.random() < 0.5:
+                P.fill(wx, wy + ww - 1, wx + ww - 1, wy + ww - 1, WARM_LO)
+        else:
+            P.fill(wx, wy, wx + ww - 1, wy + ww - 1, DARK_WIN)
+    if h >= 8 and w >= 7:                                   # 门
+        dx = x + int(rng.integers(1, w - 3))
+        lit = rng.random() < 0.3
+        P.fill(dx, base - min(5, h - 3), dx + 1, base - 1, WARM_LO if lit else rl(.09, .02, 258))
+    for k in range(stilts):                                  # 桩子
+        sx = x + 1 + k * (w - 3) // max(1, stilts - 1)
+        P.fill(sx, base + 1, sx, base + 4, rl(.11, .018, 258))
+    return top
+
+
+def statue(P, x, base, h, rng, kind=None):
+    """石像：台座上一个披袍的人形（站着 / 举着灯 / 坐着的大石头头像）。石头青灰，右边受月光一道亮边；举灯的那尊手里一点暖光。"""
+    pal = [rl(.11, .018, 258), rl(.15, .02, 254), rl(.20, .02, 250), rl(.30, .02, 246)]
+    kind = kind or rng.choice(["robe", "lamp", "head"])
+    pw = max(4, int(h * 0.28))
+    ph = max(2, int(h * 0.16))
+    P.fill(x - pw // 2, base - ph, x + pw // 2, base, pal[1])
+    P.fill(x - pw // 2 - 1, base - ph, x + pw // 2 + 1, base - ph, pal[2])
+    P.fill(x + pw // 2, base - ph, x + pw // 2, base, pal[2])
+    top = base - ph
+    if kind == "head":
+        r = max(3, int(h * 0.32))
+        cy = top - r
+        for yy in range(-r, r + 1):
+            hw = int(round(r * math.sqrt(max(0, 1 - (yy / r) ** 2)) * (0.85 if yy < 0 else 1.0)))
+            P.fill(x - hw, cy + yy, x + hw, cy + yy, pal[1])
+            P.put(x + hw, cy + yy, pal[3] if yy < r * 0.4 else pal[2])
+            P.put(x - hw, cy + yy, pal[0])
+        P.fill(x - 1, cy - 1, x - 1, cy, pal[0])                     # 闭着的眼
+        P.fill(x + 2, cy - 1, x + 2, cy, pal[0])
+        P.fill(x, cy + r // 2, x + 2, cy + r // 2, pal[0])
+        return
+    bh = h - ph
+    hr = max(1, int(round(bh * 0.09)))
+    for k in range(bh - 2 * hr):                                      # 袍子：上窄下宽
+        t = k / max(1, bh - 2 * hr)
+        hw = 1 + int(round((pw * 0.45) * t))
+        y = top - k
+        P.fill(x - hw + (0 if t > 0.2 else 1), y, x + hw - 1, y, pal[1])
+        P.put(x + hw - 1, y, pal[3] if k > 2 else pal[2])
+        P.put(x - hw + (0 if t > 0.2 else 1), y, pal[0])
+    hy = top - (bh - 2 * hr) - hr
+    for yy in range(-hr, hr + 1):
+        P.fill(x - hr, hy + yy, x + hr - 1, hy + yy, pal[1])
+        P.put(x + hr - 1, hy + yy, pal[3])
+    if kind == "lamp":                                                # 举起一只手，托一盏小灯
+        ax = x + hr + 1
+        for k in range(int(bh * 0.45)):
+            P.put(ax + k // 4, top - int(bh * 0.5) - k, pal[2])
+        lx, ly = ax + int(bh * 0.45) // 4, top - int(bh * 0.5) - int(bh * 0.45)
+        P.fill(lx - 1, ly - 2, lx, ly - 1, WARM)
+        P.put(lx, ly - 2, WARM_HI)
+
+
+def lamp_post(P, x, base, h):
+    P.fill(x, base - h, x, base, rl(.10, .018, 258))
+    P.put(x + 1, base - h, rl(.10, .018, 258))
+    P.fill(x + 1, base - h + 1, x + 2, base - h + 2, WARM)
+    P.put(x + 2, base - h + 1, WARM_HI)
+
+
+def reflect_down(P, wl, length, rng, water_c, warm=True, gaps=0.35):
+    """水线 wl 以上的东西倒过来画到下面：往水色里褪、一行行左右晃、越往下越碎；暖的灯在水里拉成一条条竖的亮痕。"""
+    src = P.a.copy()
+    W_ = P.w
+    xs = np.arange(W_)
+    wl_lab = rgb2lab(np.array(water_c[:3]))
+    for r in range(length):
+        sy, dy = wl - 1 - r, wl + 1 + r
+        if sy < 0 or dy >= P.h:
+            break
+        f = r / length
+        row = np.roll(src[sy], int(round(math.sin(r * 1.37) * (0.5 + 1.5 * f))), axis=0)
+        m = (row[:, 3] > 0) & (rng.random(W_) > gaps * (0.4 + 1.2 * f))
+        if r % 2:
+            m &= rng.random(W_) > 0.35
+        if not m.any():
+            continue
+        lab = rgb2lab(row[m, :3])
+        warm_px = (lab[:, 0] > .4) & warm
+        t = np.where(warm_px, 0.35 + 0.4 * f, 0.55 + 0.4 * f)
+        new = lab * (1 - t[:, None]) + wl_lab[None] * t[:, None]
+        P.a[dy, xs[m], :3] = lab2rgb(new)
+        P.a[dy, xs[m], 3] = 255
+
+
+def water_rows(P, y0, y1, L0, L1, rng, glint=0.0, warm_p=0.0, h=252):
+    """一片水：从 L0 渐到 L1（分档 + 交界两行稀疏抖动），上面一道道月光的横向亮痕（越近越长越稀）。"""
+    xs = np.arange(P.w)
+    STEP = .012
+    for y in range(y0, y1 + 1):
+        t = (y - y0) / max(1, y1 - y0)
+        L = L0 + (L1 - L0) * t
+        lo = np.floor(L / STEP)
+        fr = L / STEP - lo
+        idx = lo + (CA.BAYER[y % 4, xs % 4] < fr) * (abs(fr - 0.5) > 0.32)
+        for k in np.unique(idx):
+            sel = idx == k
+            P.a[y, sel, :3] = rl(k * STEP, None, h)[:3]
+        P.a[y, :, 3] = 255
+    for _ in range(int(glint * P.w * (y1 - y0) / 400)):
+        y = int(rng.integers(y0 + 1, y1 + 1))
+        t = (y - y0) / max(1, y1 - y0)
+        ln = int(rng.integers(2, 5) + 10 * t * rng.random())
+        x = int(rng.integers(0, P.w))
+        L = L0 + (L1 - L0) * t + rng.choice([.05, .08, .12])
+        P.fill(x, y, x + ln, y, rl(L, .03, 250))
+
+
+# ---------- 远处：地平线下的河面（从高处往下看：宽的河、几道暗的沙洲，洲上零星的小镇灯火）
+def ground():
+    P = Px(TW, 130)
+    rng = np.random.default_rng(601)
+    # 水：作者 river_art 的水色（WATER_L：贴着地平线亮、越近越暗），屏幕 y = 151 + 行号
+    for y in range(P.h):
+        Lw = RA.base_L(151 + min(y * 0.9, 118))
+        P.fill(0, y, TW - 1, y, rl(float(RA.quant_L(Lw)), None, RA.WATER_H))
+    # 沙洲 / 对岸：越近越厚、越暗；上沿一行受月光
+    for i, (y, th, amp) in enumerate(((10, 1, 1), (18, 2, 2), (30, 3, 3), (48, 4, 5), (74, 6, 7), (108, 8, 9))):
+        n = pnoise(TW, 610 + i, 1, 5)
+        on = pnoise(TW, 620 + i, 2, 7) > (0.1 - 0.05 * i)
+        Ll = .135 - .006 * i
+        for x in range(TW):
+            if not on[x]:
+                continue
+            yy = int(y + amp * n[x])
+            P.fill(x, yy, x, yy + th, rl(Ll, .018, 200))
+            P.put(x, yy, rl(Ll + .05, .02, 210))
+        # 洲上的小镇：一小撮暖的点（越近越大）
+        for _ in range(4 + i):
+            x = int(rng.integers(0, TW))
+            if not on[x]:
+                continue
+            yy = int(y + amp * n[x])
+            for k in range(int(rng.integers(2, 6))):
+                px = x + int(rng.integers(-3 - i, 4 + i))
+                if 0 <= px < TW and on[px % TW]:
+                    P.put(px, yy - (1 if i > 2 else 0), WARM_LO if i < 3 or rng.random() < 0.6 else WARM)
+                    if i >= 3:
+                        P.put(px, yy - 2, rl(Ll + .02, .018, 210))
+    # 远处的雾：两三团贴水面的淡雾
+    for _ in range(14):
+        x, y, ln = int(rng.integers(0, TW)), int(rng.integers(2, 40)), int(rng.integers(20, 60))
+        for k in range(ln):
+            if (x + k + y) % 2 or abs(k - ln / 2) < ln * 0.3:
+                P.put(x + k, y, rl(float(RA.quant_L(RA.base_L(151 + y) + .03)), None, RA.WATER_H))
+    return P.a
+
+
+# ---------- 远处一排小镇：贴着水的小房子（分开）、石像、灯、伞树；水里的倒影
+def city_far():
+    P = Px(TW, 64)
+    rng = np.random.default_rng(701)
+    WL = 46
+    bank = rl(.13, .018, 256)
+    x = int(rng.integers(0, 8))
+    while x < TW - 14:
+        r = rng.random()
+        if r < 0.62:
+            w, h = int(rng.integers(6, 13)), int(rng.integers(4, 10))
+            P.fill(x - 1, WL - 1, x + w, WL, bank)
+            house(P, x, WL - 2, w, h, rng, lit_p=0.6, stilts=0)
+            x += w + int(rng.integers(4, 14))
+        elif r < 0.78:
+            statue(P, x + 3, WL - 1, int(rng.integers(10, 16)), rng, kind=rng.choice(["robe", "lamp"]))
+            x += 9
+        elif r < 0.9:
+            lamp_post(P, x, WL - 1, int(rng.integers(5, 8)))
+            x += 6
+        else:
+            tmp = RA.Layer(TW, 64)
+            RA.strange_tree(tmp, x + 5, WL - 1, int(rng.integers(10, 16)), int(rng.integers(8, 13)),
+                            int(rng.integers(0, 999)), RA.bramp(3, .11, .16, 258, 248),
+                            rng.choice(["umbrella", "young", "weeping"]))
+            P.paste(tmp.a, 0, 0)
+            x += 14
+    P.fill(0, WL + 1, TW - 1, P.h - 1, (0, 0, 0))
+    P.a[WL + 1:, :, 3] = 0
+    water = rl(.20, None, RA.WATER_H)
+    reflect_down(P, WL + 1, P.h - WL - 2, rng, water, gaps=0.45)
+    # 远的整层往水 / 雾色里褪一点
+    m = P.a[..., 3] > 0
+    lab = rgb2lab(P.a[m][:, :3])
+    fog = rgb2lab(np.array(rl(.24, None, 254)[:3]))
+    warm = lab[:, 0] > .4
+    lab = np.where(warm[:, None], lab * 0.85 + fog * 0.15, lab * 0.7 + fog * 0.3)
+    P.a[m, :3] = lab2rgb(lab)
+    return P.a
+
+
+CITY_WL = 120          # city_mid 的水线（行号）
+
+
+def city_mid():
+    """近处的水上小镇：一栋栋小房子（分开、不重叠，有的立在石头基座上、有的插着桩子站在水里），
+    之间是石像、路灯、伞树和下到水边的石阶；暖黄的窗；下面一片水，倒影里灯拉成竖的亮痕。"""
+    P = Px(TW, 168)
+    rng = np.random.default_rng(702)
+    WL = CITY_WL
+    stone = [rl(.12, .018, 258), rl(.16, .02, 254), rl(.24, .02, 248)]
+    x = 6
+    gap_items = ["statue", "lamp", "tree", "stairs", "statue", "tree", "lamp"]
+    gi = 0
+    while x < TW - 40:
+        w = int(rng.integers(16, 30))
+        h = int(rng.integers(12, 26))
+        on_stilts = rng.random() < 0.35
+        if on_stilts:
+            base = WL - int(rng.integers(5, 9))
+            house(P, x, base, w, h, rng, lit_p=0.6, stilts=int(rng.integers(3, 5)))
+            for k in range(base + 1, WL + 1):
+                pass
+        else:
+            bh = int(rng.integers(4, 10))                      # 石头基座：一块块砌起来，上沿受光
+            P.fill(x - 2, WL - bh, x + w + 1, WL, stone[1])
+            P.fill(x - 2, WL - bh, x + w + 1, WL - bh, stone[2])
+            P.fill(x + w + 1, WL - bh, x + w + 1, WL, stone[2])
+            for yy in range(WL - bh + 3, WL + 1, 3):
+                off = 0 if (yy // 3) % 2 else 3
+                for xx in range(x - 2 + off, x + w + 1, 6):
+                    P.put(xx, yy, stone[0])
+            P.fill(x - 2, WL - 1, x + w + 1, WL, rl(.10, .02, 220))   # 水线上的苔
+            house(P, x, WL - bh - 1, w, h, rng, lit_p=0.6)
+        x += w + 4
+        # 房子之间的空：放一样东西，再空一点
+        item = gap_items[gi % len(gap_items)]
+        gi += 1
+        if item == "statue":
+            sh = int(rng.integers(30, 46))
+            P.fill(x - 1, WL - 3, x + 13, WL, stone[1])
+            P.fill(x - 1, WL - 3, x + 13, WL - 3, stone[2])
+            statue(P, x + 6, WL - 4, sh, rng)
+            x += 18
+        elif item == "lamp":
+            lamp_post(P, x + 2, WL - 1, int(rng.integers(12, 18)))
+            x += 8
+        elif item == "tree":
+            tmp = RA.Layer(TW, 168)
+            RA.strange_tree(tmp, x + 10, WL - 1, int(rng.integers(26, 40)), int(rng.integers(16, 24)),
+                            int(rng.integers(0, 999)), RA.bramp(3, .10, .17, 258, 248),
+                            rng.choice(["umbrella", "weeping", "mushroom", "lean"]))
+            P.paste(tmp.a, 0, 0)
+            P.fill(x + 2, WL - 1, x + 18, WL, stone[1])
+            x += 22
+        else:
+            for k in range(6):                                 # 下到水边的石阶
+                P.fill(x + k * 2, WL - 6 + k, x + 12, WL - 6 + k, stone[1] if k % 2 else stone[2])
+            x += 14
+        x += int(rng.integers(6, 16))
+    # 水
+    P.a[WL + 1:] = 0
+    water_c = rl(.17, None, RA.WATER_H)
+    reflect_down(P, WL + 1, P.h - WL - 2, rng, water_c, gaps=0.35)
+    W2 = Px(TW, P.h)
+    water_rows(W2, WL + 1, P.h - 1, .175, .13, rng, glint=1.2)
+    under = P.a[..., 3] == 0
+    P.a[under] = W2.a[under]
+    P.fill(0, WL + 1, TW - 1, WL + 1, rl(.22, .02, 250))
+    return P.a
+
+
+def clocktower():
+    """钟楼：老石头方塔，顶上尖顶；钟面亮着暖黄的灯（整个镇上最亮的一块，但比晨暗），指针停着；
+    右边受月光一道亮边，几扇窄窗里一点暖光。"""
+    w, h = 32, 210
+    P = Px(w, h, tile=False)
+    pal = [rl(.10, .018, 258), rl(.14, .02, 255), rl(.18, .02, 252), rl(.29, .02, 246)]
+    P.fill(8, 46, 23, h - 1, pal[1])
+    P.fill(23, 46, 23, h - 1, pal[3])
+    P.fill(22, 46, 22, h - 1, pal[2])
+    P.fill(8, 46, 8, h - 1, pal[0])
+    for y in range(50, h, 6):                                       # 石缝（错开）
+        P.fill(9, y, 21, y, pal[0])
+        for x in range(10 + (3 if (y // 6) % 2 else 0), 22, 6):
+            P.put(x, y + 3, pal[0])
+    for i, y in enumerate(range(78, h - 20, 26)):                   # 窄窗
+        P.fill(15, y, 16, y + 6, WARM_LO if i % 3 == 1 else DARK_WIN)
+        if i % 3 == 1:
+            P.put(16, y, WARM)
+    P.fill(6, 27, 25, 46, pal[1])                                    # 钟室
+    P.fill(25, 27, 25, 46, pal[3])
+    P.fill(6, 27, 6, 46, pal[0])
+    P.fill(5, 46, 26, 47, pal[2])                                    # 檐
+    P.fill(26, 46, 26, 47, pal[3])
+    P.fill(5, 26, 26, 26, pal[2])
+    face = WARM_LO
+    for yy in range(-6, 7):
+        hw = int(round(math.sqrt(max(0, 36.5 - yy * yy))))
+        P.fill(15.5 - hw, 36 + yy, 15.5 + hw, 36 + yy, face)
+    for yy in range(-5, 6):
+        hw = int(round(math.sqrt(max(0, 25.5 - yy * yy))))
+        P.fill(15.5 - hw, 36 + yy, 15.5 + hw, 36 + yy, WARM)
+    for yy in range(-3, 1):
+        P.put(19 + yy // 2, 33 + yy, WARM_HI)
+    for dx, dy in ((0, -4), (4, 0), (0, 4), (-4, 0)):
+        P.put(15 + dx, 36 + dy, WARM_LO)
+    for k in range(5):                                               # 指针：停在一个时间
+        P.put(15, 36 - k, rl(.13, .02, 60))
+    for k in range(4):
+        P.put(15 + k, 36 + k // 2, rl(.13, .02, 60))
+    for k in range(21):                                              # 尖顶：左半暗、右半受光
+        hw = k * 11.5 / 20
+        y = 6 + k
+        P.fill(15.5 - hw, y, 15.5 + hw, y, pal[0])
+        P.fill(15.5, y, 15.5 + hw, y, pal[1])
+        P.put(15.5 + hw, y, pal[3])
+    P.fill(15, 0, 15, 6, pal[2])
+    P.fill(14, 1, 16, 1, pal[2])
+    return P.a
+
+
+def canal():
+    """当跑道的那条宽水道：远岸是一道石砌的堤（河岸那套石头、一盏盏石灯笼），堤下系着一排小木船
+    （两头翘的船壳、有的搭着篷、篷边挂一盏暖的小灯），水面一道道月光的亮痕、灯在水里拉成竖的碎倒影。"""
+    cv = RB.Cv(TW, 74, wrap=True)
+    rng = np.random.default_rng(801)
+    Q, SURF = 16, 24                                                 # 堤顶、水面
+    for y in range(Q, SURF + 1):
+        for x in range(TW):
+            cv.px(x, y, RB.ROCK[1] if (x // 6 + y // 3) % 2 else RB.ROCK[2])
+    cv.hline(0, TW, Q, RB.ROCK[3])
+    for y in range(Q + 3, SURF + 1, 3):
+        cv.hline(0, TW, y, RB.ROCK[0])
+    lamps = list(range(40, TW, 120))
+    for x in lamps:
+        RB.stone_lantern(cv, x, Q)
+    P = Px(TW, cv.h)
+    P.a = cv.a
+    water_rows(P, SURF + 1, P.h - 1, .17, .125, rng, glint=2.0)
+    P.fill(0, SURF + 1, TW - 1, SURF + 1, rl(.23, .02, 250))
+    cv.a = P.a
+    WOOD = RB.WOOD
+    refl = []
+    x = 14
+    while x < TW - 40:
+        bw = int(rng.integers(22, 34))
+        wl = SURF + 2
+        for xx in range(x, x + bw):                                  # 船壳：两头翘
+            t = (xx - x) / bw
+            top = wl - 4 - int(round(3 * (abs(t - 0.5) * 2) ** 2.2))
+            for y in range(top, wl + 2):
+                cv.px(xx, y, WOOD[1] if y > top else WOOD[3])
+        cv.hline(x + 3, x + bw - 3, wl - 3, WOOD[0])
+        if rng.random() < 0.65:                                      # 篷 + 挂灯
+            cw = int(rng.integers(9, 14))
+            cx = x + int(rng.integers(4, bw - cw - 3))
+            for k in range(5):
+                cv.hline(cx + (1 if k == 0 else 0), cx + cw - (1 if k == 0 else 0), wl - 9 + k, RB.B(.13, .03, 230))
+            cv.hline(cx + 1, cx + cw - 1, wl - 9, RB.B(.24, .03, 222))
+            if rng.random() < 0.7:
+                lx = cx + cw + 1
+                cv.vline(lx, wl - 13, wl - 4, WOOD[2])
+                cv.rect(lx + 1, wl - 12, lx + 3, wl - 9, RB.WARM[3])
+                cv.px(lx + 1, wl - 11, RB.WARM[4])
+                refl.append(lx + 2)
+        else:                                                        # 没篷的：船上一卷绳、一只桶
+            cv.rect(x + bw // 2, wl - 6, x + bw // 2 + 4, wl - 3, WOOD[2])
+            cv.hline(x + bw // 2, x + bw // 2 + 4, wl - 6, WOOD[4])
+        cv.hline(x + 2, x + bw - 2, wl + 2, rl(.10, .02, 258))      # 船底下的影
+        x += bw + int(rng.integers(20, 48))
+    for lx in refl + [x_ + 1 for x_ in lamps]:                       # 灯在水里拉成竖的碎倒影
+        for k in range(3, 22, 2):
+            if rng.random() < 0.25:
+                continue
+            off = int(rng.integers(-1 - k // 8, 2 + k // 8))
+            cv.hline(lx + off, lx + off + 1 + int(rng.integers(0, 2)), SURF + k, RB.WARM_REF[1] if k < 10 else RB.WARM_REF[0])
+    return cv.a
+
+
+def water_near():
+    """近处的水面（擦水滑行、落水后）：一条受月光的水线，下面越来越暗；一道道月光的横亮痕（近处长）、
+    零星几条暖的倒影。"""
+    P = Px(TW, 90)
+    rng = np.random.default_rng(802)
+    water_rows(P, 0, P.h - 1, .165, .105, rng, glint=2.4)
+    P.fill(0, 0, TW - 1, 0, rl(.27, .02, 248))
+    P.fill(0, 1, TW - 1, 2, rl(.20, None, 252))
+    for _ in range(26):
+        x, y = int(rng.integers(0, TW)), int(rng.integers(4, 40))
+        P.fill(x, y, x + int(rng.integers(1, 3)), y, WARM_REF)
+    return P.a
+
+
+def spray():
+    """擦水时往后溅的水花：一串串斜的亮点（月光照着，偏青银），只在 skid 用，飞得很快。"""
+    P = Px(TW, 50)
+    rng = np.random.default_rng(803)
+    for i in range(22):
+        x = int(i * TW / 22 + rng.integers(0, 30))
+        y = int(rng.integers(16, 44))
+        ln = int(rng.integers(6, 16))
+        for k in range(ln):
+            c = rl(.40, .02, 246) if k < ln - 3 else rl(.30, .025, 250)
+            px, py = x + k * 2, y - k // 2
+            P.put(px, py, c)
+            if k % 3 == 0:
+                P.put(px, py + 1, rl(.27, .025, 250))
+    return P.a
+
+
+def channel_layers():
+    """落水卡进窄水道：就是河流篇开场河岸（tools/river_bank_moon_art.py，镜头在最左边时）那一屏——
+    中景一排高脚屋、几根中景石柱（bank_mid），近处左边那根一直下到水里的大石柱、卵石滩、垂枝树、第一间小屋（bank_main）。
+    两张都裁 0..528（多 48 给镜头抖），不 tile、不卷动（船卡住了）。"""
+    mid = RB.bank_mid().a[:, :SW + SKY_PAD]
+    main = RB.bank_main().a[:, :SW + SKY_PAD].copy()
+    main[RB.WL + 1:] = 0                                            # 水下那截（旧一层的地板）交给 water_near 盖住
+    return mid, main
+
+
+def crate():
+    """漂着的木箱：画里少有的暖色（但不亮），月光照着顶面和右边；下面几行泡在水里。"""
+    w, h = 22, 18
+    P = Px(w, h, tile=False)
+    WOOD, LIT, SH_, LINE = col(.25, .035, 62), col(.32, .03, 75), col(.19, .03, 55), col(.17, .028, 52)
+    P.fill(0, 0, w - 1, h - 1, WOOD)
+    P.fill(0, 0, w - 1, 0, LIT)
+    P.fill(w - 2, 0, w - 1, h - 1, rl(.26, .02, 246))
+    P.fill(0, 0, 0, h - 1, SH_)
+    for y in (5, 10):
+        P.fill(1, y, w - 3, y, LINE)
+    for k in range(w - 6):
+        P.put(2 + k, 2 + k * (h - 9) / (w - 6), LINE)
+    for x in (3, w - 5):
+        P.put(x, 2, col(.15, .01, 60))
+    wet = np.zeros((h, w), bool)
+    wet[h - 5:] = True
+    wl = rgb2lab(P.a[wet][:, :3])
+    P.a[wet, :3] = lab2rgb(wl * 0.6 + rgb2lab(np.array(rl(.15, None, 252)[:3]))[None] * 0.4)
+    P.fill(0, h - 5, w - 1, h - 5, rl(.28, .02, 248))               # 吃水线
+    return P.a
+
+
+def river_row():
+    """起飞离开河流星（原文 152「飞机升高，河岸的屋子缩小成一排挨着水的色块」）：一排小屋子，每栋只是一块颜色
+    （月光下的蓝灰、旧白、褪色的红和绿，压得很暗），屋顶一道受月光的亮边，零星几扇暖黄的窗；之间有空，
+    中间立着一两尊石像。底下一条水，暖窗在水里拉成竖的亮痕。妮芙家那块（x≈300）比旁边的高一点、窗都亮。"""
+    P = Px(TW, 70)
+    rng = np.random.default_rng(1501)
+    SURF = 50
+    tones = [rl(.17, .02, 252), rl(.20, .015, 240), rl(.16, .025, 262), col(.17, .025, 30), col(.17, .02, 160),
+             col(.20, .015, 85), rl(.15, .02, 256)]
+    x = 2
+    while x < TW - 12:
+        w = int(rng.integers(8, 18))
+        top = SURF - int(rng.integers(8, 20))
+        niff = 290 <= x <= 312
+        if niff:
+            top = SURF - 26
+        c = tones[int(rng.integers(0, len(tones)))]
+        P.fill(x, top, x + w - 1, SURF, c)
+        P.fill(x, top, x + w - 1, top, rl(.28, .02, 246))
+        P.fill(x + w - 1, top, x + w - 1, SURF, tuple(int(v) for v in CA.mix(tuple(c[:3]), tuple(rl(.3, .02, 246)[:3]), .3)))
+        for wy in range(top + 3, SURF - 2, 5):
+            for wx in range(x + 2, x + w - 3, 4):
+                lit = rng.random() < 0.3 or niff
+                P.fill(wx, wy, wx + 1, wy + 1, WARM if lit else DARK_WIN)
+        x += w + int(rng.integers(2, 7))
+        if rng.random() < 0.12:
+            statue(P, x + 3, SURF, int(rng.integers(12, 18)), rng, kind="robe")
+            x += 9
+    rest = P.a[SURF + 1:, :, 3] == 0
+    P.a[SURF + 1:][rest] = 0
+    reflect_down(P, SURF + 1, P.h - SURF - 2, rng, rl(.17, None, 252), gaps=0.4)
+    W2 = Px(TW, P.h)
+    water_rows(W2, SURF + 1, P.h - 1, .18, .14, rng, glint=1.5)
+    under = (P.a[..., 3] == 0) & (np.arange(P.h)[:, None] > SURF)
+    P.a[under] = W2.a[under]
+    P.fill(0, SURF + 1, TW - 1, SURF + 1, rl(.25, .02, 248))
+    return P.a
+
+
+# ---- 躲碎石时船外飞过的碎石小图（art/cockpit/debris_*.png；只有 --debris 才重写）
 def shade_rock(m, tones, rim, seed=0, facets=True):
     """光从左上：按位置投到光的方向分 3 档（切面），左上外沿一道亮边。返回 RGBA。"""
     h, w = m.shape
@@ -469,454 +1456,31 @@ def debris_sprites():
     return out
 
 
-def debris_belt():
-    """远处的碎石墙：一条横穿天空的密带，中间最密。"""
-    L = Layer(TW, 110)
-    rng = np.random.default_rng(301)
-    tones = [col(.13, .010, R_HUE + 10), col(.15, .011, R_HUE), col(.17, .012, R_HUE)]
-    rim = col(.25, .014, 80)
-    cen = 55 + 10 * pnoise(TW, 31, 1, 4)
-    for i in range(900):
-        x = int(rng.integers(0, TW))
-        y = int(cen[x] + rng.normal(0, 16))
-        s = int(rng.integers(2, 6)) if rng.random() < 0.85 else int(rng.integers(6, 10))
-        m = rock_mask(rng, s, max(2, int(s * rng.uniform(0.6, 1.0))))
-        a = shade_rock(m, tones, rim, i, facets=False)
-        h, w = m.shape
-        for yy in range(h):
-            for xx in range(w):
-                if a[yy, xx, 3] and 0 <= y + yy < L.h:
-                    L.a[y + yy, (x + xx) % TW] = a[yy, xx]
-    # 带子里的尘：一层更暗的薄带（稀疏横点）
-    for x in range(TW):
-        for k in range(-6, 7, 3):
-            y = int(cen[x] + k)
-            if (x * 7 + k * 13) % 5 == 0 and not L.a[y, x, 3]:
-                L.a[y, x, :3] = col(.165, .012, 120)
-                L.a[y, x, 3] = 255
-    return L
-
-
-def debris_near():
-    """碎石墙前面零星漂过的几块中号碎石。"""
-    L = Layer(TW, 270)
-    rng = np.random.default_rng(302)
-    tones = [col(.13, .010, R_HUE + 10), col(.16, .012, R_HUE), col(.19, .013, R_HUE)]
-    rim = col(.32, .015, 80)
-    for i in range(12):
-        x = int(i * TW / 12 + rng.integers(0, 40))
-        y = int(rng.choice([rng.integers(6, 80), rng.integers(212, 262)]))
-        s = int(rng.integers(6, 13))
-        m = rock_mask(rng, s, max(4, int(s * rng.uniform(0.6, 0.9))))
-        a = shade_rock(m, tones, rim, 700 + i)
-        h, w = m.shape
-        for yy in range(h):
-            for xx in range(w):
-                if a[yy, xx, 3]:
-                    L.a[y + yy, (x + xx) % TW] = a[yy, xx]
-    return L
-
-
-# ============================================================ 星空和河流星球
-P_HUE = 178
-
-
-def stars():
-    L = Layer(TW, 200)
-    rng = np.random.default_rng(401)
-    for i in range(80):
-        x, y = int(rng.integers(0, TW)), int(rng.integers(0, 200))
-        c = col(float(rng.choice([.27, .30, .34])), .012, 150)
-        L.a[y, x, :3] = c
-        L.a[y, x, 3] = 255
-    for i in range(7):
-        x, y = int(rng.integers(2, TW - 2)), int(rng.integers(2, 198))
-        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            L.a[y + dy, x + dx, :3] = col(.26, .012, 150)
-            L.a[y + dy, x + dx, 3] = 255
-        L.a[y, x, :3] = col(.40, .014, 140)
-    return L
-
-
-def planet(d, seed, rivers=True):
-    """河流星球：青绿的海（不是蓝）、暗绿的陆，亮的河弯弯曲曲；光从左上，右下一弯暗；左上一圈大气亮边。"""
-    pad = 2
-    n = d + 2 * pad
-    a = np.zeros((n, n, 4), np.uint8)
-    yy, xx = np.mgrid[0:n, 0:n]
-    c = (n - 1) / 2
-    r = d / 2
-    dist = np.hypot(xx - c, yy - c)
-    disc = dist <= r - 0.3
-    rng = np.random.default_rng(seed)
-    # 陆地：几团圆的并
-    land = np.zeros_like(disc)
-    for _ in range(max(3, d // 7)):
-        lx, ly = rng.uniform(c - r * 0.8, c + r * 0.8), rng.uniform(c - r * 0.7, c + r * 0.7)
-        lr = rng.uniform(r * 0.18, r * 0.42)
-        land |= (np.hypot((xx - lx) * 0.8, yy - ly) < lr)
-    land &= disc
-    # 光：法线点乘左上
-    nx, ny = (xx - c) / r, (yy - c) / r
-    nz = np.sqrt(np.clip(1 - nx ** 2 - ny ** 2, 0, 1))
-    lam = -0.55 * nx - 0.5 * ny + 0.67 * nz
-    q = np.digitize(lam, [0.05, 0.45, 0.8])                          # 0 夜 / 1 暗 / 2 中 / 3 亮
-    sea = [col(.17, .018, P_HUE + 6), col(.21, .026, P_HUE), col(.245, .032, P_HUE - 2), col(.27, .034, P_HUE - 6)]
-    gnd = [col(.16, .016, 140), col(.19, .022, 135), col(.215, .026, 130), col(.24, .028, 125)]
-    for i in range(4):
-        a[disc & ~land & (q == i), :3] = sea[i]
-        a[disc & land & (q == i), :3] = gnd[i]
-    if rivers and d >= 30:
-        img = Image.fromarray(a)
-        dr = ImageDraw.Draw(img)
-        for k in range(2):
-            pts = []
-            x0 = c - r * 0.6 + k * r * 0.5
-            for t in range(0, int(r * 1.3), 3):
-                pts.append((x0 + t * 0.7 + 2.5 * math.sin(t / 3 + k), c - r * 0.6 + t * 0.85 + 2 * math.cos(t / 4 + k)))
-            dr.line(pts, fill=tuple(col(.31, .034, 172)) + (255,), width=1)
-        b = np.array(img)
-        rv = (b[..., :3] != a[..., :3]).any(-1) & land & (q >= 1)
-        a[rv, :3] = col(.31, .034, 172)
-        a[rv & (q <= 1), :3] = col(.25, .030, 175)
-    a[disc, 3] = 255
-    # 大气：亮的一侧外沿一圈
-    ring = (dist > r - 0.3) & (dist <= r + 0.9)
-    lit_side = (-(xx - c) - (yy - c)) > -r * 0.3
-    a[ring & lit_side, :3] = col(.30, .030, 168)
-    a[ring & lit_side, 3] = 255
-    inner = disc & (dist > r - 1.4) & lit_side & (lam > 0.3)
-    a[inner, :3] = col(.33, .032, 165)
-    ys, xs = np.nonzero(a[..., 3])
-    return a[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
-
-
-# ============================================================ 河流城市（白天；灰色鸽子笼高楼，冷漠）
-# 10-29 第二章开工（docs/river_plan.md 第 0 节）：河流星的身份色是低饱和的石板灰蓝，和第二章河岸那一屏
-# （tools/river_city_art.py）接上；原来这几层是灰绿。构图、亮度都不改，只换色相：墙 / 地按 rcol 映到 h≈238 一带，
-# 水（原来 h 170~182）映到偏青的 h≈218~224；木箱的暖色不动。亮度仍压在驾驶舱舱壁以下。
-G_HUE = 155
-
-
-def rcol(L, C, h):
-    """河流城市的颜色：原来灰绿那套色相（100~190）换成石板灰蓝 / 水的青蓝，其余（木箱的暖色）照旧。"""
-    if 100 <= h <= 190:
-        h = 218 + (h - 170) * 0.5 if h >= 168 else 238 + (h - 155) * 0.3
-    return col(L, C, h)
-
-
-def ground():
-    """远处平原到地平线：灰绿的地，河道一条条横着（越近越宽、越弯），地平线上一道薄雾。"""
-    L = Layer(TW, 140)
-    L.a[..., 3] = 255
-    for y in range(L.h):
-        Lv = .215 - 0.035 * min(1, y / 120)
-        L.a[y, :, :3] = rcol(Lv - (Lv * 1000 % 7) * 0, .012, G_HUE)
-    L.a[0:2, :, :3] = rcol(.245, .012, 150)
-    L.a[2:4, :, :3] = rcol(.23, .012, 152)
-    # 分档（硬边）
-    for y0, Lv in ((4, .215), (22, .205), (50, .195), (90, .185)):
-        L.a[y0:, :, :3] = rcol(Lv, .013, G_HUE)
-    WATER, WLIT = rcol(.25, .022, P_HUE), rcol(.275, .022, 172)
-    rng = np.random.default_rng(601)
-    for i, (y, th, amp) in enumerate(((7, 1, 1), (12, 1, 1.5), (19, 1, 2), (29, 2, 3), (43, 2, 4), (63, 3, 6),
-                                      (90, 4, 8), (124, 5, 10))):
-        n = pnoise(TW, 610 + i, 1, 5)
-        for x in range(TW):
-            yy = int(y + amp * n[x])
-            L.a[yy:yy + th, x, :3] = WATER
-            if th > 1 and (x + i * 5) % 9 < 3:
-                L.a[yy, x, :3] = WLIT
-    # 地上散着的小镇（灰点、短横）
-    for _ in range(140):
-        x, y = int(rng.integers(0, TW)), int(rng.integers(5, 135))
-        w = 1 + y // 30 + int(rng.integers(0, 3))
-        if (L.a[y, x, :3] == WATER).all():
-            continue
-        L.a[y, x:x + w, :3] = rcol(.235, .006, 120)
-    return L
-
-
-def towers_row(L: Layer, rng, y_top_range, w_range, gap_range, tone_fn, cell, lit_c, shade_c, roof_c, gap_c,
-               balcony=0.0, base=None):
-    """一排紧挨着的方楼，立面是一格一格的小窗（鸽子笼）。cell=(cw, ch, ww, wh)。返回 (楼 mask, 楼列表)。"""
-    x = int(rng.integers(0, 10))
-    allm = np.zeros((L.h, L.w), bool)
-    blds = []
-    while x < TW:
-        w = int(rng.integers(*w_range))
-        top = int(rng.integers(*y_top_range))
-        body, win = tone_fn(rng)
-        m = L.rect(x, top, x + w - 1, L.h - 1)
-        L.paint(m, body)
-        cw, ch, ww, wh = cell
-        bal = rng.random() < balcony
-        for yy in range(top + 3, L.h, ch):
-            for xx in range(x + 2, x + w - ww - 1, cw):
-                L.paint(L.rect(xx, yy, xx + ww - 1, yy + wh - 1), win)
-            if bal:
-                L.paint(L.rect(x + 1, yy + wh, x + w - 2, yy + wh), lit_c)
-        L.paint(L.rect(x, top, x, L.h - 1), lit_c)                    # 朝左（天光）那条边亮
-        L.paint(L.rect(x + w - 1, top, x + w - 1, L.h - 1), shade_c)
-        L.paint(L.rect(x, top, x + w - 1, top), roof_c)
-        if rng.random() < 0.5:                                         # 楼顶的水箱 / 天线
-            tx = x + int(rng.integers(2, max(3, w - 6)))
-            if rng.random() < 0.5:
-                L.paint(L.rect(tx, top - 4, tx + 3, top - 1), body)
-                L.paint(L.rect(tx, top - 4, tx + 3, top - 4), roof_c)
-            else:
-                L.paint(L.rect(tx, top - int(rng.integers(4, 10)), tx, top - 1), shade_c)
-        allm |= m
-        blds.append((x, top, w))
-        g = int(rng.integers(*gap_range))
-        if g > 0:
-            L.paint(L.rect(x + w, top + 6, x + w + g - 1, L.h - 1), gap_c)
-        x += w + g
-    return allm, blds
-
-
-def city_far():
-    """远处的城：地平线上一排挤得密密的小楼。"""
-    L = Layer(TW, 56)
-    rng = np.random.default_rng(701)
-    tones = [rcol(.205, .006, G_HUE), rcol(.215, .005, 140), rcol(.198, .006, 165)]
-
-    def tone(r):
-        b = tones[int(r.integers(0, 3))]
-        return b, rcol(.185, .006, G_HUE)
-    towers_row(L, rng, (8, 44), (3, 9), (0, 2), tone, (2, 3, 1, 1), rcol(.235, .006, 140), rcol(.19, .006, 165),
-               rcol(.23, .006, 140), rcol(.18, .006, 165))
-    return L
-
-
-def city_mid():
-    """鸽子笼高楼：灰色方楼一栋挨一栋，一格一格的小窗，几乎没有灯。"""
-    L = Layer(TW, 240)
-    rng = np.random.default_rng(702)
-    tones = [(rcol(.20, .006, G_HUE), rcol(.155, .007, 170)), (rcol(.215, .005, 120), rcol(.165, .006, 160)),
-             (rcol(.19, .007, 165), rcol(.15, .007, 175)), (rcol(.205, .004, 90), rcol(.16, .006, 160))]
-
-    def tone(r):
-        return tones[int(r.integers(0, len(tones)))]
-    m, blds = towers_row(L, rng, (0, 110), (22, 46), (1, 4), tone, (4, 4, 2, 2), rcol(.235, .006, 140),
-                         rcol(.17, .006, 165), rcol(.24, .006, 130), rcol(.13, .008, 170), balcony=0.35)
-    # 极少几格亮着的窗（冷的灰绿，不暖）
-    for _ in range(14):
-        x0, top, w = blds[int(rng.integers(0, len(blds)))]
-        xx = x0 + 2 + 4 * int(rng.integers(0, max(1, (w - 4) // 4)))
-        yy = top + 3 + 4 * int(rng.integers(0, 30))
-        if yy + 1 < L.h:
-            L.paint(L.rect(xx, yy, xx + 1, yy + 1), rcol(.27, .03, 72))      # 琥珀（河流星的暖色只给少数亮窗）
-    return L
-
-
-def clocktower():
-    """钟楼：老石头方塔，比鸽子笼楼暖一点点；钟面浅灰，指针停着。"""
-    w, h = 30, 200
-    L = Layer(w, h, tile=False)
-    STONE, LIT, SH_, DARK = rcol(.215, .012, 70), rcol(.25, .012, 75), rcol(.18, .010, 60), rcol(.13, .008, 60)
-    L.paint(L.rect(7, 44, 22, h - 1), STONE)                       # 塔身
-    L.paint(L.rect(7, 44, 7, h - 1), LIT)
-    L.paint(L.rect(21, 44, 22, h - 1), SH_)
-    for y in range(48, h, 6):                                       # 石缝
-        L.paint(L.rect(8, y, 20, y), SH_)
-    for y in range(76, h - 20, 26):                                 # 窄窗
-        L.paint(L.rect(14, y, 15, y + 6), DARK)
-    L.paint(L.rect(5, 26, 24, 44), STONE)                           # 钟室
-    L.paint(L.rect(5, 26, 5, 44), LIT)
-    L.paint(L.rect(23, 26, 24, 44), SH_)
-    L.paint(L.rect(4, 44, 25, 45), LIT)                             # 檐
-    L.paint(L.rect(4, 25, 25, 25), LIT)
-    face = L.ellipse(14.5, 35, 6.5, 6.5)
-    L.paint(face, rcol(.25, .008, 90))
-    L.paint(L.ellipse(14.5, 35, 5.5, 5.5), rcol(.33, .008, 95))
-    for dx, dy in ((0, -4), (4, 0), (0, 4), (-4, 0)):
-        L.a[35 + dy, 14 + dx, :3] = rcol(.22, .008, 80)
-    L.paint(L.line([(14, 35), (14, 31)]), rcol(.17, .008, 70))       # 指针：停在一个时间
-    L.paint(L.line([(14, 35), (17, 37)]), rcol(.17, .008, 70))
-    L.paint(L.poly([(14.5, 6), (26, 25), (3, 25)]), rcol(.17, .010, 60))   # 尖顶
-    L.paint(L.poly([(14.5, 6), (3, 25), (8, 25)]), rcol(.20, .010, 65))
-    L.paint(L.rect(14, 0, 14, 6), SH_)
-    L.a[0, 13:16, :3] = SH_
-    L.a[0, 13:16, 3] = 255
-    return L
-
-
-def canal():
-    """河道（当跑道用的那条）：水下还看得见旧跑道的虚线，水面上一排停着的小船。"""
-    L = Layer(TW, 64)
-    rng = np.random.default_rng(801)
-    SURF = 14
-    WATER = rcol(.20, .020, P_HUE)
-    L.paint(L.rect(0, SURF, TW - 1, L.h - 1), WATER)
-    L.paint(L.rect(0, SURF, TW - 1, SURF), rcol(.26, .020, 172))
-    L.paint(L.rect(0, SURF + 18, TW - 1, L.h - 1), rcol(.19, .019, P_HUE + 2))
-    for x in range(0, TW, 40):                                        # 水下的跑道虚线
-        L.paint(L.rect(x, SURF + 9, x + 17, SURF + 10), rcol(.225, .016, 160))
-    for _ in range(60):                                               # 水面亮痕
-        x, y = int(rng.integers(0, TW)), int(rng.integers(SURF + 2, L.h - 2))
-        L.paint(L.rect(x, y, x + int(rng.integers(2, 6)), y), rcol(.235, .020, 170))
-    HULL, HLIT, CAB, CLIT = rcol(.19, .018, 55), rcol(.245, .018, 65), rcol(.22, .010, 90), rcol(.26, .010, 95)
-    x = 12
-    while x < TW - 10:
-        bw = int(rng.integers(18, 30))
-        hh = int(rng.integers(4, 6))
-        y1 = SURF + 1
-        hull = L.poly([(x, y1 - hh), (x + bw, y1 - hh), (x + bw - 3, y1 + 1), (x + 3, y1 + 1)])
-        L.paint(hull, HULL)
-        L.paint(L.rect(x, y1 - hh, x + bw, y1 - hh), HLIT)
-        cw = int(rng.integers(6, 11))
-        cx = x + int(rng.integers(3, bw - cw - 2))
-        L.paint(L.rect(cx, y1 - hh - 4, cx + cw, y1 - hh - 1), CAB)
-        L.paint(L.rect(cx, y1 - hh - 4, cx + cw, y1 - hh - 4), CLIT)
-        L.paint(L.rect(cx + 2, y1 - hh - 3, cx + 3, y1 - hh - 2), rcol(.14, .008, 170))
-        if rng.random() < 0.5:
-            mx = x + bw // 2 + int(rng.integers(-3, 4))
-            L.paint(L.rect(mx, y1 - hh - 11, mx, y1 - hh - 1), HULL)
-        L.paint(L.rect(x + 3, y1 + 2, x + bw - 3, y1 + 2), rcol(.16, .016, P_HUE + 4))   # 船底下的影
-        x += bw + int(rng.integers(26, 60))
-    return L
-
-
-def water_near():
-    """近处的水面（擦水滑行、落水后）：一条亮的水线 + 一道道往后拖的亮痕。"""
-    L = Layer(TW, 90)
-    rng = np.random.default_rng(802)
-    L.paint(L.rect(0, 0, TW - 1, L.h - 1), rcol(.19, .020, P_HUE))
-    L.paint(L.rect(0, 0, TW - 1, 0), rcol(.27, .020, 170))
-    L.paint(L.rect(0, 1, TW - 1, 2), rcol(.22, .020, 174))
-    L.paint(L.rect(0, 30, TW - 1, L.h - 1), rcol(.175, .019, P_HUE + 2))
-    L.paint(L.rect(0, 60, TW - 1, L.h - 1), rcol(.16, .018, P_HUE + 4))
-    for _ in range(90):
-        x, y = int(rng.integers(0, TW)), int(rng.integers(4, L.h - 2))
-        ln = int(rng.integers(3, 12)) + (8 if y < 30 else 0)
-        L.paint(L.rect(x, y, x + ln, y), rcol(.235 if y < 30 else .21, .020, 170))
-    return L
-
-
-def spray():
-    """擦水时往后溅的水花：一串串斜的亮点（很稀），只在 skid 用，飞得很快。"""
-    L = Layer(TW, 50)
-    rng = np.random.default_rng(803)
-    for i in range(22):
-        x = int(i * TW / 22 + rng.integers(0, 30))
-        y = int(rng.integers(16, 44))
-        ln = int(rng.integers(6, 16))
-        for k in range(ln):
-            c = rcol(.32, .016, 165) if k < ln - 3 else rcol(.27, .018, 170)
-            px, py = (x + k * 2) % TW, y - k // 2
-            if 0 <= py < L.h:
-                L.a[py, px, :3] = c
-                L.a[py, px, 3] = 255
-                if k % 3 == 0 and py + 1 < L.h:
-                    L.a[py + 1, px, :3] = rcol(.25, .018, 170)
-                    L.a[py + 1, px, 3] = 255
-    return L
-
-
-def wall_channel():
-    """落水后的窄水道：对岸是一面灰楼的墙，一格一格的窗，水线以下长着暗绿的苔。"""
-    L = Layer(TW, 236)
-    rng = np.random.default_rng(901)
-    WALL = rcol(.19, .006, G_HUE)
-    L.paint(L.rect(0, 0, TW - 1, L.h - 1), WALL)
-    x = 0
-    while x < TW:                                                      # 一栋栋楼（宽 70~130），之间一道暗缝
-        bw = int(rng.integers(70, 130))
-        tone = [rcol(.19, .006, G_HUE), rcol(.20, .005, 120), rcol(.182, .007, 165)][int(rng.integers(0, 3))]
-        L.paint(L.rect(x, 0, x + bw - 1, L.h - 1), tone)
-        for yy in range(6, 200, 18):
-            for xx in range(x + 5, x + bw - 12, 14):
-                L.paint(L.rect(xx, yy, xx + 7, yy + 9), rcol(.145, .007, 170))
-                L.paint(L.rect(xx, yy + 10, xx + 8, yy + 10), rcol(.22, .006, 130))   # 窗台
-                if rng.random() < 0.2:                                   # 拉着帘子
-                    L.paint(L.rect(xx + 1, yy + 1, xx + 6, yy + 4), rcol(.17, .008, 150))
-                if rng.random() < 0.25:                                  # 窗下一道水渍
-                    L.paint(L.rect(xx + 2, yy + 11, xx + 2, yy + 11 + int(rng.integers(3, 8))), rcol(.17, .006, 150))
-        L.paint(L.rect(x, 0, x, L.h - 1), rcol(.215, .006, 130))
-        L.paint(L.rect(x + bw - 2, 0, x + bw - 1, L.h - 1), rcol(.15, .007, 170))
-        px = x + int(rng.integers(10, bw - 10))                          # 落水管
-        L.paint(L.rect(px, 0, px + 1, L.h - 1), rcol(.165, .008, 160))
-        L.paint(L.rect(px, 0, px, L.h - 1), rcol(.205, .008, 140))
-        x += bw
-    L.paint(L.rect(0, 200, TW - 1, L.h - 1), rcol(.155, .016, 140))     # 水线以下的苔
-    n = pnoise(TW, 902, 3, 20)
-    for x in range(TW):
-        L.a[200 - int(2 + 2 * n[x]):200, x, :3] = rcol(.165, .014, 135)
-    return L
-
-
-def crate():
-    """漂着的木箱：画里唯一一点暖色，面积很小；下面几行泡在水里。"""
-    w, h = 22, 18
-    L = Layer(w, h, tile=False)
-    WOOD, LIT, SH_, LINE = rcol(.29, .030, 62), rcol(.33, .030, 70), rcol(.235, .026, 55), rcol(.215, .024, 52)
-    L.paint(L.rect(0, 0, w - 1, h - 1), WOOD)
-    L.paint(L.rect(0, 0, w - 1, 0), LIT)
-    L.paint(L.rect(0, 0, 0, h - 1), LIT)
-    L.paint(L.rect(w - 2, 0, w - 1, h - 1), SH_)
-    for y in (5, 10):
-        L.paint(L.rect(1, y, w - 3, y), LINE)
-    L.paint(L.line([(2, 2), (w - 4, h - 7)]), LINE)
-    for x in (3, w - 5):
-        L.a[2, x, :3] = rcol(.20, .010, 60)
-    wet = np.zeros((h, w), bool)
-    wet[h - 5:] = True
-    L.a[wet, :3] = (L.a[wet, :3] * 0.72 + np.array(rcol(.20, .02, P_HUE)) * 0.28).astype(np.uint8)
-    L.a[h - 5, :, :3] = rcol(.28, .020, 170)                              # 吃水线
-    return L
-
-
-def river_row():
-    """起飞离开河流星（原文 152「飞机升高，河岸的屋子缩小成一排挨着水的色块」）：一排矮屋子，每栋只是一块颜色
-    （灰蓝、旧白、褪色的红和绿，压得很暗），屋顶高低不齐，零星几扇琥珀色的窗；底下一条水，水里一道亮线。
-    妮芙家那块（x≈300）比旁边的高一点、窗是亮的。"""
-    L = Layer(TW, 70)
-    rng = np.random.default_rng(1501)
-    SURF = 52
-    tones = [col(.24, .014, 238), col(.27, .012, 225), col(.22, .016, 250), col(.26, .02, 30), col(.25, .016, 150),
-             col(.29, .012, 85), col(.23, .012, 238)]
-    x = 0
-    while x < TW:
-        w = int(rng.integers(10, 26))
-        if TW - x < 12:
-            w = TW - x
-        top = SURF - int(rng.integers(10, 26))
-        if 290 <= x <= 310:
-            top = SURF - 32
-        c = tones[int(rng.integers(0, len(tones)))]
-        L.paint(L.rect(x, top, x + w - 1, SURF), c)
-        L.paint(L.rect(x, top, x + w - 1, top), col(.31, .012, 230))
-        for wy in range(top + 4, SURF - 3, 6):
-            for wx in range(x + 2, x + w - 3, 5):
-                lit = rng.random() < 0.08 or (290 <= x <= 310)
-                L.paint(L.rect(wx, wy, wx + 1, wy + 1), col(.36, .05, 72) if lit else col(.17, .012, 238))
-        x += w + int(rng.integers(0, 3))
-    L.paint(L.rect(0, SURF + 1, TW - 1, L.h - 1), col(.21, .024, 222))
-    L.paint(L.rect(0, SURF + 1, TW - 1, SURF + 1), col(.33, .02, 215))
-    for _ in range(70):
-        xx, yy = int(rng.integers(0, TW)), int(rng.integers(SURF + 3, L.h - 1))
-        L.paint(L.rect(xx, yy, xx + int(rng.integers(2, 7)), yy), col(.27, .022, 215))
-    return L
-
-
 # ============================================================ sky.json
 BG = {
-    # 10-29 验收：起飞两段的天原来 #07100d→#17251f，近处树冠（L≈.11）和中远林线（.16～.19）贴在上面几乎看不出来，
-    # 屏幕下半又被黑边盖住一截 → 天往亮提一点（地平线那头亮），林子当剪影读得出来；仍比舱壁（L≈.22～.36）暗
     # 起飞几段：整屏都被 forest_bg（关卡的雾带 + 往上接的天）盖住，底色只在它上沿露出来 → 用它最上面那档的颜色
     "forest": [F_BG, F_BG],
-    "clouds": ["#09120f", "#1a2622"],
-    "debris": ["#08100e", "#171f1c"],
-    "space": ["#050b09", "#101b17"],
-    # 10-29 河流星白天的石板灰蓝（原来 #0d1412 / #212b27、#111917 / #1d2623 灰绿的夜）；仍比舱壁暗
-    "city": ["#161d23", "#2a333a"],
-    "channel": ["#161c21", "#232b31"],
+    # 云海以后每段都有一张整屏的天（cloud_sky / stars / river_sky，比屏幕每边大 48）盖住引擎画的 10 条底色带；
+    # 底色只在换状态、两张天交叉淡入淡出的那一下透出来一点 → 取和那几张天上下两端差不多的颜色
+    "clouds": ["#0b1517", "#1d2b2a"],
+    "debris": ["#0b1517", "#1d2b2a"],
+    "space": ["#070d0e", "#0d1515"],
+    "void": ["#040707", "#060a0a"],
+    "city": ["#0f1626", "#1b2433"],
+    "channel": ["#0f1626", "#1b2433"],
 }
+
+P = -SKY_PAD          # 整屏的天：左上角在 (-48, -48)
 
 LAYERS = {   # 从后往前（draw order）
     "forest_bg": {"img": "forest_bg.png", "tile": True},
-    "stars": {"img": "stars.png", "tile": True},
+    "stars": {"img": "stars.png"},
+    "cloud_sky": {"img": "cloud_sky.png"},
+    "river_sky": {"img": "river_sky.png"},
+    "void": {"img": "void.png"},
+    "star_pts": {"img": "star_pts.png", "tile": True},
+    "star_mid": {"img": "star_mid.png", "tile": True},
+    "star_long": {"img": "star_long.png", "tile": True},
     "planet_s": {"img": "planet_s.png"},
     "planet_m": {"img": "planet_m.png"},
     "cloud_high": {"img": "cloud_high.png", "tile": True},
@@ -926,14 +1490,21 @@ LAYERS = {   # 从后往前（draw order）
     "forest_mid": {"img": "forest_mid.png", "tile": True},
     "forest_main": {"img": "forest_main.png", "tile": True},
     "cloud_far": {"img": "cloud_far.png", "tile": True},
+    "cloud_midfar": {"img": "cloud_midfar.png", "tile": True},
     "debris_belt": {"img": "debris_belt.png", "tile": True},
+    "cloud_mid": {"img": "cloud_mid.png", "tile": True},
     "cloud_deck": {"img": "cloud_deck.png", "tile": True},
     "ground": {"img": "ground.png", "tile": True},
+    "moon_glint": {"img": "moon_glint.png"},
+    "river_ridge": {"img": "river_ridge.png", "tile": True},
+    "river_mist": {"img": "river_mist.png", "tile": True},
+    "river_shore": {"img": "river_shore.png", "tile": True},
     "city_far": {"img": "city_far.png", "tile": True},
     "clocktower": {"img": "clocktower.png"},
     "city_mid": {"img": "city_mid.png", "tile": True},
     "canal": {"img": "canal.png", "tile": True},
-    "wall_channel": {"img": "wall_channel.png", "tile": True},
+    "channel_mid": {"img": "channel_mid.png"},
+    "channel_bank": {"img": "channel_bank.png"},
     "water_near": {"img": "water_near.png", "tile": True},
     "crate": {"img": "crate.png"},
     "river_row": {"img": "river_row.png", "tile": True},
@@ -972,6 +1543,47 @@ def forest_at(h, v, climb, drop=()):
     return out
 
 
+# 云海：作者场景里各层的 y 就是图的 y（地平线 141）。sink = 整片云海比作者的构图低多少（往上爬 = 云海往下沉）。
+# 横向速度按作者场景各层的 scroll_scale（far .08 / midfar .18 / mid .36 / near .6），v = 主层（最近那层）的速度。
+CL_SCROLL = {"cloud_high": .03, "cloud_far": .08, "cloud_midfar": .18, "cloud_mid": .36, "cloud_deck": .6}
+CL_SINK = {"cloud_sky": .0, "cloud_high": .15, "cloud_far": .45, "cloud_midfar": .6, "cloud_mid": .8, "cloud_deck": 1.0}
+DECK_Y = 196           # 停在云海上时 cloud_deck 的团顶在屏幕上的高度（和作者 near 那排差不多）
+
+
+def clouds_at(sink, v, alpha=None, drop=(), deck=True):
+    """云海各层的关键帧：比作者构图低 sink 像素、主层横向 v 像素/秒。"""
+    out = []
+    for k, f in CL_SINK.items():
+        if k in drop or (k == "cloud_deck" and not deck):
+            continue
+        if k == "cloud_sky":
+            out.append(S(k, P + round(sink * f), 0, 0, x=P))
+        elif k == "cloud_high":
+            out.append(S(k, HIGH_Y + round(sink * f), round(v * CL_SCROLL[k], 2), 0))
+        elif k == "cloud_deck":
+            out.append(S(k, DECK_Y - DECK_TOP + round(sink * f), round(v * CL_SCROLL[k], 2), 0))
+        else:
+            out.append(S(k, round(sink * f), round(v * CL_SCROLL[k], 2), 0))
+    if alpha:
+        out = [dict(e, alpha=alpha.get(e["id"], 1.0)) if e["id"] in alpha else e for e in out]
+    return out
+
+
+HIGH_Y = 0             # build() 里按 cloud_high 裁掉的行数填
+
+
+# 河流星：作者河岸场景里 HORIZON = 150（天、远岸石柱、雾、近岸怪树都按这个对齐）；降落时视线一直平着，地平线不动，
+# 近处的东西（小镇、钟楼、水道、水面）从画面下面升上来 = 往下降。
+def river_back(alpha=1.0, mist=True, shore=True):
+    out = [S("river_sky", P, 0, 0, alpha, x=P), S("ground", 151, 2, 0, alpha), S("moon_glint", 155, 0, 0, alpha, x=0),
+           S("river_ridge", 0, 1, 0, alpha)]
+    if mist:
+        out.append(S("river_mist", 0, 3, 0, alpha))
+    if shore:
+        out.append(S("river_shore", 0, 4, 0, alpha))
+    return out
+
+
 def states():
     st = {}
     # ---------- 起飞：就是森林关卡那片林子（forest_layers），镜头一路往上升，各层往下沉（近的沉得快）
@@ -980,84 +1592,111 @@ def states():
     # canopy_fall：穿过林冠，近处大树的枝一层层从窗边掉下去。停在这一段的时间看对白长短（7～20 秒），
     # 爬升 8 像素/秒：停 20 秒也到不了 forest_below 的高度，不会倒回去
     st["canopy_fall"] = {"blend": 1.0, "bg": BG["forest"], "layers": forest_at(190, 14, 8)}
-    # forest_below：出了林冠，主层的树尖沉到画面下沿以下，远处几层的树梢在船底下、地平线一带的天最亮；
-    # 天上的高云条淡入、跟着往下压（往上爬的感觉）
+    # forest_below：出了林冠，主层的树尖沉到画面下沿以下，远处几层的树梢在船底下；
+    # 天上的高云条淡入、跟着往下压（往上爬的感觉）；云层的云底在画面上面（还没露头）
     st["forest_below"] = {"blend": 1.5, "bg": BG["forest"], "layers": [
-        *forest_at(380, 20, 6)[:1], S("cloud_high", -40, 2, 6, 0.5), *forest_at(380, 20, 6)[1:],
-        S("cloud_deck", -330, 10, 0)]}
+        *forest_at(380, 20, 6)[:1], S("cloud_high", HIGH_Y - 90, 2, 6, 0.5), *forest_at(380, 20, 6)[1:],
+        S("cloud_deck", -DECK_H - 20, 10, 0)]}
     st["forest_far"] = {"blend": 1.2, "bg": BG["forest"], "layers": [
-        *forest_at(470, 24, 6, drop=("forest_main",))[:1], S("cloud_high", -10, 3, 8, 0.75),
-        *forest_at(470, 24, 6, drop=("forest_main",))[1:], S("cloud_deck", -300, 10, 4)]}
-    # turning：转向巡航，横向一下快起来；森林只剩画面下沿的远处树梢；云层从上面压下来
+        *forest_at(470, 24, 6, drop=("forest_main",))[:1], S("cloud_high", HIGH_Y - 60, 3, 8, 0.75),
+        *forest_at(470, 24, 6, drop=("forest_main",))[1:], S("cloud_deck", -DECK_H + 20, 10, 4)]}
+    # turning：转向巡航，横向一下快起来；森林只剩画面下沿的远处树梢；云层垂下来的云底从上面压下来
     st["turning"] = {"blend": 1.0, "bg": BG["forest"], "layers": [
-        *forest_at(560, 40, 8, drop=("forest_main",))[:1], S("cloud_high", 20, 8, 6),
-        *forest_at(560, 40, 8, drop=("forest_main",))[1:], S("cloud_deck", -240, 18, 10), S("wisps", -150, 40, 0)]}
-    # clouds：云层整块扫过船，变成脚下的云海；远处地平线上一层远云，天上几条高云，近处云丝飞过。
-    # 森林的天（forest_bg）不列 → 4 档淡出成云里的底色；最远两层树梢沉出画面
+        *forest_at(560, 40, 8, drop=("forest_main",))[:1], S("cloud_high", HIGH_Y - 30, 8, 6),
+        *forest_at(560, 40, 8, drop=("forest_main",))[1:], S("cloud_deck", -DECK_H + 90, 18, 10),
+        S("wisps", -150, 40, 0)]}
+    # clouds：云层整块扫过船（一团团菜花往下掠），变成脚下的云海；后面露出作者云海场景的天和远中近三层云海。
+    # 森林的天（forest_bg）不列 → 4 档淡出（被扫过来的云层盖着）；最远两层树梢沉出画面
     st["clouds"] = {"blend": 1.8, "bg": BG["clouds"], "layers": [
-        S("cloud_high", 6, 3, 0), *forest_at(900, 48, 0, drop=("forest_bg", "forest_midfar", "forest_mid", "forest_main")),
-        S("cloud_far", 146, 5, 0), S("cloud_deck", 176, 14, 0), S("wisps", 0, 46, 0)]}
-    # debris_wall：云海上方远处，一条碎石带横在航线上；前面零星几块中号碎石漂过
+        *clouds_at(0, 46)[:2], *forest_at(900, 48, 0, drop=("forest_bg", "forest_midfar", "forest_mid", "forest_main")),
+        *clouds_at(0, 46)[2:], S("wisps", 0, 46, 0)]}
+    # debris_wall：云海上方远处，一条碎石带横在航线上；前面零星几块中号碎石漂过。云海略沉（再爬高一点）
     st["debris_wall"] = {"blend": 2.5, "bg": BG["debris"], "layers": [
-        S("cloud_high", 0, 2, 0, 0.5), S("cloud_far", 150, 4, 0), S("debris_belt", 28, 5, 0),
-        S("cloud_deck", 184, 10, 0), S("debris_near", 0, 20, 0), S("wisps", 0, 30, 0, 0.5)]}
-    # clouds_fast：烧完纪念品加速；远处河流星球第一次露头（很小、半透）
+        *clouds_at(10, 30)[:4], S("debris_belt", 30, 5, 0), *clouds_at(10, 30)[4:],
+        S("debris_near", 0, 20, 0), S("wisps", 0, 30, 0, 0.5)]}
+    # clouds_fast：烧完纪念品加速；远处河流星球第一次露头（很小、半透，在余晖那边）
     st["clouds_fast"] = {"blend": 1.5, "bg": BG["clouds"], "layers": [
-        S("planet_s", 92, 0, 0, 0.5, x=34), S("cloud_high", 6, 12, 0), S("cloud_far", 146, 16, 0),
-        S("cloud_deck", 180, 48, 0), S("wisps", 0, 150, 0), S("streaks", 0, 260, 0)]}
-    # ---------- 到站：云沉下去，星星淡入，星球从小换成中
+        *clouds_at(4, 90)[:1], S("planet_s", 92, 0, 0, 0.5, x=34), *clouds_at(4, 90)[1:],
+        S("wisps", 0, 150, 0), S("streaks", 0, 260, 0)]}
+    # ---------- 飞行一结尾（10-30 作者：「往前一冲，冲入黑色的星空，场景渐暗，第一章就结束了」；降落河流星挪到河流篇开头）。
+    # cockpit_dash.gd 按顺序设这三个状态：
+    # starfield：往上爬出云海——云海整片往下沉、淡掉，天换成黑色星空，星点慢慢往右走
+    st["starfield"] = {"blend": 2.6, "bg": BG["void"], "layers": [
+        S("void", P, 0, 0, x=P), S("star_pts", P, 8, 0),
+        *clouds_at(330, 30, drop=("cloud_sky",), alpha={k: 0.0 for k in CL_SINK})]}
+    # dash_go → dash：往前一冲——星点先拉成短线（dash_go），再拉成长线（dash），横向速度一路平滑涨到很快（先缓后急）
+    st["dash_go"] = {"blend": 0.8, "bg": BG["void"], "layers": [
+        S("void", P, 0, 0, x=P), S("star_mid", P, 150, 0)]}
+    st["dash"] = {"blend": 1.0, "bg": BG["void"], "layers": [
+        S("void", P, 0, 0, x=P), S("star_long", P, 1300, 0)]}
+    # dash_end：冲出去以后收住——长线缩回星点、速度慢下来（船已经冲出画面，只剩黑色星空），接着整屏渐暗
+    st["dash_end"] = {"blend": 1.6, "bg": BG["void"], "layers": [
+        S("void", P, 0, 0, x=P), S("star_pts", P, 14, 0)]}
+    # ---------- 到站（河流篇开头用；飞行一结尾不再降落）：云海沉下去，天换成星空，星球从小换成中
     st["river_planet"] = {"blend": 2.0, "bg": BG["space"], "layers": [
-        S("stars", 0, 1, 0), S("planet_s", 92, 0, 0, 0.0, x=34), S("planet_m", 64, 0, 0, x=16),
-        S("cloud_far", 300, 10, 0), S("cloud_deck", 300, 24, 0), S("wisps", 160, 60, 0, 0.0),
-        S("ground", 290, 2, 0), S("city_far", 290, 2, 0)]}
-    # river_city：星球淡出，地面和远城从下面升上来（往下降）
+        S("stars", P, 0, 0, x=P), S("planet_s", 92, 0, 0, 0.0, x=34), S("planet_m", 64, 0, 0, x=16),
+        *clouds_at(300, 30, drop=("cloud_sky", "cloud_high")), S("wisps", 160, 60, 0, 0.0)]}
+    # river_city：进了河流星的夜：作者河岸的天（满月）淡入盖住星空，远岸的石柱、雾、怪树，地平线下一大片河面，
+    # 月亮在水里碎成一道亮纹；远处一排小镇贴着水。星球淡出。
     st["river_city"] = {"blend": 2.0, "bg": BG["city"], "layers": [
-        S("stars", 0, 1, 0, 0.25), S("planet_m", 40, 0, 0, 0.0, x=16),
-        S("ground", 152, 3, -0.6), S("city_far", 112, 4, -0.6), S("clocktower", 240, 0, 0, 0.0, x=88),
-        S("city_mid", 290, 8, 0)]}
-    # clocktower：鸽子笼高楼升上来，钟楼在机头前面（从窗里也看得到它的上半截）
+        S("stars", P, 0, 0, 0.25, x=P), *river_back()[:1], S("planet_m", 40, 0, 0, 0.0, x=16), *river_back()[1:],
+        S("city_far", 122, 4, -0.6), S("clocktower", 270, 0, 0, 0.0, x=88), S("city_mid", 290, 8, 0)]}
+    # clocktower：水上小镇升上来，钟楼在机头前面（从窗里也看得到它亮着的钟面）
     st["clocktower"] = {"blend": 1.5, "bg": BG["city"], "layers": [
-        S("ground", 142, 4, -1), S("city_far", 100, 5, -1), S("clocktower", 46, 0, -1, x=88),
-        S("city_mid", 112, 10, -1)]}
-    # boats：再低一点，停着船的水道升到船下
+        *river_back(), S("city_far", 112, 5, -1), S("clocktower", 40, 0, -1, x=88),
+        S("city_mid", 96, 10, -1)]}
+    # boats：再低一点，停着小船的宽水道升到船下，小镇在它后面
     st["boats"] = {"blend": 1.5, "bg": BG["city"], "layers": [
-        S("ground", 132, 5, -1), S("city_far", 86, 6, -1), S("clocktower", 4, 0, -1, x=88),
-        S("city_mid", 70, 14, -1), S("canal", 200, 20, -1)]}
+        *river_back(), S("city_far", 104, 6, -1), S("clocktower", 2, 0, -1, x=88),
+        S("city_mid", 60, 14, -1), S("canal", 186, 20, -1)]}
     # tilt：一歪，水道猛地近了
     st["tilt"] = {"blend": 0.6, "bg": BG["city"], "layers": [
-        S("ground", 124, 6, 0), S("city_far", 76, 8, 0), S("clocktower", -18, 0, 0, x=88),
-        S("city_mid", 52, 22, 0), S("canal", 176, 40, 0)]}
-    # skid：擦着水面滑：水面到了船腰，船一排排往后掠，水花往后溅
+        *river_back(shore=False), S("city_far", 98, 8, 0), S("clocktower", -18, 0, 0, x=88),
+        S("city_mid", 44, 22, 0), S("canal", 164, 40, 0)]}
+    # skid：擦着水面滑：水面到了船腰，小船一排排往后掠，水花往后溅
     st["skid"] = {"blend": 0.8, "bg": BG["city"], "layers": [
-        S("ground", 120, 8, 0), S("city_far", 70, 10, 0), S("clocktower", -30, 0, 0, x=88),
-        S("city_mid", 44, 30, 0), S("canal", 160, 120, 0), S("water_near", 190, 170, 0),
+        *river_back(shore=False), S("city_far", 94, 10, 0), S("clocktower", -30, 0, 0, x=88),
+        S("city_mid", 36, 30, 0), S("canal", 146, 120, 0), S("water_near", 190, 170, 0),
         S("spray", 158, 230, 0)]}
-    # ---------- 落水：漂进窄水道，对岸一面灰楼墙
-    st["channel"] = {"blend": 1.0, "bg": BG["channel"], "layers": [
-        S("city_mid", 44, 6, 0), S("wall_channel", -10, 5, 0), S("water_near", 190, 6, 0)]}
+    # ---------- 落水：漂进窄水道，卡在一根下到水里的大石柱边上——就是河流篇开场河岸那一屏（同一根石柱、同一排高脚屋）。
+    # 整个画面比降落时低 22（河岸房间的水面在 218，这里 196，船浮在水里）；船卡住了，都不卷动
+    D = -22
+    bank = [S("river_sky", P + D, 0, 0, x=P), S("moon_glint", 155 + D, 0, 0, x=0), S("river_ridge", D, 0, 0),
+            S("river_mist", D, 2, 0), S("river_shore", D, 0, 0), S("channel_mid", D, 0, 0, x=0),
+            S("channel_bank", D, 0, 0, x=0)]
+    st["channel"] = {"blend": 1.0, "bg": BG["channel"], "layers": [*bank, S("water_near", 218 + D, 3, 0)]}
     st["crate"] = {"blend": 1.2, "bg": BG["channel"], "layers": [
-        S("wall_channel", -10, 3, 0), S("water_near", 190, 4, 0), S("crate", 177, 0, 0, x=42)]}
-    # ---------- 第二章结尾：从河岸起飞（原文 152）。河岸的屋子缩成一排挨着水的色块，慢慢沉下去；远城在后面也沉
+        *bank, S("water_near", 218 + D, 2, 0), S("crate", 218 + D - 13, 0, 0, x=46)]}
+    # ---------- 第二章结尾：从河岸起飞（原文 152）。河岸的屋子缩成一排挨着水的色块，慢慢沉下去；远处小镇在后面也沉
     st["river_leave"] = {"blend": 2.0, "bg": BG["city"], "layers": [
-        S("city_far", 150, 3, 4), S("river_row", 196, 6, 7)]}
+        S("river_sky", P, 0, 0, x=P), S("ground", 151, 2, 3), S("moon_glint", 155, 0, 3, x=0), S("river_ridge", 0, 1, 3),
+        S("river_mist", 0, 3, 3), S("city_far", 140, 3, 5), S("river_row", 192, 6, 7)]}
     return st
 
 
 ORDER = ["forest_canopy", "canopy_fall", "forest_below", "forest_far", "turning", "clouds", "debris_wall",
-         "clouds_fast", "river_planet", "river_city", "clocktower", "boats", "tilt", "skid", "channel", "crate",
+         "clouds_fast", "starfield", "dash_go", "dash", "dash_end", "river_planet", "river_city", "clocktower", "boats", "tilt", "skid", "channel", "crate",
          "river_leave"]
 
 
-def build(only=None):
-    """only = 只写这几张图（加上 sky.json 总是重写）。别人改过的层（森林、驾驶舱碎石……）不在 only 里就不碰。"""
-    imgs = {
-        "cloud_deck": cloud_deck(), "cloud_far": cloud_far(), "cloud_high": cloud_high(), "wisps": wisps(),
-        "streaks": streaks(), "debris_belt": debris_belt(), "debris_near": debris_near(), "stars": stars(),
+def build(only=None, debris=False):
+    """only = 只写这几张图（加上 sky.json 总是重写）。debris = 也重写 art/cockpit/debris_*.png（躲碎石的碎石小图，
+    不在 sky/ 里；平时不碰，免得盖掉别人改过的）。"""
+    global HIGH_Y
+    high, HIGH_Y = cloud_high()
+    arrs = {
+        "cloud_sky": cloud_sky_full(), "cloud_high": high,
+        "cloud_far": cloud_sea("far"), "cloud_midfar": cloud_sea("midfar"), "cloud_mid": cloud_sea("mid"),
+        "cloud_deck": cloud_deck(), "wisps": wisps(), "streaks": streaks().a,
+        "debris_belt": debris_belt().a, "debris_near": debris_near().a, "stars": space_sky(),
+        "void": void_sky(), "star_pts": star_layer(0), "star_mid": star_layer(6), "star_long": star_layer(26),
+        "river_sky": river_sky(), "river_ridge": river_layer("ridge"), "river_mist": river_layer("mist"),
+        "river_shore": river_layer("shore"), "moon_glint": moon_glint(),
         "ground": ground(), "city_far": city_far(), "city_mid": city_mid(), "clocktower": clocktower(),
-        "canal": canal(), "water_near": water_near(), "spray": spray(), "wall_channel": wall_channel(),
+        "canal": canal(), "water_near": water_near(), "spray": spray(),
         "crate": crate(), "river_row": river_row(),
     }
-    arrs = {k: v.a for k, v in imgs.items()}
+    arrs["channel_mid"], arrs["channel_bank"] = channel_layers()
     arrs.update(forest_layers())
     arrs["planet_s"] = planet(20, 451, rivers=False)
     arrs["planet_m"] = planet(56, 452)
@@ -1068,7 +1707,7 @@ def build(only=None):
             assert a.shape[1] >= SW, k
         if only is None or k in only:
             Image.fromarray(a, "RGBA").save(OUT / f"{k}.png")
-    if only is None:
+    if debris:
         for n, a in debris_sprites().items():
             Image.fromarray(a, "RGBA").save(DEBRIS_OUT / f"{n}.png")
     st = states()
@@ -1078,8 +1717,8 @@ def build(only=None):
             assert e["id"] in LAYERS, (s, e["id"])
     doc = {
         "_note": "tools/sky_art.py 生成，别手改。约定见 docs/flight_sky_contract.md。顶层 layers 的顺序就是从后往前的画的顺序；"
-                 "每个状态里的层也按这个顺序列。不 tile 的图（planet_s/m、clocktower、crate）用 x 定位，"
-                 "x 在用到它的各状态里不变，只改 y / alpha，所以引擎插不插值 x 都一样。",
+                 "每个状态里的层也按这个顺序列。不 tile 的图（整屏的天 stars / cloud_sky / river_sky、planet_s/m、moon_glint、"
+                 "clocktower、channel_mid / channel_bank、crate）用 x 定位，x 在用到它的各状态里不变，只改 y / alpha，所以引擎插不插值 x 都一样。",
         "size": [SW, SH],
         "default_blend": 2.0,
         "layers": LAYERS,
@@ -1233,7 +1872,8 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", default=None, help="预览图写到这个目录")
     ap.add_argument("--only", default=None, help="只写这几张图（逗号分开，sky.json 总是重写），比如 --only=city_far,city_mid")
+    ap.add_argument("--debris", action="store_true", help="也重写 art/cockpit/debris_*.png（平时不碰）")
     args = ap.parse_args()
-    arrs, doc = build(args.only.split(",") if args.only else None)
+    arrs, doc = build(args.only.split(",") if args.only else None, args.debris)
     if args.preview:
         preview(args.preview, arrs, doc)

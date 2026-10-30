@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://gng4seunsaao"
-path="res://.godot/imported/water.png-5cf934bd7197c18b4f3079de50e99361.ctex"
+uid="uid://cgj734s4rqgw8"
+path="res://.godot/imported/star_pts.png-a60969d6ae8533c614e97ae18f196aae.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/southbridge/water.png"
-dest_files=["res://.godot/imported/water.png-5cf934bd7197c18b4f3079de50e99361.ctex"]
+source_file="res://art/cockpit/sky/star_pts.png"
+dest_files=["res://.godot/imported/star_pts.png-a60969d6ae8533c614e97ae18f196aae.ctex"]
 
 [params]
 

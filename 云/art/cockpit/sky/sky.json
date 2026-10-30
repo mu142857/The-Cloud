@@ -1,5 +1,5 @@
 {
- "_note": "tools/sky_art.py 生成，别手改。约定见 docs/flight_sky_contract.md。顶层 layers 的顺序就是从后往前的画的顺序；每个状态里的层也按这个顺序列。不 tile 的图（planet_s/m、clocktower、crate）用 x 定位，x 在用到它的各状态里不变，只改 y / alpha，所以引擎插不插值 x 都一样。",
+ "_note": "tools/sky_art.py 生成，别手改。约定见 docs/flight_sky_contract.md。顶层 layers 的顺序就是从后往前的画的顺序；每个状态里的层也按这个顺序列。不 tile 的图（整屏的天 stars / cloud_sky / river_sky、planet_s/m、moon_glint、clocktower、channel_mid / channel_bank、crate）用 x 定位，x 在用到它的各状态里不变，只改 y / alpha，所以引擎插不插值 x 都一样。",
  "size": [
   480,
   270
@@ -11,7 +11,27 @@
    "tile": true
   },
   "stars": {
-   "img": "stars.png",
+   "img": "stars.png"
+  },
+  "cloud_sky": {
+   "img": "cloud_sky.png"
+  },
+  "river_sky": {
+   "img": "river_sky.png"
+  },
+  "void": {
+   "img": "void.png"
+  },
+  "star_pts": {
+   "img": "star_pts.png",
+   "tile": true
+  },
+  "star_mid": {
+   "img": "star_mid.png",
+   "tile": true
+  },
+  "star_long": {
+   "img": "star_long.png",
    "tile": true
   },
   "planet_s": {
@@ -48,8 +68,16 @@
    "img": "cloud_far.png",
    "tile": true
   },
+  "cloud_midfar": {
+   "img": "cloud_midfar.png",
+   "tile": true
+  },
   "debris_belt": {
    "img": "debris_belt.png",
+   "tile": true
+  },
+  "cloud_mid": {
+   "img": "cloud_mid.png",
    "tile": true
   },
   "cloud_deck": {
@@ -58,6 +86,21 @@
   },
   "ground": {
    "img": "ground.png",
+   "tile": true
+  },
+  "moon_glint": {
+   "img": "moon_glint.png"
+  },
+  "river_ridge": {
+   "img": "river_ridge.png",
+   "tile": true
+  },
+  "river_mist": {
+   "img": "river_mist.png",
+   "tile": true
+  },
+  "river_shore": {
+   "img": "river_shore.png",
    "tile": true
   },
   "city_far": {
@@ -75,9 +118,11 @@
    "img": "canal.png",
    "tile": true
   },
-  "wall_channel": {
-   "img": "wall_channel.png",
-   "tile": true
+  "channel_mid": {
+   "img": "channel_mid.png"
+  },
+  "channel_bank": {
+   "img": "channel_bank.png"
   },
   "water_near": {
    "img": "water_near.png",
@@ -213,7 +258,7 @@
     },
     {
      "id": "cloud_high",
-     "y": -40,
+     "y": -26,
      "speed": 2,
      "vy": 6,
      "alpha": 0.5
@@ -250,7 +295,7 @@
     },
     {
      "id": "cloud_deck",
-     "y": -330,
+     "y": -350,
      "speed": 10,
      "vy": 0
     }
@@ -271,7 +316,7 @@
     },
     {
      "id": "cloud_high",
-     "y": -10,
+     "y": 4,
      "speed": 3,
      "vy": 8,
      "alpha": 0.75
@@ -302,7 +347,7 @@
     },
     {
      "id": "cloud_deck",
-     "y": -300,
+     "y": -310,
      "speed": 10,
      "vy": 4
     }
@@ -323,7 +368,7 @@
     },
     {
      "id": "cloud_high",
-     "y": 20,
+     "y": 34,
      "speed": 8,
      "vy": 6
     },
@@ -368,14 +413,21 @@
   "clouds": {
    "blend": 1.8,
    "bg": [
-    "#09120f",
-    "#1a2622"
+    "#0b1517",
+    "#1d2b2a"
    ],
    "layers": [
     {
+     "id": "cloud_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
      "id": "cloud_high",
-     "y": 6,
-     "speed": 3,
+     "y": 64,
+     "speed": 1.38,
      "vy": 0
     },
     {
@@ -392,14 +444,26 @@
     },
     {
      "id": "cloud_far",
-     "y": 146,
-     "speed": 5,
+     "y": 0,
+     "speed": 3.68,
+     "vy": 0
+    },
+    {
+     "id": "cloud_midfar",
+     "y": 0,
+     "speed": 8.28,
+     "vy": 0
+    },
+    {
+     "id": "cloud_mid",
+     "y": 0,
+     "speed": 16.56,
      "vy": 0
     },
     {
      "id": "cloud_deck",
-     "y": 176,
-     "speed": 14,
+     "y": 156,
+     "speed": 27.6,
      "vy": 0
     },
     {
@@ -413,33 +477,51 @@
   "debris_wall": {
    "blend": 2.5,
    "bg": [
-    "#08100e",
-    "#171f1c"
+    "#0b1517",
+    "#1d2b2a"
    ],
    "layers": [
     {
-     "id": "cloud_high",
-     "y": 0,
-     "speed": 2,
+     "id": "cloud_sky",
+     "y": -48,
+     "speed": 0,
      "vy": 0,
-     "alpha": 0.5
+     "x": -48
+    },
+    {
+     "id": "cloud_high",
+     "y": 66,
+     "speed": 0.9,
+     "vy": 0
     },
     {
      "id": "cloud_far",
-     "y": 150,
-     "speed": 4,
+     "y": 4,
+     "speed": 2.4,
+     "vy": 0
+    },
+    {
+     "id": "cloud_midfar",
+     "y": 6,
+     "speed": 5.4,
      "vy": 0
     },
     {
      "id": "debris_belt",
-     "y": 28,
+     "y": 30,
      "speed": 5,
      "vy": 0
     },
     {
+     "id": "cloud_mid",
+     "y": 8,
+     "speed": 10.8,
+     "vy": 0
+    },
+    {
      "id": "cloud_deck",
-     "y": 184,
-     "speed": 10,
+     "y": 166,
+     "speed": 18.0,
      "vy": 0
     },
     {
@@ -460,10 +542,17 @@
   "clouds_fast": {
    "blend": 1.5,
    "bg": [
-    "#09120f",
-    "#1a2622"
+    "#0b1517",
+    "#1d2b2a"
    ],
    "layers": [
+    {
+     "id": "cloud_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
     {
      "id": "planet_s",
      "y": 92,
@@ -474,20 +563,32 @@
     },
     {
      "id": "cloud_high",
-     "y": 6,
-     "speed": 12,
+     "y": 65,
+     "speed": 2.7,
      "vy": 0
     },
     {
      "id": "cloud_far",
-     "y": 146,
-     "speed": 16,
+     "y": 2,
+     "speed": 7.2,
+     "vy": 0
+    },
+    {
+     "id": "cloud_midfar",
+     "y": 2,
+     "speed": 16.2,
+     "vy": 0
+    },
+    {
+     "id": "cloud_mid",
+     "y": 3,
+     "speed": 32.4,
      "vy": 0
     },
     {
      "id": "cloud_deck",
-     "y": 180,
-     "speed": 48,
+     "y": 160,
+     "speed": 54.0,
      "vy": 0
     },
     {
@@ -504,18 +605,142 @@
     }
    ]
   },
+  "starfield": {
+   "blend": 2.6,
+   "bg": [
+    "#040707",
+    "#060a0a"
+   ],
+   "layers": [
+    {
+     "id": "void",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "star_pts",
+     "y": -48,
+     "speed": 8,
+     "vy": 0
+    },
+    {
+     "id": "cloud_high",
+     "y": 114,
+     "speed": 0.9,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "cloud_far",
+     "y": 148,
+     "speed": 2.4,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "cloud_midfar",
+     "y": 198,
+     "speed": 5.4,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "cloud_mid",
+     "y": 264,
+     "speed": 10.8,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "cloud_deck",
+     "y": 486,
+     "speed": 18.0,
+     "vy": 0,
+     "alpha": 0.0
+    }
+   ]
+  },
+  "dash_go": {
+   "blend": 0.8,
+   "bg": [
+    "#040707",
+    "#060a0a"
+   ],
+   "layers": [
+    {
+     "id": "void",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "star_mid",
+     "y": -48,
+     "speed": 150,
+     "vy": 0
+    }
+   ]
+  },
+  "dash": {
+   "blend": 1.0,
+   "bg": [
+    "#040707",
+    "#060a0a"
+   ],
+   "layers": [
+    {
+     "id": "void",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "star_long",
+     "y": -48,
+     "speed": 1300,
+     "vy": 0
+    }
+   ]
+  },
+  "dash_end": {
+   "blend": 1.6,
+   "bg": [
+    "#040707",
+    "#060a0a"
+   ],
+   "layers": [
+    {
+     "id": "void",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "star_pts",
+     "y": -48,
+     "speed": 14,
+     "vy": 0
+    }
+   ]
+  },
   "river_planet": {
    "blend": 2.0,
    "bg": [
-    "#050b09",
-    "#101b17"
+    "#070d0e",
+    "#0d1515"
    ],
    "layers": [
     {
      "id": "stars",
-     "y": 0,
-     "speed": 1,
-     "vy": 0
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
     },
     {
      "id": "planet_s",
@@ -534,14 +759,26 @@
     },
     {
      "id": "cloud_far",
-     "y": 300,
-     "speed": 10,
+     "y": 135,
+     "speed": 2.4,
+     "vy": 0
+    },
+    {
+     "id": "cloud_midfar",
+     "y": 180,
+     "speed": 5.4,
+     "vy": 0
+    },
+    {
+     "id": "cloud_mid",
+     "y": 240,
+     "speed": 10.8,
      "vy": 0
     },
     {
      "id": "cloud_deck",
-     "y": 300,
-     "speed": 24,
+     "y": 456,
+     "speed": 18.0,
      "vy": 0
     },
     {
@@ -550,34 +787,30 @@
      "speed": 60,
      "vy": 0,
      "alpha": 0.0
-    },
-    {
-     "id": "ground",
-     "y": 290,
-     "speed": 2,
-     "vy": 0
-    },
-    {
-     "id": "city_far",
-     "y": 290,
-     "speed": 2,
-     "vy": 0
     }
    ]
   },
   "river_city": {
    "blend": 2.0,
    "bg": [
-    "#161d23",
-    "#2a333a"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
      "id": "stars",
-     "y": 0,
-     "speed": 1,
+     "y": -48,
+     "speed": 0,
      "vy": 0,
-     "alpha": 0.25
+     "alpha": 0.25,
+     "x": -48
+    },
+    {
+     "id": "river_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
     },
     {
      "id": "planet_m",
@@ -589,19 +822,44 @@
     },
     {
      "id": "ground",
-     "y": 152,
+     "y": 151,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "moon_glint",
+     "y": 155,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": 0,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "river_mist",
+     "y": 0,
      "speed": 3,
-     "vy": -0.6
+     "vy": 0
+    },
+    {
+     "id": "river_shore",
+     "y": 0,
+     "speed": 4,
+     "vy": 0
     },
     {
      "id": "city_far",
-     "y": 112,
+     "y": 122,
      "speed": 4,
      "vy": -0.6
     },
     {
      "id": "clocktower",
-     "y": 240,
+     "y": 270,
      "speed": 0,
      "vy": 0,
      "alpha": 0.0,
@@ -618,32 +876,64 @@
   "clocktower": {
    "blend": 1.5,
    "bg": [
-    "#161d23",
-    "#2a333a"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
+     "id": "river_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
      "id": "ground",
-     "y": 142,
+     "y": 151,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "moon_glint",
+     "y": 155,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": 0,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "river_mist",
+     "y": 0,
+     "speed": 3,
+     "vy": 0
+    },
+    {
+     "id": "river_shore",
+     "y": 0,
      "speed": 4,
-     "vy": -1
+     "vy": 0
     },
     {
      "id": "city_far",
-     "y": 100,
+     "y": 112,
      "speed": 5,
      "vy": -1
     },
     {
      "id": "clocktower",
-     "y": 46,
+     "y": 40,
      "speed": 0,
      "vy": -1,
      "x": 88
     },
     {
      "id": "city_mid",
-     "y": 112,
+     "y": 96,
      "speed": 10,
      "vy": -1
     }
@@ -652,38 +942,70 @@
   "boats": {
    "blend": 1.5,
    "bg": [
-    "#161d23",
-    "#2a333a"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
+     "id": "river_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
      "id": "ground",
-     "y": 132,
-     "speed": 5,
-     "vy": -1
+     "y": 151,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "moon_glint",
+     "y": 155,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": 0,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "river_mist",
+     "y": 0,
+     "speed": 3,
+     "vy": 0
+    },
+    {
+     "id": "river_shore",
+     "y": 0,
+     "speed": 4,
+     "vy": 0
     },
     {
      "id": "city_far",
-     "y": 86,
+     "y": 104,
      "speed": 6,
      "vy": -1
     },
     {
      "id": "clocktower",
-     "y": 4,
+     "y": 2,
      "speed": 0,
      "vy": -1,
      "x": 88
     },
     {
      "id": "city_mid",
-     "y": 70,
+     "y": 60,
      "speed": 14,
      "vy": -1
     },
     {
      "id": "canal",
-     "y": 200,
+     "y": 186,
      "speed": 20,
      "vy": -1
     }
@@ -692,19 +1014,45 @@
   "tilt": {
    "blend": 0.6,
    "bg": [
-    "#161d23",
-    "#2a333a"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
+     "id": "river_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
      "id": "ground",
-     "y": 124,
-     "speed": 6,
+     "y": 151,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "moon_glint",
+     "y": 155,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": 0,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "river_mist",
+     "y": 0,
+     "speed": 3,
      "vy": 0
     },
     {
      "id": "city_far",
-     "y": 76,
+     "y": 98,
      "speed": 8,
      "vy": 0
     },
@@ -717,13 +1065,13 @@
     },
     {
      "id": "city_mid",
-     "y": 52,
+     "y": 44,
      "speed": 22,
      "vy": 0
     },
     {
      "id": "canal",
-     "y": 176,
+     "y": 164,
      "speed": 40,
      "vy": 0
     }
@@ -732,19 +1080,45 @@
   "skid": {
    "blend": 0.8,
    "bg": [
-    "#161d23",
-    "#2a333a"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
+     "id": "river_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
      "id": "ground",
-     "y": 120,
-     "speed": 8,
+     "y": 151,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "moon_glint",
+     "y": 155,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": 0,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "river_mist",
+     "y": 0,
+     "speed": 3,
      "vy": 0
     },
     {
      "id": "city_far",
-     "y": 70,
+     "y": 94,
      "speed": 10,
      "vy": 0
     },
@@ -757,13 +1131,13 @@
     },
     {
      "id": "city_mid",
-     "y": 44,
+     "y": 36,
      "speed": 30,
      "vy": 0
     },
     {
      "id": "canal",
-     "y": 160,
+     "y": 146,
      "speed": 120,
      "vy": 0
     },
@@ -784,26 +1158,60 @@
   "channel": {
    "blend": 1.0,
    "bg": [
-    "#161c21",
-    "#232b31"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
-     "id": "city_mid",
-     "y": 44,
-     "speed": 6,
+     "id": "river_sky",
+     "y": -70,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "moon_glint",
+     "y": 133,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": -22,
+     "speed": 0,
      "vy": 0
     },
     {
-     "id": "wall_channel",
-     "y": -10,
-     "speed": 5,
+     "id": "river_mist",
+     "y": -22,
+     "speed": 2,
      "vy": 0
+    },
+    {
+     "id": "river_shore",
+     "y": -22,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "channel_mid",
+     "y": -22,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "channel_bank",
+     "y": -22,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
     },
     {
      "id": "water_near",
-     "y": 190,
-     "speed": 6,
+     "y": 196,
+     "speed": 3,
      "vy": 0
     }
    ]
@@ -811,47 +1219,119 @@
   "crate": {
    "blend": 1.2,
    "bg": [
-    "#161c21",
-    "#232b31"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
-     "id": "wall_channel",
-     "y": -10,
-     "speed": 3,
+     "id": "river_sky",
+     "y": -70,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "moon_glint",
+     "y": 133,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": -22,
+     "speed": 0,
      "vy": 0
     },
     {
+     "id": "river_mist",
+     "y": -22,
+     "speed": 2,
+     "vy": 0
+    },
+    {
+     "id": "river_shore",
+     "y": -22,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "channel_mid",
+     "y": -22,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
+     "id": "channel_bank",
+     "y": -22,
+     "speed": 0,
+     "vy": 0,
+     "x": 0
+    },
+    {
      "id": "water_near",
-     "y": 190,
-     "speed": 4,
+     "y": 196,
+     "speed": 2,
      "vy": 0
     },
     {
      "id": "crate",
-     "y": 177,
+     "y": 183,
      "speed": 0,
      "vy": 0,
-     "x": 42
+     "x": 46
     }
    ]
   },
   "river_leave": {
    "blend": 2.0,
    "bg": [
-    "#161d23",
-    "#2a333a"
+    "#0f1626",
+    "#1b2433"
    ],
    "layers": [
     {
-     "id": "city_far",
-     "y": 150,
+     "id": "river_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "ground",
+     "y": 151,
+     "speed": 2,
+     "vy": 3
+    },
+    {
+     "id": "moon_glint",
+     "y": 155,
+     "speed": 0,
+     "vy": 3,
+     "x": 0
+    },
+    {
+     "id": "river_ridge",
+     "y": 0,
+     "speed": 1,
+     "vy": 3
+    },
+    {
+     "id": "river_mist",
+     "y": 0,
      "speed": 3,
-     "vy": 4
+     "vy": 3
+    },
+    {
+     "id": "city_far",
+     "y": 140,
+     "speed": 3,
+     "vy": 5
     },
     {
      "id": "river_row",
-     "y": 196,
+     "y": 192,
      "speed": 6,
      "vy": 7
     }

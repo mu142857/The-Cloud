@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://diyayuga3vodc"
-path="res://.godot/imported/shafts.png-2649d5a347dbe46c632a4f66921073cb.ctex"
+uid="uid://ywr55y8m6hsp"
+path="res://.godot/imported/southbridge_plate_21.png-1a181ddba9abf583813f56089e2e07b7.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/oldstreet/shafts.png"
-dest_files=["res://.godot/imported/shafts.png-2649d5a347dbe46c632a4f66921073cb.ctex"]
+source_file="res://art/river_city/southbridge/southbridge_plate_21.png"
+dest_files=["res://.godot/imported/southbridge_plate_21.png-1a181ddba9abf583813f56089e2e07b7.ctex"]
 
 [params]
 
