@@ -19,7 +19,15 @@ extends Control
 ##   提示「↑ ↓  躲开碎石」：第一次按键以后或者 7 秒后淡出。总时长 = sec（最后 4 秒不再来新的，最后一块飞出屏幕再结束）。
 ##   结束：撞了几次写进 StoryState 的物件状态（键 = id 去掉 _debris 再加 _bumps，flight1_debris → flight1_bumps），
 ##     不管结果如何都接着播剧情；打一行 COCKPIT 日志。
-## 自动玩（--story_auto）：每波预告一出就往另一边挪，8 秒以内播完；跳节拍（ff）：瞬间完成、0 次；F8 自测：dev_skip 直接做完。
+## 镜头拉远（10-30 作者：「躲避石头的时候飞船能不能缩小一点」「切远景……我觉得只是缩小」）：
+##   一开始镜头从剖面拉远到船外（cockpit_room.far_out：外壳淡入 → 缓缓缩小，约 1.7 秒），整艘船变成 far_scale 倍（默认 FAR_K），
+##   晨和舱里看不见；最后一块碎石飞走以后船先回中间（弹簧 + 泛光），再拉回剖面（倒着走同一条曲线），然后才接着播剧情。
+##   远景里船小了：能挪 ±FAR_SHIFT（剖面里 ±SHIFT）、按住时目标每秒走 FAR_MOVE；碎石飞得慢一点（ROCK_V × (0.5 + 0.5 × 倍数)，
+##   镜头远了，看起来就慢）；道、碰撞、预告都按远景船的轮廓（cockpit.far_hull()）算。碎石图不缩（相对小船更大、更看得清）。
+##   剧本参数 "far_scale"：0.55 ～ 0.93（取最接近的一档图）；1 = 不拉远，留在剖面里躲（原来的样子）。
+##   命令行 --far_scale=0.75 临时盖过剧本（截图对比用）；--debris_full：自动玩也按真实时长和拉远速度播（截图 / 拍联系表用）。图不在（还没生成 ship_out/）时也留在剖面里。
+## 自动玩（--story_auto）：每波预告一出就往另一边挪，连拉远拉回 8 秒以内播完；跳节拍（ff）：瞬间完成、0 次、直接回剖面；
+##   F8 自测：dev_skip 直接做完（直接回剖面）。
 ## 碎石图：art/cockpit/debris_a..e.png（tools/sky_art.py 生成，13～28 像素，暗色、左上亮边）；debris_f / g（< 8 像素）
 ##   当跟着飞的碎屑，不算碰撞；没有就用飞行测试的石头 / 程序画的占位。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：await play(runner, st)。
@@ -33,6 +41,11 @@ const BACK := 3.0             # 松手 1.5 秒以后每秒慢慢回中间多少�
 const WARN := 2.0             # 预告比碎石擦到船早多少秒
 const ROCK_V := 210.0         # 碎石往右飞的速度（像素 / 秒）
 const LANE_IN := 6.0          # 碎石中心在主船身上沿 / 下沿往里多少像素
+const FAR_K := 0.65           # 默认拉远到几倍（作者挑：0.75 / 0.65 / 0.55）
+const FAR_SHIFT := 40.0       # 远景里船上下最多挪多少像素
+const FAR_TOP := 40.0         # 往上挪满时尾翼尖最高到屏幕 y 多少（上面 0..34 是燃料栏）
+const FAR_MOVE := 100.0       # 远景里按住时目标每秒走多少像素
+const END_WAIT := 0.7         # 最后一块飞走以后，船先回中间（弹簧约 0.6 秒停稳）再拉回剖面
 const TXT := {
 	"hint": ["↑ ↓  Dodge the debris", "↑ ↓  躲开碎石"],
 }
@@ -64,6 +77,15 @@ var _bit_tex: Array = []      # 碎屑（小于 8 像素，跟着飞、不算碰
 var _hull := {}
 var _fuel_per := 0            # 每撞一下扣多少燃料
 var _fuel_left := 0           # 这一段还能扣多少
+var _far := false             # 拉远到船外了
+var _shift := SHIFT
+var _move := MOVE
+var _rock_v := ROCK_V
+var _zoom_sec := 1.7          # 拉远 / 拉回各多少秒
+var _ending := false          # 碎石都过去了：船回中间 → 拉回剖面
+var _end_t := 0.0
+var _back_in := false
+var _real := false            # --debris_full
 
 
 func play(r: Node, st: Dictionary) -> String:
@@ -78,8 +100,21 @@ func play(r: Node, st: Dictionary) -> String:
 	_fuel_per = maxi(0, int(st.get("fuel_per_bump", 0)))
 	_fuel_left = maxi(0, int(st.get("fuel_max_loss", 0)))
 	_auto = r.auto != ""
-	if _auto:
-		sec = minf(sec, 8.0)
+	_real = "--debris_full" in OS.get_cmdline_user_args()   # 截图用：自动玩也按真实时长、真实拉远速度播
+	var real := _real
+	if _auto and not real:
+		sec = minf(sec, 5.4)                       # + 拉回 ≈ 7 秒
+	var k := float(st.get("far_scale", FAR_K))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--far_scale="):
+			k = float(a.trim_prefix("--far_scale="))
+	_far = k < 0.99 and cockpit.far_ready(k)
+	if _far:
+		_zoom_sec = 1.2 if _auto and not real else float(cockpit.FAR_SEC)
+		cockpit.far_out(k, _zoom_sec)
+		_shift = minf(FAR_SHIFT, floorf(cockpit.far_used_rect().position.y - FAR_TOP))   # 大的那档往上挪满时尾翼别碰燃料栏
+		_move = FAR_MOVE
+		_rock_v = ROCK_V * (0.5 + 0.5 * cockpit.far_k)
 	_rng.seed = 23
 	for n in ["debris_a", "debris_b", "debris_c", "debris_d", "debris_e", "debris_f", "debris_g"]:   # 美术给的碎石（art/cockpit/）
 		var t: Texture2D = cockpit.art(n)
@@ -93,12 +128,14 @@ func play(r: Node, st: Dictionary) -> String:
 		for p in ROCKS:
 			if ResourceLoader.exists(p):
 				_rock_tex.append(load(p))
-	_hull = cockpit.hull()
-	_next_wave = 0.8 if _auto else 3.0
+	_hull = cockpit.far_hull() if _far else cockpit.hull()
+	_next_wave = (1.3 if _far else 0.8) if _auto and not real else 3.0
 	_build()
 	await done
 	StoryState.set_prop(key, str(bumps))
 	cockpit.steering = false
+	if _far and cockpit.far_u() > 0.0:
+		cockpit.far_snap(false)
 	if is_instance_valid(_fx):
 		_fx.queue_free()
 	for w in _waves:
@@ -145,7 +182,13 @@ static func _tx(k: String) -> String:
 func _process(delta: float) -> void:
 	if _finished:
 		return
+	if runner.ff:
+		dev_skip()
+		return
 	_t += delta
+	if _ending:
+		_end_step(delta)
+		return
 	# ---- 船上下挪
 	var dir := 0.0
 	if _auto:
@@ -164,7 +207,7 @@ func _process(delta: float) -> void:
 	# 按住：目标位置 ship_goal 匀速走（最多 ±SHIFT），船本身用弹簧追它（cockpit_room._ship_step：缓起缓停、1 像素回弹）
 	if dir != 0.0:
 		_idle = 0.0
-		cockpit.ship_goal = clampf(cockpit.ship_goal + dir * MOVE * delta, -SHIFT, SHIFT)
+		cockpit.ship_goal = clampf(cockpit.ship_goal + dir * _move * delta, -_shift, _shift)
 		if _t > 0.6:
 			_hint_out()
 	else:
@@ -196,7 +239,7 @@ func _auto_goal() -> float:
 	var x1 := float(int(_hull.get("x0", 80)) + tops.size())
 	for w in _waves:
 		if str(w["state"]) in ["warn", "fly"] and float(w["x"]) - (w["size"] as Vector2).x / 2.0 < x1:
-			return -float(w["lane"]) * SHIFT
+			return -float(w["lane"]) * _shift
 	return cockpit.ship_goal
 
 
@@ -222,12 +265,12 @@ func _new_wave(lane: int) -> void:
 	var top := float(_hull.get("T", 100))
 	var bot := float(_hull.get("B", 206))
 	# 碎石中心：主船身上沿 / 下沿往里 LANE_IN（碎石特别大时往外让一点，保证挪满 SHIFT 一定躲得开）
-	var inset := minf(LANE_IN, SHIFT - sz.y / 2.0 - 4.0)
+	var inset := minf(LANE_IN, _shift - sz.y / 2.0 - 4.0)
 	var y := roundf(top + inset if lane < 0 else bot - inset)
 	# 碎石右边沿在 WARN 秒后碰到这条道上船身最左边那一列
 	var cx := _front_x(y - sz.y / 2.0 + 2.0, y + sz.y / 2.0 - 2.0)
 	var w := {"lane": lane, "t0": _t, "at": _t + WARN, "y": y, "spr": spr, "size": sz, "state": "warn",
-		"x": cx - sz.x / 2.0 - ROCK_V * WARN, "vx": ROCK_V, "vy": 0.0, "hit_t": 0.0, "bits": [], "pass_sfx": false}
+		"x": cx - sz.x / 2.0 - _rock_v * WARN, "vx": _rock_v, "vy": 0.0, "hit_t": 0.0, "bits": [], "pass_sfx": false}
 	# 跟着飞的小碎屑（不算碰撞）
 	for i in _rng.randi_range(1, 2):
 		var b := Sprite2D.new()
@@ -335,8 +378,9 @@ func _bump(w: Dictionary) -> void:
 		var l: Dictionary = BUMP_LINES[_said]
 		_said += 1
 		var tl: Array = runner.txt_lang(l)
+		var anchor: Callable = cockpit.far_anchor if _far else runner._anchor.bind("chen")   # 远景里晨看不见：从船窗上方冒
 		runner.dlg.murmur(runner.txt_in(runner.speakers.get("chen", "chen"), str(tl[1])), runner.NAME_COLORS["chen"], str(tl[0]),
-			runner._anchor.bind("chen"), runner.mark_added)
+			anchor, runner.mark_added)
 
 
 ## 音效（能调音高；缺文件静默跳过，和 runner._sfx 一样记进统计）
@@ -357,12 +401,43 @@ func _play(snd: String, db: float, pitch := 1.0) -> void:
 	a.finished.connect(a.queue_free)
 
 
-## F8 自测：直接做完
+## F8 自测 / 跳节拍：直接做完，镜头直接回剖面
 func dev_skip() -> void:
-	_finish()
+	if _finished:
+		return
+	if _far:
+		cockpit.far_snap(false)
+	cockpit.ship_goal = 0.0
+	_done()
 
 
+## 碎石都过去了：没拉远就直接结束；拉远了先让船回中间（弹簧 + 泛光），END_WAIT 秒后拉回剖面，拉完才结束
 func _finish() -> void:
+	if _finished or _ending:
+		return
+	_hint_out()
+	if not _far:
+		_done()
+		return
+	_ending = true
+	_end_t = 0.0
+	cockpit.ship_goal = 0.0
+
+
+func _end_step(delta: float) -> void:
+	_end_t += delta
+	cockpit.ship_goal = 0.0
+	for w in _waves:
+		_update_wave(w, delta)
+	_fx.queue_redraw()
+	if not _back_in and _end_t >= (0.2 if _auto and not _real else END_WAIT):
+		_back_in = true
+		cockpit.far_in(_zoom_sec)
+	if _back_in and cockpit.far_u() <= 0.0:
+		_done()
+
+
+func _done() -> void:
 	if _finished:
 		return
 	_finished = true

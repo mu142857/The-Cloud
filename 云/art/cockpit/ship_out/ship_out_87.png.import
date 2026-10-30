@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://clgh5datiewv"
-path="res://.godot/imported/forest_near.png-faed7db7ab79e03ef55a784692a9803c.ctex"
+uid="uid://drn5vie4wemfo"
+path="res://.godot/imported/ship_out_87.png-f20f9616d3210a511cf7b5ea33ec4b5e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/cockpit/sky/forest_near.png"
-dest_files=["res://.godot/imported/forest_near.png-faed7db7ab79e03ef55a784692a9803c.ctex"]
+source_file="res://art/cockpit/ship_out/ship_out_87.png"
+dest_files=["res://.godot/imported/ship_out_87.png-f20f9616d3210a511cf7b5ea33ec4b5e.ctex"]
 
 [params]
 

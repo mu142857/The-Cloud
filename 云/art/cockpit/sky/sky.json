@@ -6,6 +6,10 @@
  ],
  "default_blend": 2.0,
  "layers": {
+  "forest_bg": {
+   "img": "forest_bg.png",
+   "tile": true
+  },
   "stars": {
    "img": "stars.png",
    "tile": true
@@ -20,12 +24,24 @@
    "img": "cloud_high.png",
    "tile": true
   },
+  "forest_ridge": {
+   "img": "forest_ridge.png",
+   "tile": true
+  },
   "forest_far": {
    "img": "forest_far.png",
    "tile": true
   },
+  "forest_midfar": {
+   "img": "forest_midfar.png",
+   "tile": true
+  },
   "forest_mid": {
    "img": "forest_mid.png",
+   "tile": true
+  },
+  "forest_main": {
+   "img": "forest_main.png",
    "tile": true
   },
   "cloud_far": {
@@ -34,10 +50,6 @@
   },
   "debris_belt": {
    "img": "debris_belt.png",
-   "tile": true
-  },
-  "forest_near": {
-   "img": "forest_near.png",
    "tile": true
   },
   "cloud_deck": {
@@ -96,26 +108,44 @@
    "blend": 1.0,
    "bg": [
     "#0c1612",
-    "#25312a"
+    "#0c1612"
    ],
    "layers": [
     {
+     "id": "forest_bg",
+     "y": -398,
+     "speed": 0.0,
+     "vy": 4.4
+    },
+    {
+     "id": "forest_ridge",
+     "y": -126,
+     "speed": 0.6,
+     "vy": 4.8
+    },
+    {
      "id": "forest_far",
-     "y": 150,
-     "speed": 1,
-     "vy": 1
+     "y": -122,
+     "speed": 1.8,
+     "vy": 5.6
+    },
+    {
+     "id": "forest_midfar",
+     "y": -118,
+     "speed": 3.8,
+     "vy": 6.4
     },
     {
      "id": "forest_mid",
-     "y": 118,
-     "speed": 3,
-     "vy": 2
+     "y": -114,
+     "speed": 6.2,
+     "vy": 7.2
     },
     {
-     "id": "forest_near",
-     "y": -36,
-     "speed": 8,
-     "vy": 6
+     "id": "forest_main",
+     "y": -110,
+     "speed": 10.0,
+     "vy": 8.0
     }
    ]
   },
@@ -123,36 +153,60 @@
    "blend": 1.0,
    "bg": [
     "#0c1612",
-    "#25312a"
+    "#0c1612"
    ],
    "layers": [
     {
+     "id": "forest_bg",
+     "y": -315,
+     "speed": 0.0,
+     "vy": 4.4
+    },
+    {
+     "id": "forest_ridge",
+     "y": -36,
+     "speed": 0.84,
+     "vy": 4.8
+    },
+    {
      "id": "forest_far",
-     "y": 158,
-     "speed": 2,
-     "vy": 1
+     "y": -17,
+     "speed": 2.52,
+     "vy": 5.6
+    },
+    {
+     "id": "forest_midfar",
+     "y": 2,
+     "speed": 5.32,
+     "vy": 6.4
     },
     {
      "id": "forest_mid",
-     "y": 150,
-     "speed": 5,
-     "vy": 3
+     "y": 21,
+     "speed": 8.68,
+     "vy": 7.2
     },
     {
-     "id": "forest_near",
-     "y": 150,
-     "speed": 12,
-     "vy": 22
+     "id": "forest_main",
+     "y": 40,
+     "speed": 14.0,
+     "vy": 8.0
     }
    ]
   },
   "forest_below": {
    "blend": 1.5,
    "bg": [
-    "#0e1914",
-    "#28342d"
+    "#0c1612",
+    "#0c1612"
    ],
    "layers": [
+    {
+     "id": "forest_bg",
+     "y": -211,
+     "speed": 0.0,
+     "vy": 3.3
+    },
     {
      "id": "cloud_high",
      "y": -40,
@@ -161,22 +215,34 @@
      "alpha": 0.5
     },
     {
+     "id": "forest_ridge",
+     "y": 78,
+     "speed": 1.2,
+     "vy": 3.6
+    },
+    {
      "id": "forest_far",
-     "y": 164,
-     "speed": 3,
-     "vy": 3
+     "y": 116,
+     "speed": 3.6,
+     "vy": 4.2
+    },
+    {
+     "id": "forest_midfar",
+     "y": 154,
+     "speed": 7.6,
+     "vy": 4.8
     },
     {
      "id": "forest_mid",
-     "y": 180,
-     "speed": 7,
-     "vy": 4
+     "y": 192,
+     "speed": 12.4,
+     "vy": 5.4
     },
     {
-     "id": "forest_near",
-     "y": 420,
-     "speed": 14,
-     "vy": 0
+     "id": "forest_main",
+     "y": 230,
+     "speed": 20.0,
+     "vy": 6.0
     },
     {
      "id": "cloud_deck",
@@ -189,10 +255,16 @@
   "forest_far": {
    "blend": 1.2,
    "bg": [
-    "#0e1914",
-    "#28342d"
+    "#0c1612",
+    "#0c1612"
    ],
    "layers": [
+    {
+     "id": "forest_bg",
+     "y": -162,
+     "speed": 0.0,
+     "vy": 3.3
+    },
     {
      "id": "cloud_high",
      "y": -10,
@@ -201,16 +273,28 @@
      "alpha": 0.75
     },
     {
+     "id": "forest_ridge",
+     "y": 132,
+     "speed": 1.44,
+     "vy": 3.6
+    },
+    {
      "id": "forest_far",
-     "y": 182,
-     "speed": 4,
-     "vy": 4
+     "y": 179,
+     "speed": 4.32,
+     "vy": 4.2
+    },
+    {
+     "id": "forest_midfar",
+     "y": 226,
+     "speed": 9.12,
+     "vy": 4.8
     },
     {
      "id": "forest_mid",
-     "y": 212,
-     "speed": 9,
-     "vy": 5
+     "y": 273,
+     "speed": 14.88,
+     "vy": 5.4
     },
     {
      "id": "cloud_deck",
@@ -223,10 +307,16 @@
   "turning": {
    "blend": 1.0,
    "bg": [
-    "#0e1914",
-    "#28342d"
+    "#0c1612",
+    "#0c1612"
    ],
    "layers": [
+    {
+     "id": "forest_bg",
+     "y": -112,
+     "speed": 0.0,
+     "vy": 4.4
+    },
     {
      "id": "cloud_high",
      "y": 20,
@@ -234,16 +324,28 @@
      "vy": 6
     },
     {
+     "id": "forest_ridge",
+     "y": 186,
+     "speed": 2.4,
+     "vy": 4.8
+    },
+    {
      "id": "forest_far",
-     "y": 212,
-     "speed": 8,
-     "vy": 5
+     "y": 242,
+     "speed": 7.2,
+     "vy": 5.6
+    },
+    {
+     "id": "forest_midfar",
+     "y": 298,
+     "speed": 15.2,
+     "vy": 6.4
     },
     {
      "id": "forest_mid",
-     "y": 262,
-     "speed": 16,
-     "vy": 4
+     "y": 354,
+     "speed": 24.8,
+     "vy": 7.2
     },
     {
      "id": "cloud_deck",
@@ -273,10 +375,16 @@
      "vy": 0
     },
     {
+     "id": "forest_ridge",
+     "y": 390,
+     "speed": 2.88,
+     "vy": 0.0
+    },
+    {
      "id": "forest_far",
-     "y": 330,
-     "speed": 8,
-     "vy": 0
+     "y": 480,
+     "speed": 8.64,
+     "vy": 0.0
     },
     {
      "id": "cloud_far",

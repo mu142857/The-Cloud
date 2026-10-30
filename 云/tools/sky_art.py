@@ -8,14 +8,16 @@
 - art/cockpit/debris_a..e.png  躲碎石时在船外飞过的碎石（13～28 像素，暗色、左上一道亮边）；debris_f / g 跟着飞的小碎屑（< 8 像素）
 
 镜头（机头朝左，景物往右走；往上飞 = 景物往下沉，往下降 = 景物往上升）：
-  起飞：一直在同一片森林里——近处大树（forest_near）先沉下去，中景、远景林线跟着慢慢沉；
+  起飞：就是森林关卡那片林子（forest_*：tools/forest_art.py 同一套函数、同一组 seed 画的，往上加高露出树梢）——
+        镜头往上升，近处的主层先沉下去，中景、远景跟着慢慢沉，最后成了脚下地平线上的一条；
   穿云：一整块云层（cloud_deck）从屏幕上面压下来、整个扫过船、最后变成脚下的云海；
   碎石墙：云海上方远处一条碎石带淡入；加速：近处云丝、速度线变快；
   到站：云沉下去，星星淡入，远处的河流星球从小（planet_s，加速段就露头）换成中（planet_m）；
   降落：地面和远城从下面升上来，鸽子笼高楼（city_mid）、钟楼一起往上升，停着船的水道升到船下；
   落水：对岸一面灰楼墙，水面在船腰，箱子漂在机头前。
 
-全部硬边、不透明像素；配色是森林的暗青绿 / 灰绿，没有蓝；亮度都压在驾驶舱（舱壁 OKLab L≈0.21～0.36）以下。
+全部硬边、不透明像素；配色是森林的暗青绿 / 灰绿，没有蓝；亮度都压在驾驶舱（舱壁 OKLab L≈0.21～0.36）以下
+（例外：起飞开头船底下那条雾带是森林关卡原样的亮度，认得出是同一片林子更要紧）。
 """
 from __future__ import annotations
 
@@ -137,142 +139,120 @@ def spaced(rng, w, gmin, gmax, start=0):
     return xs
 
 
-# ============================================================ 森林（起飞）：和 art/forest 同一套暗青绿
-F_HUE = 168
+# ============================================================ 森林（起飞）：就是森林关卡那片林子（tools/forest_art.py 画的）
+# 玩家刚从森林关卡飞出来，窗外必须是同一片林子：同样的树、同样的颜色、同样的雾。所以不另画，直接调 forest_art 的
+# 同一套函数、同一组 seed 再画一遍各层（sky / ridge / far / midfar / mid / main；front 是挡在晨前面的近黑前景，这里不用）。
+# forest_art 的每层只有 270 高，树冠伸出画面上沿；这里把画布往上加高 F_TOP 像素：forest_art 直接写 lay.a 的地方照旧落在
+# 下面 270 行，只有 paste（贴树）能贴到上面去 → 下面 270 行和 art/forest/*.png 逐像素一样（build 里断言），
+# 上面多出来的就是那些树冠的上半截和树尖。起飞时镜头往上升，森林往下沉，露出来的正是这片树的树梢。
+# 树冠上半截照 forest_art 的规矩往「同一高度的背景色」里褪（aerial）：林冠以上的背景不再是黑的林冠，而是往上延伸的天
+# （F_SKY：林冠的黑 → 地平线一带最亮 → 往上暗回去），越往树尖褪得越少一点，远层的树尖淡、近层的黑，一层层分得开。
+sys.path.insert(0, str(ROOT / "tools"))
+import forest_art as FA  # noqa: E402
+
+F_TOP = 150            # 树层图的第 0 行 = 森林关卡里的 y = -150（最高的树尖在 -142）
+F_BG_TOP = 420         # 背景层（雾带 + 天）往上延伸得更高：第 0 行 = 关卡里的 y = -420
+F_BG_FADE = 48         # 背景层最上面这几行用 Bayer 抖动一点点变透明：穿云时它整张沉下去，上沿不是一刀硬边
+F_BG_FOOT = 60         # sky.png 底下再接这么多行它最后一行的颜色：画面外那圈边（SKY_M）也盖住
+F_LAYERS = (("forest_ridge", "ridge", FA.ridge), ("forest_far", "far", FA.build_far),
+            ("forest_midfar", "midfar", FA.build_midfar), ("forest_mid", "mid", FA.build_mid),
+            ("forest_main", "main", FA.main_layer))
+# 林冠以上的天（关卡里的 y, 颜色），接在 sky.png 第 0 行（#050c0a，林冠的黑）上面；两档之间用 forest_art 一样的 Bayer 抖动过渡。
+# 地平线一带 L≈.30（和原来起飞段的天一样，仍比舱壁大部分暗），往上暗回 .19（= 起飞几段的底色 F_BG，接缝看不出来）
+F_SKY = [(-420, col(.19, .018, 165)), (-330, col(.215, .019, 163)), (-250, col(.25, .02, 161)),
+         (-190, col(.285, .02, 160)), (-150, col(.30, .02, 160)), (-120, col(.28, .02, 161)),
+         (-90, col(.245, .019, 163)), (-60, col(.21, .018, 165)), (-30, col(.175, .017, 166)),
+         (0, FA.from_hex(FA.BANDS[0][1]))]
+F_BG = hexc(F_SKY[0][1])
+F_TIP_CLEAR = 0.7      # 树尖比林冠底少褪多少（0 = 和关卡里 y=0 那一行一样褪）：远层在天前面也要是读得出的树梢剪影，不是一片鬼影
+F_TIP_SPAN = 100       # 从关卡 y=0 往上这么多行里褪的程度慢慢减到树尖那一档
 
 
-def spire(L: Layer, x, top, h, hw, tiers=1, droop=0, rng=None):
-    """一棵针叶树的剪影：tiers 层枝叠起来（越往下越宽），每层左右不对称、枝梢往下垂、下沿参差。返回 mask。"""
-    if tiers <= 1:
-        return L.poly([(x, top), (x + hw, top + h), (x - hw, top + h)])
-    rng = rng if rng is not None else np.random.default_rng(int(x * 7 + top))
-    m = np.zeros((L.h, L.w), bool)
-    th = h / tiers
-    cx = float(x)
-    for i in range(tiers):
-        t0 = top + i * th * 0.74 + (rng.uniform(-1, 1) if i else 0)
-        t1 = top + (i + 1) * th + rng.uniform(0, 2)
-        w1 = hw * (0.3 + 0.7 * ((i + 1) / tiers) ** 0.8)
-        wl, wr = w1 * rng.uniform(0.7, 1.15), w1 * rng.uniform(0.7, 1.15)
-        hh = t1 - t0
-        d = droop * rng.uniform(0.6, 1.3)
-        pts = [(cx, t0),
-               (cx + wr * 0.42, t0 + hh * 0.62),                     # 枝的上沿往里凹一点（下垂的枝）
-               (cx + wr, t1 + d * 0.4),                              # 枝梢
-               (cx + wr * 0.72, t1 - d),
-               (cx + wr * 0.52, t1 + 0.5),
-               (cx + wr * 0.26, t1 - d * 0.8),
-               (cx, t1 + 1),
-               (cx - wl * 0.26, t1 - d * 0.8),
-               (cx - wl * 0.52, t1 + 0.5),
-               (cx - wl * 0.72, t1 - d),
-               (cx - wl, t1 + d * 0.4),
-               (cx - wl * 0.42, t0 + hh * 0.62)]
-        m |= L.poly(pts)
-        cx += rng.uniform(-0.8, 0.8)                                 # 树干微微歪
-    m |= L.rect(x, top - 2, x, top)                                  # 树尖一根细梢
-    return m
+class _FBands:
+    """临时把 forest_art 的背景色档（BANDS）换成 F_SKY（行号 = 关卡 y + shift），出来时换回去。"""
+
+    def __init__(self, shift):
+        self.shift = shift
+
+    def __enter__(self):
+        self.saved = FA.BANDS, FA.BAND_Y, FA.BAND_C
+        FA.BANDS = [(y + self.shift, hexc(c)) for y, c in F_SKY]
+        FA.BAND_Y = np.array([b[0] for b in FA.BANDS])
+        FA.BAND_C = [tuple(c[:3]) for _, c in F_SKY]
+        FA._POOLC.clear()
+
+    def __exit__(self, *exc):
+        FA.BANDS, FA.BAND_Y, FA.BAND_C = self.saved
+        FA._POOLC.clear()
 
 
-def rim_left(m):
-    """朝左上（天光那边）的边：上面空、左边也空。"""
-    return m & ~up(m) & (~left(m) | ~up(left(m)))
+def forest_tall(fn):
+    """用 forest_art 的 fn 画一层，画布往上加高 F_TOP → (F_TOP + 270, 960) RGBA，下面 270 行 = art/forest 那张。"""
+    calls = []
+
+    class Tall(FA.Layer):
+        def __init__(self, w=FA.W, h=FA.H):
+            self.big = np.zeros((h + F_TOP, w, 4), np.uint8)
+            self.a = self.big[F_TOP:]
+
+        def paste(self, img, x, y, wrap=True):
+            h, w = img.shape[:2]
+            H_, W_ = self.big.shape[:2]
+            y += F_TOP
+            for px in ([x - W_, x, x + W_] if wrap else [x]):
+                x0, y0, x1, y1 = max(0, px), max(0, y), min(W_, px + w), min(H_, y + h)
+                if x0 >= x1 or y0 >= y1:
+                    continue
+                src = img[y0 - y:y1 - y, x0 - px:x1 - px]
+                m = src[..., 3] > 0
+                self.big[y0:y1, x0:x1][m] = src[m]
+
+    def aerial(layer, t_of_y, steps=8, pool=None):
+        calls.append((t_of_y, steps))
+        orig_aerial(layer, t_of_y, steps, pool)
+
+    orig_layer, orig_aerial = FA.Layer, FA.aerial
+    FA.Layer, FA.aerial = Tall, aerial
+    try:
+        lay = fn()
+    finally:
+        FA.Layer, FA.aerial = orig_layer, orig_aerial
+    t_of_y, steps = calls[-1]
+    t0 = t_of_y(0)
+    top = type("Top", (), {})()
+    top.a = lay.big[:F_TOP]
+    with _FBands(F_TOP):
+        orig_aerial(top, lambda r: t0 * (1 - F_TIP_CLEAR * min(1.0, (F_TOP - r) / F_TIP_SPAN)), steps)
+    return lay.big
 
 
-def forest_far():
-    L = Layer(TW, 120)
-    rng = np.random.default_rng(101)
-    base = 16 + 2.5 * pnoise(TW, 1, 2, 10)
-    BODY, RIM, DEEP, TIP = col(.185, .018, F_HUE), col(.215, .020, 160), col(.17, .016, F_HUE + 4), col(.195, .018, 162)
-    m = np.zeros((L.h, L.w), bool)
-    for x in range(TW):
-        m[int(base[x]):, x] = True
-    for x in spaced(rng, TW, 2, 6):
-        h = int(rng.integers(4, 13))
-        m |= spire(L, x, int(base[x % TW]) - h, h + 1, max(1, h // 3))
-    L.paint(m, BODY)
-    L.paint(rim_left(m), RIM)
-    # 往下是俯看的林海：一排排很小的树尖，越往下越疏、越暗
-    for ry, gap, hh, c in ((30, (5, 9), (2, 3), TIP), (44, (6, 12), (2, 4), TIP), (64, (9, 16), (3, 4), BODY),
-                           (90, (12, 20), (3, 5), BODY)):
-        for x in spaced(rng, TW, *gap):
-            h = int(rng.integers(hh[0], hh[1] + 1))
-            y = ry + int(rng.integers(-3, 4))
-            L.paint(L.poly([(x, y - h), (x + h // 2, y), (x - h // 2, y)]), c)
-    deep = np.zeros_like(m)
-    deep[56:] = True
-    L.paint(deep & (L.a[..., :3] == BODY).all(-1), DEEP)
-    # 一道雾带
-    for x in range(TW):
-        y = int(26 + 1.5 * pnoise(TW, 2, 1, 4)[x])
-        if (L.a[y, x, :3] == BODY).all():
-            L.a[y, x, :3] = col(.195, .016, 165)
-    return L
+def forest_bg():
+    """背景：上面 F_BG_TOP 行是林冠以上的天（F_SKY），下面接 art/forest/sky.png 原图（林冠的黑、雾带、光斑）。
+    sky.png 宽 480、左右能接（光斑都在中间，Bayer 周期 4），横着铺两遍成 960 的 tile。"""
+    sky = np.array(Image.open(FA.OUT / "sky.png").convert("RGBA"))
+    a = np.zeros((F_BG_TOP + FA.H + F_BG_FOOT, TW, 4), np.uint8)
+    xs = np.arange(TW)
+    with _FBands(F_BG_TOP):
+        for r in range(F_BG_TOP):
+            i, f = FA.band_frac(r)
+            idx = i + (FA.BAYER[r % 4, xs % 4] < f)
+            a[r, :, :3] = np.array(FA.BAND_C)[np.minimum(idx, len(FA.BAND_C) - 1)]
+    a[:F_BG_TOP, :, 3] = 255
+    for r in range(F_BG_FADE):
+        a[r, FA.BAYER[r % 4, xs % 4] >= (r + 1) / (F_BG_FADE + 1), 3] = 0
+    a[F_BG_TOP:F_BG_TOP + FA.H] = np.concatenate([sky, sky], axis=1)
+    a[F_BG_TOP + FA.H:] = a[F_BG_TOP + FA.H - 1]
+    return a
 
 
-def forest_mid():
-    L = Layer(TW, 170)
-    rng = np.random.default_rng(102)
-    base = 44 + 5 * pnoise(TW, 3, 1, 9)
-    BODY, RIM, DARK, DEEP = col(.155, .018, F_HUE), col(.19, .020, 160), col(.14, .017, F_HUE + 4), col(.145, .016, 172)
-    m = np.zeros((L.h, L.w), bool)
-    for x in range(TW):
-        m[int(base[x]):, x] = True
-    for x in spaced(rng, TW, 5, 13):
-        h = int(rng.integers(14, 42))
-        tiers = 2 if h < 26 else 3
-        m |= spire(L, x, int(base[x % TW]) - h + 4, h, max(4, int(h * 0.3)), tiers, droop=2, rng=rng)
-    L.paint(m, BODY)
-    # 每层枝下压一道暗（离上面的边 3 像素以外、离下一层近的地方）：用上方 6 格里空的格子数判断
-    shade = m & up(m) & up(up(m)) & up(up(up(m))) & ~np.roll(np.pad(m, ((5, 0), (0, 0)))[:-5], 0, axis=1)
-    L.paint(shade, DARK)
-    L.paint(rim_left(m), RIM)
-    for ry, gap, hh in ((74, (6, 12), (3, 5)), (98, (8, 14), (4, 6)), (128, (10, 18), (5, 7)), (158, (14, 22), (5, 8))):
-        for x in spaced(rng, TW, *gap):
-            h = int(rng.integers(hh[0], hh[1] + 1))
-            y = ry + int(rng.integers(-4, 5))
-            t = L.poly([(x, y - h), (x + h // 2, y), (x - h // 2, y)])
-            L.paint(t, BODY)
-            L.paint(rim_left(t), col(.17, .018, 162))
-    L.a[118:, :, :3] = np.where((L.a[118:, :, :3] == BODY).all(-1, keepdims=True), DEEP, L.a[118:, :, :3])
-    return L
-
-
-def forest_near():
-    """近处的大树：起飞第一秒，船就在这些树冠中间。树冠之间留空，后面透出林线和天。"""
-    L = Layer(TW, 330)
-    rng = np.random.default_rng(103)
-    BODY, RIM, DARK = col(.12, .017, F_HUE + 2), col(.155, .019, 160), col(.105, .016, F_HUE + 6)
-    trees = []
-    x = 10
-    while x < TW + 10:
-        top = int(rng.integers(0, 120))
-        hw = int(rng.integers(26, 46))
-        trees.append((x, top, hw))
-        x += int(rng.integers(44, 86))
-    m = np.zeros((L.h, L.w), bool)
-    for (x, top, hw) in trees:
-        h = L.h - top + 40
-        tiers = max(5, int(h / 26))
-        t = spire(L, x, top, h, hw, tiers, droop=4)
-        m |= t
-    L.paint(m, BODY)
-    # 枝层下面的暗：每棵树按层画一道暗带（层的下沿往上 4 像素，偏右）
-    for (x, top, hw) in trees:
-        h = L.h - top + 40
-        tiers = max(5, int(h / 26))
-        th = h / tiers
-        for i in range(1, tiers):
-            yb = int(top + i * th)
-            w1 = hw * (0.35 + 0.65 * i / tiers)
-            band = L.poly([(x - w1 * 0.2, yb - 5), (x + w1 * 0.95, yb - 1), (x + w1 * 0.6, yb + 1), (x - w1 * 0.4, yb - 1)])
-            L.paint(band & m, DARK)
-    L.paint(rim_left(m), RIM)
-    m2 = m.copy()
-    L.paint(rim_left(m2) & ~up(rim_left(m2)) & left(rim_left(m2)), RIM)
-    L.a[250:, :, :3] = np.where(L.mask[250:, :, None], DARK, 0)
-    L.a[250:, :, 3] = 255
-    return L
+def forest_layers():
+    out = {"forest_bg": forest_bg()}
+    for k, name, fn in F_LAYERS:
+        a = forest_tall(fn)
+        orig = np.array(Image.open(FA.OUT / f"{name}.png").convert("RGBA"))
+        assert (a[F_TOP:] == orig).all(), f"{k} 下面 270 行和 art/forest/{name}.png 不一样（forest_art.py 改过、没重跑？）"
+        out[k] = a
+    return out
 
 
 # ============================================================ 云（穿云、云海、碎石带、加速）
@@ -881,8 +861,8 @@ def crate():
 BG = {
     # 10-29 验收：起飞两段的天原来 #07100d→#17251f，近处树冠（L≈.11）和中远林线（.16～.19）贴在上面几乎看不出来，
     # 屏幕下半又被黑边盖住一截 → 天往亮提一点（地平线那头亮），林子当剪影读得出来；仍比舱壁（L≈.22～.36）暗
-    "forest": [hexc(col(.19, .018, 165)), hexc(col(.30, .020, 160))],
-    "climb": [hexc(col(.20, .018, 165)), hexc(col(.31, .020, 160))],
+    # 起飞几段：整屏都被 forest_bg（关卡的雾带 + 往上接的天）盖住，底色只在它上沿露出来 → 用它最上面那档的颜色
+    "forest": [F_BG, F_BG],
     "clouds": ["#09120f", "#1a2622"],
     "debris": ["#08100e", "#171f1c"],
     "space": ["#050b09", "#101b17"],
@@ -891,15 +871,18 @@ BG = {
 }
 
 LAYERS = {   # 从后往前（draw order）
+    "forest_bg": {"img": "forest_bg.png", "tile": True},
     "stars": {"img": "stars.png", "tile": True},
     "planet_s": {"img": "planet_s.png"},
     "planet_m": {"img": "planet_m.png"},
     "cloud_high": {"img": "cloud_high.png", "tile": True},
+    "forest_ridge": {"img": "forest_ridge.png", "tile": True},
     "forest_far": {"img": "forest_far.png", "tile": True},
+    "forest_midfar": {"img": "forest_midfar.png", "tile": True},
     "forest_mid": {"img": "forest_mid.png", "tile": True},
+    "forest_main": {"img": "forest_main.png", "tile": True},
     "cloud_far": {"img": "cloud_far.png", "tile": True},
     "debris_belt": {"img": "debris_belt.png", "tile": True},
-    "forest_near": {"img": "forest_near.png", "tile": True},
     "cloud_deck": {"img": "cloud_deck.png", "tile": True},
     "ground": {"img": "ground.png", "tile": True},
     "city_far": {"img": "city_far.png", "tile": True},
@@ -925,29 +908,50 @@ def S(id, y, speed=0, vy=0, alpha=1.0, x=None):
     return d
 
 
+# 起飞：镜头比森林关卡里高 h 像素时，关卡里 y=0 那一行在屏幕上的 y = h × F_SINK（近的沉得快、远的沉得慢）。
+# 关卡里镜头竖直不动、各层 y 对齐；这里 h 从 40（刚离地、还在树干之间）升到 560（森林成了脚下地平线上的一条）。
+F_SINK = {"forest_bg": .55, "forest_ridge": .6, "forest_far": .7, "forest_midfar": .8, "forest_mid": .9, "forest_main": 1.0}
+# 横向：和森林关卡里各层的 scroll_scale 一样（tools/forest_art.py 的 SCROLL），往左飞 v 像素/秒 = 主层往右卷 v
+F_SCROLL = {"forest_bg": FA.SCROLL["sky"], "forest_ridge": FA.SCROLL["ridge"], "forest_far": FA.SCROLL["far"],
+            "forest_midfar": FA.SCROLL["midfar"], "forest_mid": FA.SCROLL["mid"], "forest_main": FA.SCROLL["main"]}
+
+
+def forest_at(h, v, climb, drop=()):
+    """镜头比关卡高 h、往左飞 v 像素/秒、还在以 climb 像素/秒往上爬时，森林各层的关键帧（drop 里的层不列）。"""
+    out = []
+    for k in F_SINK:
+        if k in drop:
+            continue
+        top = F_BG_TOP if k == "forest_bg" else F_TOP
+        out.append(S(k, round(h * F_SINK[k]) - top, round(v * F_SCROLL[k], 2), round(climb * F_SINK[k], 1)))
+    return out
+
+
 def states():
     st = {}
-    # ---------- 起飞：同一片森林，一层层往下沉（近的沉得快）
-    st["forest_canopy"] = {"blend": 1.0, "bg": BG["forest"], "layers": [
-        S("forest_far", 150, 1, 1), S("forest_mid", 118, 3, 2), S("forest_near", -36, 8, 6)]}
-    st["canopy_fall"] = {"blend": 1.0, "bg": BG["forest"], "layers": [
-        S("forest_far", 158, 2, 1), S("forest_mid", 150, 5, 3), S("forest_near", 150, 12, 22)]}
-    # 10-29 验收：林线原来沉得太低（forest_far 时中景在 246，被对白的黑边盖住），中间一大片空 →
-    # 中远林线停高一点、一直慢慢往下沉；天上的高云条先淡入、跟着往下压（往上爬的感觉）
-    st["forest_below"] = {"blend": 1.5, "bg": BG["climb"], "layers": [
-        S("cloud_high", -40, 2, 6, 0.5), S("forest_far", 164, 3, 3), S("forest_mid", 180, 7, 4),
-        S("forest_near", 420, 14, 0), S("cloud_deck", -330, 10, 0)]}
-    st["forest_far"] = {"blend": 1.2, "bg": BG["climb"], "layers": [
-        S("cloud_high", -10, 3, 8, 0.75), S("forest_far", 182, 4, 4), S("forest_mid", 212, 9, 5),
-        S("cloud_deck", -300, 10, 4)]}
-    # turning：转向巡航，横向一下快起来；云层从上面压下来
-    st["turning"] = {"blend": 1.0, "bg": BG["climb"], "layers": [
-        S("cloud_high", 20, 8, 6), S("forest_far", 212, 8, 5), S("forest_mid", 262, 16, 4),
-        S("cloud_deck", -240, 18, 10), S("wisps", -150, 40, 0)]}
-    # clouds：云层整块扫过船，变成脚下的云海；远处地平线上一层远云，天上几条高云，近处云丝飞过
+    # ---------- 起飞：就是森林关卡那片林子（forest_layers），镜头一路往上升，各层往下沉（近的沉得快）
+    # forest_canopy：刚离地，还在树干之间：上面是林冠的黑，船底下是关卡里那条雾带，地面刚沉到画面下沿
+    st["forest_canopy"] = {"blend": 1.0, "bg": BG["forest"], "layers": forest_at(40, 10, 8)}
+    # canopy_fall：穿过林冠，近处大树的枝一层层从窗边掉下去。停在这一段的时间看对白长短（7～20 秒），
+    # 爬升 8 像素/秒：停 20 秒也到不了 forest_below 的高度，不会倒回去
+    st["canopy_fall"] = {"blend": 1.0, "bg": BG["forest"], "layers": forest_at(190, 14, 8)}
+    # forest_below：出了林冠，主层的树尖沉到画面下沿以下，远处几层的树梢在船底下、地平线一带的天最亮；
+    # 天上的高云条淡入、跟着往下压（往上爬的感觉）
+    st["forest_below"] = {"blend": 1.5, "bg": BG["forest"], "layers": [
+        *forest_at(380, 20, 6)[:1], S("cloud_high", -40, 2, 6, 0.5), *forest_at(380, 20, 6)[1:],
+        S("cloud_deck", -330, 10, 0)]}
+    st["forest_far"] = {"blend": 1.2, "bg": BG["forest"], "layers": [
+        *forest_at(470, 24, 6, drop=("forest_main",))[:1], S("cloud_high", -10, 3, 8, 0.75),
+        *forest_at(470, 24, 6, drop=("forest_main",))[1:], S("cloud_deck", -300, 10, 4)]}
+    # turning：转向巡航，横向一下快起来；森林只剩画面下沿的远处树梢；云层从上面压下来
+    st["turning"] = {"blend": 1.0, "bg": BG["forest"], "layers": [
+        *forest_at(560, 40, 8, drop=("forest_main",))[:1], S("cloud_high", 20, 8, 6),
+        *forest_at(560, 40, 8, drop=("forest_main",))[1:], S("cloud_deck", -240, 18, 10), S("wisps", -150, 40, 0)]}
+    # clouds：云层整块扫过船，变成脚下的云海；远处地平线上一层远云，天上几条高云，近处云丝飞过。
+    # 森林的天（forest_bg）不列 → 4 档淡出成云里的底色；最远两层树梢沉出画面
     st["clouds"] = {"blend": 1.8, "bg": BG["clouds"], "layers": [
-        S("cloud_high", 6, 3, 0), S("forest_far", 330, 8, 0), S("cloud_far", 146, 5, 0),
-        S("cloud_deck", 176, 14, 0), S("wisps", 0, 46, 0)]}
+        S("cloud_high", 6, 3, 0), *forest_at(900, 48, 0, drop=("forest_bg", "forest_midfar", "forest_mid", "forest_main")),
+        S("cloud_far", 146, 5, 0), S("cloud_deck", 176, 14, 0), S("wisps", 0, 46, 0)]}
     # debris_wall：云海上方远处，一条碎石带横在航线上；前面零星几块中号碎石漂过
     st["debris_wall"] = {"blend": 2.5, "bg": BG["debris"], "layers": [
         S("cloud_high", 0, 2, 0, 0.5), S("cloud_far", 150, 4, 0), S("debris_belt", 28, 5, 0),
@@ -997,7 +1001,6 @@ ORDER = ["forest_canopy", "canopy_fall", "forest_below", "forest_far", "turning"
 
 def build():
     imgs = {
-        "forest_far": forest_far(), "forest_mid": forest_mid(), "forest_near": forest_near(),
         "cloud_deck": cloud_deck(), "cloud_far": cloud_far(), "cloud_high": cloud_high(), "wisps": wisps(),
         "streaks": streaks(), "debris_belt": debris_belt(), "debris_near": debris_near(), "stars": stars(),
         "ground": ground(), "city_far": city_far(), "city_mid": city_mid(), "clocktower": clocktower(),
@@ -1005,6 +1008,7 @@ def build():
         "crate": crate(),
     }
     arrs = {k: v.a for k, v in imgs.items()}
+    arrs.update(forest_layers())
     arrs["planet_s"] = planet(20, 451, rivers=False)
     arrs["planet_m"] = planet(56, 452)
     OUT.mkdir(parents=True, exist_ok=True)

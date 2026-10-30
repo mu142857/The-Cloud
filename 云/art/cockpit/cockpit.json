@@ -7,45 +7,69 @@
  "floor_offset": -22,
  "floor_px": 128,
  "walk_min": -81,
- "walk_max": 97,
+ "walk_max": 95,
  "walk_px": [
   84,
-  262
+  260
  ],
  "window": {
-  "x": -131,
-  "y": -96,
-  "w": 57,
-  "h": 39,
+  "x": -143,
+  "y": -105,
+  "w": 67,
+  "h": 48,
   "px": [
-   34,
-   54,
-   57,
-   39
+   22,
+   45,
+   67,
+   48
   ],
   "poly_px": [
    [
-    34,
+    22,
     92
    ],
    [
-    44,
-    77
+    26,
+    87
    ],
    [
-    59,
-    64
+    30,
+    81
    ],
    [
-    76,
-    56
+    35,
+    74
    ],
    [
-    90,
-    54
+    41,
+    68
    ],
    [
-    90,
+    47,
+    62
+   ],
+   [
+    54,
+    57
+   ],
+   [
+    61,
+    53
+   ],
+   [
+    69,
+    49
+   ],
+   [
+    77,
+    47
+   ],
+   [
+    88,
+    45
+   ],
+   [
+    88,
     92
    ]
   ],
@@ -136,42 +160,42 @@
    ]
   },
   "cockpit_copilot": {
-   "x": -19,
+   "x": -23,
    "ground_y": -22,
    "px": [
-    146,
-    128
-   ]
-  },
-  "cockpit_toolbox": {
-   "x": 7,
-   "ground_y": -22,
-   "px": [
-    172,
-    128
-   ]
-  },
-  "cockpit_leak": {
-   "x": 33,
-   "ground_y": -22,
-   "px": [
-    198,
+    142,
     128
    ]
   },
   "cockpit_converter": {
-   "x": 63,
+   "x": 13,
    "ground_y": -22,
    "px": [
-    228,
+    178,
+    128
+   ]
+  },
+  "cockpit_toolbox": {
+   "x": 39,
+   "ground_y": -22,
+   "px": [
+    204,
+    128
+   ]
+  },
+  "cockpit_leak": {
+   "x": 48,
+   "ground_y": -22,
+   "px": [
+    213,
     128
    ]
   },
   "cockpit_bag": {
-   "x": 96,
+   "x": 94,
    "ground_y": -22,
    "px": [
-    261,
+    259,
     128
    ]
   }
@@ -252,7 +276,7 @@
    ]
   },
   "cockpit_toolbox": {
-   "x": -3,
+   "x": 30,
    "y": -42,
    "w": 22,
    "h": 20,
@@ -262,12 +286,12 @@
     "open": 1
    },
    "px": [
-    162,
+    195,
     108
    ]
   },
   "cockpit_leak": {
-   "x": 25,
+   "x": 40,
    "y": -71,
    "w": 16,
    "h": 15,
@@ -278,12 +302,12 @@
     "fixed": 2
    },
    "px": [
-    190,
+    205,
     79
    ]
   },
   "cockpit_converter": {
-   "x": 39,
+   "x": -9,
    "y": -84,
    "w": 46,
    "h": 62,
@@ -296,12 +320,12 @@
     "card_curl": 4
    },
    "px": [
-    204,
+    156,
     66
    ]
   },
   "cockpit_bag": {
-   "x": 86,
+   "x": 85,
    "y": -43,
    "w": 20,
    "h": 21,
@@ -310,7 +334,7 @@
     "default": 0
    },
    "px": [
-    251,
+    250,
     107
    ]
   },
@@ -330,16 +354,16 @@
    "default": "hidden"
   },
   "cockpit_leak_steam": {
-   "x": 26,
+   "x": 41,
    "y": -90,
    "w": 13,
    "h": 22,
    "frames": 4,
-   "fps": 8,
+   "fps": 10,
    "loop": true,
    "on": "cockpit_leak=steam",
    "px": [
-    191,
+    206,
     60
    ]
   }
@@ -351,11 +375,11 @@
   "repair_log": -70,
   "seat": -61,
   "bell": -43,
-  "copilot": -19,
-  "toolbox": 7,
-  "leak": 33,
-  "converter": 63,
-  "bag": 96
+  "copilot": -23,
+  "converter": 13,
+  "toolbox": 39,
+  "leak": 48,
+  "bag": 94
  },
  "note": "objects 的 x,y = 左上角（相对锚点），w = 帧宽，frames = 横排帧数；states = 每个状态对应第几帧（多帧动画写成 [起, 止]）；fps = 动画帧率（100ms 一帧 = 10）。cockpit_leak_steam 只在 cockpit_leak = steam 时显示。默认状态：console normal、nav stable、converter closed、leak default、toolbox closed、repair_log none、bell bell；写了 default 的按它（cockpit_phone 默认 hidden，剧本 prop by_gauges 才出现）。"
 }

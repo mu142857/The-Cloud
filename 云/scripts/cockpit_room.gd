@@ -52,6 +52,17 @@ extends Node2D
 ##   平时的 ±1 像素起伏不算进 ship_vy，完全不亮。船在画面上很大，glow.reach_scale = 1.5（光照得更远）。
 ##   hull()：从 cockpit_back.png 的不透明像素算出的船身轮廓（每列上下沿，屏幕坐标；尾翼那种比主船身高出去的部分夹到主船身的上下沿），
 ##   躲碎石的碰撞用它。
+## 船外远景（10-30 作者：「躲避石头的时候飞船能不能缩小一点」「切远景，但不是那个跟角色一样小的那个，我觉得只是缩小」）：
+##   躲碎石时镜头从剖面拉远到船外，整艘船变小（cockpit_debris.gd 调 far_out(k) / far_in()；约定见 docs/flight_sky_contract.md）。
+##   不缩放像素图：art/cockpit/ship_out/ship_out_<n>.png 是同一架船按 n% 原生重画的几档（tools/cockpit_art.py --ship_out），
+##   1 倍那档就是 cockpit_front.png（机身外壳）。过程（_far_u 0 = 剖面 → 1 = 远景，拉回就倒着走同一条曲线）：
+##     1）外壳 cockpit_front.png 在剖面上 4 档淡入（FAR_SHELL 秒，像出了舱门）；
+##     2）FAR_ZOOM 秒里大小从 1 缓到 k（smootherstep：起步缓、停得缓），每一刻取相邻两档图交叉淡入：
+##        小的那张垫在下面先 4 档淡入、大的那张盖在上面再 4 档淡出（任何一刻船身都是实的，不透出背景，也没有糊图）；
+##        每档都绕同一个点缩（_far_pivot：x 在屏幕中间，y 让远景船的主船身中线落在 FAR_CY），位置取整。
+##     3）同时背景的横向卷动慢下来（近的、快的层慢得多，最多慢 FAR_SKY）：镜头往后退了，景物显得远。
+##   远景时：室内、物件、晨都藏起来（晨在船外看不见），只剩远景船；船上下挪照旧是镜头反向偏移（_out 跟着世界走）。
+##   远景船也有反重力泛光（far_glow，set_from_texture 远景那档图；reach_scale 1）。far_hull()：远景船的轮廓（躲碎石的碰撞）。
 
 const ART := "res://art/cockpit/"
 const ORIGIN := Vector2(-20000.0, 0.0)
@@ -63,6 +74,13 @@ const SHIP_W := 10.0                    # 船跟着 ship_goal 走的弹簧：角
 const SHIP_Z := 0.6                     # 阻尼比（< 1：停下时冲过头 1 像素再回来；0.6 实测 28 → 29 → 28）
 const SHIP_RETURN := 8.0                # 不在躲碎石时 ship_goal 每秒回中间多少像素
 const SHIP_GLOW := preload("res://scripts/ship_glow.gd")
+const OUT_DIR := "res://art/cockpit/ship_out/"
+const OUT_STEPS := [93, 87, 81, 75, 70, 65, 60, 55]   # ship_out_<n>.png 有哪几档（n = 大小 %，从大到小）
+const FAR_SHELL := 0.4                  # 拉远第一段：外壳淡入多少秒
+const FAR_ZOOM := 1.3                   # 第二段：缩小多少秒
+const FAR_SKY := 0.3                    # 拉远以后背景卷动最多慢多少（越快的层慢得越多）
+const FAR_CY := 140.0                   # 远景船主船身中线在屏幕上的 y（上面有燃料栏：往上挪满时尾翼不碰它）
+const FAR_SEC := FAR_SHELL + FAR_ZOOM
 
 ## 没有 sky.json 时的占位背景（格式和 sky.json 一样；图是 _ph_tex 程序画的）。屏幕 480×270，船身大约在 y 100..206、
 ## 窗洞大约在 (109..166, 114..153)：起飞时窗里要看得到树冠。
@@ -183,6 +201,8 @@ var ship_dy := 0.0                       # 船现在挪了多少（弹簧追 shi
 var ship_vy := 0.0                       # 船现在的竖直速度（像素 / 秒）：泛光的强度跟着它
 var steering := false                    # 正在躲碎石（不是的话 ship_goal 慢慢回 0）
 var glow: Node2D                         # 船身周围的反重力泛光（scripts/ship_glow.gd）
+var far_k := 1.0                         # 船外远景停在几倍（OUT_STEPS 里的一档 / 100）
+var far_glow: Node2D                     # 远景船的反重力泛光
 
 var _back: Node2D                        # 晨后面：室内 → 物件
 var _front: Node2D                       # 晨前面
@@ -205,6 +225,17 @@ var _warned := {}
 var _rng := RandomNumberGenerator.new()
 var _steam: Array = []
 var _tex_cache := {}
+var _out: Node2D                         # 船外远景：外壳 + 远景船（在晨和室内前面，跟着世界 / 镜头走）
+var _shell: Sprite2D                     # cockpit_front.png，拉远第一段在剖面上淡入
+var _far_hi: Sprite2D                    # 交叉淡入：大的那档（盖在上面、淡出）
+var _far_lo: Sprite2D                    # 小的那档（垫在下面、淡入；停在远景时就是它，泛光挂在它下面）
+var _far_u := 0.0                        # 0 = 剖面，1 = 远景
+var _far_go := 0.0                       # 往哪走（1 拉远 / 0 拉回）
+var _far_dur := FAR_SHELL + FAR_ZOOM
+var _far_p := 0.0                        # 缩小走到哪了（0..1，背景卷动跟着慢）
+var _far_pivot := Vector2(240, 135)
+var _far_hull := {}
+var _chen_hid := false
 
 
 # ======================================================================= 建
@@ -225,6 +256,11 @@ func setup(lv: Node2D, w: Node2D) -> void:
 	lv.move_child(_back, chen.get_index())          # 晨后面
 	lv.add_child(_front)
 	lv.move_child(_front, chen.get_index() + 1)     # 晨前面
+	_out = Node2D.new()
+	_out.name = "CockpitOut"
+	_out.position = ORIGIN
+	lv.add_child(_out)
+	lv.move_child(_out, _front.get_index() + 1)     # 外壳 / 远景船盖在一切上面
 	# 船外背景：CanvasLayer 在整个世界后面，不跟镜头走（船上下挪 / 镜头抖时背景不动）；碎石层在它前面、船后面
 	_read_sky()
 	_sky_layer = CanvasLayer.new()
@@ -271,7 +307,8 @@ func setup(lv: Node2D, w: Node2D) -> void:
 	_draw_front = Node2D.new()
 	_draw_front.draw.connect(_draw_room.bind(true))
 	_front.add_child(_draw_front)
-	# cockpit_front.png 是机身外壳（在舱外看时才盖上）：晨在舱里，不显示
+	# cockpit_front.png 是机身外壳（在舱外看时才盖上）：晨在舱里，不显示；躲碎石拉远时先淡入它（_build_far）
+	_build_far()
 	for id in objects:
 		if str(objects[id].get("default", "")) != "" and not states.has(id):
 			states[id] = str(objects[id]["default"])
@@ -285,6 +322,7 @@ func set_visible_all(on: bool) -> void:
 	_back.visible = on
 	_front.visible = on
 	_sky_layer.visible = on
+	_far_apply()
 
 
 ## 读 cockpit.json，换成屏幕坐标
@@ -570,6 +608,9 @@ func update(delta: float) -> void:
 		return
 	_t += delta
 	_sky_step(delta)
+	if _far_u != _far_go:
+		_far_u = move_toward(_far_u, _far_go, delta / maxf(0.01, _far_dur))
+		_far_apply()
 	if not steering:
 		ship_goal = move_toward(ship_goal, 0.0, SHIP_RETURN * delta)     # 躲完碎石：船慢慢回到中间
 	_ship_step(delta)
@@ -829,7 +870,7 @@ func _sky_step(delta: float) -> void:
 		var L: Dictionary = _live[id]
 		var m := str(L["mode"])
 		if m == "out":
-			L["x"] = float(L["x"]) + float(L["sp0"]) * delta
+			L["x"] = float(L["x"]) + float(L["sp0"]) * delta * _far_par(float(L["sp0"]))
 			L["y"] = float(L["y"]) + float(L["vy0"]) * delta
 			L["a"] = float(L["a0"]) * (1.0 - ks)
 			if k >= 1.0:
@@ -842,7 +883,7 @@ func _sky_step(delta: float) -> void:
 		L["vy"] = float(L["tvy"]) if fresh else lerpf(float(L["vy0"]), float(L["tvy"]), s)
 		var tx := float(L["tx"])
 		if is_nan(tx):
-			L["x"] = float(L["x"]) + sp * delta
+			L["x"] = float(L["x"]) + sp * delta * _far_par(sp)
 		else:
 			var x_to := tx + float(L["tsp"]) * (_sky_t - _sky_blend)
 			L["x"] = x_to if fresh else lerpf(float(L["x0"]) + float(L["sp0"]) * _sky_t, x_to, s)
@@ -902,6 +943,8 @@ func _ship_step(delta: float) -> void:
 		ship_vy = 0.0
 	if glow != null:
 		glow.drive(ship_vy, delta)
+	if far_glow != null and _far_lo.visible:
+		far_glow.drive(ship_vy, delta)
 
 
 ## 跳节拍 / 测试：船直接回中间、泛光熄掉
@@ -911,6 +954,9 @@ func ship_reset() -> void:
 	ship_vy = 0.0
 	if glow != null:
 		glow.strength = 0.0
+	if far_glow != null:
+		far_glow.strength = 0.0
+	far_snap(false)
 
 
 ## 船现在往下挪了多少（像素，整数）：躲碎石的偏移 + 平时很轻的起伏
@@ -939,22 +985,36 @@ func hull() -> Dictionary:
 		if img != null and img.is_compressed():
 			img.decompress()
 	if img != null:
-		for x in img.get_width():
-			var t := -1
-			var b := -1
-			for y in img.get_height():
-				if img.get_pixel(x, y).a > 0.5:
-					if t < 0:
-						t = y
-					b = y
-			tops.append(t)
-			bots.append(b)
-	else:
-		x0 = 20
-		oy = 0
-		for x in 440:
-			tops.append(48)
-			bots.append(int(floor_y) + 20)
+		_hull = _scan_hull(img, x0, oy)
+		return _hull
+	x0 = 20
+	oy = 0
+	for x in 440:
+		tops.append(48)
+		bots.append(int(floor_y) + 20)
+	_hull = _hull_clamp(tops, bots, x0, oy)
+	return _hull
+
+
+## 一张船图的轮廓（图左上角在屏幕 (x0, oy)）：每列最上 / 最下的不透明像素，再夹到主船身的上下沿（_hull_clamp）
+static func _scan_hull(img: Image, x0: int, oy: int) -> Dictionary:
+	var tops := PackedInt32Array()
+	var bots := PackedInt32Array()
+	for x in img.get_width():
+		var t := -1
+		var b := -1
+		for y in img.get_height():
+			if img.get_pixel(x, y).a > 0.5:
+				if t < 0:
+					t = y
+				b = y
+		tops.append(t)
+		bots.append(b)
+	return _hull_clamp(tops, bots, x0, oy)
+
+
+## 尾翼这种比主船身高出去 / 低出去的夹到主船身（中位数）的上下沿，换成屏幕坐标
+static func _hull_clamp(tops: PackedInt32Array, bots: PackedInt32Array, x0: int, oy: int) -> Dictionary:
 	var vt: Array = []
 	var vb: Array = []
 	for i in tops.size():
@@ -969,8 +1029,178 @@ func hull() -> Dictionary:
 		if tops[i] >= 0:
 			tops[i] = maxi(tops[i], tm) + oy
 			bots[i] = mini(bots[i], bm) + oy
-	_hull = {"x0": x0, "top": tops, "bot": bots, "T": tm + oy, "B": bm + oy}
-	return _hull
+	return {"x0": x0, "top": tops, "bot": bots, "T": tm + oy, "B": bm + oy}
+
+
+# ======================================================================= 船外远景（躲碎石时镜头拉远；见文件头「船外远景」）
+func _build_far() -> void:
+	_shell = Sprite2D.new()
+	_shell.centered = false
+	_shell.texture = _art_tex(["cockpit_front"])
+	_shell.position = img_rect.position
+	_out.add_child(_shell)
+	_far_lo = Sprite2D.new()
+	_far_lo.centered = false
+	_out.add_child(_far_lo)
+	_far_hi = Sprite2D.new()
+	_far_hi.centered = false
+	_out.add_child(_far_hi)
+	far_glow = SHIP_GLOW.new()
+	_far_lo.add_child(far_glow)
+	_out.visible = false
+
+
+## 第 n 档（%）的远景船图；100 = 机身外壳 cockpit_front.png
+func _far_tex(n: int) -> Texture2D:
+	return _shell.texture if n >= 100 else _tex_file(OUT_DIR + "ship_out_%d.png" % n)
+
+
+## 远景要的图都在（有外壳、有那一档）才拉远；没有就留在剖面里躲（和原来一样）
+func far_ready(k := far_k) -> bool:
+	return has_art and _shell.texture != null and _far_tex(_far_step(k)) != null
+
+
+## 最接近 k 的那一档（%）
+static func _far_step(k: float) -> int:
+	var best: int = OUT_STEPS[0]
+	for n in OUT_STEPS:
+		if absf(float(n) - k * 100.0) < absf(float(best) - k * 100.0):
+			best = n
+	return best
+
+
+## 拉远到 k 倍（几秒；默认 FAR_SHELL + FAR_ZOOM）
+func far_out(k: float, sec := FAR_SHELL + FAR_ZOOM) -> void:
+	far_k = float(_far_step(k)) / 100.0
+	var hl := hull()
+	var mid := (float(hl["T"]) + float(hl["B"])) / 2.0
+	_far_pivot = Vector2(img_rect.position.x + img_rect.size.x / 2.0, (FAR_CY - far_k * mid) / (1.0 - far_k))
+	_far_hull = {}
+	_far_dur = sec
+	_far_go = 1.0
+
+
+## 拉回剖面
+func far_in(sec := FAR_SHELL + FAR_ZOOM) -> void:
+	_far_dur = sec
+	_far_go = 0.0
+
+
+## 直接到位（跳节拍 / F8 / 测试）
+func far_snap(on: bool) -> void:
+	_far_go = 1.0 if on else 0.0
+	_far_u = _far_go
+	_far_apply()
+
+
+## 0 = 剖面，1 = 远景（中间 = 正在拉）
+func far_u() -> float:
+	return _far_u
+
+
+## 第 n 档图的左上角（屏幕坐标）：绕 _far_pivot 缩
+func _far_pos(n: int) -> Vector2:
+	var s := float(n) / 100.0
+	return (_far_pivot + (img_rect.position - _far_pivot) * s).round()
+
+
+## 远景船的轮廓（屏幕坐标，船没挪的时候；格式同 hull()）
+func far_hull() -> Dictionary:
+	if not _far_hull.is_empty():
+		return _far_hull
+	var n := _far_step(far_k)
+	var t := _far_tex(n)
+	if t == null:
+		return hull()
+	var img := t.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var p := _far_pos(n)
+	_far_hull = _scan_hull(img, int(p.x), int(p.y))
+	return _far_hull
+
+
+## 远景船图里不透明的那块（屏幕坐标，船没挪的时候；含尾翼）
+func far_used_rect() -> Rect2:
+	var n := _far_step(far_k)
+	var t := _far_tex(n)
+	if t == null:
+		return img_rect
+	var img := t.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var r := Rect2(img.get_used_rect())
+	r.position += _far_pos(n)
+	return r
+
+
+## 远景时晨的小声说话从哪冒（屏幕坐标）：远景船驾驶窗上方
+func far_anchor() -> Vector2:
+	var n := _far_step(far_k)
+	var p := _far_pos(n) + Vector2(62.0, 34.0) * far_k
+	return Vector2(roundf(p.x), roundf(p.y) + ship_y())
+
+
+## 背景卷动跟着拉远慢下来：越快（越近）的层慢得越多
+func _far_par(sp: float) -> float:
+	return 1.0 - FAR_SKY * _far_p * clampf(absf(sp) / 60.0, 0.3, 1.0)
+
+
+## 按 _far_u 摆外壳 / 远景船、藏室内和晨
+func _far_apply() -> void:
+	if _out == null:
+		return
+	var us := FAR_SHELL / (FAR_SHELL + FAR_ZOOM)
+	var a := floorf(clampf(_far_u / us, 0.0, 1.0) * 4.0) / 4.0
+	var p := clampf((_far_u - us) / (1.0 - us), 0.0, 1.0)
+	_far_p = p * p * p * (p * (p * 6.0 - 15.0) + 10.0)            # smootherstep：起步缓、停得缓
+	var room_on := _far_p <= 0.0
+	_out.visible = visible and _far_u > 0.0
+	_back.visible = visible and room_on
+	_front.visible = visible and room_on
+	var chen: Node2D = level.chen
+	if not room_on and not _chen_hid and chen.visible:
+		chen.visible = false
+		_chen_hid = true
+	elif room_on and _chen_hid:
+		chen.visible = true
+		_chen_hid = false
+	if room_on:
+		_shell.visible = a > 0.0
+		_shell.modulate.a = a
+		_far_hi.visible = false
+		_far_lo.visible = false
+		return
+	_shell.visible = false
+	var z := lerpf(1.0, far_k, _far_p)
+	var steps: Array = [100]
+	for n in OUT_STEPS:
+		if float(n) >= far_k * 100.0 - 0.5:
+			steps.append(n)
+	var i := 0
+	while i < steps.size() - 2 and float(steps[i + 1]) / 100.0 > z:
+		i += 1
+	var hi: int = steps[i]
+	var lo: int = steps[mini(i + 1, steps.size() - 1)]
+	var f := clampf((float(hi) / 100.0 - z) / maxf(0.001, float(hi - lo) / 100.0), 0.0, 1.0)
+	if _far_p >= 1.0 or f > 0.999:
+		f = 1.0                                # 浮点误差：停稳时大的那张必须完全淡掉（不然留一圈 1/4 透明的鬼影）
+	var lo_a := floorf(clampf(f / 0.5, 0.0, 1.0) * 4.0) / 4.0           # 小的先垫上来
+	var hi_a := 1.0 - floorf(clampf((f - 0.5) / 0.5, 0.0, 1.0) * 4.0) / 4.0   # 大的再淡掉
+	_far_set(_far_hi, hi, hi_a)
+	_far_set(_far_lo, lo, lo_a)
+	if _far_lo.visible and far_glow.get_meta("n", -1) != lo:
+		far_glow.set_meta("n", lo)
+		far_glow.set_from_texture(_far_lo.texture)
+
+
+func _far_set(s: Sprite2D, n: int, a: float) -> void:
+	s.visible = a > 0.0
+	if not s.visible:
+		return
+	s.texture = _far_tex(n)
+	s.position = _far_pos(n)
+	s.modulate.a = a
 
 
 # ----------------------------------------------------------------------- 占位背景的图（程序画；森林绿 / 青绿，暗、低对比）

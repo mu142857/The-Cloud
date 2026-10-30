@@ -54,15 +54,22 @@ CAB_X1 = 284                    # 后舱壁（剖面到这里为止，再往右�
 # 机尾（外壳，不剖开）：从后舱壁往右收成锥，上面一片尾翼
 TAIL = [(280, 49), (290, 54), (312, 72), (326, 91), (328, 99), (323, 105), (300, 121), (284, 133), (280, 135)]
 FIN = [(284, 51), (289, 30), (298, 13), (307, 8), (312, 11), (308, 36), (311, 70), (292, 55)]
-# 窗洞（后舱壁上的侧前窗，顺着机头的斜线）
-WIN_POLY = [(34, 92), (44, 77), (59, 64), (76, 56), (90, 54), (90, 92)]
-WIN_RECT = (34, 54, 90, 92)     # 外接矩形 x0, y0, x1, y1（含）
+# 窗洞 = 座舱玻璃（10-29 重画）：机头上半整片都是玻璃，弧边直接就是机身外壳（外壳在这里只留 CANOPY_FRAME 像素当窗框，
+# 不再是「外壳一道弧 + 里面又一道窗框弧」两层皮）；右边一根立柱（PILLAR_X..+4）接天花板，下沿是操纵台的台沿。
+WIN_POLY = [(22, 92), (26, 87), (30, 81), (35, 74), (41, 68), (47, 62), (54, 57), (61, 53), (69, 49), (77, 47),
+            (88, 45), (88, 92)]
+WIN_RECT = (22, 45, 88, 92)     # 外接矩形 x0, y0, x1, y1（含）
+CANOPY_FRAME = 3
+PILLAR_X = 89
+# 玻璃上的两根斜撑：下端在台沿，上端接外壳（大致朝机头弧的法线方向）
+STRUTS = (((47, 92), (32, 77)), ((74, 92), (60, 53)))
 WIN_W, WIN_H = WIN_RECT[2] - WIN_RECT[0] + 1, WIN_RECT[3] - WIN_RECT[1] + 1
 
 # 光：前窗（冷灰绿）、驾驶座上方的小灯（很弱、微暖）
 WIN_L = Light(62, 72, 34, power=1.0, radius=58)
 LAMP_L = Light(108, 52, 12, power=0.45, radius=20)
-LIGHTS = (WIN_L, LAMP_L)
+BUNK_L = Light(264, 60, 10, power=0.40, radius=24)   # 后舱铺位上方夹着的小灯（也微暖），后舱靠它才看得清家当
+LIGHTS = (WIN_L, LAMP_L, BUNK_L)
 
 N_WALL = smooth_noise(H, W, 14, 40, seed=21)
 N_MISC = smooth_noise(H, W, 30, 24, seed=22)
@@ -138,7 +145,7 @@ def shade(img, mask, L0, C0, h0, z=0.0, gain=0.5, center=0.0, noise=None, noise_
     gy, gx = np.mgrid[0:Hh, 0:Ww].astype(float)
     gx += ox
     gy += oy
-    Iw, Il = _ill(WIN_L, gx, gy, z), _ill(LAMP_L, gx, gy, z)
+    Iw, Il = _ill(WIN_L, gx, gy, z), _ill(LAMP_L, gx, gy, z) + _ill(BUNK_L, gx, gy, z)
     F = gain * (Iw + Il - center)
     if noise is not None:
         F = F + noise_amp * STEP * noise
@@ -215,8 +222,25 @@ def hull_masks():
     room = inner & (_GY < FL)
     floor = inner & (_GY >= FL) & (_GY < FL + 3)
     belly = inner & (_GY >= FL + 3)
-    win = mpoly(WIN_POLY)
+    win = canopy_glass(outer)
     return outer, inner, cut, room, floor, belly, win
+
+
+def canopy_glass(outer):
+    """座舱玻璃（= 窗洞）：WIN_POLY 和「外壳往里收 CANOPY_FRAME 像素」的交集，弧边就是外壳。"""
+    return mpoly(WIN_POLY) & erode(outer, CANOPY_FRAME)
+
+
+def strut_mask(width=2, shape=(H, W)):
+    """玻璃上的斜撑（STRUTS），width 像素粗。"""
+    m = np.zeros(shape, bool)
+    for (x0, y0), (x1, y1) in STRUTS:
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        for i in range(n + 1):
+            x = int(round(x0 + (x1 - x0) * i / n))
+            y = int(round(y0 + (y1 - y0) * i / n))
+            m[y, x:x + width] = True
+    return m
 
 
 RIBS = [104, 152, 186, 230, 256]       # 竖肋条的 x（窗和操纵台那边是机头的斜框，不放）
@@ -249,8 +273,8 @@ def back_layer():
             if room[y, x + 1]:
                 c.put(x + 1, y, img[y, x + 1, :3] + 0)
                 tone(img, mrect(x + 1, y, x + 1, y), 1.5)
-    # 补丁：两块旧补的铁皮，四角铆钉，一块歪着
-    for (x0, y0, x1, y1, s) in ((160, 74, 175, 88, 1), (238, 52, 255, 62, -1), (120, 90, 130, 99, 0)):
+    # 补丁：两块旧补的铁皮，四角铆钉
+    for (x0, y0, x1, y1, s) in ((120, 90, 130, 99, 0),):
         m = mrect(x0, y0, x1, y1) & room
         shade(img, m, METAL[0] + 0.02 * s, METAL[1] - 0.004, METAL[2] - 25, z=1, gain=0.5, center=0.1, cell=(6, 6),
               seed=30 + x0)
@@ -258,22 +282,6 @@ def back_layer():
         tone(img, mrect(x1, y0, x1, y1) & room, -1)
         for (px, py) in ((x0 + 1, y0 + 1), (x1 - 1, y0 + 1), (x0 + 1, y1 - 1), (x1 - 1, y1 - 1)):
             tone(img, mrect(px, py, px, py), 1.5)
-    # 胶带贴着的一道裂缝（后舱壁上方）
-    for i, (x, y) in enumerate([(214, 72), (215, 73), (216, 74), (216, 75), (217, 76), (218, 77), (218, 78)]):
-        c.put(x, y, col(0.13, 0.008, 220))
-    c.rect(212, 74, 220, 75, TAPE)
-    c.rect(214, 70, 216, 71, TAPE)
-    tone(img, mrect(212, 75, 220, 75), -0.7)
-    # 窗：洞是透明的；窗框一圈（外 2 像素），下沿一条窗台
-    frame = dilate(win, 2) & ~win & inner
-    shade(img, frame, 0.23, 0.010, 190, z=4, gain=0.5, center=0.2, cell=(14, 14), seed=40)
-    tone(img, frame & (_GY < 60), 1)
-    sill = mrect(WIN_RECT[0] - 2, WIN_RECT[3] + 1, WIN_RECT[2] + 2, WIN_RECT[3] + 2) & inner
-    shade(img, sill, 0.27, 0.010, 180, z=4, gain=0.4, center=0.2, cell=(6, 4), seed=41)
-    tone(img, sill & (_GY == WIN_RECT[3] + 1), 1.5)
-    # 窗角的旧胶条、一块挡光的小遮板（收在窗顶上）
-    c.rect(78, 50, 92, 52, col(0.20, 0.012, 60))
-    c.rect(79, 52, 91, 52, col(0.16, 0.010, 60))
     # 天花板：两捆电缆在卡子之间往下垂，一盏小灯
     for (x0, x1, y, sag, cc) in ((96, 286, 48, 2, CABLE), (110, 286, 51, 3, col(0.19, 0.016, 60))):
         for x in range(x0, x1):
@@ -285,16 +293,20 @@ def back_layer():
             if inner[y, x]:
                 c.rect(x, y - 1, x + 1, y + 1, col(0.28, 0.008, 170))
     lamp(c)
-    # 一根管子：从转化装置顶上出来，沿舱壁往机头走，经过右侧接口（那一段在 cockpit_leak 里画）
+    # 一根管子：从转化装置顶上出来，沿舱壁往机尾（引擎）走，经过右侧接口（那一段在 cockpit_leak 里画）；往机头那头细一点
     pipe(img)
     # 操纵台壳（台面上的仪表板 / 导航屏是物件）
     console_shell(img, inner)
-    # 两张座椅、铃钩、背包架、后舱门
+    # 两张座椅、铃钩
     seat(img, 92, kind="pilot")
-    seat(img, 134, kind="copilot")
+    seat(img, COPILOT_X, kind="copilot")
     bell_hook(c)
+    # 家当（10-29 作者：「流浪者最私人的空间一般都是很满的，因为这是唯一的家当」）：都是极简、收纳式的，
+    # 后墙上挂的 / 堆的在先，地上靠前的在后（盖住一点后面的），晨走的那一条地面上什么都不挡
+    wall_stuff(img, room)
+    bunk(img, room)
+    under_bunk(img, room)
     bag_rack(img)
-    rear_hatch(img, inner)
     # 地板：钢板 + 防滑纹，下面是腹舱（很暗的横梁和一根管）
     shade(img, floor, FLOOR[0] + 0.05, FLOOR[1], FLOOR[2], z=6, gain=0.4, center=0.1, noise=N_FLOOR, cell=(16, 3),
           seed=50)
@@ -315,9 +327,10 @@ def back_layer():
     shade(img, cut, CUT[0], CUT[1], CUT[2], z=8, gain=0.25, center=0.05, cell=(28, 28), seed=60)
     tone(img, cut & dilate(inner, 1) & ~inner, -0.6)
     img[win] = 0                                         # 窗洞透明
+    canopy(img, inner, win)
     img[~outer] = 0
     tail_and_fin(img)
-    return limit_colors(img, 110)
+    return limit_colors(img, 120)
 
 
 def lamp(c: Canvas):
@@ -331,50 +344,115 @@ def lamp(c: Canvas):
 
 
 PIPE_Y = 86
+PIPE_X0, PIPE_X1 = 96, 281      # 机头那头钻进立柱后面，机尾那头钻进后舱壁（引擎在机尾）
+CONV_PIPE_X = 176               # 转化装置顶上接进来的那一段（cockpit_converter 局部 x 20..22）
 
 
 def pipe(img):
-    """沿舱壁的一根燃料管（暗铜色，落灰）：转化装置顶 → 接口 → 机头。两个卡箍。"""
+    """沿舱壁的一根燃料管（暗铜色，落灰）：机头 → 转化装置顶 → 右侧接口 → 机尾。两个卡箍。后舱那一段被家当挡住大半。"""
     c = cv(img)
-    m = mrect(98, PIPE_Y, 226, PIPE_Y + 2)
-    for x in RIBS:
-        pass
+    m = mrect(PIPE_X0, PIPE_Y, PIPE_X1, PIPE_Y + 2)
     shade(img, m, PIPE[0], 0.016, PIPE[2], z=5, gain=0.4, center=0.1, cell=(8, 3), seed=70)
-    tone(img, mrect(98, PIPE_Y, 226, PIPE_Y), 1)
-    tone(img, mrect(98, PIPE_Y + 2, 226, PIPE_Y + 2), -1)
-    tone(img, mrect(98, PIPE_Y + 3, 226, PIPE_Y + 3), -1)       # 管子在舱壁上的影
+    tone(img, mrect(PIPE_X0, PIPE_Y, PIPE_X1, PIPE_Y), 1)
+    tone(img, mrect(PIPE_X0, PIPE_Y + 2, PIPE_X1, PIPE_Y + 2), -1)
+    tone(img, mrect(PIPE_X0, PIPE_Y + 3, PIPE_X1, PIPE_Y + 3), -1)       # 管子在舱壁上的影
     # 往下拐进转化装置顶
-    m = mrect(224, PIPE_Y, 226, 92)
+    m = mrect(CONV_PIPE_X, PIPE_Y, CONV_PIPE_X + 2, 92)
     shade(img, m, PIPE[0], 0.016, PIPE[2], z=5, gain=0.4, center=0.1, cell=(3, 6), seed=71)
-    tone(img, mrect(224, PIPE_Y, 224, 92), 1)
-    # 往机头那头钻进操纵台后面
-    m = mrect(88, PIPE_Y, 98, PIPE_Y + 2)
-    shade(img, m, PIPE[0] - 0.03, 0.014, PIPE[2], z=5, gain=0.4, center=0.1, cell=(4, 3), seed=72)
-    for x in (126, 176):
+    tone(img, mrect(CONV_PIPE_X, PIPE_Y, CONV_PIPE_X, 92), 1)
+    for x in (126, 236):
         c.rect(x, PIPE_Y - 1, x + 1, PIPE_Y + 3, col(0.20, 0.008, 190))
+    # 修过又修：一段旧胶带上面又缠一段新的，另一处绑着铁丝
+    c.rect(183, PIPE_Y - 1, 189, PIPE_Y + 3, col(0.30, 0.020, 80))
+    c.rect(186, PIPE_Y - 1, 191, PIPE_Y + 3, TAPE)
+    tone(img, mrect(183, PIPE_Y + 3, 191, PIPE_Y + 3), -1)
+    for x in (99, 101, 103):
+        c.rect(x, PIPE_Y - 1, x, PIPE_Y + 3, col(0.40, 0.010, 180))
 
 
 CON_X0, CON_X1, CON_TOP = 14, 84, 95
+SILL_Y = WIN_RECT[3] + 1        # 台沿（= 窗台）两行：93..94
 
 
 def console_shell(img, inner):
-    """操纵台：机头下面一个斜面的台子，朝驾驶座那面是竖的；脚下空出一块放脚的地方。"""
-    m = mpoly([(10, FL - 1), (14, CON_TOP + 6), (22, CON_TOP), (CON_X1, CON_TOP), (CON_X1, FL - 1)]) & inner
-    knee = mrect(66, 115, CON_X1, FL - 1)
-    shade(img, m & ~knee, CONSOLE[0], CONSOLE[1], CONSOLE[2], z=10, gain=0.5, center=0.2, cell=(10, 8), seed=80)
-    shade(img, knee & inner, 0.11, 0.008, 220, z=0, gain=0.2, center=0.1, cell=(8, 8), seed=81)
-    tone(img, mrect(22, CON_TOP, CON_X1, CON_TOP), 1.5)               # 台面前沿受光
-    tone(img, mrect(CON_X1, CON_TOP, CON_X1, 114), -1)                 # 朝座椅那面的边
-    tone(img, mrect(66, 114, CON_X1, 114), -1)
+    """操纵台：机头下面一整块台子，顶上的台沿就是玻璃的下沿，一直接到立柱；朝驾驶座那面是竖的。
+    下半截不是一块黑：检修面板（四颗螺丝、散热缝）、一张旧标签、一捆垂下来的线、踢脚板，脚下只留一小块放脚的凹处和两块踏板。"""
     c = cv(img)
-    # 台子侧面一排散热缝、两个旧旋钮、一根垂下来的线
-    for y in range(118, 125, 2):
-        c.rect(20, y, 34, y, col(0.13, 0.008, 210))
-    for x in (40, 50):
-        c.rect(x, 117, x + 2, 119, col(0.25, 0.012, 80))
-        c.put(x + 1, 117, col(0.32, 0.012, 85))
-    for y in range(115, 124):
-        c.put(62 + (1 if y > 120 else 0), y, CABLE)
+    m = mpoly([(10, FL - 1), (14, CON_TOP + 6), (22, CON_TOP), (CON_X1, CON_TOP), (CON_X1, FL - 1)]) & inner
+    knee = mrect(70, 117, CON_X1, FL - 3)
+    shade(img, m & ~knee, 0.22, 0.012, 185, z=10, gain=0.5, center=0.2, cell=(10, 8), seed=80)
+    shade(img, knee & inner, 0.15, 0.010, 200, z=0, gain=0.2, center=0.1, cell=(8, 8), seed=81)
+    tone(img, mrect(70, 117, CON_X1, 117), -1)                         # 凹处顶上的影
+    tone(img, mrect(CON_X1 - 2, CON_TOP, CON_X1, CON_TOP + 3), 1)      # 手常扶的台角，漆磨掉了
+    tone(img, mrect(CON_X1, CON_TOP, CON_X1, 116), -1)                 # 朝座椅那面的边
+    # 台沿：从外壳一直接到立柱（玻璃就坐在它上面）
+    sill = mrect(0, SILL_Y, PILLAR_X + 4, SILL_Y + 1) & inner
+    shade(img, sill, 0.30, 0.012, 175, z=12, gain=0.4, center=0.2, cell=(12, 2), seed=82)
+    tone(img, sill & (_GY == SILL_Y), 1.5)
+    tone(img, mrect(0, SILL_Y + 2, CON_X1, SILL_Y + 2) & inner & m, -1)  # 台沿下的一道影
+    # 腰线 + 检修面板（四角螺丝、四道散热缝）
+    tone(img, mrect(16, 114, CON_X1 - 1, 114) & inner, -1)
+    tone(img, mrect(16, 115, CON_X1 - 1, 115) & inner, 0.6)
+    pan = mrect(20, 117, 44, 124)
+    tone(img, pan & ~erode(pan, 1), -1)
+    tone(img, mrect(20, 117, 44, 117), 0.5)
+    for (px, py) in ((21, 118), (43, 118), (21, 123), (43, 123)):
+        c.put(px, py, col(0.32, 0.012, 90))
+    for y in (119, 121):
+        c.rect(25, y, 39, y, col(0.15, 0.008, 205))
+    # 一张旧标签（暗纸）、两个旋钮
+    c.rect(48, 117, 54, 120, col(0.36, 0.018, 85))
+    c.rect(49, 118, 53, 118, col(0.27, 0.014, 80))
+    for x in (58, 63):
+        c.rect(x, 118, x + 1, 119, col(0.27, 0.012, 80))
+        c.put(x, 118, col(0.34, 0.012, 85))
+    # 一捆线从仪表板底下垂出来，绕一圈钻回台子里
+    for i, (x, y) in enumerate(((66, 115), (66, 116), (67, 117), (67, 118), (68, 119), (67, 120), (66, 121),
+                                (65, 121), (64, 120))):
+        c.put(x, y, CABLE if i % 3 else col(0.20, 0.016, 60))
+    # 踢脚板
+    kick = mrect(14, FL - 2, 69, FL - 1) & inner & m
+    tone(img, kick, -1.2)
+    # 脚下的两块踏板（斜着）+ 一根搁脚杆
+    for px in (73, 78):
+        for i in range(3):
+            c.put(px + i, FL - 3 - i, col(0.28, 0.010, 180))
+            c.put(px + i, FL - 2 - i, col(0.20, 0.010, 190))
+    c.rect(70, FL - 2, CON_X1, FL - 1, col(0.18, 0.008, 200))
+
+
+def canopy(img, inner, win):
+    """座舱玻璃上的东西（窗洞清掉以后再画）：右边一根立柱接天花板、两根斜撑、玻璃上几道反光、台面上一只旧搪瓷杯。"""
+    c = cv(img)
+    pil = mrect(PILLAR_X, 0, PILLAR_X + 4, SILL_Y + 1) & inner
+    shade(img, pil, CUT[0] - 0.02, CUT[1], CUT[2], z=8, gain=0.3, center=0.1, cell=(5, 14), seed=61)
+    tone(img, pil & (_GX == PILLAR_X), 1)
+    tone(img, pil & (_GX == PILLAR_X + 4), -1)
+    tone(img, mrect(PILLAR_X + 5, 0, PILLAR_X + 5, SILL_Y - 1) & inner, -1)    # 立柱在舱壁上的细影
+    for y in range(54, SILL_Y, 9):
+        tone(img, mrect(PILLAR_X + 2, y, PILLAR_X + 2, y), 1.5)
+    st = strut_mask() & dilate(win, 1)
+    shade(img, st, CUT[0] - 0.04, CUT[1], CUT[2], z=8, gain=0.3, center=0.1, cell=(6, 6), seed=62)
+    tone(img, st & ~np.roll(st, 1, 1), 1)                              # 斜撑朝机头那条边受光
+    # 反光：玻璃上三小段斜线（不透明的浅灰绿点，稀疏）
+    for (x0, y0, n) in ((27, 88, 6), (31, 87, 2), (52, 74, 5), (76, 62, 4), (79, 63, 2)):
+        for i in range(n):
+            if win[y0 - i, x0 + i]:
+                c.put(x0 + i, y0 - i, col(0.44, 0.024, 172))
+    # 台沿上一小盆植物（罐头盒当盆），窗边光最好的地方
+    c.rect(63, 89, 66, 92, col(0.36, 0.014, 70))
+    c.rect(63, 89, 66, 89, col(0.44, 0.014, 75))
+    c.rect(66, 90, 66, 92, col(0.28, 0.012, 80))
+    for (px, py, L) in ((64, 88, 0.42), (65, 87, 0.46), (63, 86, 0.40), (62, 85, 0.44), (66, 86, 0.38), (67, 85, 0.42),
+                        (65, 85, 0.48), (64, 84, 0.50), (61, 86, 0.36), (68, 87, 0.36)):
+        c.put(px, py, col(L, 0.060, 145))
+    # 台面上的旧搪瓷杯（掉了一块瓷）
+    c.rect(76, 88, 79, 92, col(0.46, 0.016, 95))
+    c.rect(76, 88, 79, 88, col(0.54, 0.016, 95))
+    c.rect(79, 89, 79, 92, col(0.38, 0.014, 100))
+    c.put(80, 89, col(0.40, 0.014, 100))
+    c.put(80, 90, col(0.40, 0.014, 100))
+    c.put(77, 91, col(0.24, 0.012, 200))
 
 
 def seat(img, x0, kind="pilot"):
@@ -409,12 +487,23 @@ def seat(img, x0, kind="pilot"):
     shade(img, leg, 0.20, 0.008, 190, z=10, gain=0.4, center=0.15, cell=(3, 6), seed=95 + x0)
     c.rect(x0 + 4, FL - 2, x0 + 17, FL - 1, col(0.17, 0.008, 200))
     tone(img, mrect(x0 + 4, FL - 2, x0 + 17, FL - 2), 1)
+    tone(img, cush & (_GY == 112) & (_GX < x0 + 3), 1.5)                           # 坐垫前沿磨亮的角
     if kind == "copilot":
+        c.rect(x0 + 5, 109, x0 + 9, 110, TAPE)                                      # 坐垫裂了，贴过两回胶带
+        c.rect(x0 + 7, 108, x0 + 8, 111, col(0.42, 0.020, 85))
         for y in range(84, 112):                                        # 垂着没扣的安全带 + 扣子
             c.put(x0 + 21 - (y - 84) // 9, y, col(0.20, 0.012, 150))
         c.rect(x0 + 17, 111, x0 + 19, 112, col(0.34, 0.010, 90))
         tone(img, cush & (_GY == 108) & (_GX > x0 + 1) & (_GX < x0 + 9), 0.8)   # 落了灰，一块发白
         tone(img, back & (_GY >= 82) & (_GY <= 84), 0.6)
+        # 外套搭在靠背上：前片垂到坐垫上方，一只袖子耷拉下来
+        coat = mpoly([(x0 + 20, 81), (x0 + 23, 78), (x0 + 29, 78), (x0 + 30, 82), (x0 + 28, 97), (x0 + 25, 96),
+                      (x0 + 24, 86), (x0 + 20, 99), (x0 + 16, 98), (x0 + 18, 87)])
+        blk(img, coat, (0.32, 0.026, 140), z=13, seed=96 + x0, cell=(4, 5))
+        tone(img, mrect(x0 + 21, 85, x0 + 21, 96) & coat, -1)                       # 前片的褶
+        sleeve = mpoly([(x0 + 27, 92), (x0 + 29, 92), (x0 + 30, 104), (x0 + 28, 105)])
+        blk(img, sleeve, (0.29, 0.024, 140), z=13, seed=97 + x0, cell=(2, 4))
+        c.put(x0 + 22, 90, col(0.40, 0.012, 90))                                    # 一颗扣子
 
 
 BELL_HOOK = (124, 78)
@@ -430,27 +519,203 @@ def bell_hook(c: Canvas):
 
 
 def bag_rack(img):
-    """后舱壁边一个低的铁框 + 网兜（背包放这里，背包本身是物件 cockpit_bag）。"""
+    """后舱铺位底下一个低的铁框 + 网兜（背包放这里，背包本身是物件 cockpit_bag）。框比旁边的家当亮一点，好找。"""
     c = cv(img)
-    x0, x1, y0 = 250, 272, 104
+    x0, x1, y0 = 248, 269, 104
     for x in (x0, x1):
-        c.rect(x, y0, x + 1, FL - 1, col(0.21, 0.008, 190))
-        c.put(x, y0, col(0.30, 0.008, 180))
-    c.rect(x0, FL - 3, x1 + 1, FL - 2, col(0.19, 0.008, 190))
+        c.rect(x, y0, x + 1, FL - 1, col(0.26, 0.008, 185))
+        c.put(x, y0, col(0.36, 0.008, 180))
+    c.rect(x0, FL - 3, x1 + 1, FL - 2, col(0.22, 0.008, 190))
     for y in range(y0 + 4, FL - 3, 5):                # 网兜：几道横着的暗绳
-        c.rect(x0 + 2, y, x1 - 1, y, col(0.18, 0.012, 60))
-    c.rect(x0, y0 + 1, x1 + 1, y0 + 1, col(0.22, 0.014, 60))
+        c.rect(x0 + 2, y, x1 - 1, y, col(0.20, 0.012, 60))
+    c.rect(x0, y0 + 1, x1 + 1, y0 + 1, col(0.26, 0.014, 60))
 
 
-def rear_hatch(img, inner):
-    """后舱壁（最右边）：一扇关死的小舱门，门缝暗、把手。"""
+# ============================================================ 家当（后墙上挂的、堆的；地上靠前的）
+COPILOT_X = 130                 # 副驾驶座（往机头挪了 4 像素，给转化装置让地方）
+BUNK_Y = 74                     # 铺板上沿
+BUNK_X0, BUNK_X1 = 224, 281
+
+
+def blk(img, m, base, z=8, seed=0, cell=(6, 6), gain=0.5, center=0.12, edge=True):
+    """一件家当的一个面：按舱里的光上色；上沿亮一档，右沿、下沿暗一档（不描边）。"""
+    shade(img, m, base[0], base[1], base[2], z=z, gain=gain, center=center, cell=cell, seed=seed)
+    if edge:
+        tone(img, m & ~np.roll(m, 1, 0), 1)
+        tone(img, m & (~np.roll(m, -1, 1) | ~np.roll(m, -1, 0)), -1)
+
+
+def wall_stuff(img, room):
+    """前半舱的墙上：驾驶座边贴着的纸和一张照片；副驾驶座上方一块搁板（玻璃罐、几本书、罐头、叠好的布、铁皮盒，一根松紧绳拦着），
+    板下钩子上挂一只杯子；天花板一张兜着软包的货网。漏气口那一片墙空着（白汽要看得见）。"""
     c = cv(img)
-    m = mrect(274, 56, 284, FL - 1) & inner
-    shade(img, m, 0.19, 0.010, 190, z=2, gain=0.3, center=0.1, cell=(4, 10), seed=99)
-    tone(img, mrect(274, 56, 274, FL - 1) & inner, -1.5)
-    tone(img, mrect(275, 56, 275, FL - 1) & inner, 1)
-    c.rect(277, 88, 278, 95, col(0.30, 0.010, 90))
-    tone(img, mrect(276, 70, 282, 70) & inner, -1)
+    # 立柱右边贴的两张纸 + 一张照片（照片暗、白边）
+    blk(img, mrect(96, 56, 101, 63) & room, (0.40, 0.020, 85), z=6, seed=300, cell=(4, 4))
+    c.rect(97, 58, 100, 58, col(0.30, 0.016, 80))
+    c.rect(97, 60, 99, 60, col(0.30, 0.016, 80))
+    blk(img, mrect(113, 57, 118, 62) & room, (0.44, 0.012, 95), z=6, seed=301, cell=(4, 4))
+    c.rect(114, 58, 117, 61, col(0.22, 0.020, 150))
+    c.rect(114, 60, 117, 61, col(0.26, 0.024, 120))
+    c.put(115, 56, col(0.34, 0.010, 90))
+    blk(img, mrect(196, 66, 201, 72) & room, (0.42, 0.022, 80), z=6, seed=305, cell=(3, 3))      # 一张纸条
+    c.rect(197, 68, 200, 68, col(0.30, 0.016, 80))
+    c.rect(196, 65, 199, 65, TAPE)
+    # 副驾驶座上方贴着一张折过的航线图（一条虚线、几个圈、一个打叉）
+    blk(img, mrect(134, 68, 150, 79) & room, (0.40, 0.022, 90), z=6, seed=304, cell=(5, 4))
+    tone(img, mrect(142, 68, 142, 79), -0.7)
+    for i, (px, py) in enumerate(((136, 77), (138, 76), (140, 75), (142, 73), (144, 73), (146, 71), (148, 70))):
+        c.put(px, py, col(0.26, 0.030, 150))
+    c.put(137, 72, col(0.30, 0.040, 75))
+    c.rect(147, 74, 148, 75, col(0.30, 0.050, 40))
+    c.put(141, 66, col(0.34, 0.010, 90))
+    # 货网：两头挂在天花板卡子上，往下兜，里面塞着三个软包
+    for (x0, x1, y0, y1, base) in ((146, 162, 50, 56, (0.30, 0.026, 120)), (161, 178, 49, 57, (0.27, 0.030, 70)),
+                                   (177, 196, 50, 55, (0.29, 0.018, 160))):
+        m = Canvas(W, H).ellipse((x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2, (1, 1, 1)) & room
+        blk(img, m, base, z=9, seed=302 + x0, cell=(5, 4))
+    for x in range(144, 199):
+        sag = int(round(6 * math.sin(math.pi * (x - 144) / 54)))
+        if room[50 + sag, x]:
+            c.put(x, 51 + sag, col(0.20, 0.012, 60))
+        if (x - 144) % 4 == 0:
+            for y in range(48, 51 + sag):
+                if room[y, x] and (y + x) % 2 == 0:
+                    c.put(x, y, col(0.20, 0.012, 60))
+    # 搁板 + 两个托架
+    blk(img, mrect(132, 63, 196, 64) & room, (0.27, 0.012, 175), z=7, seed=310, cell=(10, 2))
+    for bx in (136, 190):
+        for i in range(4):
+            c.put(bx + i // 2, 65 + i, col(0.20, 0.008, 195))
+    # 板上的东西（底边 y=62）
+    blk(img, mrect(134, 56, 138, 62), (0.33, 0.030, 150), z=8, seed=311, cell=(3, 4))        # 玻璃罐
+    c.rect(134, 55, 138, 55, col(0.30, 0.010, 90))
+    c.rect(135, 58, 135, 60, col(0.42, 0.030, 150))
+    for i, (y0, x1, base) in enumerate(((60, 153, (0.30, 0.034, 80)), (58, 151, (0.27, 0.026, 130)),
+                                        (56, 152, (0.30, 0.024, 25)))):             # 平躺着的三本书
+        blk(img, mrect(141, y0, x1, y0 + 1), base, z=8, seed=312 + i, cell=(4, 2))
+    blk(img, mrect(156, 56, 160, 62), (0.32, 0.010, 180), z=8, seed=315, cell=(3, 4))       # 罐头
+    c.rect(156, 59, 160, 59, col(0.38, 0.030, 70))
+    blk(img, mrect(163, 58, 174, 62), (0.30, 0.022, 165), z=8, seed=316, cell=(4, 3))       # 叠好的布
+    c.rect(163, 60, 174, 60, col(0.24, 0.020, 170))
+    blk(img, mrect(180, 55, 193, 62), (0.28, 0.024, 60), z=8, seed=317, cell=(5, 4))        # 铁皮盒
+    c.rect(180, 58, 193, 58, col(0.22, 0.020, 55))
+    c.rect(185, 56, 187, 56, col(0.40, 0.020, 80))
+    for x in range(133, 196):                                                                # 拦着的松紧绳
+        c.put(x, 59 if (x // 9) % 2 else 60, col(0.30, 0.040, 70))
+    # 板下钩子上挂着一只杯子
+    c.put(171, 65, col(0.30, 0.010, 180))
+    c.put(171, 66, col(0.30, 0.010, 180))
+    blk(img, mrect(168, 67, 172, 71), (0.40, 0.020, 150), z=8, seed=318, cell=(3, 3))
+    c.put(173, 68, col(0.34, 0.018, 150))
+    c.put(173, 69, col(0.34, 0.018, 150))
+
+
+def bunk(img, room):
+    """后舱上半一张窄铺：铺板挂在两根链子和后舱壁上，薄褥子、叠了一半的赭黄旧毯子（一角垂过铺沿）、枕头；
+    铺上方的墙上夹着一盏小灯（很弱的暖光，后舱的光源）、一张照片、一张纸。"""
+    c = cv(img)
+    x0, x1, y = BUNK_X0, BUNK_X1, BUNK_Y
+    for cx in (x0 + 2, x0 + 30):                                                  # 链子
+        for yy in range(49, y):
+            if room[yy, cx]:
+                c.put(cx, yy, col(0.30 if yy % 2 else 0.20, 0.008, 180))
+    blk(img, mrect(x0, y, x1, y + 2) & room, (0.26, 0.012, 175), z=8, seed=320, cell=(10, 2))   # 铺板
+    blk(img, mrect(x0 + 1, y - 3, x1, y - 1) & room, (0.30, 0.016, 150), z=9, seed=321, cell=(8, 3))  # 褥子
+    pil = Canvas(W, H).ellipse(274, y - 5, 6, 3, (1, 1, 1)) & room                  # 枕头
+    blk(img, pil, (0.42, 0.012, 120), z=10, seed=322, cell=(4, 3))
+    # 毯子叠了一半：右边三层叠得整整齐齐，左边还摊着、皱着，一角垂过铺沿（起床叠到一半就去开船了）
+    bl = Canvas(W, H).poly([(x0 + 4, y - 1), (x0 + 7, y - 5), (x0 + 13, y - 6), (x0 + 18, y - 4), (x0 + 24, y - 5),
+                            (x0 + 28, y - 3), (x0 + 28, y - 1)], (1, 1, 1))
+    hang = Canvas(W, H).poly([(x0 + 5, y), (x0 + 17, y), (x0 + 16, y + 5), (x0 + 13, y + 4), (x0 + 10, y + 7),
+                              (x0 + 6, y + 5)], (1, 1, 1))
+    blk(img, (bl | hang) & room, (0.36, 0.044, 75), z=10, seed=323, cell=(5, 4))
+    for (fx, fy) in ((x0 + 8, y + 1), (x0 + 9, y + 2), (x0 + 12, y + 1), (x0 + 14, y + 1)):
+        tone(img, mrect(fx, fy, fx, fy + 2), -1)                                   # 垂下来那一角的褶
+    tone(img, mrect(x0 + 5, y, x0 + 17, y), -1)
+    for i, (fx0, fx1) in enumerate(((x0 + 29, x0 + 43), (x0 + 30, x0 + 42), (x0 + 29, x0 + 42))):
+        fy = y - 2 - i * 2
+        blk(img, mrect(fx0, fy - 1, fx1, fy), (0.38 - 0.01 * i, 0.044, 75), z=10, seed=326 + i, cell=(5, 2))
+    tone(img, mrect(x0 + 43, y - 7, x0 + 43, y - 1), -1)                            # 叠好那摞的折边
+    # 一盏小灯照在墙上的一小圈暖光（只亮一档）
+    halo = Canvas(W, H).ellipse(264, 59, 6, 3.5, (1, 1, 1)) & room & (img[..., 3] > 0)
+    lab_shift(img, halo, 0.025, 0.005, WARM_H)
+    # 墙上：照片（白边、暗的画面）、一张纸、夹着的小灯
+    blk(img, mrect(238, 57, 244, 63) & room, (0.46, 0.012, 95), z=6, seed=324, cell=(4, 4))
+    c.rect(239, 58, 243, 61, col(0.24, 0.024, 160))
+    c.rect(239, 60, 243, 61, col(0.30, 0.030, 120))
+    blk(img, mrect(247, 55, 252, 62) & room, (0.40, 0.020, 85), z=6, seed=325, cell=(4, 4))
+    for yy in (57, 59):
+        c.rect(248, yy, 251, yy, col(0.30, 0.016, 80))
+    c.rect(262, 54, 266, 56, col(0.24, 0.008, 190))                                # 灯罩
+    c.rect(263, 57, 265, 57, col(0.62, 0.070, 80))                                  # 灯泡（暖黄，比晨暗）
+    c.put(264, 53, col(0.30, 0.008, 180))
+
+
+def under_bunk(img, room):
+    """铺底下：左边一摞家当（木箱、橄榄绿铁皮箱、用绳捆着的一卷铺盖），一件衬衫搭在铺沿上，最里面一个压缩式马桶
+    （翻盖、贴墙的水箱、一卷纸）、半拉着的帘子；地上靠前一双旧靴子（盖住箱子底边一点）。"""
+    c = cv(img)
+    # 木箱
+    box = mrect(223, 111, 246, FL - 1)
+    blk(img, box, (0.31, 0.036, 62), z=8, seed=330, cell=(6, 5))
+    for yy in (116, 121):
+        tone(img, mrect(224, yy, 245, yy), -1)
+    for xx in (225, 244):
+        tone(img, mrect(xx, 112, xx, FL - 1), -0.7)
+    c.rect(230, 117, 236, 119, col(0.22, 0.026, 55))                               # 模糊的喷字
+    c.rect(231, 118, 235, 118, col(0.31, 0.036, 62))
+    # 橄榄绿铁皮箱（把手、搭扣）
+    case = mrect(225, 101, 244, 110)
+    blk(img, case, (0.29, 0.030, 125), z=9, seed=331, cell=(5, 4))
+    c.rect(231, 100, 237, 100, col(0.22, 0.010, 190))
+    c.rect(233, 105, 235, 106, col(0.40, 0.012, 90))
+    tone(img, mrect(225, 104, 244, 104), -1)
+    # 捆着的铺盖卷（两道绳）
+    roll = Canvas(W, H).ellipse(234, 96.5, 8.5, 3.6, (1, 1, 1))
+    blk(img, roll, (0.31, 0.022, 165), z=10, seed=332, cell=(4, 3))
+    for xx in (229, 239):
+        c.rect(xx, 93, xx, 100, col(0.40, 0.030, 80))
+    c.put(226, 96, col(0.24, 0.018, 165))                                           # 卷的端面一圈
+    c.put(227, 95, col(0.24, 0.018, 165))
+    # 衬衫搭在铺沿上（两只袖子垂下来）
+    sh = Canvas(W, H).poly([(255, 77), (267, 77), (267, 84), (265, 88), (263, 84), (259, 84), (257, 89), (255, 85)],
+                           (1, 1, 1)) & room
+    blk(img, sh, (0.32, 0.030, 100), z=9, seed=333, cell=(4, 4))
+    tone(img, mrect(261, 78, 261, 84) & sh, -1)
+    # 帘子：铺板底下一根杆，帘子收在马桶左边，竖褶
+    c.rect(268, BUNK_Y + 3, 281, BUNK_Y + 3, col(0.22, 0.008, 190))
+    cur = Canvas(W, H).poly([(268, 78), (273, 78), (274, 104), (272, 106), (269, 105), (267, 103)], (1, 1, 1)) & room
+    blk(img, cur, (0.28, 0.022, 165), z=7, seed=334, cell=(3, 6))
+    for xx in (269, 271):
+        tone(img, mrect(xx, 80, xx, 104) & cur, -1)
+    # 压缩式马桶：贴墙的水箱板 + 翻盖 + 方底座 + 冲水钮；墙上一卷纸
+    blk(img, mrect(277, 100, 281, 112) & room, (0.30, 0.010, 175), z=8, seed=335, cell=(3, 5))
+    c.put(279, 102, col(0.44, 0.012, 90))
+    bowl = Canvas(W, H).poly([(272, 114), (281, 114), (281, FL - 1), (276, FL - 1), (275, 121), (273, 119)], (1, 1, 1))
+    blk(img, bowl & room, (0.34, 0.010, 165), z=9, seed=336, cell=(4, 5))
+    blk(img, mrect(271, 112, 279, 113) & room, (0.42, 0.010, 160), z=10, seed=337, cell=(4, 2))   # 坐圈
+    blk(img, mrect(275, 102, 276, 111) & room, (0.36, 0.010, 165), z=10, seed=341, cell=(2, 4))   # 掀起来靠墙的盖
+    tone(img, mrect(276, 123, 281, 123) & room, -1)
+    blk(img, mrect(274, 106, 276, 110) & room, (0.46, 0.010, 100), z=8, seed=338, cell=(2, 2))
+    # 铺板底下拉一根细绳，晾着两只袜子（木夹子）
+    for x in range(241, 255):
+        c.put(x, 78 + (1 if 244 <= x <= 251 else 0), col(0.30, 0.012, 80))
+    for (sx, base) in ((243, (0.36, 0.022, 25)), (249, (0.34, 0.024, 95))):
+        sock = Canvas(W, H).poly([(sx, 80), (sx + 2, 80), (sx + 2, 85), (sx + 4, 86), (sx + 4, 87), (sx, 87)], (1, 1, 1))
+        blk(img, sock & room, base, z=9, seed=342 + sx, cell=(2, 3))
+        c.rect(sx + 1, 78, sx + 1, 80, col(0.48, 0.020, 85))
+    # 木箱：换过一块新一点的板，磨亮的角
+    tone(img, mrect(224, 117, 245, 120), 0.8)
+    for (px, py) in ((223, 111), (246, 111), (223, FL - 1)):
+        tone(img, mrect(px, py, px, py), 1.5)
+    # 地上靠前：一双旧靴子（一只立着、一只躺倒），比木箱暗、偏橄榄，剪影分得开
+    boot = Canvas(W, H).poly([(226, 118), (230, 118), (230, 123), (234, 124), (234, FL - 1), (226, FL - 1)], (1, 1, 1))
+    blk(img, boot, (0.21, 0.020, 80), z=12, seed=339, cell=(3, 3))
+    c.rect(226, 118, 230, 118, col(0.28, 0.020, 85))
+    boot2 = Canvas(W, H).poly([(236, 124), (243, 124), (243, FL - 1), (233, FL - 1), (234, 125)], (1, 1, 1))
+    blk(img, boot2, (0.20, 0.020, 80), z=12, seed=340, cell=(3, 3))
+    c.rect(244, 123, 244, FL - 1, col(0.15, 0.012, 60))                           # 躺倒那只的鞋底
+    c.put(231, 124, col(0.30, 0.020, 85))                                           # 鞋带扣
 
 
 # ============================================================ 外壳：和 art/flight/ship.png 同一架飞机（银灰机身、一道暗紫红条、青绿座舱玻璃、暗尾翼）
@@ -459,8 +724,9 @@ STRIPE = (0.33, 0.045, 340)
 FIN_C = (0.26, 0.014, 320)
 
 
-def exterior(img, body, seed=0, panels=(60, 112, 166, 214, 252), stripe=True):
-    """在 body 这块上画机身外壳：旧银灰漆（夜里，暗一些），面板缝和铆钉、雨痕、一道暗紫红条。"""
+def exterior(img, body, seed=0, panels=(60, 112, 166, 214, 252), stripe=True, detail=True):
+    """在 body 这块上画机身外壳：旧银灰漆（夜里，暗一些），面板缝和铆钉、雨痕、一道暗紫红条。
+    detail=False：只画大块颜色（底漆 + 上下明暗带），不画面板缝 / 铆钉 / 接缝 / 雨痕 / 紫红条（船外远景按缩小后的像素另画，见 ship_out）。"""
     c = cv(img)
     noise = smooth_noise(H, W, 6, 50, seed=31 + seed)
     shade(img, body, SKIN_GRAY[0], SKIN_GRAY[1], SKIN_GRAY[2], z=40, gain=0.35, center=0.15, noise=noise,
@@ -468,6 +734,8 @@ def exterior(img, body, seed=0, panels=(60, 112, 166, 214, 252), stripe=True):
     tone(img, body & (_GY < 58), 1)
     tone(img, body & (_GY > 120), -1.5)
     tone(img, body & (_GY > 136), -1)
+    if not detail:
+        return
     for x in panels:
         tone(img, body & (_GX == x), -1.5)
         for y in range(48, 144, 12):
@@ -492,14 +760,15 @@ def exterior(img, body, seed=0, panels=(60, 112, 166, 214, 252), stripe=True):
         tone(img, body & (_GX == x) & (_GY >= y0) & (_GY < y0 + ln), -0.8)
 
 
-def tail_and_fin(img):
-    """机尾（锥形外壳）+ 尾翼。不剖开，前后层都一样。"""
+def tail_and_fin(img, detail=True):
+    """机尾（锥形外壳）+ 尾翼。不剖开，前后层都一样。detail=False 见 exterior。"""
     tail = mpoly(TAIL)
     fin = mpoly(FIN)
-    exterior(img, tail, seed=3, panels=(296, 312))
+    exterior(img, tail, seed=3, panels=(296, 312), detail=detail)
     shade(img, fin, FIN_C[0], FIN_C[1], FIN_C[2], z=40, gain=0.3, center=0.1, cell=(8, 10), seed=120, green=0.3,
           warm=0)
-    tone(img, fin & ~erode(fin, 1) & (_GX < 300), 1)
+    if detail:
+        tone(img, fin & ~erode(fin, 1) & (_GX < 300), 1)
     tone(img, fin & (_GY > 40) & (_GX > 300), -1)
     # 尾翼上一道褪色的条
     tone(img, fin & (_GY >= 20) & (_GY <= 22), 1.2)
@@ -513,10 +782,11 @@ def front_layer():
     img = np.zeros((H, W, 4), np.uint8)
     c = cv(img)
     exterior(img, outer)
-    win = mpoly(WIN_POLY)
+    win = canopy_glass(outer)
     shade(img, win, 0.24, 0.035, 185, z=40, gain=0.3, center=0.1, cell=(10, 10), seed=101, green=0.4, warm=0)
     tone(img, win & (_GY < 66), 1)
     tone(img, dilate(win, 2) & ~win & outer, -1.5)
+    tone(img, strut_mask() & win, -1.5)                 # 玻璃上的两根斜撑（和舱里同一位置）
     for i in range(7):
         c.put(50 + i, 80 - i, col(0.42, 0.030, 175))
     for i in range(4):
@@ -534,6 +804,146 @@ def front_layer():
     return limit_colors(img, 64)
 
 
+# ============================================================ 船外远景：躲碎石时镜头拉远看到的整艘船（10-30 作者：「躲避石头的时候飞船能不能缩小一点」
+# 「切远景，但不是那个跟角色一样小的那个，我觉得只是缩小」）
+# 和 cockpit_front 同一架船、同一套颜色和破损，按 OUT_SCALES 每档原生重画一张（不做非整数缩放，像素不糊）：
+#   大块颜色（底漆、上下明暗带、窗玻璃、尾翼）= 1 倍外壳的「平涂版」按像素中心取样（色块边都是直线，取样不糊）；
+#   1 像素的细节（面板缝、接缝、雨痕、门缝、补丁边、窗框、窗上的反光、紫红条、尾翼亮边）按缩小后的坐标重新画，粗细不跟着缩没。
+# 拉远 / 拉回时引擎一档档交叉淡入（cockpit_room.gd「船外远景」），最后停在作者挑的那一档（debris_steer 的 "far_scale"）。
+# 0.5 倍左右就和森林里起飞那艘（art/level1/ship_fly.png，约 165×45）一样小了，所以最小只做到 0.55。
+SHIP_OUT = OUT / "ship_out"
+OUT_SCALES = (0.93, 0.87, 0.81, 0.75, 0.70, 0.65, 0.60, 0.55)
+
+
+def _ext_flat():
+    """1 倍外壳的大块颜色（不画细节）：机身 + 窗玻璃 + 机尾 + 尾翼。"""
+    outer = mpoly(HULL)
+    img = np.zeros((H, W, 4), np.uint8)
+    exterior(img, outer, detail=False)
+    img[~outer] = 0
+    tail_and_fin(img, detail=False)
+    return img
+
+
+def ship_out(k: float, flat=None):
+    """k 倍大小的船外观（RGBA 数组）。坐标 = 1 倍图坐标 × k；图左上角对应 1 倍图的左上角。"""
+    flat = _ext_flat() if flat is None else flat
+    w, h = int(round(W * k)), int(round(H * k))
+    sh = (h, w)
+    gy, gx = np.mgrid[0:h, 0:w]
+
+    def sc(pts):
+        return [(x * k, y * k) for x, y in pts]
+
+    def r(v):
+        return int(round(v * k))
+
+    body = mpoly(sc(HULL), sh)
+    tail = mpoly(sc(TAIL), sh)
+    fin = mpoly(sc(FIN), sh)
+    win = mpoly(sc(WIN_POLY), sh) & erode(body, max(2, r(CANOPY_FRAME)))     # 座舱玻璃，同 canopy_glass
+    ship = body | tail | fin
+    # 大块颜色：取 1 倍平涂版里对应的像素中心
+    sx = np.clip(((gx + 0.5) / k).astype(int), 0, W - 1)
+    sy = np.clip(((gy + 0.5) / k).astype(int), 0, H - 1)
+    img = flat[sy, sx].copy()
+    # 轮廓按缩小后的多边形重新算（边更顺）；取样落到透明处的边缘像素，从旁边借颜色
+    for _ in range(3):
+        hole = ship & (img[..., 3] == 0)
+        if not hole.any():
+            break
+        for dy, dx in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            src = np.roll(np.roll(img, dy, 0), dx, 1)
+            take = hole & (src[..., 3] > 0)
+            img[take] = src[take]
+            hole &= ~take
+    img[~ship] = 0
+    tbody = body | tail
+    # 面板缝（竖）+ 铆钉（大的几档才有，小了就是噪点）
+    for x in (60, 112, 166, 214, 252, 296, 312):
+        xs = r(x)
+        tone(img, tbody & ~fin & (gx == xs), -1.5)
+        if k >= 0.7:
+            for y in range(48, 144, 12):
+                yy = r(y)
+                if 0 <= yy < h and xs + 1 < w and tbody[yy, xs + 1]:
+                    tone(img, (gx == xs + 1) & (gy == yy), 1)
+    # 横接缝
+    for y in (66, 122):
+        tone(img, tbody & ~fin & (gy == r(y)) & (gx > r(20)), -1.2)
+    # 雨痕（同一个随机种子，位置 / 长度跟着缩）
+    rng = np.random.default_rng(9)
+    for _ in range(18):
+        x = int(rng.integers(10, W - 10))
+        y0 = int(rng.integers(44, 100))
+        ln = int(rng.integers(6, 22))
+        tone(img, body & (gx == r(x)) & (gy >= r(y0)) & (gy < r(y0) + max(3, r(ln))), -0.8)
+    # 暗紫红条：从机头下方斜着往机尾抬，粗细最少 2 像素
+    band = np.zeros(sh, bool)
+    th = max(2, r(3))
+    for x in range(w):
+        yc = (116 - (x / k - 20) * 0.10) * k
+        band[int(round(yc)):int(round(yc)) + th, x] = True
+    band &= tbody & ~fin
+    shade(img, band, STRIPE[0], STRIPE[1], STRIPE[2], z=40, gain=0.3, center=0.15, cell=(14, 4), seed=110, green=0, warm=0)
+    # 座舱玻璃（青绿、很暗）：窗框暗一圈，左上一道反光
+    shade(img, win, 0.24, 0.035, 185, z=40, gain=0.3, center=0.1, cell=(10, 10), seed=101, green=0.4, warm=0)
+    tone(img, win & (gy < r(66)), 1)
+    tone(img, dilate(win, max(1, r(2))) & ~win & body, -1.5)
+    # 玻璃上的两根斜撑（同 strut_mask，粗细最少 1 像素）
+    sw = max(1, r(2))
+    struts = np.zeros(sh, bool)
+    for (x0, y0), (x1, y1) in STRUTS:
+        n = max(abs(x1 - x0), abs(y1 - y0))
+        for i in range(n + 1):
+            x = int(round((x0 + (x1 - x0) * i / n) * k))
+            y = int(round((y0 + (y1 - y0) * i / n) * k))
+            if 0 <= y < h:
+                struts[y, x:x + sw] = True
+    tone(img, struts & win, -1.5)
+    c = cv(img)
+    for (x0, y0, n, L) in ((50, 80, 7, 0.42), (58, 82, 4, 0.36)):
+        for i in range(max(2, r(n))):
+            px, py = r(x0) + i, r(y0) - i
+            if 0 <= py < h and 0 <= px < w and win[py, px]:
+                c.put(px, py, col(L, 0.030, 175))
+    # 舱门轮廓 + 把手
+    door = mrect(r(168), r(54), r(204), r(126), sh)
+    tone(img, door & ~erode(door, 1), -1.8)
+    c.rect(r(198), r(88), r(198) + max(1, r(4)) - 1, r(88), col(0.24, 0.010, 250))
+    # 补丁
+    m = mrect(r(120), r(96), r(140), r(106), sh)
+    tone(img, m, 0.7)
+    tone(img, m & ~erode(m, 1), -1)
+    # 三道通风口
+    for x in (226, 231, 236):
+        c.rect(r(x), r(96), r(x) + max(1, r(3)) - 1, r(96) + max(2, r(6)) - 1, col(0.30, 0.010, 250))
+    # 尾翼迎光的亮边
+    tone(img, fin & ~erode(fin, 1) & (gx < r(300)), 1)
+    img[~ship] = 0
+    return limit_colors(img, 64)
+
+
+def build_ship_out(preview_path=None):
+    flat = _ext_flat()
+    outs = {}
+    for k in OUT_SCALES:
+        a = ship_out(k, flat)
+        outs[k] = a
+        save(a, "ship_out_%02d" % int(round(k * 100)), SHIP_OUT)
+    if preview_path:
+        front = front_layer()
+        ims = [Image.fromarray(front)] + [Image.fromarray(outs[k]) for k in OUT_SCALES]
+        Wd = sum(i.width + 6 for i in ims)
+        out = Image.new("RGBA", (Wd, H + 4), BG)
+        xx = 0
+        for i in ims:
+            out.alpha_composite(i, (xx, H - i.height))
+            xx += i.width + 6
+        out.resize((out.width * 2, out.height * 2), Image.NEAREST).save(preview_path)
+    return outs
+
+
 # ============================================================ 会换状态的物件（每个一张横排帧条）
 # 名字：(图左上角 x, y, 帧宽, 帧高)，图坐标
 OBJ = {
@@ -541,11 +951,11 @@ OBJ = {
     "cockpit_nav": (58, 96, 23, 18),
     "cockpit_repair_log": (82, 97, 9, 14),
     "cockpit_bell": (119, 79, 11, 17),
-    "cockpit_toolbox": (162, 108, 22, 20),
-    "cockpit_leak": (190, 79, 16, 15),
-    "cockpit_leak_steam": (191, 60, 13, 22),
-    "cockpit_converter": (204, 66, 46, 62),
-    "cockpit_bag": (251, 107, 20, 21),
+    "cockpit_toolbox": (195, 108, 22, 20),   # 地上、漏气口正下方（修漏气用的就是它）
+    "cockpit_leak": (205, 79, 16, 15),
+    "cockpit_leak_steam": (206, 60, 13, 22),
+    "cockpit_converter": (156, 66, 46, 62),  # 10-29 往前挪到副驾驶座后面（作者：「炉子可以往前一点」）
+    "cockpit_bag": (250, 107, 20, 21),
     "cockpit_phone": (47, 84, 8, 13),        # 通讯器：立在操纵台上沿、仪表旁（剧本 prop cockpit_phone by_gauges 才出现）
 }
 
@@ -916,7 +1326,7 @@ def steam_frames():
 
 
 # ---------- 转化装置：closed / idle / glow / burn / card_curl
-CONV = (0.24, 0.012, 175)
+CONV = (0.27, 0.014, 170)      # 比旁边的家当亮一点（可互动的东西要一眼找得到）
 EMBER = {0: None, 1: (0.36, 0.070, 55), 2: (0.52, 0.100, 62), 3: (0.68, 0.110, 72)}
 
 
@@ -1031,9 +1441,9 @@ def lab_shift(img, m, dL, dC, hue):
 def bag_frames():
     x, y, w, h, c = P("cockpit_bag")
     body = Canvas(w, h).poly([(3, 6), (8, 3), (14, 4), (17, 8), (18, h - 1), (1, h - 1), (2, 10)], (1, 1, 1))
-    pshade(c, "cockpit_bag", body, 0.36, 0.020, 130, z=9, gain=0.5, center=0.15, cell=(5, 5), seed=270)
+    pshade(c, "cockpit_bag", body, 0.40, 0.022, 130, z=9, gain=0.5, center=0.15, cell=(5, 5), seed=270)
     flap = Canvas(w, h).poly([(4, 6), (9, 4), (14, 5), (16, 9), (15, 12), (4, 12)], (1, 1, 1))
-    pshade(c, "cockpit_bag", flap, 0.40, 0.020, 125, z=10, gain=0.5, center=0.15, cell=(4, 4), seed=271)
+    pshade(c, "cockpit_bag", flap, 0.45, 0.022, 125, z=10, gain=0.5, center=0.15, cell=(4, 4), seed=271)
     ptone(c, flap & ~erode(flap, 1) & lm(c, 0, 12, w - 1, 12), -1.2)
     ptone(c, body & lm(c, 0, h - 3, w - 1, h - 1), -1)
     c.rect(9, 12, 10, 14, col(0.36, 0.012, 90))                       # 扣子
@@ -1086,7 +1496,7 @@ def build_props():
     frames = steam_frames()
     save(strip(frames), "cockpit_leak_steam")
     x, y, w, h = OBJ["cockpit_leak_steam"]
-    objects["cockpit_leak_steam"] = {"x": rel(x), "y": y - H, "w": w, "h": h, "frames": len(frames), "fps": 8,
+    objects["cockpit_leak_steam"] = {"x": rel(x), "y": y - H, "w": w, "h": h, "frames": len(frames), "fps": 10,
                                      "loop": True, "on": "cockpit_leak=steam", "px": [x, y]}
     out["cockpit_leak_steam"] = frames
     return objects, out
@@ -1111,13 +1521,13 @@ MARKERS_PX = {
     "cockpit_repair_log": (95, FL),
     "cockpit_seat": (104, FL),
     "cockpit_bell": (122, FL),
-    "cockpit_copilot": (146, FL),
-    "cockpit_toolbox": (172, FL),
-    "cockpit_leak": (198, FL),
-    "cockpit_converter": (228, FL),
-    "cockpit_bag": (261, FL),
+    "cockpit_copilot": (142, FL),
+    "cockpit_converter": (178, FL),
+    "cockpit_toolbox": (204, FL),
+    "cockpit_leak": (213, FL),
+    "cockpit_bag": (259, FL),
 }
-WALK = (84, 262)               # 晨（中心 x）能走的范围，图坐标
+WALK = (84, 260)               # 晨（中心 x）能走的范围，图坐标
 
 
 def write_json(objects: dict):
@@ -1783,7 +2193,12 @@ def preview(path, back, front, prop_frames, windows=None, extras=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", default=None, help="预览图写到这个文件（.png）")
+    ap.add_argument("--ship_out", action="store_true",
+                    help="只重画船外远景 art/cockpit/ship_out/（不动别的图：完整重跑会覆盖 tools/sky_art.py 画的 debris_*.png）")
     args = ap.parse_args()
+    if args.ship_out:
+        build_ship_out(args.preview)
+        sys.exit(0)
     back, front = build_section()
     objects, prop_frames = build_props()
     windows, extras = build_windows()
