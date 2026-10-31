@@ -32,6 +32,7 @@ from PIL import Image
 sys.path.insert(0, "/Users/jiamulin/Desktop/程序programs/AI Oscar")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import underwater_art as ua  # noqa: E402
+import uw_props as up  # noqa: E402
 from oscarkit.palette import from_lch  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -148,7 +149,7 @@ def sag_line(img, x0, y0, x1, y1, sag, c, c_lit=None):
         if prev is not None and abs(p[1] - prev[1]) > 1:
             for yy in range(min(p[1], prev[1]) + 1, max(p[1], prev[1])):
                 img.put(prev[0], yy, c)
-        img.put(*p, c)
+        img.put(*p, c_lit if (c_lit is not None and i % 6 < 2) else c)          # 拧着的绳：隔几格一段亮一点
         prev = p
 
 
@@ -385,6 +386,24 @@ SP = stone_pal()
 SILT = [oc(.15, .008, 236), oc(.2, .008, 226), oc(.25, .009, 214), oc(.29, .009, 200)]   # 淤泥：冷灰（不黄）
 BARN = [oc(.12, .012, 250), oc(.27, .012, 215), oc(.36, .012, 205)]                    # 附着的小藤壶
 AO = None                                   # build_main 里设成 st.ao（每个像素往暗推多少）
+DUMP = None                                 # 调试：局部图存这里
+ENV = None                                  # 物件打光用的场景光照（st.light 模糊过；main() 里设）
+
+
+def env_for(ox, oy, w, h, lo=0.3):
+    """物件画布那块的场景光照（lo..1：最暗的地方也留一点，要点的东西在暗处也读得出）。"""
+    e = np.full((h, w), 0.5)
+    if ENV is not None:
+        y0, x0 = max(0, oy), max(0, ox)
+        y1, x1 = min(H, oy + h), min(W, ox + w)
+        if y1 > y0 and x1 > x0:
+            e[y0 - oy:y1 - oy, x0 - ox:x1 - ox] = ENV[y0:y1, x0:x1]
+    return lo + (1 - lo) * np.clip(e, 0, 1)
+
+
+def set_env(st):
+    global ENV
+    ENV = np.clip(ua.blur(st.light, 6.0) * 1.15, 0, 1)
 
 
 def despeckle(lev, M):
@@ -987,60 +1006,71 @@ def rope_and_hooks(img, st):
     for (x0, y0), (x1, y1) in zip(pts[:-1], pts[1:]):
         d = x1 - x0
         sag = 0 if d < 20 else min(7, d / 40)
-        sag_line(img, x0, y0, x1, y1, sag, c)
-    for x in HOOKS:                                      # 钩子：钉在墙里的一截铁，弯上来
-        img.put(x, ROPE_Y - 1, IRON[3])
-        img.put(x, ROPE_Y - 2, IRON[4])
-        img.put(x - 1, ROPE_Y - 2, IRON[2])
-        img.put(x + 1, ROPE_Y, IRON[1])
+        sag_line(img, x0, y0, x1, y1, sag, c)                       # 一根连续的暗绳（一段段亮会像虚线）
+    for x in HOOKS:                                      # 钩子：钉在墙里的一截铁，弯上来；钉进墙那头锈出一道
+        ip = up.PAL[up.IRON][1]
+        img.put(x, ROPE_Y - 1, ip[5])
+        img.put(x, ROPE_Y - 2, ip[6])
+        img.put(x - 1, ROPE_Y - 2, ip[4])
+        img.put(x + 1, ROPE_Y, ip[3])
+        img.put(x + 1, ROPE_Y + 1, up.RUST[1][3])
+        img.put(x + 1, ROPE_Y + 2, up.RUST[0][2])
 
 
-def crate(w, h, rng, label=True, lid=True):
-    """一只木箱：横的木板（板缝暗），四角竖条，顶上一行受光，右沿亮；贴一张圆字标签（纸 + 一个圆圈字）。"""
-    a = np.zeros((h, w, 4), np.uint8)
+def stamp(img, a, x, y):
+    """把画好的 RGBA（物件材质画的）按房间坐标贴进 Img"""
+    img.paste(a, int(x), int(y))
+
+
+def crate_prop(w, h, seed, label=True, ox=0, oy=0, nails=True):
+    """一只木箱的 Prop（还没打光）：横的木板一条条（板缝凹下去），四角竖条压在上面（钉子 + 锈水），
+    顶上一块盖板的边（受光、落泥），贴一张泡皱了的圆字标签（右上角翘起来）。"""
+    P = up.Prop(w, h, ox, oy, seed=seed)
+    rng = np.random.default_rng(seed)
+    P.fill(P.rect(0, 0, w, h), up.WOOD, 0.8, "h", dark=0.16)                      # 板缝（后面的暗）
+    y = 2
     rows = []
-    y = 0
-    while y < h:
+    while y < h - 1:
         rh = int(rng.integers(4, 6))
-        rows.append((y, min(h, y + rh)))
-        y += rh
-    for (y0, y1) in rows:
-        tone = int(rng.integers(2, 4))
-        for yy in range(y0, y1):
-            for xx in range(w):
-                lv = tone
-                if yy == y0:
-                    lv = 1                               # 板缝
-                elif yy == y0 + 1:
-                    lv = tone + 1
-                if (xx * 3 + yy * 7) % 23 == 0 and yy > y0 + 1:
-                    lv = tone - 1                        # 木纹
-                a[yy, xx] = rgba(WOOD[int(np.clip(lv, 0, 5))])
-    for xx in (0, 1, w - 2, w - 1):                      # 四角的立条
-        for yy in range(h):
-            lv = 3 if xx in (w - 2,) else (4 if xx == w - 1 else 2)
-            if xx == 0:
-                lv = 1
-            a[yy, xx] = rgba(WOOD[lv])
-    a[0, :] = rgba(WOOD[5])
-    a[0, 0] = a[0, w - 1] = 0
-    a[h - 1, :] = rgba(WOOD[0])
+        y1 = min(h - 1, y + rh)
+        if h - 1 - y1 < 3:
+            y1 = h - 1
+        P.fill(P.rect(0, y + 1, w, y1), up.WOOD, 2.0, "h", round_=0.4)
+        rows.append((y + 1, y1))
+        y = y1
+    P.fill(P.rect(0, 0, w, 2), up.WOOD, 2.6, "h")                                # 盖板
+    P.fill(P.rect(0, h - 1, w, h), up.WOOD, 1.6, "h", dark=0.05)                # 底板
+    for (x0, x1) in ((0, 2), (w - 2, w)):                                        # 四角的竖条
+        P.fill(P.rect(x0, 1, x1, h), up.WOOD, 2.9, "v")
+    if nails:
+        for (r0, r1) in rows:
+            for xn in (0, w - 1):
+                yn = (r0 + r1) // 2
+                P.put(xn + (1 if xn == 0 else -1) * 0, yn, up.PAL[up.IRON][1][6], room=False)
+                P.drip(xn, yn + 1, 3 + (yn % 3), 0.8, room=False)
     if label:
         lw_, lh = 7, 6
         lx = int(rng.integers(3, max(4, w - lw_ - 3)))
         ly = int(rng.integers(3, max(4, h - lh - 2)))
-        for yy in range(lh):
-            for xx in range(lw_):
-                lv = 1 if (xx + yy) else 0
-                if xx == lw_ - 1 or yy == lh - 1:
-                    lv = 0
-                a[ly + yy, lx + xx] = rgba(PAPER[lv if lv < 2 else 1])
-        a[ly, lx:lx + lw_ - 1] = rgba(PAPER[2])
-        # 圆字：一个 3×3 的圈（中间空）+ 一点
-        cx, cy = lx + 2, ly + 2
-        for (dx, dy) in ((0, -1), (1, 0), (0, 1), (-1, 0)):
-            a[cy + dy, cx + dx] = rgba(WOOD[1])
-        a[cy - 1 + int(rng.integers(0, 3)), lx + 5] = rgba(WOOD[2])
+        m = P.rect(lx, ly, lx + lw_, ly + lh)
+        m[ly, lx + lw_ - 1] = False                                              # 右上角翘起来（露出木板）
+        P.fill(m, up.PAPER, 2.3, None)
+        P.nomoss[m] = True
+        P.tint[m] = 1
+        ink = up.PAL[up.PAPER][1][3]
+        cx, cy = lx + 3, ly + 3
+        for (dx, dy) in ((0, -1), (1, 0), (0, 1), (-1, 0)):                       # 圆字：一个圈
+            P.put(cx + dx, cy + dy, ink, room=False)
+        P.put(lx + 5, ly + 1 + int(rng.integers(0, 3)), ink, room=False)
+        P.put(lx + lw_ - 2, ly, up.PAL[up.PAPER][1][8], room=False)              # 翘起来那角的亮边
+    P.moss[0:2, :] += 0.25
+    return P
+
+
+def crate(w, h, rng, seed=0, ox=0, oy=0, label=True):
+    P = crate_prop(w, h, seed, label=label, ox=ox, oy=oy)
+    a = P.render(env=env_for(ox, oy, w, h, 0.35), ambient=0.38, gain=0.6)
+    up.barnacles(a, [(int(rng.integers(3, w - 3)), h - 3)])
     return a
 
 
@@ -1048,207 +1078,180 @@ def boxes(img, st):
     """一摞贴圆字标签的箱子：底下两只、上面一只、旁边一只小的；大小、木色、标签位置都不一样。"""
     rng = np.random.default_rng(51)
     x0 = BOXES[0]
-    specs = [(x0, 24, 20), (x0 + 25, 22, 18), (x0 + 6, 20, 16, 0, 20), (x0 + 50, 16, 12)]
-    for s in specs:
-        x, w_, h_ = s[0], s[1], s[2]
-        lift = s[4] if len(s) > 4 else 0
-        a = crate(w_, h_, rng)
-        img.paste(a, x, G + 1 - h_ - lift)
-    # 箱底的一道接触阴影
-    for x in range(x0 - 1, x0 + 67):
-        img.put(x, G, STONE[1])
+    specs = [(x0, 24, 20, 0), (x0 + 25, 22, 18, 0), (x0 + 6, 20, 16, 20), (x0 + 50, 16, 12, 0)]
+    for i, (x, w_, h_, lift) in enumerate(specs):
+        oy = G - h_ - lift
+        stamp(img, crate(w_, h_, rng, seed=52 + i, ox=x, oy=oy), x, oy)
+    for x in range(x0 - 1, x0 + 67):                                            # 箱底的接地阴影
+        img.put(x, G, up.DARKC[0])
 
 
 def low_cabinet(img, st):
-    """靠后墙的一只矮柜：四个抽屉全朝右拉开（一层比一层拉得多一点，不一样长），里面空的。"""
+    """靠后墙的一只矮柜（侧着放，柜面朝右）：竖纹侧板，顶上一块厚板；四个抽屉全朝右拉开（一层比一层拉得多一点，不一样长），
+    看得见抽屉的侧板（顶边受光）和最外头的抽屉面板（铁拉手）。"""
     x0, x1 = LOWCAB
     top = G - 30
-    for y in range(top, G + 1):
-        for x in range(x0, x1):
-            lv = 2
-            if y == top:
-                lv = 4
-            elif x == x1 - 1:
-                lv = 3
-            elif x == x0:
-                lv = 1
-            img.put(x, y, WOOD[lv])
-    # 抽屉
     outs = [9, 6, 11, 7]
+    w = x1 - x0 + max(outs) + 2
+    P = up.Prop(w, G - top + 1, x0, top, seed=61)
+    R = P.R
+    P.fill(R(x0, top + 2, x1, G - 1), up.WOOD, 2.0, "v", round_=0.5)            # 侧板
+    P.fill(R(x0 + 3, top + 5, x1 - 3, G - 4), up.WOOD, 1.4, "v", dark=0.04)     # 侧板中间凹进去的一块
+    P.fill(R(x0 - 1, top, x1 + 1, top + 2), up.WOOD, 2.8, "h", round_=0.8)      # 顶板
+    P.fill(R(x0 + 1, G - 1, x0 + 4, G), up.WOOD, 1.6, "v")                       # 脚
+    P.fill(R(x1 - 4, G - 1, x1 - 1, G), up.WOOD, 1.6, "v")
     for i, o in enumerate(outs):
         y0 = top + 3 + i * 7
-        for y in range(y0, y0 + 6):
-            for x in range(x0 + 2, x1 + o):
-                k = y - y0
-                lv = 3 if k == 0 else 2
-                if x >= x1 - 1:                          # 拉出来那一截：顶上的边、侧板
-                    lv = 4 if k == 0 else (2 if k < 5 else 1)
-                if x == x1 + o - 1:
-                    lv = 3
-                if k == 5:
-                    lv = 0
-                img.put(x, y, WOOD[lv])
-        for y in range(y0 + 1, y0 + 5):                  # 抽屉里面：暗
-            for x in range(x1, x1 + o - 1):
-                img.put(x, y, WOOD[0] if y > y0 + 1 else WOOD[1])
-        img.put(x0 + (x1 - x0) // 2, y0 + 3, IRON[3])     # 拉手
-    img.put(x1 - 1, top, WOOD[5])
+        P.fill(R(x1, y0 + 1, x1 + o - 2, y0 + 6), up.WOOD, 1.8, "h", round_=0.3)  # 抽屉侧板
+        P.fill(R(x1 + o - 2, y0, x1 + o, y0 + 7), up.WOOD, 2.6, "v")              # 抽屉面板（朝右）
+        P.fill(R(x1 + o, y0 + 3, x1 + o + 1, y0 + 4), up.IRON, 3.0)                # 拉手
+        P.rust[R(x1 + o - 2, y0 + 2, x1 + o + 1, y0 + 5)] += 0.3
+    P.moss[R(x0 - 1, top, x1 + 1, top + 2)] += 0.2
+    a = P.render(env=env_for(x0, top, w, G - top + 1, 0.35), ambient=0.36, gain=0.6)
+    up.barnacles(a, [(4, G - top - 4), (x1 - x0 - 7, G - top - 9)])
+    stamp(img, a, x0, top)
+    for x in range(x0 - 1, x1 + 2):
+        img.put(x, G, up.DARKC[0])
 
 
 def hanging(img, st):
-    """绑到屋顶下面的桌子和两把椅子（防水泡、防漂走）：绳子从屋顶底下的铁钩垂下来。"""
-    c = oc(.24, .012, 230)
-    # 桌子：桌面朝下翻过来绑着（四条腿朝上）
+    """绑到屋顶下面的桌子和两把椅子（防水泡、防漂走）：绳子从屋顶底下的铁钩垂下来。桌子桌面朝下翻过来绑着（四条腿朝上）。"""
+    ox, oy, w, h = 938, ROOF_Y[1], 100, 40
+    P = up.Prop(w, h, ox, oy, seed=71)
+    R = P.R
     tx, ty = 944, 118
-    for x in range(tx, tx + 38):
-        img.put(x, ty, WOOD[4])
-        img.put(x, ty + 1, WOOD[3])
-        img.put(x, ty + 2, WOOD[1])
+    P.fill(R(tx, ty, tx + 38, ty + 3), up.WOOD, 2.4, "h", round_=0.6)           # 桌面（侧面看是一条厚板）
+    P.fill(R(tx + 2, ty + 3, tx + 36, ty + 4), up.WOOD, 1.6, "h", dark=0.06)    # 桌面下的牙板
     for lx in (tx + 2, tx + 34):
-        for y in range(ty - 13, ty):
-            img.put(lx, y, WOOD[3])
-            img.put(lx + 1, y, WOOD[2])
-    for x in range(tx + 2, tx + 36):                     # 腿之间的横撑
-        img.put(x, ty - 9, WOOD[2])
-    # 两把椅子（侧面），一高一低
+        P.fill(R(lx, ty - 13, lx + 2, ty), up.WOOD, 2.2, "v")                    # 桌腿（朝上）
+    P.fill(R(tx + 4, ty - 9, tx + 34, ty - 8), up.WOOD, 1.6, "h")                # 腿之间的横撑
+
     def chair(x, y, flip=False):
-        pts = []
-        for k in range(14):
-            pts.append((0, k, 3 if k > 0 else 4))        # 靠背
-        for k in range(10):
-            pts.append((k, 8, 4 if k > 0 else 3))        # 座面
-            pts.append((k, 9, 1))
-        for k in range(10, 18):
-            pts.append((1, k, 2))
-            pts.append((9, k, 3))
-        for (dx, dy, lv) in pts:
-            img.put(x + (-dx if flip else dx), y + dy, WOOD[lv])
+        s_ = -1 if flip else 1
+        xa, xb = (x, x + 10) if not flip else (x - 9, x + 1)
+        P.fill(R(min(x, x + s_), y, min(x, x + s_) + 2, y + 18), up.WOOD, 2.4, "v")   # 靠背 + 后腿
+        P.fill(R(xa, y + 8, xb, y + 10), up.WOOD, 2.2, "h", round_=0.4)                 # 座面
+        fx = x + s_ * 8
+        P.fill(R(min(fx, fx + s_), y + 10, min(fx, fx + s_) + 2, y + 18), up.WOOD, 2.0, "v")  # 前腿
+        P.fill(R(min(x, fx) + 1, y + 14, max(x, fx) + 1, y + 15), up.WOOD, 1.4, "h")     # 横撑
+        P.fill(R(min(x, x + s_ * 2), y, max(x, x + s_ * 2) + 1, y + 2), up.WOOD, 2.8, "h")  # 靠背顶上一截搭脑
     chair(992, 104)
     chair(1022, 110, flip=True)
-    # 绳子：屋顶底下的钩子 → 桌腿 / 椅背
-    for (x0, x1, y1) in ((tx + 3, tx + 3, ty - 13), (tx + 35, tx + 35, ty - 13), (992, 993, 104),
-                         (1020, 1021, 110)):
-        line(img, x0, ROOF_Y[1], x1, y1, c)
-        img.put(x0, ROOF_Y[1], IRON[3])
-    # 桌子上绕的一圈绳子
-    for x in range(tx + 6, tx + 32, 9):
-        img.put(x, ty - 1, c)
-        img.put(x + 1, ty - 2, c)
+    a = P.render(env=env_for(ox, oy, w, h, 0.3), ambient=0.3, gain=0.6, moss_amt=0.6)
+    stamp(img, a, ox, oy)
+    rc = up.PAL[up.ROPE][1]
+    for (x0, x1, y1) in ((tx + 3, tx + 3, ty - 13), (tx + 35, tx + 35, ty - 13), (992, 993, 104), (1020, 1021, 110)):
+        for y in range(ROOF_Y[1] + 1, y1):
+            t = (y - ROOF_Y[1]) / max(1, y1 - ROOF_Y[1])
+            img.put(round(x0 + (x1 - x0) * t), y, rc[4] if y % 3 else rc[2])         # 拧着的绳：一格亮一格暗
+        img.put(x0, ROOF_Y[1], up.PAL[up.IRON][1][5])
+        img.put(x0 + 1, ROOF_Y[1], up.RUST[1][3])
+    for x in range(tx + 6, tx + 32, 9):                                               # 桌子上绕的一圈绳子
+        img.put(x, ty - 1, rc[4])
+        img.put(x + 1, ty - 2, rc[3])
 
 
 def equip_cabinet(img, st):
-    """内间靠后墙的设备柜：铁皮柜（暗青灰，旧漆），五格抽屉，每格一个拉手、一张小标签（长短不一）。读取头那格不特别标。"""
+    """内间靠后墙的设备柜：铁皮柜，刷过一层青灰的漆（掉了好多块，掉漆的地方是锈），五格抽屉：抽屉面凸出来、四边倒角，
+    每格一个铜框标签（纸泡得发灰，几个字）、一根铁拉手；顶上一块盖板受光、底下踢脚凹进去。读取头那格不特别标。"""
     x0, x1 = EQUIP
     top = G - 76
-    for y in range(top, G + 1):
-        for x in range(x0, x1):
-            lv = 2
-            if y <= top + 1:
-                lv = 4 if y == top else 3
-            elif x == x1 - 1:
-                lv = 3
-            elif x == x0:
-                lv = 1
-            img.put(x, y, CAB[lv])
+    w, h = x1 - x0 + 2, G - top + 1
+    P = up.Prop(w, h, x0 - 1, top, seed=81)
+    R = P.R
+    P.fill(R(x0, top + 2, x1, G - 3), up.PAINT, 1.0, None, dark=0.12)              # 柜身（抽屉之间的缝）
+    P.fill(R(x0, top + 2, x0 + 2, G - 3), up.PAINT, 2.4, None)                      # 两边的立边
+    P.fill(R(x1 - 2, top + 2, x1, G - 3), up.PAINT, 2.4, None)
+    P.fill(R(x0 - 1, top, x1 + 1, top + 2), up.PAINT, 3.0, None, round_=0.6)        # 盖板
+    P.fill(R(x0 + 1, G - 3, x1 - 1, G), up.IRON, 1.2, None, dark=0.1)               # 踢脚（凹进去）
     rng = np.random.default_rng(61)
     for i in range(5):
-        y0 = top + 4 + i * 14
-        for x in range(x0 + 2, x1 - 2):
-            img.put(x, y0, CAB[1])                       # 抽屉缝
-            img.put(x, y0 + 12, CAB[3] if x > x0 + 3 else CAB[2])
-        for y in range(y0, y0 + 13):
-            img.put(x0 + 2, y, CAB[1])
-            img.put(x1 - 3, y, CAB[3])
-        # 拉手
+        y0 = top + 3 + i * 14
+        P.fill(R(x0 + 2, y0 + 1, x1 - 2, y0 + 13), up.PAINT, 2.2, None, round_=0.6)   # 抽屉面
         hx = (x0 + x1) // 2
-        for x in range(hx - 3, hx + 3):
-            img.put(x, y0 + 8, IRON[4] if x > hx - 3 else IRON[3])
-            img.put(x, y0 + 9, CAB[0])
-        # 标签（纸，长短不一）
-        lw_ = int(rng.integers(8, 14))
+        lw_ = int(rng.integers(9, 14))
         lx = hx - lw_ // 2
-        for x in range(lx, lx + lw_):
-            img.put(x, y0 + 3, PAPER[1])
-            img.put(x, y0 + 4, PAPER[0] if x == lx + lw_ - 1 else PAPER[1])
+        P.fill(R(lx - 1, y0 + 3, lx + lw_ + 1, y0 + 7), up.BRASS, 2.8, None)           # 铜框
+        m = R(lx, y0 + 4, lx + lw_, y0 + 6)
+        P.fill(m, up.PAPER, 2.4, None)                                                  # 标签纸
+        P.nomoss[m] = True
+        P.tint[m] = 0
         for x in range(lx + 1, lx + lw_ - 1, 2):
             if rng.random() < 0.7:
-                img.put(x, y0 + 4, CAB[1])               # 标签上的字（几个暗点）
-    # 锈痕：顶角往下拖两道
-    for (sx, ln) in ((x0 + 5, 9), (x1 - 8, 14)):
-        for k in range(ln):
-            if k % 3 != 2:
-                img.put(sx, top + 2 + k, RUST[0] if k > 3 else RUST[1])
-    # 柜脚的接触阴影
+                P.put(x, y0 + 5 - (rng.random() < 0.3), up.PAL[up.PAPER][0][3])          # 字
+        P.fill(R(hx - 4, y0 + 9, hx + 4, y0 + 10), up.IRON, 3.6, None)                  # 拉手
+        P.fill(R(hx - 4, y0 + 10, hx - 3, y0 + 11), up.IRON, 3.0, None)
+        P.fill(R(hx + 3, y0 + 10, hx + 4, y0 + 11), up.IRON, 3.0, None)
+        P.rust[R(x0 + 2, y0 + 11, x1 - 2, y0 + 13)] += 0.3                             # 抽屉下沿锈一圈
+        P.drip(hx - 3 + (i % 3) * 3, y0 + 11, 3 + i % 3, 0.8)
+    for _ in range(9):                                                                 # 掉漆（露锈）
+        cx_, cy_ = int(rng.integers(x0, x1)), int(rng.integers(top, G))
+        P.rust[R(cx_, cy_, cx_ + int(rng.integers(1, 4)), cy_ + int(rng.integers(1, 3)))] += 0.7
+    P.rust[R(x0, G - 10, x1, G)] += 0.12
+    a = P.render(env=env_for(x0 - 1, top, w, h, 0.35), ambient=0.36, gain=0.6, moss_amt=0.7)
+    up.barnacles(a, [(3, h - 6), (w - 5, h - 10), (5, h - 22)])
+    stamp(img, a, x0 - 1, top)
     for x in range(x0 - 1, x1 + 2):
-        img.put(x, G, STONE[0])
+        img.put(x, G, up.DARKC[0])
 
 
 def sluice_recess(img, st):
-    """泄水门那面后墙：一个石砌的门框（深凹进去），门本身是物件 warehouse_sluice_door。"""
+    """泄水门那面后墙：一圈大块条石砌的门框（门楣一整条长石、两边立石），里面深深凹进去（门本身是物件 warehouse_sluice_door）。"""
     x0, x1, y0 = 1258, 1336, 110
-    for y in range(y0, G + 1):
+    m_in = np.zeros((H, W), bool)
+    m_in[y0:G, x0:x1] = True
+    rng = np.random.default_rng(171)
+    yy, xx = np.mgrid[0:H, 0:W]
+    v = up.vn(xx / 3.0, yy / 3.0, 3)
+    for y in range(y0, G):                                                       # 凹进去的里面：最暗，上面在门楣的影子里
         for x in range(x0, x1):
-            img.put(x, y, STONE[0] if y > y0 + 3 else STONE[1])
-    for x in range(x0 - 3, x1 + 3):                      # 门楣：一整条长石
-        for y in range(y0 - 7, y0):
-            k = y - y0 + 7
-            lv = 5 if k == 0 else (4 if k < 3 else 3)
-            if y == y0 - 1:
-                lv = 1
-            img.put(x, y, STONE[lv])
-    for y in range(y0, G + 1):                           # 门框两边的立石
-        for x in range(x0 - 3, x0):
-            img.put(x, y, STONE[3 if x == x0 - 1 else 2])
-        for x in range(x1, x1 + 3):
-            img.put(x, y, STONE[4 if x == x1 + 2 else 3])
+            k = 0 if (y < y0 + 4 or v[y, x] < 0.55) else 1
+            img.a[y, x] = rgba(SP[k][1])
+    frame = np.zeros((H, W), bool)
+    frame[y0 - 8:y0, x0 - 4:x1 + 4] = True
+    frame[y0:G, x0 - 4:x0] = True
+    frame[y0:G, x1:x1 + 4] = True
+    lit = np.clip(st.light + 0.35, 0, 1)
+    ids, eg = voronoi_stones(frame, rng, cw=9, ch=13, p=3.4, row_jit=0.05)
+    lint = np.zeros((H, W), bool)
+    lint[y0 - 8:y0, x0 - 4:x1 + 4] = True
+    ids[lint] = ids.max() + 1                                                    # 门楣：一整条长石（缝只在它的四边）
+    ly, lx = np.nonzero(lint)
+    eg[lint] = np.minimum(np.minimum(ly - (y0 - 8), y0 - 1 - ly), np.minimum(lx - (x0 - 4), x1 + 3 - lx)) + 0.5
+    stone_shade(img, ids, eg, STONE, lit, np.random.default_rng(172), ambient=0.18, gain=0.5, moss=0.4,
+                R=2.0, seam=0.8, per=(3, 5))
 
 
 def post_and_stakes(img):
-    """出口灯的石桩（原来河床上立着的一根方石桩，顶上一截铁臂挂灯）和导绳的铁桩。"""
+    """出口灯的石桩（一截截方石垒的，顶上一截铁臂挂灯）和导绳的铁桩（锈，桩脚糊着泥）。"""
     x0, x1 = POST
     top = 146
     g = int(round(gy_out((x0 + x1) / 2)))
-    pal = ua.bramp(6, .06, .3, 262, 246)
-    for y in range(top, g + 2):
-        for x in range(x0, x1):
-            k = y - top
-            lv = 2
-            if x == x1 - 1:
-                lv = 4
-            elif x == x1 - 2:
-                lv = 3
-            elif x == x0:
-                lv = 1
-            if k == 0:
-                lv = 5 if x0 < x < x1 - 1 else 4
-            if k == 1:
-                lv = min(5, lv + 1)
-            if (y - top) % 19 == 18 and x0 < x < x1 - 1:
-                lv = 1                                   # 石桩上的接缝
-            img.put(x, y, pal[lv])
-    for y in range(top + 30, top + 60, 3):               # 苔：顺着朝右那面往下
-        img.put(x1 - 2, y, MOSS[1])
-    for x in range(x0 + 1, x1 - 1, 2):
-        img.put(x, top, MOSS[2])
-    # 铁臂（挂灯）
-    for x in range(x1, x1 + 7):
-        img.put(x, top + 3, IRON[3])
-        img.put(x, top + 4, IRON[1])
-    img.put(x1 + 6, top + 5, IRON[2])
-    # 绳子拴在桩上：绕两圈
+    m = np.zeros((H, W), bool)
+    m[top:g + 1, x0:x1] = True
+    ids, eg = voronoi_stones(m, np.random.default_rng(181), cw=14, ch=15, p=4.0, row_jit=0.0)
+    L = np.full((H, W), 0.8)
+    stone_shade(img, ids, eg, STONE, L, np.random.default_rng(182), ambient=0.12, gain=0.5, moss=0.5,
+                R=2.0, seam=0.85, per=(3, 5))
+    # 铁臂（挂灯）+ 绳子绕两圈拴在桩上
+    P = up.Prop(12, 6, x1 - 1, top + 1, seed=183)
+    P.fill(P.R(x1, top + 3, x1 + 7, top + 5), up.IRON, 2.4, None)
+    P.fill(P.R(x1 - 1, top + 2, x1 + 1, top + 6), up.IRON, 3.0, None)                # 箍在桩上的一圈铁
+    P.fill(P.R(x1 + 6, top + 5, x1 + 7, top + 6), up.IRON, 2.0, None)
+    stamp(img, P.render(ambient=0.36, gain=0.6, moss_amt=0.4), x1 - 1, top + 1)
+    rc = up.PAL[up.ROPE][1]
     for y in (ROPE_Y - 1, ROPE_Y + 1):
         for x in range(x0, x1):
-            img.put(x, y, oc(.27, .012, 230) if (x + y) % 3 else oc(.33, .012, 230))
-    # 铁桩
+            img.put(x, y, rc[5] if (x + y) % 3 else rc[3])
     for sx in STAKES:
         g = int(round(gy_out(sx)))
-        for y in range(ROPE_Y - 2, g + 2):
-            img.put(sx, y, IRON[2])
-            img.put(sx + 1, y, IRON[3] if y < g - 10 else IRON[2])
-        img.put(sx, ROPE_Y - 3, IRON[4])
-        img.put(sx + 1, ROPE_Y - 3, IRON[3])
-        for y in range(g - 6, g + 1):                    # 桩脚的锈 / 泥
-            img.put(sx + (y % 2), y, RUST[0])
+        P = up.Prop(4, g + 2 - (ROPE_Y - 4), sx - 1, ROPE_Y - 4, seed=sx)
+        P.fill(P.R(sx, ROPE_Y - 3, sx + 2, g + 2), up.IRON, 2.0, None, round_=0.6)
+        P.fill(P.R(sx - 1, ROPE_Y - 4, sx + 3, ROPE_Y - 2), up.IRON, 2.6, None)          # 桩头
+        P.rust[P.R(sx - 1, g - 9, sx + 3, g + 2)] += 0.5                                  # 桩脚：锈 + 泥
+        P.rust[P.R(sx - 1, ROPE_Y - 4, sx + 3, ROPE_Y)] += 0.2
+        P.moss[P.R(sx - 1, g - 4, sx + 3, g + 2)] += 0.4
+        stamp(img, P.render(ambient=0.32, gain=0.6), sx - 1, ROPE_Y - 4)
 
 
 # ====================================================================== 物件（每个一张横排帧图）
@@ -1269,21 +1272,29 @@ class Obj:
 
 
 def lantern(o: Obj, k, cx, top, bright):
-    """出口灯：铁皮灯罩 + 小玻璃罩，里面的暖光（两帧一明一暗）。只有这里用暖黄。"""
-    for x in range(cx - 1, cx + 2):
-        o.put(k, x, top, IRON[3])
-    for x in range(cx - 3, cx + 4):
-        o.put(k, x, top + 1, IRON[4] if x > cx - 3 else IRON[2])
-    for y in range(top + 2, top + 8):
-        o.put(k, cx - 3, y, IRON[1])
-        o.put(k, cx + 3, y, IRON[3])
+    """出口灯：顶上一个吊环、一顶铁皮灯罩（锈），四根细铁条护着一只玻璃罩，里面暖光（两帧一明一暗）；
+    玻璃右上角一格冷的高光，底座一块铁板。只有这里用暖黄。"""
+    P = up.Prop(o.w, o.h, o.x, o.y, seed=191)
+    R = P.R
+    P.fill(R(cx - 1, top, cx + 2, top + 1), up.IRON, 2.0, None)                     # 吊环
+    P.fill(R(cx - 3, top + 1, cx + 4, top + 3), up.IRON, 2.8, None, round_=0.5)     # 灯罩
+    P.fill(R(cx - 2, top + 3, cx + 3, top + 8), up.GLASS, 1.6, None)                # 玻璃（下面盖暖光）
+    P.fill(R(cx - 3, top + 3, cx - 2, top + 8) | R(cx + 3, top + 3, cx + 4, top + 8), up.IRON, 2.6, None)  # 两边铁条
+    P.fill(R(cx - 3, top + 8, cx + 4, top + 9), up.IRON, 2.4, None)                 # 底座
+    P.fill(R(cx, top + 9, cx + 1, top + 10), up.IRON, 1.8, None)
+    P.rust[R(cx - 3, top + 1, cx + 4, top + 3)] += 0.35
+    P.rust[R(cx - 3, top + 8, cx + 4, top + 10)] += 0.45
+    P.nomoss[:] = True
+    a = P.render(ambient=0.36, gain=0.6, moss_amt=0, silt_amt=0)
+    o.f[k].paste(a, 0, 0)
+    for y in range(top + 3, top + 8):
         for x in range(cx - 2, cx + 3):
             d = abs(x - cx) + abs(y - (top + 5)) * 0.7
             lv = (4 if d < 1.2 else (3 if d < 2.4 else 2)) if bright else (3 if d < 1.2 else (2 if d < 2.4 else 1))
             o.put(k, x, y, WARM[lv])
-    for x in range(cx - 3, cx + 4):
-        o.put(k, x, top + 8, IRON[2])
-    o.put(k, cx, top + 9, IRON[1])
+    o.put(k, cx + 2, top + 3, oc(.62, .03, 220) if bright else oc(.5, .03, 220))     # 玻璃上的冷高光
+    o.put(k, cx - 1, top + 3, WARM[min(4, (3 if bright else 2) + 1)])                 # 灯罩下沿被灯照亮
+    o.put(k, cx, top + 3, WARM[min(4, (3 if bright else 2) + 1)])
 
 
 def make_exit_light():
@@ -1294,22 +1305,25 @@ def make_exit_light():
 
 
 def make_knot(x):
-    """绳结：一截系在绳上的布条（垂下来 10 格），lit = 布条上的反光带亮起来。"""
+    """绳结：导绳上打的一个粗结（绳子拧着，一格亮一格暗）+ 系着的两条布条往左飘（水流），布条有折（上沿亮、折痕暗）；
+    lit = 布条上缝的反光带亮起来。"""
     o = Obj(x - 4, ROPE_Y - 3, 9, 14, 2)
-    cloth = [oc(.13, .012, 240), oc(.18, .014, 236), oc(.23, .014, 232)]
-    band = [oc(.38, .04, 214), oc(.5, .045, 208), oc(.6, .04, 204)]
+    cloth = up.PAL[up.CLOTH][0]
+    rope = up.PAL[up.ROPE][1]
+    band = [oc(.4, .04, 214), oc(.52, .045, 208), oc(.64, .04, 204)]
     for k in range(2):
-        # 结：一个 3×3 的疙瘩
-        for (dx, dy, lv) in ((-1, 0, 1), (0, -1, 2), (1, 0, 2), (0, 0, 1), (0, 1, 0), (-1, 1, 0), (1, 1, 1)):
-            o.put(k, x + dx, ROPE_Y + dy, cloth[lv])
-        # 两条布尾，一长一短，往左飘（水流）
-        for i in range(9):
+        for (dx, dy, lv) in ((-1, 0, 3), (0, -1, 5), (1, 0, 4), (0, 0, 4), (0, 1, 2), (-1, 1, 1), (1, 1, 3),
+                             (1, -1, 6), (-1, -1, 3)):
+            o.put(k, x + dx, ROPE_Y + dy, rope[lv])
+        for i in range(9):                                   # 长的那条
             X = x - (i * i) // 22
-            o.put(k, X, ROPE_Y + 2 + i, cloth[1 if i < 6 else 0])
-            o.put(k, X + 1, ROPE_Y + 2 + i, cloth[2 if i < 4 else 1])
-        for i in range(5):
-            o.put(k, x + 2 - i // 3, ROPE_Y + 2 + i, cloth[1])
-        if k == 1:                                       # 反光带
+            fold = (i % 4 == 2)
+            o.put(k, X, ROPE_Y + 2 + i, cloth[5 if fold else (7 if i < 5 else 6)])
+            o.put(k, X + 1, ROPE_Y + 2 + i, cloth[6 if fold else (8 if i < 3 else 7)])
+        for i in range(5):                                   # 短的那条
+            o.put(k, x + 2 - i // 3, ROPE_Y + 2 + i, cloth[6 if i < 3 else 5])
+        o.put(k, x - 1 - 81 // 22, ROPE_Y + 11, cloth[8])    # 布尾一格亮
+        if k == 1:
             for i in range(2, 6):
                 X = x - (i * i) // 22
                 o.put(k, X, ROPE_Y + 2 + i, band[1])
@@ -1319,52 +1333,68 @@ def make_knot(x):
 
 
 def make_broken_box():
-    """破箱子：侧板裂开、盖子歪着，一块板子断了斜在旁边；spilled：里面的东西撒出来（纽扣、空瓶、一张照片）。"""
+    """破箱子：右上角整块崩掉（断口参差、里面露出后板，断茬浅一点），盖子歪着靠在右边，一块断板掉在地上；
+    spilled：里面的东西撒出来（三颗不一样的纽扣、一只空瓶、一张照片）。"""
     o = Obj(838, 200, 52, 27, 2)
-    rng = np.random.default_rng(81)
     for k in range(2):
-        a = crate(26, 18, np.random.default_rng(82), label=True)
-        # 右上角崩掉一块（裂口里是暗的）
-        for yy in range(0, 9):
-            for xx in range(17 + yy // 2, 26):
-                a[yy, xx] = 0
-        for yy in range(1, 9):
-            xx = 17 + yy // 2
-            if xx < 26:
-                a[yy, xx] = rgba(WOOD[0])
-                if xx - 1 >= 0:
-                    a[yy, xx - 1] = rgba(WOOD[4])        # 断口的新茬：亮
-        o.f[k].paste(a, 842 - o.x, G + 1 - 18 - o.y)
-        # 歪着的盖子（斜靠在箱子右边）
-        for i in range(20):
-            X, Y = 866 + i // 4, G - i
-            o.put(k, X, Y, WOOD[3] if i < 18 else WOOD[4])
-            o.put(k, X + 1, Y, WOOD[2])
-            o.put(k, X + 2, Y, WOOD[1])
-        # 断板
-        for i in range(10):
-            o.put(k, 858 + i, G - 1 - i // 5, WOOD[3])
-            o.put(k, 858 + i, G - i // 5, WOOD[1])
+        bx, bw, bh = 842, 26, 18
+        P = crate_prop(bw, bh, 82, label=True, ox=bx, oy=G - bh)
+        # 崩口：从顶边 x≈15 斜着往右下到右边 y≈10（参差），崩口里面是后板（暗、凹）
+        brk = np.zeros((bh, bw), bool)
+        edge = []
+        for xx in range(bw):
+            t = (xx - 14) / 11.0
+            yb = int(round(10 * max(0.0, t) + (1 if xx % 3 == 0 else 0) - (1 if xx % 5 == 1 else 0))) if xx >= 14 else -1
+            edge.append(yb)
+            if yb >= 0:
+                brk[:yb + 1, xx] = True
+        inside = brk & ~P.rect(bw - 2, 0, bw, bh)
+        P.fill(inside, up.WOOD, 0.2, "h", dark=0.3)                     # 后板（箱子里面）
+        outer = brk & P.rect(bw - 2, 0, bw, bh)
+        P.mat[outer] = 0                                                  # 角条那截一起断了
+        for xx, yb in enumerate(edge):                                    # 断茬：浅、暖
+            if 0 <= yb < bh - 1 and xx < bw:
+                P.lift[yb + 1, xx] = 0.12
+                P.tint[yb + 1, xx] = 2
+        P.mat[0:2, 14:] = 0                                               # 盖板那截没了
+        P.moss[:3, :] += 0.15
+        a = P.render(env=env_for(bx, G - bh, bw, bh, 0.35), ambient=0.38, gain=0.6)
+        o.f[k].paste(a, bx - o.x, G - bh - o.y)
+        # 崩下来的那块盖板：斜靠在箱子左边；掉在右边地上的一截断板
+        Q = up.Prop(34, 22, 838, G - 21, seed=83)
+        lid = ua.poly_mask([(838 - 838, 21), (841 - 838, 21), (846 - 838, 3), (843 - 838, 2)], 22, 34)
+        Q.fill(lid, up.WOOD, 2.6, "v", round_=0.4)
+        Q.fill(Q.R(860, G - 2, 870, G), up.WOOD, 1.8, "h")
+        Q.fill(Q.R(866, G - 3, 869, G - 2), up.WOOD, 1.4, "h")                # 断茬翘起来一点
+        Q.put(843, G - 12, up.PAL[up.IRON][1][6])                         # 盖板上的钉子
+        Q.drip(843, G - 11, 3)
+        b = Q.render(env=env_for(838, G - 21, 34, 22, 0.35), ambient=0.38, gain=0.6)
+        o.f[k].paste(b, 0, G - 21 - o.y)
+        for x in range(bx - 4, bx + bw + 2):
+            o.put(k, x, G, up.DARKC[0])
         if k == 1:
-            # 纽扣（2×2，一格亮），三颗不一样
-            for (bx, c0, c1) in ((872, PAPER[0], PAPER[1]), (879, WOOD[2], WOOD[4]), (884, IRON[2], IRON[4])):
-                o.put(k, bx, G - 1, c0)
-                o.put(k, bx + 1, G - 1, c1)
-                o.put(k, bx, G, c0)
-                o.put(k, bx + 1, G, c0)
-            # 空瓶（躺着，玻璃：暗青，上沿一格高光）
-            glass = [oc(.16, .025, 200), oc(.24, .03, 196), oc(.36, .03, 192)]
-            for i in range(8):
-                o.put(k, 874 + i, G - 4, glass[1] if i < 6 else glass[0])
-                o.put(k, 874 + i, G - 3, glass[0] if i < 6 else glass[0])
-            o.put(k, 875, G - 4, glass[2])
-            o.put(k, 876, G - 4, glass[2])
-            o.put(k, 882, G - 4, glass[1])
-            # 一张照片（白边，中间暗）
-            for yy in range(4):
-                for xx in range(6):
-                    edge = xx in (0, 5) or yy in (0, 3)
-                    o.put(k, 846 + xx, G - 3 + yy if yy < 3 else G, PAPER[1] if edge else WOOD[1])
+            ip = up.PAL[up.IRON][1]
+            for (bx_, c0, c1) in ((872, up.PAL[up.PAPER][1][4], up.PAL[up.PAPER][1][7]),
+                                  (879, up.PAL[up.WOOD][2][4], up.PAL[up.WOOD][2][7]), (884, ip[4], ip[7])):
+                o.put(k, bx_, G - 2, c1)                                  # 纽扣：2×2，一格亮、中间一个暗点
+                o.put(k, bx_ + 1, G - 2, c0)
+                o.put(k, bx_, G - 1, c0)
+                o.put(k, bx_ + 1, G - 1, up.DARKC[1])
+            gl = up.PAL[up.GLASS][0]                                      # 空瓶（躺着）：瓶身、瓶颈、高光
+            for i in range(9):
+                o.put(k, 873 + i, G - 4, gl[5] if i < 6 else gl[3])
+                if i < 8:
+                    o.put(k, 873 + i, G - 3, gl[3] if i < 6 else gl[2])
+                if i < 6:
+                    o.put(k, 873 + i, G - 2, gl[2])
+            for i in range(3):
+                o.put(k, 875 + i, G - 4, gl[8])
+            o.put(k, 882, G - 4, up.PAL[up.WOOD][1][4])                   # 瓶塞
+            pp = up.PAL[up.PAPER][1]
+            for yy in range(4):                                           # 照片：白边，中间暗（看不清是什么）
+                for xx in range(7):
+                    edge_ = xx in (0, 6) or yy in (0, 3)
+                    o.put(k, 846 + xx, G - 4 + yy, pp[6] if (edge_ and yy == 0) else (pp[5] if edge_ else up.PAL[up.CLOTH][0][2 + (xx + yy) % 2]))
     return o
 
 
@@ -1395,69 +1425,133 @@ def cabinet_point(state, u, v):
 
 
 def draw_cabinet(o: Obj, k, state):
-    """倒着的高柜（正面朝我们：两扇柜门、门缝、拉手，柜顶一圈檐，柜脚两只短腿）。按旋转反采样，档位在局部坐标里定，
-    所以转了以后木纹 / 门缝还是顺着柜身。朝上那条长边受光、朝下那条暗。柜顶、柜脚各一个铁拴环。"""
+    """倒着的高柜（正面朝我们）。按柜身的局部坐标搭（u 沿长度，柜脚 0 → 柜顶 CAB_L；v 从下沿 0 到上沿 CAB_T），
+    再整张打光，所以转了以后木纹、门缝、倒角还是顺着柜身，受光却按房间的方向（朝上那条侧面亮、压在下面那条边暗）：
+    - 正面 v 0..12.5：两边立梃（顺长纹）、两扇门（门框 + 凹进去的门芯板 + 鼓起来的芯，门芯两块拼板一道缝）、
+      两扇门之间一道门缝、锁眼铁片和两个铁拉手、门轴那边四个合页；
+    - 朝上的侧板 v 12.5..15：一条斜面，最受光，落泥、长苔；
+    - 柜顶一圈檐（比柜身宽一格，两道线脚）、柜脚一截踢脚 + 两只短腿；
+    - 柜顶、柜脚各一个铁拴环（浮箱的绳拴在这里）。"""
     (fx, fy), a = cabinet_pose(state)
     ca, sa = math.cos(a), math.sin(a)
-    for Y in range(o.y, o.y + o.h):
-        for X in range(o.x, o.x + o.w):
-            dx, dy = X + 0.5 - fx, Y + 0.5 - fy
-            u = dx * ca - dy * sa
-            v = -dx * sa - dy * ca
-            if not (0 <= u < CAB_L and 0 <= v < CAB_T):
-                # 两只短腿（柜脚那头，往左伸出 3 格）
-                if -3 <= u < 0 and (1 <= v < 4 or 11 <= v < 14):
-                    o.put(k, X, Y, WOODH[1])
-                continue
-            lv = 2
-            if v >= CAB_T - 1.2:
-                lv = 4                                   # 朝上那条边：受光
-            elif v >= CAB_T - 2.4:
-                lv = 3
-            elif v < 1.2:
-                lv = 0
-            elif u < 2 or u >= CAB_L - 3:
-                lv = 3 if u >= CAB_L - 3 else 1          # 柜顶的檐亮一点、柜脚那头暗
-            elif abs(u - CAB_L * 0.5) < 0.7:
-                lv = 0                                   # 两扇门之间的门缝
-            elif 3 < v < CAB_T - 3 and (4 < u < CAB_L * 0.5 - 3 or CAB_L * 0.5 + 3 < u < CAB_L - 6):
-                lv = 1 if (int(u) % 11 == 0) else 2      # 门板里面：凹进去一点（木纹一道道）
-                if v > CAB_T - 4.5:
-                    lv = 1                               # 门板上框的阴影
-            if abs(u - (CAB_L * 0.5 - 3)) < 0.8 and abs(v - CAB_T / 2) < 2 or \
-               abs(u - (CAB_L * 0.5 + 3)) < 0.8 and abs(v - CAB_T / 2) < 2:
-                o.put(k, X, Y, IRON[4])                  # 拉手
-                continue
-            o.put(k, X, Y, WOODH[lv])
-    for (u, v) in ((CAB_L - 2, CAB_T + 1), (2, CAB_T + 1)):  # 拴环（柜顶 / 柜脚，在上沿上）
+    L, T, F = CAB_L, CAB_T, 12.5
+    U0, U1, V0, V1 = -4, L + 1, -2, T + 2                     # 局部画布：x = u - U0，y = V1 - v（v 朝上）
+    P = up.Prop(U1 - U0, V1 - V0, 0, 0, seed=41)
+    U = P.xx + U0 + 0.5
+    V = V1 - (P.yy + 0.5)
+    box = lambda u0, u1, v0, v1: (U >= u0) & (U < u1) & (V >= v0) & (V < v1)
+
+    def fill(m, mat, hgt, part=None, dark=0.0, grain="h"):
+        return P.fill(m, mat, hgt, grain=grain, part=part, dark=dark)
+    fill(box(0, L, 0, F), up.WOOD, 1.0, dark=0.12)                                # 柜身（门后面的深处）
+    fill(box(0, L, 0, 1.6), up.WOOD, 3.2)                                         # 下沿立梃
+    fill(box(0, L, F - 1.6, F), up.WOOD, 3.2)                                     # 上沿立梃
+    side = box(0, L, F, T)
+    fill(side, up.WOOD, 0.0)                                                      # 朝上的侧板：斜面（越往外越低）
+    P.hf[side] = 3.4 - (V[side] - F) * 1.1
+    gap = L * 0.5
+    for (u0, u1) in ((4, gap - 0.5), (gap + 0.5, L - 5)):
+        fill(box(u0, u1, 1.6, F - 1.6), up.WOOD, 2.6)                              # 门框
+        fill(box(u0 + 2, u1 - 2, 3.6, F - 3.6), up.WOOD, 1.2, dark=0.07)          # 门芯（凹）
+        mid = (u0 + u1) / 2
+        for (a0, a1) in ((u0 + 3, mid - 0.5), (mid + 0.5, u1 - 3)):
+            fill(box(a0, a1, 4.6, F - 4.6), up.WOOD, 2.3)                         # 门芯里鼓起来的两块拼板
+    fill(box(gap - 0.5, gap + 0.5, 1.6, F - 1.6), up.WOOD, 0.2, dark=0.2)         # 门缝
+    fill(box(0, 4, 0, F), up.WOOD, 3.0, grain="v")                                # 柜脚的踢脚
+    m = box(L - 5, L, -1, T + 1)
+    fill(m, up.WOOD, 4.0, grain="v")                                              # 柜顶的檐
+    P.hf[m & box(L - 3, L - 2, -1, T + 1)] -= 1.0                                 # 一道线脚
+    fill(box(-3, 0, 1, 4) | box(-3, 0, 8.5, 11.5), up.WOOD, 2.0)                  # 两只短腿
+    for (u0, u1, v0, v1, hgt) in ((gap - 3, gap - 1, 5.6, 7.6, 3.4), (gap + 1, gap + 3, 5.6, 7.6, 3.4),
+                                  (gap - 0.5, gap + 0.5, 8, 9.6, 3.0)):
+        mm = box(u0, u1, v0, v1)
+        fill(mm, up.IRON, hgt)                                                     # 拉手、锁眼铁片
+        P.rust[mm] += 0.25
+    for u0 in (9, 37, gap + 7, L - 13):                                           # 合页（门轴在下沿那边）
+        mm = box(u0, u0 + 3, 0, 1.6)
+        fill(mm, up.IRON, 3.1)
+        P.rust[mm] += 0.4
+    P.moss[side] += 0.2
+    P.moss[box(0, 4, 0, F)] += 0.12
+    # 局部 → 房间：u 轴 = (cos a, -sin a)，v 轴（朝上）= (-sin a, -cos a)；局部 +y = -v
+    wx = fx + U * ca - V * sa
+    wy = fy - U * sa - V * ca
+    E = env_for(o.x, o.y, o.w, o.h, 0.45)
+    ex = np.clip(np.round(wx - o.x).astype(int), 0, o.w - 1)
+    ey = np.clip(np.round(wy - o.y).astype(int), 0, o.h - 1)
+    loc = P.render(env=E[ey, ex], ambient=0.4, gain=0.6, axes=((ca, -sa), (sa, ca)), world=(wx, wy))
+
+    def to_local(X, Y):
+        dx, dy = X - fx, Y - fy
+        u = dx * ca - dy * sa
+        v = -dx * sa - dy * ca
+        return u - U0, V1 - v
+    img = up.rotate_into(loc, o.x, o.y, o.w, o.h, to_local)
+    if DUMP is not None:
+        DUMP.append(loc)
+    # 锈水：拉手、合页往下（房间坐标的「下」）拖
+    for (u, v, ln) in ((gap - 2, 5.0, 5), (gap + 2, 5.0, 4), (10, 0.5, 3), (L - 11, 0.5, 4)):
+        X, Y = cabinet_point(state, u, v)
+        for d in range(ln):
+            xx, yy = int(round(X)) - o.x, int(round(Y)) + 1 + d - o.y
+            if 0 <= yy < o.h and 0 <= xx < o.w and img[yy, xx, 3] and d % 3 != 2:
+                img[yy, xx, :3] = up.RUST[1][3 if d < 2 else 2]
+    # 藤壶：压在下面那条边上
+    bp = []
+    for u in (14, 27, 33, 60, 71, 83):
+        X, Y = cabinet_point(state, u, 0.6)
+        bp.append((int(round(X)) - o.x, int(round(Y)) - 1 - o.y))
+    up.barnacles(img, bp)
+    o.f[k].paste(img, 0, 0)
+    for (u, v) in ((CAB_L - 2, CAB_T + 1), (2, CAB_T + 1)):  # 拴环（柜顶 / 柜脚，在侧板上）：一圈铁，左下背光、右上亮，锈
         X, Y = cabinet_point(state, u, v)
         X, Y = int(round(X)), int(round(Y))
-        for (ddx, ddy, c) in ((0, -1, IRON[4]), (-1, 0, IRON[3]), (1, 0, IRON[4]), (0, 1, IRON[2])):
+        for (ddx, ddy, c) in ((0, -1, up.PAL[up.IRON][1][6]), (-1, 0, up.PAL[up.IRON][1][3]), (1, 0, up.PAL[up.IRON][1][5]),
+                              (0, 1, up.RUST[1][2]), (-1, -1, up.PAL[up.IRON][1][4]), (1, 1, up.RUST[0][2])):
             o.put(k, X + ddx, Y + ddy, c)
+    # 柜脚着地的那一点：地上一小段接地阴影
+    if state != "tilt_wrong":
+        for X in range(FOOT[0] - 4, FOOT[0] + 9):
+            o.put(k, X, G, up.DARKC[0])
 
 
 def draw_dresser(o: Obj, k, dx=0, dy=0):
-    """五斗柜：矮而宽、很沉，四个抽屉（关着），柜顶一块厚板，顶上受光、右沿亮。"""
+    """五斗柜：矮而宽、很沉。柜顶一块厚板（两边探出一格，朝上那面落泥长苔），两块竖纹侧板，四个横纹抽屉
+    （抽屉面鼓出来一点、四边倒角，抽屉之间一道深缝），铁拉手 + 锁眼铁片（锈，锈水往下拖），底下踢脚板 + 两只方脚，
+    脚下一行接地阴影。第三个抽屉泡胀了、往外鼓一格；左上角的面板崩掉一块。"""
     x0, x1, top = DRESSER
     x0, x1, top = x0 + dx, x1 + dx, top + dy
-    for Y in range(top, G + 1):
-        for X in range(x0, x1):
-            lv = 2
-            if Y <= top + 1:
-                lv = 4 if Y == top else 3
-            elif X == x1 - 1:
-                lv = 3
-            elif X == x0:
-                lv = 1
-            elif (Y - top - 3) % 8 == 7:
-                lv = 0                                   # 抽屉缝
-            if Y >= G - 1 and x0 + 2 < X < x1 - 3:
-                lv = 0                                   # 底下的踢脚（阴影）
-            o.put(k, X, Y, WOODH[lv])
+    P = up.Prop(o.w, o.h, o.x, o.y, seed=31)
+    R = P.R
+    P.fill(R(x0 - 1, top, x1 + 1, top + 3), up.WOOD, 3.2, "h", round_=1.0)          # 柜顶
+    P.fill(R(x0, top + 3, x0 + 2, G - 3), up.WOOD, 2.4, "v", round_=0.6)            # 侧板
+    P.fill(R(x1 - 2, top + 3, x1, G - 3), up.WOOD, 2.4, "v", round_=0.6)
+    P.fill(R(x0 + 2, top + 3, x1 - 2, G - 3), up.WOOD, 0.4, "h", dark=0.14)         # 抽屉后面的框（缝里）
+    ys = [top + 3, top + 11, top + 19, top + 27, G - 3]
     for i in range(4):
-        hy = top + 6 + i * 8
-        o.put(k, (x0 + x1) // 2, hy, IRON[3])
-        o.put(k, (x0 + x1) // 2 + 1, hy, IRON[4])
+        y0, y1 = ys[i] + 1, ys[i + 1]
+        bulge = 1 if i == 2 else 0
+        P.fill(R(x0 + 2, y0, x1 - 2, y1), up.WOOD, 2.0 + 0.5 * bulge, "h", round_=0.9 + 0.5 * bulge, gv0=i * 3.1)
+        cx = (x0 + x1) // 2
+        yc = (y0 + y1) // 2
+        P.fill(R(cx - 2, yc, cx + 3, yc + 1), up.IRON, 3.4)                             # 拉手（一根横的铁）
+        P.fill(R(cx - 3, yc - 1, cx - 2, yc + 1), up.IRON, 3.0)
+        P.fill(R(cx + 3, yc - 1, cx + 4, yc + 1), up.IRON, 3.0)
+        P.fill(R(cx, yc - 3, cx + 1, yc - 1), up.IRON, 2.4)                             # 锁眼铁片
+        P.rust[R(cx - 3, yc - 3, cx + 4, yc + 1)] += 0.25
+        P.drip(cx + (i % 2) * 2 - 1, yc + 1, 4 + (i * 3) % 5, 0.75)
+    # 崩掉的一块（左上角抽屉面）：露出里面的框，断口一格浅
+    chip = R(x0 + 2, top + 4, x0 + 5, top + 6)
+    P.hf[chip] = 0.8
+    P.dark[chip] = 0.1
+    P.fill(R(x0, G - 3, x1, G - 1), up.WOOD, 2.2, "h", round_=0.5)                  # 踢脚板
+    P.fill(R(x0, G - 1, x0 + 4, G), up.WOOD, 1.8, "v")                               # 两只方脚
+    P.fill(R(x1 - 4, G - 1, x1, G), up.WOOD, 1.8, "v")
+    P.moss[R(x0 - 1, top, x1 + 1, top + 2)] += 0.2
+    a = P.render(env=env_for(o.x, o.y, o.w, o.h, 0.42), ambient=0.4, gain=0.6)
+    up.barnacles(a, [(x0 - o.x + 3, G - 2 - o.y), (x1 - o.x - 6, G - 4 - o.y), (x1 - o.x - 2, top + 9 - o.y)])
+    up.contact(a, x0 - 1 - o.x, x1 + 1 - o.x, G - o.y, k=1)
+    o.f[k].paste(a, 0, 0)
 
 
 def make_cabinet_set():
@@ -1472,38 +1566,42 @@ def make_cabinet_set():
     drum = [oc(.09, .012, 245), oc(.13, .016, 232), oc(.18, .018, 225), oc(.24, .018, 220), oc(.31, .016, 216)]
 
     def float_at(k, cx, cy, rope_to=None):
-        """浮箱：一只圆角的铁皮箱（13×10），两道竖箍、顶上一个吊环、侧面一个小气阀；绳子从底下拴出去（松松地弯一点）。"""
-        for yy in range(-5, 5):
-            for xx in range(-6, 7):
-                if abs(xx) == 6 and abs(yy + 0.5) > 3.6:
-                    continue                             # 圆角
-                lv = 2
-                if yy == -5:
-                    lv = 4 if xx > -5 else 3
-                elif yy == -4:
-                    lv = 3
-                elif yy >= 3:
-                    lv = 1 if yy == 3 else 0
-                elif xx == 6:
-                    lv = 3
-                elif xx == -6:
-                    lv = 1
-                if xx in (-3, 3) and -5 < yy < 4:
-                    lv = 1 if yy > -4 else 3             # 竖箍
-                flo.put(k, cx + xx, cy + yy, drum[lv])
-        for (ddx, ddy, c) in ((0, -6, IRON[3]), (-1, -7, IRON[3]), (1, -7, IRON[4]), (0, -8, IRON[2])):
-            flo.put(k, cx + ddx, cy + ddy, c)            # 吊环
-        flo.put(k, cx + 7, cy - 1, IRON[3])              # 气阀
-        flo.put(k, cx + 7, cy, IRON[1])
+        """浮箱：一只圆角的铁皮箱（13×10，鼓鼓的），两道凸起的竖箍（铆钉），顶上一个吊环、右边一个气阀；
+        锈从下半截和箍边上长起来，箱底几颗藤壶；绳子（拧着的麻绳）从底下拴出去，松松地弯一点。"""
+        P = up.Prop(17, 15, cx - 8, cy - 9, seed=201)
+        R = P.R
+        body = R(cx - 6, cy - 5, cx + 7, cy + 5)
+        for (X, Y) in ((cx - 6, cy - 5), (cx + 6, cy - 5), (cx - 6, cy + 4), (cx + 6, cy + 4)):
+            body &= ~R(X, Y, X + 1, Y + 1)                                    # 圆角
+        P.fill(body, up.IRON, 2.6, None, round_=1.6)
+        for bxx in (cx - 3, cx + 3):
+            P.fill(R(bxx, cy - 5, bxx + 1, cy + 5), up.IRON, 3.3, None)       # 竖箍
+        P.fill(R(cx - 1, cy - 8, cx + 2, cy - 7) | R(cx - 1, cy - 7, cx, cy - 5) | R(cx + 1, cy - 7, cx + 2, cy - 5),
+               up.IRON, 2.4, None)                                            # 吊环
+        P.fill(R(cx + 7, cy - 2, cx + 9, cy), up.BRASS, 2.6, None)            # 气阀（铜）
+        P.rust[R(cx - 6, cy + 1, cx + 7, cy + 5)] += 0.3
+        for bxx in (cx - 3, cx + 3):
+            P.drip(bxx, cy - 2, 6, 0.7)
+        a = P.render(env=env_for(cx - 8, cy - 9, 17, 15, 0.45), ambient=0.38, gain=0.6, moss_amt=0.6)
+        up.barnacles(a, [(4, 13), (10, 13)])
+        for (bxx, byy) in ((cx - 3, cy - 3), (cx - 3, cy + 2), (cx + 3, cy - 3), (cx + 3, cy + 2)):
+            a[byy - (cy - 9), bxx - (cx - 8), :3] = up.PAL[up.IRON][1][7]       # 箍上的铆钉
+        flo.f[k].paste(a, cx - 8 - flo.x, cy - 9 - flo.y)
         if rope_to is not None:
-            rc = oc(.2, .012, 230)
-            sag_line(flo.f[k], cx - 1 - flo.x, cy + 5 - flo.y, rope_to[0] - flo.x, rope_to[1] - flo.y, 2.0, rc)
-    # idle（两帧上下浮 1 格）：拴在地上的石坠
+            sag_line(flo.f[k], cx - 1 - flo.x, cy + 5 - flo.y, rope_to[0] - flo.x, rope_to[1] - flo.y, 2.0,
+                     up.PAL[up.ROPE][1][3], c_lit=up.PAL[up.ROPE][1][5])
+    # idle（两帧上下浮 1 格）：拴在地上的石坠（一块圆石头，绳子在上面绕一圈）
+    stone = ua.boulder(9, 6, 207, ua.bramp(6, .1, .32, 262, 244))
     for k, dy in ((0, 0), (1, 1)):
-        float_at(k, 931, 191 + dy, rope_to=(927, G - 4))
-        for xx in range(-3, 4):
-            for yy in range(-3, 1):
-                flo.put(k, 927 + xx, G + yy, STONE[3] if yy == -3 else (STONE[4] if xx == 3 else STONE[2]))
+        float_at(k, 931, 191 + dy, rope_to=(927, G - 6))
+        sh, sw = stone.shape[:2]
+        flo.f[k].paste(stone, 927 - sw // 2 - flo.x, G - sh + 1 - flo.y)
+        for xx in range(-4, 5):
+            flo.put(k, 927 + xx, G - 3, up.PAL[up.ROPE][1][4 if xx % 3 else 2])  # 绕一圈的绳
+        flo.put(k, 925, G - 5, up.MOSS[3])
+        flo.put(k, 926, G - 5, up.MOSS[2])
+        for xx in range(-5, 6):
+            flo.put(k, 927 + xx, G, up.DARKC[0])
     # tied_top：浮在柜顶上方（柜子抬起来以后那一头的拴环）
     tx, ty = cabinet_point("lifted", CAB_L - 2, CAB_T + 1)
     float_at(2, int(round(tx)) - 2, int(round(ty)) - 30, rope_to=(int(round(tx)), int(round(ty)) - 1))
@@ -1514,126 +1612,155 @@ def make_cabinet_set():
     return cab, fur, flo
 
 
+DOOR_O = (1060, 164, 54, 63)          # 内门物件：开着的时候门板往大厅这边转出来，所以往左多留了一截
+
+
 def make_inner_door():
-    """内门（隔墙里，侧着看是窄窄一条木门：竖板、两道铁箍、一个拉环）；open：门往内间那边推开了，门洞空出来，
-    门板转过来露出正面（窄，透视压扁），靠在门洞右边。"""
-    o = Obj(1086, 164, 28, 63, 2)
+    """内门（隔墙的门洞里，侧着看）。
+    closed：厚木门板嵌在门洞里：三块竖板（越往里越窄，透视），两道铁门箍横着包过来、箍头在大厅这面露出一格、钉帽亮；
+      大厅这面一个铁拉环（伸出门板外面两格，一看就是门），门顶在门楣的影子里，门脚泡烂了一点、糊着泥和苔。
+    open：五斗柜挪开以后门往大厅这边拉开了：门板转过来露出正面（四块竖板、两道箍、拉环），门轴在门洞左沿，
+      离镜头近的那头（左边）高一点、矮一点（透视），门板厚度在外沿露一格亮边；门洞里是内间的暗。"""
+    ox, oy, w, h = DOOR_O
+    o = Obj(ox, oy, w, h, 2)
     x0, x1 = PART
-    for Y in range(DOOR_TOP, G + 1):
-        for X in range(x0, x1):
-            lv = 2
-            if (X - x0) % 3 == 2:
-                lv = 1                                   # 竖板缝
-            if X == x1 - 1:
-                lv = 3
-            if Y in (DOOR_TOP + 9, G - 10):
-                lv = 1
-            if Y == DOOR_TOP:
-                lv = 0
-            o.put(0, X, Y, WOODH[lv])
-        for Y in (DOOR_TOP + 9, G - 10):
-            for X in range(x0, x1):
-                o.put(0, X, Y, IRON[2] if X < x1 - 1 else IRON[3])
-    o.put(0, x1 - 3, DOOR_TOP + 30, IRON[4])
-    o.put(0, x1 - 3, DOOR_TOP + 31, IRON[3])
-    # open：门洞里是内间的暗（不画，透出主层），门板推到右边，正面压扁成 11 宽
-    for Y in range(DOOR_TOP + 1, G + 1):
-        for X in range(x1 + 1, x1 + 12):
-            u = X - x1 - 1
-            lv = 2
-            if u % 4 == 3:
-                lv = 1
-            if u == 10:
-                lv = 3
-            if u == 0:
-                lv = 1
-            if Y in (DOOR_TOP + 10, G - 9):
-                lv = 1
-            o.put(1, X, Y, WOODH[lv])
-        o.put(1, x1, Y, WOODH[0])                         # 门轴那边的缝
-    for Y in (DOOR_TOP + 10, G - 9):
-        for X in range(x1 + 1, x1 + 12):
-            o.put(1, X, Y, IRON[2] if X < x1 + 11 else IRON[3])
+    ip = up.PAL[up.IRON][1]
+    # ---- closed
+    P = up.Prop(w, h, ox, oy, seed=211)
+    R = P.R
+    for (a_, b_) in ((x0, x0 + 4), (x0 + 4, x0 + 7), (x0 + 7, x1)):
+        P.fill(R(a_, DOOR_TOP + 1, b_, G), up.WOOD, 2.2 - 0.3 * (a_ - x0) / 4, "v", round_=0.5)
+    P.dark[R(x0, DOOR_TOP + 1, x1, DOOR_TOP + 4)] += 0.08                        # 门楣的影子
+    for yb in (DOOR_TOP + 9, G - 12):
+        P.fill(R(x0 - 1, yb, x1, yb + 2), up.IRON, 3.0, None)                     # 门箍（箍头在大厅这面露一格）
+        P.rust[R(x0 - 1, yb, x1, yb + 2)] += 0.3
+        P.drip(x0 + 2, yb + 2, 5, 0.7)
+        P.drip(x0 + 6, yb + 2, 3, 0.6)
+    ry = DOOR_TOP + 30
+    P.fill(R(x0 - 3, ry, x0 - 2, ry + 4) | R(x0 - 2, ry - 1, x0, ry) | R(x0 - 2, ry + 4, x0, ry + 5), up.IRON, 3.2, None)  # 拉环
+    P.fill(R(x0, ry + 1, x0 + 2, ry + 3), up.IRON, 2.8, None)                     # 拉环的座
+    for xx in range(x0, x1):                                                      # 门脚泡烂了：参差缺几格
+        if up.hsh(xx, 7) < 0.45:
+            P.mat[G - 1 - oy, xx - ox] = 0
+    P.moss[R(x0, G - 6, x1, G)] += 0.5
+    a = P.render(env=env_for(ox, oy, w, h, 0.4), ambient=0.38, gain=0.6)
+    for (xx, yy) in ((x0 - 1, DOOR_TOP + 9), (x0 - 1, G - 12)):
+        a[yy - oy, xx - ox, :3] = ip[7]                                            # 钉帽
+    up.barnacles(a, [(x0 + 3 - ox, G - 4 - oy), (x0 + 8 - ox, G - 3 - oy)])
+    o.f[0].paste(a, 0, 0)
+    # ---- open：门轴在 x0（门洞的大厅那沿），门板往左转出来
+    hx, fx = x0, x0 - 23
+    P = up.Prop(w, h, ox, oy, seed=212)
+    R = P.R
+    top = lambda X: DOOR_TOP + 1 - 2.0 * (hx - X) / (hx - fx)
+    bot = lambda X: G - 1 + 1.0 * (hx - X) / (hx - fx)
+    leaf = ua.poly_mask([(fx - ox, top(fx) - oy), (hx - ox, top(hx) - oy), (hx - ox, bot(hx) - oy + 1),
+                         (fx - ox, min(G - oy, bot(fx) - oy + 1))], h, w)
+    edges = [fx, fx + 6, fx + 12, fx + 18, hx]
+    for a_, b_ in zip(edges[:-1], edges[1:]):
+        P.fill(leaf & R(a_, 0, b_, 300), up.WOOD, 2.2, "v", round_=0.4)
+    P.fill(leaf & R(fx, 0, fx + 1, 300), up.WOOD, 2.9, "v")                       # 门板的厚度：外沿一格
+    for (t0, frac_) in ((DOOR_TOP + 9, 0.0), (G - 12, 1.0)):
+        for X in range(fx + 1, hx):
+            u = (hx - X) / (hx - fx)
+            Y = int(round(t0 + (top(X) - top(hx)) * (1 - frac_) + (bot(X) - bot(hx)) * frac_))
+            P.fill(R(X, Y, X + 1, Y + 2), up.IRON, 3.0, None)
+            P.rust[R(X, Y, X + 1, Y + 2)] += 0.3
+    rx, ry = fx + 4, DOOR_TOP + 30
+    P.fill(R(rx, ry, rx + 3, ry + 1) | R(rx, ry + 4, rx + 3, ry + 5) | R(rx - 1, ry + 1, rx, ry + 4) |
+           R(rx + 3, ry + 1, rx + 4, ry + 4), up.IRON, 3.2, None)                 # 拉环（正面看是一个圈）
+    P.moss[leaf & R(fx, G - 6, hx, G + 2)] += 0.5
+    a = P.render(env=env_for(ox, oy, w, h, 0.4), ambient=0.38, gain=0.6)
+    o.f[1].paste(a, 0, 0)
+    for X in range(fx - 1, hx + 1):
+        if not o.f[1].a[G - oy, X - ox, 3]:
+            o.put(1, X, G, up.DARKC[0])
     return o
 
 
 def make_sluice():
-    """旧泄水门：嵌在石框里的铁闸门（三块竖铁板、铆钉、横筋、锈水往下拖），右边一个大手轮；
-    闸门上钉着一块操作记录板。log = 记录板挂着；signatures = 最上面那张翻起来，露出下面一排签名；taken = 板子拿走了，
-    铁板上留下一块干净一点的印子和那颗钉子。"""
+    """旧泄水门：嵌在石框里的铁闸门。三块竖铁板（板缝凹下去），三道横筋（角铁：上沿受光、下面一道影子，一排铆钉），
+    刷过的青灰漆掉了一大半，锈从下往上长、锈水从铆钉往下拖，门脚一排藤壶；右边一个大手轮（轮圈、四根辐条、轮毂，轴伸出来）。
+    闸门上钉着一块操作记录板（木板 + 铁夹 + 泡皱的纸）。log = 记录板挂着；signatures = 最上面那张翻起来，露出下面一排签名；
+    taken = 板子拿走了，铁板上留下一块干净一点的印子和那颗钉子。"""
     o = Obj(1262, 112, 70, 115, 3)
-    rng = np.random.default_rng(91)
-    plate = ua.bramp(6, .06, .26, 250, 226)
+    X0, Y0, w, h = 1262, 112, 70, 115
     for k in range(3):
-        for Y in range(112, G + 1):
-            for X in range(1262, 1332):
-                u = X - 1262
-                lv = 2
-                if u in (23, 46):
-                    lv = 0                               # 铁板之间的缝
-                elif u in (24, 47) or u == 69:
-                    lv = 3
-                elif u == 0:
-                    lv = 1
-                if (Y - 112) in (18, 56, 94):
-                    lv = 4                               # 横筋（上沿受光）
-                elif (Y - 112) in (19, 57, 95):
-                    lv = 1
-                if Y > G - 3:
-                    lv = 1
-                o.put(k, X, Y, plate[lv])
-        for Y in (112 + 18, 112 + 56, 112 + 94):         # 铆钉
-            for X in range(1266, 1330, 6):
-                o.put(k, X, Y + 3, plate[4])
-                o.put(k, X, Y + 4, plate[1])
-        r2 = np.random.default_rng(92)
-        for _ in range(9):                               # 锈水：从横筋下面往下拖
-            X = int(r2.uniform(1265, 1328))
-            Y0 = 112 + int(r2.choice([20, 58, 96]))
-            for d in range(int(r2.uniform(4, 14))):
-                if Y0 + d < G - 2 and d % 4 != 3:
-                    o.put(k, X, Y0 + d, RUST[0] if d > 2 else RUST[1])
-        # 手轮（右边，轴伸出来）
+        P = up.Prop(w, h, X0, Y0, seed=221)
+        R = P.R
+        for (a_, b_) in ((0, 23), (24, 46), (47, 70)):
+            P.fill(R(X0 + a_, Y0, X0 + b_, G), up.PAINT, 2.0, None, round_=0.4)
+        P.fill(R(X0 + 23, Y0, X0 + 24, G) | R(X0 + 46, Y0, X0 + 47, G), up.IRON, 0.8, None, dark=0.1)   # 板缝
+        for ry in (18, 56, 94):
+            P.fill(R(X0, Y0 + ry, X0 + w, Y0 + ry + 3), up.IRON, 3.3, None)                            # 横筋
+            P.dark[R(X0, Y0 + ry + 3, X0 + w, Y0 + ry + 5)] += 0.06                                     # 横筋下面的影子
+            for xx in range(X0 + 3, X0 + w - 2, 6):
+                if up.hsh(xx, ry) < 0.4:                                                                  # 只有几颗铆钉往下拖锈水
+                    P.drip(xx, Y0 + ry + 3, 3 + int(up.hsh(ry, xx) * 12), 0.8)
+        fy = np.clip((P.yy + Y0 - (G - 26)) / 26.0, 0, 1)                                                # 门脚：锈往上渐渐少
+        P.rust += 0.5 * fy ** 1.5
+        rng = np.random.default_rng(222)
+        for _ in range(14):                                                                              # 掉漆的大块
+            cx_, cy_ = int(rng.integers(X0, X0 + w)), int(rng.integers(Y0, G))
+            P.rust[R(cx_, cy_, cx_ + int(rng.integers(2, 6)), cy_ + int(rng.integers(1, 4)))] += 0.6
+        # 手轮
         cx, cy, r = 1318, 150, 8
-        for t in np.linspace(0, 2 * math.pi, 64, endpoint=False):
-            X, Y = cx + r * math.cos(t), cy + r * math.sin(t)
-            o.put(k, X, Y, IRON[4] if math.sin(t) < -0.3 or math.cos(t) > 0.5 else IRON[2])
-        for t in (0, math.pi / 2, math.pi, 3 * math.pi / 2):
-            for s in range(1, r):
-                o.put(k, cx + s * math.cos(t + 0.4), cy + s * math.sin(t + 0.4), IRON[3])
-        o.put(k, cx, cy, IRON[5])
-        o.put(k, cx + 1, cy, IRON[3])
+        yy, xx = P.yy + Y0 + 0.5, P.xx + X0 + 0.5
+        d = np.hypot(xx - cx, yy - cy)
+        ring = (d >= r - 1.2) & (d < r + 0.6)
+        P.fill(ring, up.IRON, 4.4, None)
+        P.hf[ring] += 0.6 * np.cos((d[ring] - (r - 0.3)) * 2.5)
+        for t in (0.4, 0.4 + math.pi / 2, 0.4 + math.pi, 0.4 + 3 * math.pi / 2):
+            ux, uy = math.cos(t), math.sin(t)
+            along = (xx - cx) * ux + (yy - cy) * uy
+            perp = np.abs(-(xx - cx) * uy + (yy - cy) * ux)
+            P.fill((perp < 0.7) & (along > 1.5) & (along < r - 1), up.IRON, 4.0, None)
+        P.fill(d < 2.0, up.IRON, 4.8, None)
+        P.dark[(d >= r + 0.6) & (d < r + 2.2) & (yy > cy)] += 0.06                                       # 轮圈在门上的影子
+        P.rust[ring & (yy > cy + 3)] += 0.3
         # 记录板
         bx, by = 1274, 142
-        o.put(k, bx + 7, by - 2, IRON[4])                # 钉子
         if k < 2:
-            for Y in range(by, by + 18):
-                for X in range(bx, bx + 14):
-                    o.put(k, X, Y, WOOD[2] if X < bx + 13 else WOOD[3])
-            for X in range(bx + 4, bx + 10):             # 夹子
-                o.put(k, X, by, IRON[4])
-                o.put(k, X, by + 1, IRON[2])
-            sheet0, sheet1 = (by + 2, by + 17) if k == 0 else (by + 9, by + 17)
-            for Y in range(sheet0, sheet1):
-                for X in range(bx + 2, bx + 12):
-                    o.put(k, X, Y, PAPER[1] if X < bx + 11 else PAPER[0])
-            if k == 0:                                   # 一行行的字
-                for i, Y in enumerate(range(by + 4, by + 16, 2)):
-                    for X in range(bx + 3, bx + 11 - (i * 3) % 4):
-                        if r2.random() < 0.75:
-                            o.put(k, X, Y, PAPER[0])
-            else:                                        # 翻起来那张（盖在板子上面，只看见背面）+ 下面的签名
-                for Y in range(by - 5, by + 9):
-                    for X in range(bx + 1, bx + 13):
-                        o.put(k, X, Y, PAPER[0] if Y < by - 3 else PAPER[1])
-                for i, Y in enumerate((by + 11, by + 14)):   # 两个签名：歪歪扭扭的连笔
-                    for X in range(bx + 3, bx + 11):
-                        o.put(k, X, Y + int(round(math.sin(X * 1.3 + i) * 0.8)), WOOD[1])
+            P.fill(R(bx, by, bx + 14, by + 18), up.WOOD, 3.0, "v", round_=0.4)
+            P.fill(R(bx + 4, by, bx + 10, by + 2), up.IRON, 4.0, None)                                     # 夹子
+            s0 = by + 2 if k == 0 else by + 9
+            m = R(bx + 2, s0, bx + 12, by + 17)
+            P.fill(m, up.PAPER, 3.4, None)
+            P.nomoss[m] = True
+            P.tint[m] = 1
+            if k == 1:                                                                                    # 翻起来那张（背面）
+                m2 = R(bx + 1, by - 5, bx + 13, by + 9)
+                P.fill(m2, up.PAPER, 4.0, None)
+                P.nomoss[m2] = True
+                P.tint[m2] = 0
+                P.dark[R(bx + 1, by - 5, bx + 13, by - 3)] += 0.08
+        a = P.render(env=env_for(X0, Y0, w, h, 0.3), ambient=0.29, gain=0.6, moss_amt=0.8)
+        up.barnacles(a, [(xx_ - X0, G - 2 - Y0 - (xx_ % 3)) for xx_ in range(X0 + 2, X0 + w - 2, 5)])
+        ip = up.PAL[up.IRON][1]
+        for ry in (18, 56, 94):                                                                          # 横筋上的一排铆钉
+            for xx in range(X0 + 3, X0 + w - 2, 6):
+                if not (1306 <= xx <= 1330 and Y0 + ry < 162 and Y0 + ry > 138):
+                    a[ry + 1, xx - X0, :3] = ip[7]
+                    a[ry + 2, xx - X0, :3] = ip[3]
+        o.f[k].paste(a, 0, 0)
+        ink = up.PAL[up.PAPER][1][3]
+        o.put(k, bx + 7, by - 2 if k < 2 else by, up.PAL[up.IRON][1][7])                                  # 钉子
+        if k == 0:
+            r2 = np.random.default_rng(92)
+            for i, Y in enumerate(range(by + 4, by + 16, 2)):                                              # 一行行的字
+                for X in range(bx + 3, bx + 11 - (i * 3) % 4):
+                    if r2.random() < 0.75:
+                        o.put(k, X, Y, ink)
+        elif k == 1:
+            for i, Y in enumerate((by + 11, by + 14)):                                                     # 两个签名：连笔
+                for X in range(bx + 3, bx + 11):
+                    o.put(k, X, Y + int(round(math.sin(X * 1.3 + i) * 0.8)), ink)
         else:
-            for Y in range(by, by + 18):                 # 板子挂过的地方：干净一点的印子
+            pl = up.PAL[up.PAINT][1]
+            for Y in range(by, by + 18):                                                                   # 板子挂过的地方：干净一点的印子
                 for X in range(bx, bx + 14):
-                    if (X in (bx, bx + 13) or Y in (by, by + 17)):
-                        o.put(k, X, Y, plate[3])
+                    if X in (bx, bx + 13) or Y in (by, by + 17):
+                        o.put(k, X, Y, pl[5])
     return o
 
 
@@ -1825,7 +1952,8 @@ def room_json(objs):
     return {
         "_note": "tools/river_underwater_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。"
                  "0..690 是作者原来的水底（art/underwater 原图 + scripts/river_uw_fx.gd 照 underwater_test.tscn 搭的动效），"
-                 "690..1360 是泡在水底的半塌石头仓库。origin 让入口正好在旧街仓库入口（1066）的正下方，下水是竖直平移。",
+                 "690..1360 是泡在水底的半塌石头仓库。origin 让入口正好在旧街仓库入口（1066）的正下方；下水 / 上水是渐黑渐亮（story_runner._dive_fade）。"
+                 "仓库里的家具、铁器、绳、纸用 tools/uw_props.py 的材质画法画（10-30 重画）。",
         "size": [W, H],
         "origin": [3000 + 1066 - 40, 270],
         "env": "underwater",
@@ -1857,6 +1985,7 @@ def main():
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     st = Struct()
+    set_env(st)
     build_main(st).save(OUT / "main.png")
     front_layer(st).save(OUT / "front.png")
     Image.fromarray(kelp_front()).save(OUT / "kelpfront.png")

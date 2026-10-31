@@ -2076,9 +2076,11 @@ def shop_photo():
 
 # ================================================================ 第五版：被撞出凹口的树线（单独一屏）+ 画的特写
 # 以前的 broken_treeline（贴在 Mid 层里）已经删掉：循环层里每隔一段重复一次、标题画面上也有，融不进背景。
-# 画上大象背的那道弧，和坠毁现场树线上被撞出来的凹口是同一条曲线：back_arc(u)，u 从 0 到 1，0 和 1 是两头（高 0），
-# 中间最高（1）。树线上的弧正好是画上那道弧的 VIEW_K 倍（3 倍：宽 276 / 高 81 对 宽 92 / 高 27），引擎把 drawing_arc.png
-# 最近邻放大 VIEW_K 倍、按 json 里的端点对齐，就严丝合缝地叠在凹口上。
+# 画上大象背的那道线，和坠毁现场树线上被撞出来的凹口是同一条曲线：back_arc(u)，u 从 0 到 1，0 和 1 是两头（高 0），
+# 最高处 1。这条线从 drawing_arc.png 量出来：那张画是作者妹妹画的大象（tools/elephant_drawing_art.py 处理，
+# 特写和背线都由它出），背线 = 屁股那条竖线 → 平平的背 → 头顶 → 头前面那条竖线，每一列取最上面那一格，两头压到 y_end。
+# 树线上的弧正好是画上那道线的 VIEW_K 倍（3 倍：宽 321 / 高 63 对 宽 107 / 高 21），引擎把 drawing_arc.png
+# 最近邻放大 VIEW_K 倍、按 json 里的端点对齐，就严丝合缝地叠在凹口上。改了画要重跑 --treeline。
 # 树线不贴在森林的视差层里（循环层里融不进去）：是一张单独的全屏画面（treeline_view_*.png，480×270 的平面侧视，
 # 不透视、不仰视），剧本 treeline_match / 看树冠缺口的时候淡入、叠弧线、淡出。分四层，画面里各自轻轻漂一点：
 #   sky   天和雾光（不动）       far   远处一排树梢剪影（漂得最慢）
@@ -2087,14 +2089,35 @@ def shop_photo():
 # 凹口：整排一样高的云杉，弧上面、两道撕开的墙之间全挖掉；断面下面补一层撕碎压在一起的枝叶（弧是一条连着的毛边），
 # 每棵削断的树戳出一截劈开的深木色树干茬，几根折断翘起的枝、墙上挂下来的残枝。不画浅色断桩。
 
+def _back_profile():
+    """drawing_arc.png 里背线每一列最上面那一格的 y（x0..x1），两头压到 y_end（两头是竖线，往下接腿 / 鼻子）。"""
+    a = np.array(Image.open(OUT / "drawing_arc.png"))[..., 3] > 0
+    ys, xs = np.nonzero(a)
+    x0, x1 = int(xs.min()), int(xs.max())
+    y_end = int(ys.max())
+    top = np.array([ys[xs == x].min() for x in range(x0, x1 + 1)], float)
+    top[0] = top[-1] = y_end
+    return x0, x1, y_end, top
+
+
+_BX0, _BX1, _BY_END, _BTOP = _back_profile()
+
+
 def back_arc(u):
     u = np.clip(np.asarray(u, float), 0, 1)
-    return (1 - (2 * u - 1) ** 2) ** 0.75
+    return np.interp(u * (_BX1 - _BX0), np.arange(_BX1 - _BX0 + 1), (_BY_END - _BTOP) / (_BY_END - _BTOP.min()))
 
 
-ARC_DRAW = dict(x0=44, x1=136, y_end=58, h=27)          # 画上的弧（drawing_closeup / drawing_arc 的像素坐标）
+def _back_top_x():
+    """背线最高的那一段的中间（相对 x0 的列数）。"""
+    cols = np.nonzero(_BTOP == _BTOP.min())[0]
+    return int(cols.mean())
+
+
+ARC_DRAW = dict(x0=_BX0, x1=_BX1, y_end=_BY_END, h=int(_BY_END - _BTOP.min()))   # 画上的背线（drawing_closeup / drawing_arc 的像素坐标）
 VIEW_K = 3                                               # 树线上的弧 = 画上的几倍
-ARC_VIEW = dict(x0=102, x1=102 + 92 * VIEW_K, y_end=198, h=27 * VIEW_K)   # 树线上的弧（treeline_view_main 的像素坐标）
+_VIEW_X0 = 240 - (_BX1 - _BX0) * VIEW_K // 2            # 凹口在 main 层里左右居中（中心 x = 240，和以前一样）
+ARC_VIEW = dict(x0=_VIEW_X0, x1=_VIEW_X0 + (_BX1 - _BX0) * VIEW_K, y_end=198, h=ARC_DRAW["h"] * VIEW_K)   # 树线上的弧（treeline_view_main 的像素坐标）
 VIEW_W = {"sky": 480, "far": 488, "main": 496, "near": 512}   # 各层图宽（比屏幕宽的那截就是能漂的距离）
 VIEW_DRIFT = {"sky": 0.0, "far": 0.6, "main": 1.2, "near": 2.6}   # 每秒往左漂几像素（漂到图的右边缘就停）
 
@@ -2365,7 +2388,7 @@ def save_treeline_view():
         "arc_layer": "main",
         "arc_points": arc_points(ARC_VIEW),
         "arc_end_left": [ARC_VIEW["x0"], ARC_VIEW["y_end"]], "arc_end_right": [ARC_VIEW["x1"], ARC_VIEW["y_end"]],
-        "arc_top": [(ARC_VIEW["x0"] + ARC_VIEW["x1"]) // 2, ARC_VIEW["y_end"] - ARC_VIEW["h"]],
+        "arc_top": [ARC_VIEW["x0"] + _back_top_x() * VIEW_K, ARC_VIEW["y_end"] - ARC_VIEW["h"]],
         "note": "单独一屏（平面侧视，不挂森林的视差层）：四层图左上角都放在屏幕 (0,0)，按 drift 每秒往左漂（漂到图的右边缘贴着屏幕右边就停）；"
                 "drawing_arc 放大 scale_to_treeline 倍、arc_end_left 对到 main 层的 arc_end_left，跟着 main 层漂",
     }
@@ -2376,101 +2399,14 @@ def save_treeline_view():
 def drawing_arc_meta():
     return {
         "arc_end_left": [ARC_DRAW["x0"], ARC_DRAW["y_end"]], "arc_end_right": [ARC_DRAW["x1"], ARC_DRAW["y_end"]],
-        "arc_top": [(ARC_DRAW["x0"] + ARC_DRAW["x1"]) // 2, ARC_DRAW["y_end"] - ARC_DRAW["h"]],
+        "arc_top": [ARC_DRAW["x0"] + _back_top_x(), ARC_DRAW["y_end"] - ARC_DRAW["h"]],
         "scale_to_treeline": VIEW_K,
         "treeline_arc_end_left": [ARC_VIEW["x0"], ARC_VIEW["y_end"]],
         "note": "最近邻放大 scale_to_treeline 倍后，把 arc_end_left 对到 treeline_view_main 的 treeline_arc_end_left（图内坐标），两条弧重合"}
 
 
-def drawing_closeup():
-    """晨醒来画的大象（特写，UI 用）：一张皱过又摊平的纸（几道折痕把纸分成几块，各接到的光不一样），
-    铅笔线是深灰（偏一点紫，和背包图标 icon_drawing 同一个色），不是纯黑。朝左的大象：长鼻子垂下来卷一下，
-    头侧面一只大耳朵、头顶后面再露出另一只，圆滚的背（就是那道弧），四条柱子腿，小尾巴；
-    画得不太准：有的线描了两遍，一条腿和鼻子有擦掉的旧线（浅灰的糊印）。肚子底下几道斜着的排线。"""
-    W, Hh = 160, 110
-    s = Spr(W, Hh)
-    PAPER = H("#aaa08e", "#c8bea9", "#e2dac8")          # 和 icon_drawing 的纸同色（暗 -> 亮）
-    PEN = H("#605c6e", "#7a768a")                        # 铅笔：深灰偏紫（icon 的 96,92,110）
-    ERASE = from_hex("#b9b0a0")                          # 擦掉的痕迹
-    paper = s.poly([(2, 3), (60, 1), (157, 2), (158, 60), (157, 107), (90, 108), (1, 108), (0, 50)])
-    # 折痕把纸切成几块：左上那块朝光最亮，右下那块最暗
-    c1 = s.xx * 0.19 + 40 - s.yy          # 斜着的一道（从左边 y=40 到右边 y=70）
-    c2 = (s.yy * 0.23 + 70) - s.xx        # 竖着偏斜的一道（从上面 x=70 到下面 x=95）
-    t = np.where(c1 > 0, np.where(c2 > 0, 2, 1.4), np.where(c2 > 0, 1.2, 0.6))
-    s.fill(paper, PAPER, t)
-    for c in (c1, c2):
-        crease = paper & (np.abs(c) < 0.6)
-        s.fill(crease, PAPER, 0.4)
-        s.fill(paper & (c > 0.6) & (c < 1.6), PAPER, 2)
-    # 右上角折过一个角（折回去的那块暗一点）
-    dog = s.poly([(140, 2), (157, 2), (157, 18)])
-    s.fill(dog, PAPER, 0.3)
-    s.fill(s.line((140, 2), (157, 18)), PAPER, 1)
-    # 擦掉的旧线：一条歪了的鼻子、一条腿
-    old = s.line((26, 64), (18, 78), (16, 90)) | s.line((30, 66), (22, 80), (21, 90)) | s.line((96, 74), (99, 98)) | s.line((102, 75), (104, 97))
-    old = dilate(old, 1) & (noise(s, 131, (2, 2)) > -0.25)
-    for y, x in zip(*np.nonzero(old & paper)):
-        s.a[y, x, :3] = mixc(s.a[y, x, :3], ERASE, 0.6)
-    pen = np.zeros((Hh, W), bool)
-    soft = np.zeros((Hh, W), bool)
-
-    def L(*pts, light=False):
-        m = s.line(*[(int(round(x)), int(round(y))) for x, y in pts])
-        if light:
-            soft[:] |= m
-        else:
-            pen[:] |= m
-
-    # 背：那道弧（drawing_arc 就从这里取）
-    arc_px = np.zeros((Hh, W), bool)
-    pts = [(x, float(arc_y(ARC_DRAW, x))) for x in np.linspace(ARC_DRAW["x0"], ARC_DRAW["x1"], 60)]
-    for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
-        arc_px |= s.line((int(round(xa)), int(round(ya))), (int(round(xb)), int(round(yb))))
-    pen |= arc_px
-    # 描了第二遍的一小截（背的中段，偏上 1 格）
-    L((70, float(arc_y(ARC_DRAW, 70)) - 1), (84, float(arc_y(ARC_DRAW, 84)) - 1), light=True)
-    # 屁股和尾巴
-    L((136, 58), (138, 64), (136, 72), (131, 76))
-    L((137, 61), (142, 67), (141, 72))
-    s_tail = s.rect(140, 72, 142, 73)
-    # 头：一个歪一点的圈，接在背的前头
-    head = s.ell(36, 57, 12, 12) & ~s.ell(36, 57, 11, 11)
-    pen |= head & ~s.ell(47, 60, 8, 12)
-    # 大耳朵（头侧面），另一只从头顶后面露出一点
-    ear = s.ell(46, 60, 9, 12) & ~s.ell(46, 60, 8, 11)
-    pen |= ear
-    L((47, 52), (50, 60), (47, 67), light=True)
-    L((28, 46), (31, 42), (35, 44))
-    # 眼睛
-    pen |= s.rect(30, 55, 31, 55)
-    # 长鼻子：从脸前面垂下来，往外卷一圈；两条边
-    L((26, 63), (22, 72), (20, 82), (20, 90), (17, 95), (13, 95), (11, 92), (13, 89), (16, 90))
-    L((30, 67), (26, 76), (25, 86), (24, 93), (21, 98), (15, 99))
-    # 肚子
-    L((52, 76), (80, 79), (110, 78), (131, 76))
-    # 四条腿（柱子，平脚；第三条描歪了又补了一笔）
-    for x0_, y1 in ((54, 99), (68, 100), (104, 99), (118, 98)):
-        L((x0_, 77), (x0_ - 1, y1))
-        L((x0_ + 7, 79), (x0_ + 7, y1))
-        L((x0_ - 1, y1), (x0_ + 7, y1))
-    L((105, 80), (106, 96), light=True)
-    # 肚子底下的排线
-    for k in range(9):
-        x = 60 + k * 7
-        L((x, 70), (x + 4, 76), light=True)
-    s.fill(pen & paper, PEN, 0)
-    s.fill(soft & paper & ~pen, PEN, 1)
-    s.fill(s_tail, PEN, 0)
-    s._arc = arc_px & paper
-    return s
-
-
-def drawing_arc(closeup):
-    """只有背的那道弧：从特写里原样取出来（同样的像素），透明底。"""
-    s = Spr(closeup.w, closeup.h)
-    m = closeup._arc
-    s.a[m] = closeup.a[m]
-    return s
+# 画的特写 drawing_closeup.png、背线 drawing_arc.png、背包图标 icon_drawing.png 都由 tools/elephant_drawing_art.py 出
+# （作者妹妹画的大象，照片原样存在 drawing_src/elephant_sister_photo.png）。以前这里程序画的那头朝左的大象已经换掉。
 
 
 def view_frame(t=0.0, with_arc=False, arc_alpha=0.8):
@@ -2576,9 +2512,7 @@ def build(with_treehouse=False):
     out["shop_photo"] = save("shop_photo", shop_photo(), meta={"host": "shop", "offset": anchor_offset(sh.shape[1], sh.shape[0], *PHOTO_ON_SHOP)})
     # ---- 第五版
     out.update(save_treeline_view())
-    cl = drawing_closeup()
-    out["drawing_closeup"] = save("drawing_closeup", cl)
-    out["drawing_arc"] = save("drawing_arc", drawing_arc(cl), meta=drawing_arc_meta())
+    (OUT / "drawing_arc.json").write_text(json.dumps(drawing_arc_meta(), ensure_ascii=False, indent=1))
     rh = out["road_house"]
     lamp = placed_lamp()
     out["placed_lamp"] = save("placed_lamp", lamp, meta={

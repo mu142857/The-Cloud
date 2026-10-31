@@ -39,9 +39,9 @@
   },
   {
    "id": "ripples",
-   "img": "res://art/river/ripples.png",
+   "img": "far_ripples.png",
    "scroll": 0.3,
-   "y": 151,
+   "y": 157,
    "tile": true,
    "shader": "water",
    "shader_params": {
@@ -54,23 +54,21 @@
   },
   {
    "id": "glints",
-   "img": "res://art/river/glints.png",
+   "img": "moonpath.png",
    "scroll": 0.0,
-   "y": 155,
-   "shader": "water",
+   "y": 157,
+   "shader": "moonpath",
    "shader_params": {
-    "palette_mode": true,
     "speed": 1.0,
-    "wobble": 2.0,
-    "flicker": 0.9,
-    "show": 0.6
+    "wobble": 1.5,
+    "flicker": 0.9
    }
   },
   {
    "id": "water",
    "img": "res://art/river/water.png",
    "scroll": 0.42,
-   "y": 0,
+   "y": 6,
    "tile": true
   },
   {
@@ -250,10 +248,10 @@
    ]
   },
   "southbridge_routemap": {
-   "x": 1752,
-   "y": 116,
-   "w": 70,
-   "h": 82,
+   "x": 1748,
+   "y": 109,
+   "w": 74,
+   "h": 89,
    "frames": 2,
    "states": {
     "default": 0,

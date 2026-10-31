@@ -34,6 +34,8 @@ extends Control
 ## 镜头拉远（10-30 作者：「躲避石头的时候飞船能不能缩小一点」「切远景……我觉得只是缩小」）：
 ##   一开始镜头从剖面拉远到船外（cockpit_room.far_out：外壳淡入 → 缓缓缩小，约 1.7 秒），整艘船变成 far_scale 倍（默认 FAR_K），
 ##   晨和舱里看不见；最后一排碎石过去、穿出去以后船先回中间（弹簧 + 泛光），再拉回剖面（倒着走同一条曲线），然后才接着播剧情。
+##   10-31（作者：「正中间提前量有点不够」）：缩小的同时往右平移，停在屏幕宽度 FAR_X（73%，x 350）；碎石再慢 FAR_SLOW，
+##   预告 = 进画面前 WARN_OFF 秒 + 从屏幕左边飞到船头的时间 → 进画面到撞上船头约 1.65 秒（原来约 0.8）。剧本 "far_x" / 命令行 --far_x= 能改。
 ##   远景里船小了：能挪 ±FAR_SHIFT（剖面里 ±SHIFT）、按住时目标每秒走 FAR_MOVE；碎石飞得慢一点（ROCK_V × (0.5 + 0.5 × 倍数)，
 ##   镜头远了，看起来就慢）；道、缝、碰撞、预告都按远景船的轮廓（cockpit.far_hull()）算。碎石图不缩（相对小船更大、更看得清）。
 ##   剧本参数 "far_scale"：0.55 ～ 0.93（取最接近的一档图）；1 = 不拉远，留在剖面里躲（原来的样子）。
@@ -60,6 +62,9 @@ const FAR_SHIFT := 40.0       # 远景里船上下最多挪多少像素
 const FAR_TOP := 40.0         # 往上挪满时尾翼尖最高到屏幕 y 多少（上面 0..34 是燃料栏）
 const FAR_MOVE := 100.0       # 远景里按住时目标每秒走多少像素
 const END_WAIT := 0.7         # 穿出去以后，船先回中间（弹簧约 0.6 秒停稳）再拉回剖面
+const FAR_X := 0.73           # 远景船停在屏幕右边：图的中线在屏幕宽度的这个比例（10-31 作者：「正中间提前量有点不够」）
+const FAR_SLOW := 0.9         # 远景里碎石再慢这么多（和挪到右边一起：碎石进画面到撞上船头约 1.6 秒，原来约 0.8 秒）
+const WARN_OFF := 1.2         # 远景：碎石进画面之前，左边划痕先预告多少秒（和原来船在中间时一样）
 const AIR_C := Color(0.5, 0.78, 0.64)       # 气流线（#7fc7a4 一族，很淡）
 const SCRATCH_C := Color(0.78, 0.9, 0.84)
 const SPARK_C := Color(0.95, 0.9, 0.75)
@@ -120,6 +125,9 @@ var _far := false             # 拉远到船外了
 var _shift := SHIFT
 var _move := MOVE
 var _rock_v := ROCK_V
+var _warn := WARN             # 预告比碎石擦到船头早多少秒（远景 = WARN_OFF + 从屏幕左边飞到船头的时间）
+var _ship_cx := 240.0         # 船（图的中线）在屏幕上的 x：声像、提示文字跟着它
+var _lead := []               # 每块领头的碎石：进画面到碰到船头的秒数（日志）
 var _zoom_sec := 1.7          # 拉远 / 拉回各多少秒
 var _ending := false          # 碎石都过去了：穿出去 → 船回中间 → 拉回剖面
 var _end_t := 0.0
@@ -145,16 +153,20 @@ func play(r: Node, st: Dictionary) -> String:
 	_real = "--debris_full" in OS.get_cmdline_user_args()   # 截图用：自动玩也按真实时长、真实拉远速度播
 	var real := _real
 	var k := float(st.get("far_scale", FAR_K))
+	var fx := float(st.get("far_x", FAR_X))
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--far_scale="):
 			k = float(a.trim_prefix("--far_scale="))
+		elif a.begins_with("--far_x="):
+			fx = float(a.trim_prefix("--far_x="))
 	_far = k < 0.99 and cockpit.far_ready(k)
 	if _far:
 		_zoom_sec = 1.2 if _auto and not real else float(cockpit.FAR_SEC)
-		cockpit.far_out(k, _zoom_sec)
+		_ship_cx = roundf(clampf(fx, 0.5, 0.8) * 480.0)
+		cockpit.far_out(k, _zoom_sec, _ship_cx)                     # 缩小的同时平移到右边（拉回时倒着走回中间）
 		_shift = minf(FAR_SHIFT, floorf(cockpit.far_used_rect().position.y - FAR_TOP))   # 大的那档往上挪满时尾翼别碰燃料栏
 		_move = FAR_MOVE
-		_rock_v = ROCK_V * (0.5 + 0.5 * cockpit.far_k)
+		_rock_v = ROCK_V * (0.5 + 0.5 * cockpit.far_k) * FAR_SLOW
 	_rng.seed = 23
 	for n in ["debris_a", "debris_b", "debris_c", "debris_d", "debris_e", "debris_f", "debris_g"]:   # 美术给的碎石（art/cockpit/）
 		var t: Texture2D = cockpit.art(n)
@@ -171,6 +183,8 @@ func play(r: Node, st: Dictionary) -> String:
 	_hull = cockpit.far_hull() if _far else cockpit.hull()
 	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
 	_x1 = float(int(_hull.get("x0", 80)) + tops.size())
+	if _far:
+		_warn = WARN_OFF + (_nose() + 2.0) / _rock_v       # 碎石进画面以后飞多久到船头 + 进画面前的预告
 	# 波次：真实时长按 sec / 40 缩放；自动玩只播两波（第一波等拉远差不多了再来）
 	if _auto and not real:
 		var t0 := 1.3 if _far else 0.8
@@ -196,7 +210,11 @@ func play(r: Node, st: Dictionary) -> String:
 		_free_wave(w)
 	if is_instance_valid(_air):
 		_air.queue_free()
-	print("COCKPIT debris_steer %s: bumps=%d grazes=%d waves=%d time=%.1fs" % [str(st.get("id", "")), bumps, grazes, waves_n, _t])
+	var lead := 0.0
+	for v in _lead:
+		lead += float(v) / float(_lead.size())
+	print("COCKPIT debris_steer %s: bumps=%d grazes=%d waves=%d time=%.1fs ship_x=%d nose=%d lead=%.2fs" % [str(st.get("id", "")), bumps,
+		grazes, waves_n, _t, int(_ship_cx), int(_nose()), lead])
 	return ""
 
 
@@ -217,7 +235,7 @@ func _build() -> void:
 	_hint.add_theme_constant_override("shadow_offset_y", 1)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.size = Vector2(480, 16)
-	_hint.position = Vector2(0, 246)            # 船身下沿往下挪满（206 + 28）以后也碰不到
+	_hint.position = Vector2(_ship_cx - 240.0, 246)   # 在船下面（船身下沿往下挪满（206 + 28）以后也碰不到）
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint.modulate.a = 0.0
 	add_child(_hint)
@@ -344,10 +362,10 @@ func _wave_lane(lane: int) -> void:
 	# 碎石中心：主船身上沿 / 下沿往里 LANE_IN（碎石特别大时往外让一点，保证挪满 _shift 一定躲得开）
 	var inset := minf(LANE_IN, _shift - sz.y / 2.0 - 4.0)
 	var y := roundf(top + inset if lane < 0 else bot - inset)
-	# 碎石右边沿在 WARN 秒后碰到这条道上船身最左边那一列
+	# 碎石右边沿在 _warn 秒后碰到这条道上船身最左边那一列
 	var cx := _front_x(y - sz.y / 2.0 + 2.0, y + sz.y / 2.0 - 2.0)
 	var w := _new_wave(-float(lane) * _shift, "one")
-	_add_rock(w, tex, cx - sz.x / 2.0 - _rock_v * WARN, y, true, _rng.randi_range(1, 2))
+	_add_rock(w, tex, cx - sz.x / 2.0 - _rock_v * _warn, y, true, _rng.randi_range(1, 2))
 	_beep(y)
 
 
@@ -357,13 +375,7 @@ func _wave_gap(g: float, big: bool) -> void:
 	var top := float(_hull.get("T", 100)) + safe - GAP_M          # 缝的上沿 / 下沿（屏幕 y）
 	var bot := float(_hull.get("B", 206)) + safe + GAP_M
 	var w := _new_wave(safe, "final" if big else "gap")
-	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
-	var nose := float(int(_hull.get("x0", 80)))
-	for i in tops.size():
-		if tops[i] >= 0:
-			nose += float(i)
-			break
-	var x_hit := nose - _rock_v * WARN                             # 墙的右沿 WARN 秒后到机头
+	var x_hit := _nose() - _rock_v * _warn                         # 墙的右沿 _warn 秒后到机头
 	# 往上：第一块的碰撞下沿正好是缝的上沿，再一块块往上摞到屏幕顶（燃料栏下面）
 	var y := top
 	var first := true
@@ -393,7 +405,7 @@ func _wave_gap(g: float, big: bool) -> void:
 
 func _new_wave(safe: float, kind: String) -> Dictionary:
 	waves_n += 1
-	var w := {"safe": safe, "t0": _t, "at": _t + WARN, "rocks": [], "bumped": false, "kind": kind, "last": false, "out": false}
+	var w := {"safe": safe, "t0": _t, "at": _t + _warn, "rocks": [], "bumped": false, "kind": kind, "last": false, "out": false}
 	_waves.append(w)
 	return w
 
@@ -427,10 +439,25 @@ func _add_rock(w: Dictionary, tex: Texture2D, x: float, y: float, key: bool, bit
 	(w["rocks"] as Array).append(r)
 
 
-## 方位声：碎石在船中线上面音高高、下面低
+## 方位声：碎石在船中线上面音高高、下面低（船上的仪器响：声像在船那儿）
 func _beep(y: float) -> void:
 	var mid := (float(_hull.get("T", 100)) + float(_hull.get("B", 206))) / 2.0
-	_play("nav_beep", -14.0, 1.25 if y < mid else 0.85)
+	_play("nav_beep", -14.0, 1.25 if y < mid else 0.85, _pan(_ship_cx))
+
+
+## 屏幕 x → 声像（和 _play 的摆法对上：屏幕中间 0，往右 320 像素 = 1）
+static func _pan(x: float) -> float:
+	return clampf((x - 240.0) / 320.0, -1.0, 1.0)
+
+
+## 机头（船身最左那一列）的屏幕 x
+func _nose() -> float:
+	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
+	var nose := float(int(_hull.get("x0", 80)))
+	for i in tops.size():
+		if tops[i] >= 0:
+			return nose + float(i)
+	return nose
 
 
 ## 这条道（屏幕 y0..y1，船没挪的时候）上船身最左边那一列的屏幕 x
@@ -484,6 +511,7 @@ func _update_rock(w: Dictionary, r: Dictionary, delta: float) -> void:
 		r["state"] = "fly"
 		st = "fly"
 		if r["key"]:
+			_lead.append(float(w["at"]) - _t)
 			_play("debris_pass_l", -12.0 if w["kind"] == "one" else -10.0, 1.0, -0.7)
 	spr.visible = st != "warn"
 	spr.position = Vector2(roundf(x), roundf(y))
@@ -504,7 +532,7 @@ func _update_rock(w: Dictionary, r: Dictionary, delta: float) -> void:
 			if not r["passed"] and rr.position.x > _x1:
 				r["passed"] = true                       # 擦过去了：声音往右走
 				if r["key"]:
-					_play("debris_pass_r", -16.0, 1.0, 0.6)
+					_play("debris_pass_r", -16.0, 1.0, _pan(_x1) + 0.27)   # 船尾再往右一点（船在中间时 = 0.6）
 	elif st == "hit":
 		r["hit_t"] = float(r["hit_t"]) + delta
 		r["vy"] = float(r["vy"]) * 0.97
@@ -543,7 +571,7 @@ func _bump(w: Dictionary, r: Dictionary) -> void:
 	bumps += 1
 	level._shake = 0.35
 	level._shake_amp = 2.0
-	_play("debris_bump", -4.0)
+	_play("debris_bump", -4.0, 1.0, _pan(_ship_cx))
 	if _fuel_per > 0 and _fuel_left > 0 and StoryState.fuel_on():
 		var n := mini(_fuel_per, _fuel_left)
 		_fuel_left -= n
@@ -566,7 +594,7 @@ func _graze(rr: Rect2, _c: float) -> void:
 	var g: Node2D = cockpit.far_glow if _far and cockpit.far_glow != null else cockpit.glow
 	if g != null:
 		g.strength = 1.0
-	_play("ship_whoosh", -9.0, 1.35)
+	_play("ship_whoosh", -9.0, 1.35, _pan(rr.get_center().x))
 	var mid: float = (float(_hull.get("T", 100)) + float(_hull.get("B", 206))) / 2.0 + float(cockpit.ship_y())
 	var above := rr.get_center().y < mid
 	var p := Vector2(rr.get_center().x, rr.end.y + 1.0 if above else rr.position.y - 1.0)
@@ -589,8 +617,8 @@ func _breakout() -> void:
 	var g: Node2D = cockpit.far_glow if _far and cockpit.far_glow != null else cockpit.glow
 	if g != null:
 		g.strength = 1.0
-	_play("ship_whoosh", -5.0, 0.8)
-	_play("engine_boost", -12.0)
+	_play("ship_whoosh", -5.0, 0.8, _pan(_ship_cx))
+	_play("engine_boost", -12.0, 1.0, _pan(_ship_cx))
 	level._shake = 0.3
 	level._shake_amp = 1.0
 	_hint_out()

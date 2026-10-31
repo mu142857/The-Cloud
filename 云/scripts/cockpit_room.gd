@@ -60,7 +60,8 @@ extends Node2D
 ##     1）外壳 cockpit_front.png 在剖面上 4 档淡入（FAR_SHELL 秒，像出了舱门）；
 ##     2）FAR_ZOOM 秒里大小从 1 缓到 k（smootherstep：起步缓、停得缓），每一刻取相邻两档图交叉淡入：
 ##        小的那张垫在下面先 4 档淡入、大的那张盖在上面再 4 档淡出（任何一刻船身都是实的，不透出背景，也没有糊图）；
-##        每档都绕同一个点缩（_far_pivot：x 在屏幕中间，y 让远景船的主船身中线落在 FAR_CY），位置取整。
+##        每档都绕同一个点缩（_far_pivot：x 默认在屏幕中间、far_out 给了 cx 就让远景船停在 cx（躲碎石：屏幕右边约 73%），
+##        y 让远景船的主船身中线落在 FAR_CY），位置取整。
 ##     3）同时背景的横向卷动慢下来（近的、快的层慢得多，最多慢 FAR_SKY）：镜头往后退了，景物显得远。
 ##   远景时：室内、物件、晨都藏起来（晨在船外看不见），只剩远景船；船上下挪照旧是镜头反向偏移（_out 跟着世界走）。
 ##   远景船也有反重力泛光（far_glow，set_from_texture 远景那档图；reach_scale 1）。far_hull()：远景船的轮廓（躲碎石的碰撞）。
@@ -1090,12 +1091,15 @@ static func _far_step(k: float) -> int:
 	return best
 
 
-## 拉远到 k 倍（几秒；默认 FAR_SHELL + FAR_ZOOM）
-func far_out(k: float, sec := FAR_SHELL + FAR_ZOOM) -> void:
+## 拉远到 k 倍（几秒；默认 FAR_SHELL + FAR_ZOOM）。cx = 远景船停稳时图的中线在屏幕上的 x（默认 -1 = 留在屏幕中间）：
+## 缩小时同时往那边平移（绕同一个 pivot 缩，走同一条 smootherstep，拉回倒着走回来；躲碎石用它把船挪到右边、前面留出提前量）
+func far_out(k: float, sec := FAR_SHELL + FAR_ZOOM, cx := -1.0) -> void:
 	far_k = float(_far_step(k)) / 100.0
 	var hl := hull()
 	var mid := (float(hl["T"]) + float(hl["B"])) / 2.0
-	_far_pivot = Vector2(img_rect.position.x + img_rect.size.x / 2.0, (FAR_CY - far_k * mid) / (1.0 - far_k))
+	var c0 := img_rect.position.x + img_rect.size.x / 2.0
+	var px := c0 if cx < 0.0 else (cx - far_k * c0) / (1.0 - far_k)
+	_far_pivot = Vector2(px, (FAR_CY - far_k * mid) / (1.0 - far_k))
 	_far_hull = {}
 	_far_dur = sec
 	_far_go = 1.0

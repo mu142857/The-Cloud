@@ -1,5 +1,5 @@
 {
- "_note": "tools/river_underwater_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。0..690 是作者原来的水底（art/underwater 原图 + scripts/river_uw_fx.gd 照 underwater_test.tscn 搭的动效），690..1360 是泡在水底的半塌石头仓库。origin 让入口正好在旧街仓库入口（1066）的正下方，下水是竖直平移。",
+ "_note": "tools/river_underwater_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。0..690 是作者原来的水底（art/underwater 原图 + scripts/river_uw_fx.gd 照 underwater_test.tscn 搭的动效），690..1360 是泡在水底的半塌石头仓库。origin 让入口正好在旧街仓库入口（1066）的正下方；下水 / 上水是渐黑渐亮（story_runner._dive_fade）。仓库里的家具、铁器、绳、纸用 tools/uw_props.py 的材质画法画（10-30 重画）。",
  "size": [
   1360,
   270
@@ -697,9 +697,9 @@
    }
   },
   "warehouse_inner_door": {
-   "x": 1086,
+   "x": 1060,
    "y": 164,
-   "w": 28,
+   "w": 54,
    "h": 63,
    "frames": 2,
    "z": -2,

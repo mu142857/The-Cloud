@@ -169,6 +169,7 @@ var _item_show: TextureRect          # show_item 举着的那件
 var _item_show_until_say := false
 var missing_sfx := {}
 var _family: Array = []              # 正在响的音乐盒 / 留声机音效
+var _sfx_t := {}                     # 音效名 → 上次放的时刻（毫秒）：下水转场不和剧本里刚放的入水声叠
 var step_i := -1                     # 正在播的 scene 的第几步（开发者面板、卡死检测用）
 var step_t := 0.0                    # 这一步播了多久
 var _enter_scene := false            # 这段剧情是走进 trigger:"enter" 的点触发的（不许推晨走）
@@ -1264,6 +1265,7 @@ func _sfx(st: Dictionary) -> void:
 	var fam := _sfx_family(name)
 	if fam:
 		fade_music_family()
+	_sfx_t[name] = Time.get_ticks_msec()
 	var a := AudioStreamPlayer2D.new()
 	a.stream = load(p)
 	a.bus = "SFX"
@@ -3222,7 +3224,12 @@ func _stage_fade(st: Dictionary, room: String, x: float, arrive: float) -> bool:
 			await _wait(0.55)
 			return true
 		"pan_up", "pan_down":
-			await _pan_to(room, x, with, st)
+			var ts: Node2D = world.stage(room)
+			var fs2: Node2D = world.stage(from)
+			if (ts != null and ts.env == "underwater") or (fs2 != null and fs2.env == "underwater"):
+				await _dive_fade(room, x, with, st, ts != null and ts.env == "underwater")
+			else:
+				await _pan_to(room, x, with, st)
 			return true
 		"walk_fade":
 			await _walk_fade(room, x, with, st, arrive)
@@ -3249,19 +3256,13 @@ func _fade_people(on: bool, sec: float, with: Array) -> void:
 	await tw.finished
 
 
-## 竖直平移：晨（和同行的）走进楼梯口 / 水里淡掉 → 镜头 1.2 秒竖直移到上 / 下面的房间（两个房间同时显示）→ 出来
+## 竖直平移：晨（和同行的）走进楼梯口淡掉 → 镜头 1.2 秒竖直移到上 / 下面的房间（两个房间同时显示）→ 出来
 func _pan_to(room: String, x: float, with: Array, st: Dictionary) -> void:
 	var to_st: Node2D = world.stage(room)
 	world.show_stage(room, true)
 	level.camera_hold_at(level.cam.position)
-	var dive: bool = to_st.env == "underwater" and to_st.origin.y > world.cur_stage().origin.y
-	if dive:
-		await _water_over_people(with)          # 下水：水面线从脚漫到头（水在人前面）
-	else:
-		await _fade_people(false, 0.35, with)
+	await _fade_people(false, 0.35, with)
 	var target := Vector2(to_st.clamp_cam_x(x + chen.facing * 24.0), to_st.cam_y())
-	if dive:
-		_streaks(1.2)                           # 镜头穿过水面：几道亮纹从镜头前往上划过
 	await level.camera_pan(target, 1.2)
 	_teleport(room, x, with, false)
 	_fade_place(st)
@@ -3672,53 +3673,17 @@ func _would_progress_flags(s: String, seen := {}) -> bool:
 
 
 
-## 下水：一块半透明的水从晨（和同行的人）脚下漫到头顶以上，漫完人就看不见了（水在人前面；整像素、4 档透明）
-const DIVE_WATER := Color(0.36, 0.5, 0.58, 0.85)
-
-
-func _water_over_people(with: Array) -> void:
-	var list: Array = [chen]
-	for w in with + follow.keys():
-		var n := npc(str(w))
-		if n != null and not list.has(n) and n.visible:
-			list.append(n)
-	var cover := Node2D.new()
-	cover.z_index = 60
-	level.add_child(cover)
-	var h := {"v": 0.0}
-	cover.draw.connect(func():
-		for n in list:
-			var nd: Node2D = n
-			var top := roundf(nd.position.y - float(h["v"]))
-			cover.draw_rect(Rect2(nd.position.x - 14, top, 28, nd.position.y - top + 2), DIVE_WATER)
-			cover.draw_rect(Rect2(nd.position.x - 14, top, 28, 1), Color(0.75, 0.88, 0.92, 0.9)))
-	var tw := create_tween()
-	tw.tween_method(func(v: float):
-		h["v"] = roundf(v)
-		cover.queue_redraw(), 0.0, 62.0, 0.9).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	await tw.finished
-	for n in list:
-		(n as Node2D).modulate.a = 0.0
-	var tw2 := create_tween()
-	tw2.tween_property(cover, "modulate:a", 0.0, 0.3)
-	tw2.tween_callback(cover.queue_free)
-
-
-## 镜头穿过水面：几道 1 像素的亮纹从画面下面往上划过（屏幕层，不跟镜头）
-func _streaks(sec: float) -> void:
-	var cl := CanvasLayer.new()
-	cl.layer = 5
-	level.add_child(cl)
-	var n := Node2D.new()
-	cl.add_child(n)
-	var t := {"k": 0.0}
-	n.draw.connect(func():
-		for i in 4:
-			var y := roundf(290.0 - (float(t["k"]) * 1.4 - i * 0.18) * 330.0)
-			if y > -4.0 and y < 274.0:
-				n.draw_rect(Rect2(40 + i * 97, y, 120 - i * 14, 1), Color(0.8, 0.92, 0.95, 0.55)))
-	var tw := create_tween()
-	tw.tween_method(func(k: float):
-		t["k"] = k
-		n.queue_redraw(), 0.0, 1.0, sec)
-	tw.tween_callback(cl.queue_free)
+## 下水 / 上水（10-30 作者：水面线漫过人 + 镜头平移不好看）：慢慢黑下去（带一声入水 / 出水）→ 黑着换房间 → 慢慢亮起来，
+## 亮起来时已经在水底 / 岸上。和别的黑屏转场一样 0.8 秒黑、0.8 秒亮，正弦缓入缓出；人不淡，跟着画面一起黑
+func _dive_fade(room: String, x: float, with: Array, st: Dictionary, down: bool) -> void:
+	var nm := "splash_in" if down else "splash"
+	if Time.get_ticks_msec() - int(_sfx_t.get(nm, -100000)) > 1500:
+		_sfx({"name": nm, "db": -3.0})             # 剧本下水前自己放过 splash_in 的，不再叠一遍
+	level.camera_hold_at(level.cam.position)
+	await level.fade_to_black(0.8)
+	_teleport(room, x, with, true)
+	_fade_place(st)
+	level.camera_release()
+	level._snap_camera()
+	await _wait(0.2)
+	await level.fade_from_black(0.8)

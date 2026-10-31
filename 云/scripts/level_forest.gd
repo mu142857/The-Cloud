@@ -29,6 +29,8 @@ extends Node2D
 ##   --quality=lite     临时换画质（不存）
 ##   --shot=绝对路径.png --shot_at=秒   这一段开始后多少秒存一张图后退出（默认 1 秒）
 ##   --shots=目录 --start=帧 --every=帧 --count=张   连拍 shot_000.png …
+##   --win=宽x高        窗口改成这么大（不全屏），看不是 16:9 的窗口
+##   --aspect=expand    临时把 stretch aspect 换成 expand（不留黑边，看镜头在房间上下外面能看到什么）
 ##   --autoplay         耳机提示自己跳过、标题界面自己点开始，能走的时候自己往右走（录 GIF / 完整跑一遍用）
 ##   --title_hot        标题界面的「开始」显示成悬停的样子（截图看悬停反馈用）
 ##   --browse=1..5 --browse_out=目录   标题界面 0.5 秒后自己按 F1..F5 进测试场景，2.5 秒后存 目录/scene.png、
@@ -55,6 +57,7 @@ extends Node2D
 ##   --free_check [--free_shots=目录]  （和 --free=forest|river 一起）自测：按进出口把这一章走一遍（河岸 → 妮芙家 → 上楼 → 下楼 → 出门 →
 ##                      市集 → 旧街 → 仓库 → 回旧街 → 南桥 → 回旧街；森林 → 树屋段 → 树屋 → 出来 → 回旧路），每一步打印 FREE_TOUR，
 ##                      一路有没有对话 / 点选 / 目标 / 剧情 hotspot 出来过；给了目录就每一步存一张图。打印 FREE_CHECK 后退出
+##                      --free_tour=market,river_bank 只走这几步（房间名 / up / down / edge:left|right）
 ##   --open_bag=物品id [--bag_line=n]  （和 --beat 一起）跳完以后打开背包、选中这件，描述翻到第 n 行（截背包 / 日记用）
 ## 例：Godot --path . --fixed-fps 60 -- --stage=crash --shot=/tmp/a.png --shot_at=3.6
 ##     Godot --path . --fixed-fps 60 -- --story_auto --story_shots=/tmp/shots
@@ -269,6 +272,7 @@ var _free_pos := ""                # --chen_x=left|mid|right
 var _free_climb := false
 var _free_check := false
 var _free_shots := ""
+var _free_steps: PackedStringArray = []      # --free_tour=a,b,c：只走这几步（不给就走 FREE_TOUR）
 # ---- 章节（scripts/chapter_flow.gd）：forest = 森林（默认）；flight1 = 驾驶舱，同一个关卡、不播开场
 const CHAPTER_GD := preload("res://scripts/chapter_flow.gd")
 var chapter := "forest"
@@ -311,6 +315,10 @@ func _ready() -> void:
 			_shot = a.trim_prefix("--shot=")
 		elif a.begins_with("--shot_at="):
 			_shot_at = float(a.trim_prefix("--shot_at="))
+		elif a == "--aspect=expand":
+			get_window().content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+		elif a.begins_with("--win="):
+			_dbg_win(a.trim_prefix("--win="))
 		elif a.begins_with("--shots="):
 			_shots_dir = a.trim_prefix("--shots=")
 		elif a.begins_with("--start="):
@@ -366,6 +374,8 @@ func _ready() -> void:
 			_free_check = true
 		elif a.begins_with("--free_shots="):
 			_free_shots = a.trim_prefix("--free_shots=")
+		elif a.begins_with("--free_tour="):
+			_free_steps = a.trim_prefix("--free_tour=").split(",")
 		elif a.begins_with("--open_bag="):
 			_dbg_bag = a.trim_prefix("--open_bag=")
 		elif a.begins_with("--bag_line="):
@@ -558,6 +568,7 @@ func _build_ui() -> void:
 		b.color = Color(0.0, 0.0, 0.0, 1.0)
 		b.size = Vector2(480, BAR_H)
 		b.position = Vector2(0, -BAR_H if i == 0 else 270)
+		b.visible = false
 		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		root.add_child(b)
 		_bars.append(b)
@@ -1951,6 +1962,8 @@ func _skip_crash() -> void:
 
 # ======================================================================= 黑边
 func _bars_in(sec: float) -> void:
+	for b in _bars:
+		b.visible = true
 	var tw := _tw()
 	tw.tween_property(_bars[0], "position:y", 0.0, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(_bars[1], "position:y", 270.0 - BAR_H, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -1960,6 +1973,10 @@ func _bars_out(sec: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(_bars[0], "position:y", -float(BAR_H), sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(_bars[1], "position:y", 270.0, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func():
+		if _bars[1].position.y >= 270.0:          # 收到屏幕外了就藏起来（视口比 270 高时不在画面下沿露一条）
+			for b in _bars:
+				b.visible = false)
 
 
 # ======================================================================= 4. 自由走
@@ -2425,6 +2442,7 @@ func _process(delta: float) -> void:
 	_update_hints(delta)
 	var cc := cam.get_screen_center_position()
 	story.world.update(delta, cc)
+	_update_room_mask(cc)
 	story.hotspots.active = state == S.PLAY and not story.busy and not _settings.visible and not _bag.visible
 	story.hotspots.update(delta, chen, cc - Vector2(240, 135), get_global_mouse_position())
 	_update_edge_arrow(cc)
@@ -2498,6 +2516,99 @@ func _update_camera(delta: float) -> void:
 		cam.offset = Vector2(round(_rng.randf_range(-a, a)), round(_rng.randf_range(-a, a)))
 	else:
 		cam.offset = Vector2.ZERO
+
+
+## 多房间章节：正在显示的房间（竖直平移时是两个）上下以外盖黑。房间是上下摞着的（市集在河岸正上方），
+## 窗口比 16:9 高、或者镜头被拉到房间外面时，不能露出别的房间。森林、驾驶舱没有 stage，不盖。
+## 竖直平移时两个房间连着显示，可两张图的接缝（市集桥洞底边直接压在河岸的天上）很硬：接缝那里盖一条
+## 上下渐变的夜色带，镜头像穿过一段夜色；浓淡跟镜头离开两头停的位置多远走，平移开头、结尾不会一下变暗。
+const SEAM_H := 64.0         # 夜色带接缝上下各多高（中间 1/4 全遮）
+const SEAM_IN := 70.0        # 镜头离开停的位置这么远，夜色带才全浓
+var _room_mask: Array[CanvasItem] = []
+
+
+func _update_room_mask(cc: Vector2) -> void:
+	var w: Node2D = story.world if story != null else null
+	var top := INF
+	var bot := -INF
+	var shown: Array[Node2D] = []
+	if w != null and state != S.TITLE:
+		for r in w.stages:
+			var sg: Node2D = w.stages[r]
+			if not sg.is_visible_in_tree():
+				continue
+			shown.append(sg)
+			top = minf(top, sg.origin.y)
+			bot = maxf(bot, sg.origin.y + sg.size.y)
+			if sg._sky_up != null and sg._sky_up.visible:
+				top = minf(top, sg.origin.y + sg._sky_up.position.y)      # 多层小屋往上看补的那片天
+	if not _room_mask.is_empty() and not is_instance_valid(_room_mask[0]):
+		_room_mask.clear()
+	if top == INF:
+		for m in _room_mask:
+			m.visible = false
+		return
+	if _room_mask.is_empty():
+		for i in 2:
+			var m := ColorRect.new()
+			m.name = "RoomMask%d" % i
+			m.color = Color.BLACK
+			m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			m.z_as_relative = false
+			m.z_index = 4000
+			m.size = Vector2(4000, 2000)
+			w.add_child(m)
+			_room_mask.append(m)
+		var band := TextureRect.new()
+		band.name = "RoomSeam"
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.z_as_relative = false
+		band.z_index = 3999
+		band.stretch_mode = TextureRect.STRETCH_SCALE
+		band.size = Vector2(4000, SEAM_H * 2.0)
+		w.add_child(band)
+		_room_mask.append(band)
+	_room_mask[0].position = Vector2(roundf(cc.x) - 2000.0, top - 2000.0)
+	_room_mask[1].position = Vector2(roundf(cc.x) - 2000.0, bot)
+	_room_mask[0].visible = true
+	_room_mask[1].visible = true
+	_update_seam(_room_mask[2] as TextureRect, shown, cc)
+
+
+## 两个上下相接（上面那个的底 = 下面那个的顶）的房间同时显示：接缝盖夜色带
+func _update_seam(band: TextureRect, shown: Array[Node2D], cc: Vector2) -> void:
+	var up: Node2D = null
+	var dn: Node2D = null
+	for a in shown:
+		for b in shown:
+			if a != b and not a.is_house and not b.is_house and absf(a.origin.y + a.size.y - b.origin.y) < 1.0 \
+					and a.origin.x < b.origin.x + b.size.x and b.origin.x < a.origin.x + a.size.x:
+				up = a
+				dn = b
+	if up == null:
+		band.visible = false
+		return
+	var k := clampf(minf(absf(cc.y - up.cam_y()), absf(cc.y - dn.cam_y())) / SEAM_IN, 0.0, 1.0)
+	band.visible = k > 0.0
+	if not band.visible:
+		return
+	if band.get_meta("pair", "") != str(up.id) + ">" + str(dn.id):
+		band.set_meta("pair", str(up.id) + ">" + str(dn.id))
+		var c0 := Color(str((up.cfg.get("bg", ["#03060f", "#0a1424"]) as Array).back()))
+		var c1 := Color(str((dn.cfg.get("bg", ["#0b1220"]) as Array).front()))
+		var c := c0.lerp(c1, 0.5)
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.375, 0.625, 1.0])
+		g.colors = PackedColorArray([Color(c, 0.0), c, c, Color(c, 0.0)])
+		var gt := GradientTexture2D.new()
+		gt.gradient = g
+		gt.width = 1
+		gt.height = 64
+		gt.fill_from = Vector2(0, 0)
+		gt.fill_to = Vector2(0, 1)
+		band.texture = gt
+	band.position = Vector2(roundf(cc.x) - 2000.0, dn.origin.y - SEAM_H)
+	band.modulate.a = smoothstep(0.0, 1.0, k)
 
 
 ## 镜头不声不响地停一下（远处有东西走过的时候）
@@ -3985,8 +4096,8 @@ func _free_tour() -> void:
 		DirAccess.make_dir_recursive_absolute(_free_shots)
 	var seen: Array = []
 	var ok := 0
-	var steps: Array = FREE_TOUR.get(chapter, [])
-	_free_shot(0, "start")
+	var steps: Array = Array(_free_steps) if not _free_steps.is_empty() else FREE_TOUR.get(chapter, [])
+	await _free_shot(0, "start")
 	for i in steps.size():
 		var step := str(steps[i])
 		var room0: String = story.world.room
@@ -4009,7 +4120,7 @@ func _free_tour() -> void:
 			ok += 1
 		print("FREE_TOUR %d %s: %s（%s）room=%s 层=%d x=%d" % [i + 1, step, "ok" if good else "FAILED", how, story.world.room,
 			sg2.chen_lv if sg2 != null else -1, chen.position.x])
-		_free_shot(i + 1, step.replace(":", "_"))
+		await _free_shot(i + 1, step.replace(":", "_"))
 	print("FREE_CHECK %s 走了 %d / %d 步 ok，一路出现过: %s" % [chapter, ok, steps.size(), "、".join(seen) if not seen.is_empty() else "无"])
 	get_tree().quit()
 
@@ -4216,6 +4327,17 @@ static func _pixel_cross(n: int, c: Color) -> ImageTexture:
 		img.set_pixel(i, i, c)
 		img.set_pixel(n - 1 - i, i, c)
 	return ImageTexture.create_from_image(img)
+
+
+## --win=宽x高：退出全屏（macOS 退全屏有动画，等一下再改大小）
+func _dbg_win(v: String) -> void:
+	var wh := v.split("x")
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	for i in 3:
+		await get_tree().create_timer(0.4).timeout
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		DisplayServer.window_set_size(Vector2i(int(wh[0]), int(wh[1])))
+	print("WIN size=%s visible=%s aspect=%d" % [get_window().size, get_viewport().get_visible_rect().size, get_window().content_scale_aspect])
 
 
 func _save(path: String) -> void:
