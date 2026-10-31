@@ -1555,6 +1555,7 @@ def market_layers():
     O = {}
     O["market_baskets"] = baskets()
     O["market_tools"] = tools_strip()
+    O["market_sign_down"] = sign_down(np.array(Image.open(OUT / "market" / "main.png").convert("RGBA")))   # 主图是作者手改的，只读
     O["market_breather_stall"] = breather()
     return L, O
 
@@ -1675,6 +1676,68 @@ def baskets():
                     cv.px(x0 + 2 + k * 3, y0 - 1, STONE[3])
         img[:, f * w:(f + 1) * w] = cv.a
     return img
+
+
+SIGN_X, SIGN_Y, SIGN_W, SIGN_H = 1357, 161, 21, 40    # 回河岸路标（market_sign_down）在房间里的位置
+
+
+def sign_down(main=None):
+    """market_sign_down：去河岸那个口子（portal x=1351，往下的窄台阶）边上的路标，1 帧 21×40。
+    10-31 作者：「这个回河岸什么标志也没有」。晨站在 1351、左边 1332 是路灯、右边 1372 起是前景栏杆，
+    所以立柱立在 1362（晨身后右边），顶上一根铁臂往右挑出去，牌子挂在栏杆上方。
+    牌子：蓝灰铁牌，上面一个往下的箭头，箭头下面一道水波，不写字。光从右上（月亮）：上沿、右沿亮一档；
+    左沿朝着路灯，带一点点暖。石柱脚踩在桥面上，脚左边桥面压暗一格（影子）。所有细线都是边相连，没有只碰角的。
+    main = 市集主图（作者手改的，只读）：取脚下那一行桥面的颜色压暗当影子。"""
+    cv = Cv(SIGN_W, SIGN_H)
+    ox, oy = SIGN_X, SIGN_Y
+    P = lambda x, y, c: cv.px(x - ox, y - oy, c)
+    R = lambda x0, y0, x1, y1, c: cv.rect(x0 - ox, y0 - oy, x1 - ox, y1 - oy, c)
+    pal = BM.STONE
+    # 石柱：3 宽，左暗、右亮（和 lamp_post 一个做法），顶上一块石帽，脚下一块石座
+    R(1361, 163, 1364, 196, pal[2])
+    R(1361, 163, 1362, 196, pal[1])
+    R(1363, 163, 1364, 196, pal[4])
+    R(1360, 161, 1365, 163, pal[2])
+    R(1360, 161, 1365, 162, pal[4])
+    R(1364, 161, 1365, 163, pal[4])
+    R(1360, 196, 1365, 200, pal[2])
+    R(1360, 196, 1365, 197, pal[4])
+    R(1364, 196, 1365, 200, pal[4])
+    R(1360, 197, 1361, 200, pal[1])
+    # 铁臂：从柱子往右挑出去，两行（上亮下暗），末端往下弯一格
+    R(1364, 165, 1378, 166, IRON_LIT)
+    R(1364, 166, 1378, 167, IRON)
+    R(1377, 167, 1378, 168, IRON)
+    # 两根短吊链（竖的，2 格）
+    for cx in (1367, 1375):
+        R(cx, 167, cx + 1, 169, IRON_LIT)
+    # 牌子：13×13，边框上、右亮一档，左、下暗一档（不是黑边）；左沿带一点路灯的暖
+    face, sym = BM.B(.17, .03, 240), BM.B(.44, .035, 222)
+    lit, dim = BM.B(.29, .03, 232), BM.B(.12, .025, 250)
+    x0, y0, n = 1365, 169, 13
+    R(x0, y0, x0 + n, y0 + n, face)
+    R(x0, y0 + n - 1, x0 + n, y0 + n, dim)
+    R(x0, y0, x0 + 1, y0 + n, dim)
+    R(x0, y0, x0 + n, y0 + 1, lit)
+    R(x0, y0, x0 + 3, y0 + 1, mix(lit, BM.WARM[2], 0.3))   # 左上角三格接到一点路灯的暖光（灯在左边 1332）
+    R(x0 + n - 1, y0, x0 + n, y0 + n, lit)
+    cx = x0 + 6
+    R(cx, y0 + 2, cx + 1, y0 + 5, sym)                 # 箭杆
+    R(cx - 2, y0 + 5, cx + 3, y0 + 6, sym)             # 箭头：5、3、1 三行实心
+    R(cx - 1, y0 + 6, cx + 2, y0 + 7, sym)
+    R(cx, y0 + 7, cx + 1, y0 + 8, sym)
+    # 水波：一道起伏两行的波线；每次换行的那一列上下两格都画上（边相连，不是只碰角）
+    off = [1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1]
+    for i, o in enumerate(off):
+        P(x0 + 1 + i, y0 + 9 + o, sym)
+        if i and off[i - 1] != o:
+            P(x0 + 1 + i, y0 + 9 + off[i - 1], sym)
+    # 脚下的影子：光从右上来，影子落在石座左边的桥面上（取主图那一行的颜色压暗）
+    if main is not None:
+        for x in range(1357, 1360):
+            c = main[200, x, :3]
+            P(x, 200, mix(c, DARK, 0.35))
+    return cv.a
 
 
 def tools_strip():
@@ -2254,6 +2317,7 @@ def market_json(old):
         "market_tools": {"x": 300, "y": STALL_ROD, "w": 76, "h": 26, "frames": 4, "fps": 4, "states": {"default": [0, 3]}},
         "market_breather_stall": {"x": 489, "y": 171, "w": 30, "h": 22, "frames": 2,
                                   "states": {"default": 0, "tank_on_counter": 1}},
+        "market_sign_down": {"x": SIGN_X, "y": SIGN_Y, "w": SIGN_W, "h": SIGN_H, "frames": 1, "states": {"default": 0}},
     }
     j["walk"] = old.get("walk", [10, 1380])
     # 10-31 作者：戴帽子提篮子的路人（vendor）先不出场，美术姐画了新的再加回来：

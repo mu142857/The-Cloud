@@ -103,8 +103,10 @@ const FOLLOW_GAP := 34.0
 const HEAD := {"chen": 50.0, "deer": 52.0, "miluo": 50.0}
 const ANIM_MAP := {
 	"chen": {"look": "idle_eye", "pickup": "pickup", "idle": "idle", "getup": "getup", "lie": "lie"},
-	"deer": {"graze": "graze_down", "graze_down": "graze_down", "graze_up": "graze_up", "look": "look", "ear": "ear", "idle": "idle"},
-	"miluo": {"idle": "idle"},
+	# 终章尾声的新动作（鹿 lean、弥洛 read / flip / check / screw）还没画，先指到已有的那段（占位，等美术组补画后改成真名）
+	"deer": {"graze": "graze_down", "graze_down": "graze_down", "graze_up": "graze_up", "look": "look", "ear": "ear", "idle": "idle",
+		"lean": "graze_down"},
+	"miluo": {"idle": "idle", "read": "idle", "flip": "idle", "check": "idle", "screw": "idle"},
 }
 const GUIDE_NEAR := 60.0
 const NUDGE_AFTER := 20.0
@@ -1503,6 +1505,7 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		fade_music_family()                 # 出了树屋：留声机 / 音乐盒的长声淡掉
 	var old_room: String = world.room
 	world.set_room(room, ff)
+	_place_residents(room)
 	var tlv := _arrive_lv if _lv_stage(room) != null else -1
 	x = _clear_x(chen, x, room, tlv)          # 人和人不叠：落脚点上站着人就挪开一点
 	_place(chen, x, room)
@@ -1531,6 +1534,33 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 	sync_npc_vis(snap)
 	if _overlap_log and not ff:
 		print("TELEPORT %s %s | %s" % [_cur_scene, room, _bodies_str()])
+
+
+## room.json 的 "residents"：住在这个房间里、一直待在那儿的人（10-31 楼梯间柜台后面的水母）。
+## [{"who": 角色, "at": marker, "z": 前后（−2 = 压到物件后面）, "face": 1 / −1}]。进这个房间时她还不在这儿，就放好、显示出来——
+## 不用剧本 show，所以跳节拍、F8 传送、自由探索进来都一样在；之后人留在这个房间，晨不在时照常藏着（sync_npc_vis）。
+func _place_residents(room: String) -> void:
+	var sg: Node2D = world.stage(room)
+	if sg == null:
+		return
+	for rd in sg.cfg.get("residents", []):
+		if not rd is Dictionary or str(rd.get("who", "")) == "":
+			continue
+		var who := str(rd["who"])
+		_npc_names[who] = true
+		var n := npc(who)
+		if n == null or not npcs.values().has(n) or (n.visible and str(_npc_room.get(n.name, "")) == room):
+			continue
+		var r: Dictionary = world.resolve(rd.get("at", 0))
+		if not r["ok"]:
+			_warn_once("residents：找不到 " + str(rd.get("at")))
+			continue
+		_place(n, float(r["x"]), room)
+		if rd.has("z"):
+			n.set_meta("pose_z", int(rd["z"]))
+			n.z_index = int(rd["z"])
+		n._set_facing(int(rd.get("face", 1)))
+		n.visible = true
 
 
 # ----------------------------------------------------------------------- 鹿带路 / 点选 / 结束
@@ -2716,6 +2746,20 @@ func _validate_cockpit(id: String, kind: String, st: Dictionary, refs: Dictionar
 		refs[str(sc[k])] = true
 		if not scenes.has(str(sc[k])):
 			out.append("scene %s：keepsake_choice 的 %s → scene %s 不存在" % [id, k, sc[k]])
+	# 多选版（终章燃料柜）：look_scenes / keep_scenes 也是 scene 名（当台词播，不跳转）
+	for key in ["look_scenes", "keep_scenes"]:
+		var ls = st.get(key, {})
+		if not ls is Dictionary:
+			out.append("scene %s：keepsake_choice 的 %s 要是 {物品: scene}" % [id, key])
+			continue
+		for k in ls:
+			refs[str(ls[k])] = true
+			if not scenes.has(str(ls[k])):
+				out.append("scene %s：keepsake_choice 的 %s %s → scene %s 不存在" % [id, key, k, ls[k]])
+	if bool(st.get("multi", false)) and str(st.get("then", "")) != "":
+		refs[str(st["then"])] = true
+		if not scenes.has(str(st["then"])):
+			out.append("scene %s：keepsake_choice 的 then → scene %s 不存在" % [id, st["then"]])
 	var groups: Array = []
 	var look = st.get("look", {})
 	if look is Dictionary:
@@ -2765,6 +2809,8 @@ func _validate_fuel() -> Array[String]:
 		for st in scenes[id]:
 			if not st is Dictionary or str(st.get("do", "")) != "keepsake_choice":
 				continue
+			if bool(st.get("multi", false)):
+				continue                       # 多选版：界面自己按 keepsake_burn 加燃料、一直放到够（不用「放一件就补得上」）
 			var sc: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}
 			for it in st.get("items", []):
 				var gain := 0

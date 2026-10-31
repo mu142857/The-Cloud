@@ -20,7 +20,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-ROOMS = ["art/river_city/river_bank", "art/river_home", "art/river_city/market", "art/river_city/oldstreet",
+ROOMS = ["art/river_city/river_bank", "art/river_home", "art/river_city/market", "art/river_city/stairwell", "art/river_city/oldstreet",
          "art/river_city/warehouse", "art/river_city/southbridge"]
 
 

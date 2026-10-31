@@ -374,9 +374,9 @@
  "portals": [
   {
    "edge": "left",
-   "to": "market",
-   "at": "market_to_oldstreet",
-   "kind": "walk_fade"
+   "to": "stairwell",
+   "at": "stairwell_down",
+   "kind": "pan_up"
   },
   {
    "edge": "right",

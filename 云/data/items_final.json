@@ -1,0 +1,42 @@
+{
+	"_comment": "第三章（终章，data/story_final.json）才有的物品：日记首页（烧日记时拆下来，四个结局都保留，不进燃料列表）、借来的纸（日记烧掉以后结局里记事用）。格式同 items_later.json；chapter_flow.gd 的 final.items_extra 注册。图标还没画（缺图引擎画色块占位）。",
+	"items": [
+		{
+			"id": "journal_first_page",
+			"name": {
+				"en": "First Page of the Journal",
+				"zh": "日记首页"
+			},
+			"rarity": "unique",
+			"burn": 0,
+			"icon": "res://art/final_story/icon_first_page.png",
+			"personal": true,
+			"category": "quest",
+			"story_keep": true,
+			"desc": {
+				"en": "",
+				"zh": "从日记上拆下来的第一页，折好了，和最初那张画一起放在外套内侧。纸上仍只写着：“我一定要找到大象，因为”，后面留着大片空白。",
+				"added": true
+			},
+			"added": true
+		},
+		{
+			"id": "borrowed_paper",
+			"name": {
+				"en": "Borrowed Paper",
+				"zh": "借来的纸"
+			},
+			"rarity": "common",
+			"burn": 0,
+			"icon": "res://art/final_story/icon_borrowed_paper.png",
+			"personal": true,
+			"category": "quest",
+			"desc": {
+				"en": "",
+				"zh": "日记烧掉以后，向居民借来的几张纸。今天的事先记在这上面。",
+				"added": true
+			},
+			"added": true
+		}
+	]
+}

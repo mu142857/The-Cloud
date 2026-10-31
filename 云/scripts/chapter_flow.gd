@@ -4,11 +4,14 @@ extends RefCounted
 ##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：往前一冲（cockpit_dash）、淡到黑、
 ##            「第一章 完」卡（end_card：go() 在黑屏上淡入、停一会儿，载入下一章以后再淡掉），接 river。
 ##   river    河流篇「妮芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
-##            end_chapter：驾驶舱里写完日记，「未完待续」卡（终章接上以后改 next = final）。
+##            end_chapter：驾驶舱里写完日记，「第二章 完」卡，接 final。
+##   final    终章「还剩下什么 · 四个结局 · 尾声」（data/story_final.json，入口 start_final，从驾驶舱开始；多房间，计划见 docs/第三章计划.md）。
+##            end_chapter（母星尾声最后）：现在没有下一章，出「未完待续」卡（全剧终卡以后做）。
 ## 带过去的东西：StoryState.to_dict()（flags、日记、物件状态、用过的点、背包）存进 Engine 的 meta CARRY_META，
 ##   新章节 _ready 里 from_dict 恢复；这份一直留着（F8「重开本章」/ 跳节拍从同一个起点重来），回标题时清掉。
 ## 直接进 flight1（--chapter=flight1、F8「跳到飞行一」）又没有带过来的状态：用 SEED（森林自动玩到起飞时的 flags 和背包）。
 ## 直接进 river：SEED + SEED_FLIGHT1（flight1 自动玩完：放了蓝色石头）；--river_seed=card / F8 切成「烧了通勤卡」那版（原文 119 摸衣袋两个分支）。
+## 直接进 final：再加 SEED_RIVER（河流篇走完）；--river_seed=card 同样切成「烧了通勤卡」那版。
 
 const CHAPTER_META := "the_cloud_chapter"
 const CARRY_META := "the_cloud_carry"
@@ -20,9 +23,14 @@ const CHAPTERS := {
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
 		"items_extra": ["res://data/items_later.json"],
 		"end_card": {"zh": "第一章　完", "en": "End of Chapter One"}},
-	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "",
+	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "final",
 		"carry_flags": ["burned_blue_stone", "burned_commute_card"], "hud_fuel": false,
-		"items_extra": ["res://data/items_later.json"]},
+		"items_extra": ["res://data/items_later.json"],
+		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two"}},
+	# carry_flags：飞行一烧了哪件（燃料柜空的那格）；森林的 returned_all / returned_any / saw_rock（尾声鹿、弥洛的分支）
+	"final": {"story": "res://data/story_final.json", "start": "start_final", "room": "cockpit", "next": "",
+		"carry_flags": ["burned_blue_stone", "burned_commute_card", "returned_all", "returned_any", "saw_rock", "musicbox_fixed"],
+		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"]},
 }
 
 ## 森林自动玩（--story_auto）到 launched 时的样子（10-29）；剧本改了以后这里不一定完全一样，只是直接进 flight1 时的起点
@@ -45,6 +53,19 @@ const SEED_FLIGHT1 := {
 	"flags": ["flight1_started", "flight1_leak", "flight1_leak_wait", "flight1_leak_fixed", "flight1_reroute", "flight1_fuel_low",
 		"burned_blue_stone", "flight1_burned", "flight1_logged", "flight1_miluo_msg", "flight1_journal", "flight1_landing", "flight1_done"],
 	"burned": "blue_stone",
+}
+
+
+## river 走完（river_done）时多出来的 flags 和物品：10-31 从 story_river.json 的 flag / give / take 静态收出来（河流篇 flag 都是主线必经的），
+## 不是自动玩跑出来的；只是直接进 final 时的起点
+const SEED_RIVER := {
+	"flags": ["river_ashore", "river_met", "river_salvaged", "river_landed", "river_bread", "river_book_drying", "river_peek1", "river_peek2",
+		"river_sat_down", "river_deer_msg", "river_footage_broken", "river_need_head", "river_market", "river_breather", "river_oldstreet",
+		"river_sluice_done", "river_jam", "river_roped", "river_wh_dive", "river_wh_in", "river_back_home", "river_footage_fixed",
+		"river_cup_traced", "river_prints", "river_dock_matched", "river_ship_number", "river_bell", "river_plane_fixed", "river_farewell",
+		"river_done"],
+	"owned": ["biscuits", "waterproof_board", "cup_tracing", "footprint_rubbing", "dock_photo", "copper_bell", "mat_driftwood",
+		"elephant_footage", "river_water"],
 }
 
 
@@ -82,7 +103,7 @@ static func restore(ch: String) -> void:
 	else:
 		var flags: Array = SEED["flags"].duplicate()
 		var owned: Array = SEED["owned"].duplicate()
-		if ch == "river":
+		if ch in ["river", "final"]:
 			var burned := str(SEED_FLIGHT1["burned"])
 			var fl: Array = SEED_FLIGHT1["flags"].duplicate()
 			if "--river_seed=card" in OS.get_cmdline_user_args() or (Engine.has_meta(RIVER_SEED_META) and str(Engine.get_meta(RIVER_SEED_META)) == "card"):
@@ -90,6 +111,9 @@ static func restore(ch: String) -> void:
 				fl[fl.find("burned_blue_stone")] = "burned_commute_card"
 			flags.append_array(fl)
 			owned.erase(burned)
+		if ch == "final":
+			flags.append_array(SEED_RIVER["flags"])
+			owned.append_array(SEED_RIVER["owned"])
 		StoryState.from_dict({"flags": flags, "owned": owned, "journal": SEED["journal"], "props": {}, "used": []})
 		Engine.set_meta(CARRY_META, StoryState.to_dict())
 

@@ -1,0 +1,19 @@
+{
+ "_comment": "水母 = 美术姐画的（原图 jellyfish_480.png，32×32 像素画放大 15 倍）；tools/river_stairwell_art.py --jelly 按格取样还原成 1 倍 jellyfish.png，不重画、不改色。住在楼梯间柜台后面（room.json 的 residents），彩蛋，可以对话，不设 flag。只有一帧：hover = 整只离地悬浮、bob / bob_s = 上下平滑正弦漂浮（只动位置、取整到像素，不换帧）。tint false = 不着色不压暗（她自己会发光）。anchor = 最下面那根触须的底（帧内像素）；head = 对话框离脚底多高。",
+ "frame": [32, 32],
+ "sheet": "jellyfish.png",
+ "anchor": [15, 30],
+ "faces": "right",
+ "ms": 100,
+ "tint": false,
+ "hover": 14,
+ "bob": 3,
+ "bob_s": 3.2,
+ "head": 50,
+ "speed": 20,
+ "color": "#e8c8f0",
+ "anims": {
+  "idle": {"frames": [0], "loop": true}
+ },
+ "alias": {"talk": "idle", "walk": "idle"}
+}

@@ -142,6 +142,7 @@
 		"start_final": [
 			{"do": "fade_to", "room": "cockpit", "at": "cockpit_seat"},
 			{"do": "flag", "set": "final_started"},
+			{"do": "fuel", "have": 200, "need": 200},
 			{"do": "sfx", "name": "engine_steady"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "sfx", "name": "hull_rattle", "pan": 0.6},
@@ -187,7 +188,8 @@
 		],
 		"final_route": [
 			{"say": "chen", "zh": "前面的航道……比记录上乱。", "en": "The route ahead... it's messier than the records said.", "added": true},
-			{"do": "todo_mechanic", "id": "final_route", "spec": "接近云层星的航道比旧记录复杂。碎石带向外扩展，稳定气流只剩几条窄路，玩家需要综合运用声音辨向、避障和修补。正确操作能减少燃料损耗，此前多收集的材料也在这里发挥作用。操作与准备能省下一部分材料，剩余航程仍需要玩家从纪念品中作出取舍。"},
+			{"do": "debris_steer", "id": "final_debris", "plan": "final", "sec": 40, "fuel_per_bump": 10, "fuel_max_loss": 60, "spec": "接近云层星的航道比旧记录复杂。碎石带向外扩展，稳定气流只剩几条窄路，玩家需要综合运用声音辨向、避障和修补。正确操作能减少燃料损耗，此前多收集的材料也在这里发挥作用。操作与准备能省下一部分材料，剩余航程仍需要玩家从纪念品中作出取舍。"},
+			{"do": "fuel", "need": 300},
 			{"say": "chen", "zh": "……还差一段。", "en": "...Still a stretch to go.", "added": true},
 			{"do": "goto", "scene": "final_cabinet"}
 		],
@@ -262,7 +264,6 @@
 			{"do": "goto", "scene": "final_fuel"}
 		],
 		"final_fuel": [
-			{"do": "todo_mechanic", "id": "final_flight", "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）"},
 			{"do": "choice", "options": [{"zh": "先把下一段飞完。", "en": "Just get through the next stretch.", "scene": "final_self_a"}, {"zh": "我再算一次。", "en": "Let me count again.", "scene": "final_self_b"}, {"zh": "这些我还想留着。", "en": "I still want to keep these.", "scene": "final_self_c"}]}
 		],
 		"final_self_a": [
@@ -284,6 +285,7 @@
 			{"narr": {"zh": "燃料不足。纸质物品可用。", "en": "Fuel low. Paper items usable."}, "added": true},
 			{"do": "show_item", "item": "journal"},
 			{"say": "chen", "zh": "……日记也算纸。", "en": "...The journal counts as paper.", "added": true},
+			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）"},
 			{"do": "todo_mechanic", "id": "final_journal_rule", "spec": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
 			{"do": "flag", "set": "final_fuel_done"},
 			{"do": "goto", "scene": "final_approach"}
@@ -523,6 +525,7 @@
 			{"narr": {"zh": "下降航标", "en": "Descent beacon"}, "added": true},
 			{"do": "wait", "sec": 1.0},
 			{"narr": {"zh": "下降仍需更多燃料。", "en": "More fuel needed to descend."}, "added": true},
+			{"do": "fuel", "need": 360},
 			{"do": "show_item", "item": "travel_map"},
 			{"narr": {"zh": "下次一起去看看云层里的大象", "en": "Next time, let's go see the elephant in the clouds together"}},
 			{"do": "wait", "sec": 1.5},
@@ -582,6 +585,7 @@
 		],
 		"final_descend": [
 			{"do": "flag", "set": "final_descend"},
+			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
 			{"do": "sfx", "name": "cloud_part"},
 			{"narr": {"zh": "地面信号恢复。", "en": "Ground signal restored."}, "added": true},
 			{"do": "wait", "sec": 1.0},

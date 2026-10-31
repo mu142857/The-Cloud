@@ -44,6 +44,14 @@ extends Control
 ##   跳节拍（ff）：瞬间完成、0 次、直接回剖面；F8 自测：dev_skip 直接做完（直接回剖面）。
 ## 碎石图：art/cockpit/debris_a..e.png（tools/sky_art.py 生成，13～28 像素，暗色、左上亮边）；debris_f / g（< 8 像素）
 ##   当跟着飞的碎屑，不算碰撞；没有就用飞行测试的石头 / 程序画的占位。
+## 黑窗听航道（终章 final_route，10-31 作者选的方案 A，docs/第三章计划.md 第四节）：剧本 "plan": "final" 换成 PLAN_FINAL——
+##   前半段同上（看得见的碎石），然后 dark_on：进云层，窗外（船外背景 + 碎石）慢慢黑掉，船还亮着；接着几排 dark 墙：
+##   缝只在上 / 中 / 下三条航道里（g = -1 / 0 / +1），碎石看不见、没有划痕预告和 nav_beep，提前 DARK_LEAD 秒就开始找。
+##   靠听：船离安全航道越远，碎石的轰鸣（flight_rumble 循环）越响、气流声越小；挪进那条航道，轰鸣退下去、只剩平稳的气流声。
+##   引路：背包里还有铜铃（copper_bell）→ 铃声（bell_soft）按航道高低定音高（上高下低）隔一会儿响一下；
+##   铜铃没了 → 窗上那条航道的气流线一开始就淡淡亮着。找久了提示变明显：DARK_HINT1 秒还没进航道，铃更响更密、气流线（有铃也）出来；
+##   DARK_HINT2 秒，气流线更亮。撞到：碎石在黑里闪出来（画到黑幕上面）、晃一下、扣燃料（同一套上限），不会输。
+##   最后一排（last）过去 = 穿出云层：黑幕慢慢退掉（云开）。自动玩：PLAN_AUTO_DARK（一块 + 一排黑墙），提前量 DARK_LEAD_AUTO。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：await play(runner, st)。
 
 signal done
@@ -85,10 +93,36 @@ const PLAN_AUTO := [
 	{"t": 0.0, "k": "one", "lane": -1},
 	{"t": 2.7, "k": "gap", "g": 0.0},
 ]
+## 终章（"plan": "final"）：前半段看得见，后半段进云层黑掉、只能听（dark 的 t = 开始找的时刻，碎石 DARK_LEAD 秒后到船头）
+const PLAN_FINAL := [
+	{"t": 2.6, "k": "one", "lane": -1},
+	{"t": 6.4, "k": "one", "lane": 1},
+	{"t": 10.2, "k": "pair", "lane": 1},
+	{"t": 14.6, "k": "gap", "g": 0.5},
+	{"t": 18.6, "k": "dark_on"},
+	{"t": 20.6, "k": "dark", "g": 0.0},
+	{"t": 27.6, "k": "dark", "g": 1.0},
+	{"t": 34.6, "k": "dark", "g": -1.0},
+	{"t": 41.6, "k": "dark", "g": 0.0, "last": true},
+]
+const PLAN_AUTO_DARK := [
+	{"t": 0.0, "k": "one", "lane": -1},
+	{"t": 2.7, "k": "dark_on"},
+	{"t": 3.2, "k": "dark", "g": 1.0, "last": true},
+]
 const FINAL_ROW := 2.4        # 结尾那几排隔多少秒
 const PAIR_DT := 0.9          # pair 两块隔多少秒
+const DARK_LEAD := 5.0        # 黑墙：开始找到碎石到船头多少秒
+const DARK_LEAD_AUTO := 2.5
+const DARK_IN := 2.2          # 黑幕慢慢落下 / 退掉多少秒
+const DARK_C := Color(0.008, 0.016, 0.016)
+const DARK_A := 0.96          # 黑幕最深（留一点点，不是死黑）
+const DARK_HINT1 := 1.8       # 进黑墙后这么久还没进航道：提示加强一档
+const DARK_HINT2 := 3.2       # 再加强一档
+const DARK_NEAR := 0.3        # 离安全航道不到 0.3 × _shift 算「进了航道」
 const TXT := {
 	"hint": ["↑ ↓  Dodge the debris", "↑ ↓  躲开碎石"],
+	"dark_hint": ["↑ ↓  Listen for the quiet lane", "↑ ↓  听——找最安静的那条"],
 }
 const BUMP_LINES := [
 	{"zh": "……稳住。", "en": "...Steady.", "added": true},
@@ -136,6 +170,16 @@ var _real := false            # --debris_full
 var _air: AudioStreamPlayer   # 稳定的气流声
 var _air_on := 0.0            # 气流（声音 + 线）现在多强 0..1
 var _air_g := 0.0             # 气流线 / 音高现在对着的安全通道（船的偏移，平滑跟着）
+var _dark: Node2D             # 黑窗：船外背景和碎石上面盖的黑幕（debris_layer 里，z 1）
+var _dark_a := 0.0            # 黑幕现在多深
+var _dark_on := false
+var _dark_lead := DARK_LEAD
+var _dark_bumps := 0
+var _rumble: AudioStreamPlayer          # 黑里碎石的轰鸣（循环），离安全航道越远越响
+var _bell := false            # 背包里还有铜铃：铃声引路
+var _bell_t := 0.0
+var _line_a := 0.0            # 黑里安全航道气流线的亮度（平滑）
+var _hint_lv := 0             # 这一排黑墙的提示档（0 / 1 / 2），换排时归零
 
 
 func play(r: Node, st: Dictionary) -> String:
@@ -186,15 +230,18 @@ func play(r: Node, st: Dictionary) -> String:
 	if _far:
 		_warn = WARN_OFF + (_nose() + 2.0) / _rock_v       # 碎石进画面以后飞多久到船头 + 进画面前的预告
 	# 波次：真实时长按 sec / 40 缩放；自动玩只播两波（第一波等拉远差不多了再来）
+	var final := str(st.get("plan", "")) == "final"
+	_bell = Inventory.has("copper_bell")
 	if _auto and not real:
+		_dark_lead = DARK_LEAD_AUTO
 		var t0 := 1.3 if _far else 0.8
-		for w in PLAN_AUTO:
+		for w in (PLAN_AUTO_DARK if final else PLAN_AUTO):
 			var e: Dictionary = (w as Dictionary).duplicate()
 			e["t"] = t0 + float(e["t"])
 			_plan.append(e)
 	else:
 		var sc := clampf(sec / 40.0, 0.75, 1.5)
-		for w in PLAN:
+		for w in (PLAN_FINAL if final else PLAN):
 			var e: Dictionary = (w as Dictionary).duplicate()
 			e["t"] = float(e["t"]) * sc
 			_plan.append(e)
@@ -210,11 +257,15 @@ func play(r: Node, st: Dictionary) -> String:
 		_free_wave(w)
 	if is_instance_valid(_air):
 		_air.queue_free()
+	if is_instance_valid(_rumble):
+		_rumble.queue_free()
+	if is_instance_valid(_dark):
+		_dark.queue_free()
 	var lead := 0.0
 	for v in _lead:
 		lead += float(v) / float(_lead.size())
-	print("COCKPIT debris_steer %s: bumps=%d grazes=%d waves=%d time=%.1fs ship_x=%d nose=%d lead=%.2fs" % [str(st.get("id", "")), bumps,
-		grazes, waves_n, _t, int(_ship_cx), int(_nose()), lead])
+	print("COCKPIT debris_steer %s: bumps=%d grazes=%d waves=%d time=%.1fs ship_x=%d nose=%d lead=%.2fs dark_bumps=%d bell=%s" % [str(st.get("id", "")),
+		bumps, grazes, waves_n, _t, int(_ship_cx), int(_nose()), lead, _dark_bumps, _bell])
 	return ""
 
 
@@ -225,6 +276,7 @@ func _build() -> void:
 	_fx = Node2D.new()
 	_fx.name = "DebrisWarn"
 	_fx.draw.connect(_draw_fx)
+	_fx.z_index = 2                                  # 黑窗时气流线画在黑幕（z 1）上面
 	cockpit.debris_layer.add_child(_fx)
 	_hint = Label.new()
 	_hint.text = _tx("hint")
@@ -257,6 +309,7 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	_air_step(delta)
+	_dark_step(delta)
 	_spark_step(delta)
 	if _ending:
 		_end_step(delta)
@@ -350,6 +403,14 @@ func _spawn(e: Dictionary) -> void:
 			_play("flight_rumble", -9.0)
 			_wave_gap(float(e["g"]), true)
 			_waves[-1]["last"] = bool(e.get("last", false))
+		"dark_on":
+			_dark_start()
+		"dark":
+			_wave_gap(roundf(float(e["g"])), false, _dark_lead)        # 只有上 / 中 / 下三条航道
+			_waves[-1]["dark"] = true
+			_waves[-1]["last"] = bool(e.get("last", false))
+			_hint_lv = 0
+			_bell_t = 0.6                                              # 新一排：铃很快先响一下
 	_plan.sort_custom(func(a, b): return float(a["t"]) < float(b["t"]))
 
 
@@ -370,12 +431,14 @@ func _wave_lane(lane: int) -> void:
 
 
 ## 一排墙，缝在 g × _shift（船挪到那里，船身上下各留 GAP_M）；big = 结尾那几排（墙更密、碎屑更多）
-func _wave_gap(g: float, big: bool) -> void:
+## lead < 0 = 平常的预告量 _warn；黑墙传 DARK_LEAD（提前很久开始找，碎石还在屏幕左边外面）
+func _wave_gap(g: float, big: bool, lead := -1.0) -> void:
 	var safe := roundf(clampf(g, -1.0, 1.0) * _shift)
 	var top := float(_hull.get("T", 100)) + safe - GAP_M          # 缝的上沿 / 下沿（屏幕 y）
 	var bot := float(_hull.get("B", 206)) + safe + GAP_M
-	var w := _new_wave(safe, "final" if big else "gap")
-	var x_hit := _nose() - _rock_v * _warn                         # 墙的右沿 _warn 秒后到机头
+	var ld := _warn if lead < 0.0 else lead
+	var w := _new_wave(safe, "final" if big else "gap", ld)
+	var x_hit := _nose() - _rock_v * ld                            # 墙的右沿 ld 秒后到机头
 	# 往上：第一块的碰撞下沿正好是缝的上沿，再一块块往上摞到屏幕顶（燃料栏下面）
 	var y := top
 	var first := true
@@ -398,14 +461,17 @@ func _wave_gap(g: float, big: bool) -> void:
 		_add_rock(w, tex, x_hit - sz.x / 2.0 + minf(0.0, dx), roundf(cy), first, (2 if big else 1) if first else (1 if big else 0))
 		y = cy + sz.y / 2.0 + _rng.randf_range(1.0, 4.0 + jit)
 		first = false
-	# 两声：上面的墙一声（高）、下面的墙一声（低）
+	# 两声：上面的墙一声（高）、下面的墙一声（低）；黑墙不响（靠轰鸣和气流声找）
+	if lead >= 0.0:
+		return
 	_beep(top - 8.0)
 	get_tree().create_timer(0.16, false).timeout.connect(_beep.bind(bot + 8.0))
 
 
-func _new_wave(safe: float, kind: String) -> Dictionary:
+func _new_wave(safe: float, kind: String, lead := -1.0) -> Dictionary:
 	waves_n += 1
-	var w := {"safe": safe, "t0": _t, "at": _t + _warn, "rocks": [], "bumped": false, "kind": kind, "last": false, "out": false}
+	var w := {"safe": safe, "t0": _t, "at": _t + (_warn if lead < 0.0 else lead), "rocks": [], "bumped": false, "kind": kind,
+		"last": false, "out": false, "dark": false}
 	_waves.append(w)
 	return w
 
@@ -565,10 +631,14 @@ func _bump(w: Dictionary, r: Dictionary) -> void:
 	r["vx"] = 90.0                                   # 弹开：慢下来、往外翻
 	var mid: float = (float(_hull.get("T", 100)) + float(_hull.get("B", 206))) / 2.0 + float(cockpit.ship_y())
 	r["vy"] = 70.0 * (-1.0 if float(r["y"]) < mid else 1.0)
+	if w["dark"]:
+		(r["spr"] as Node2D).z_index = 3                # 黑里撞到：碎石闪出来（画到黑幕上面，弹开、淡掉）
 	if w["bumped"]:
 		return
 	w["bumped"] = true
 	bumps += 1
+	if w["dark"]:
+		_dark_bumps += 1
 	level._shake = 0.35
 	level._shake_amp = 2.0
 	_play("debris_bump", -4.0, 1.0, _pan(_ship_cx))
@@ -622,6 +692,86 @@ func _breakout() -> void:
 	level._shake = 0.3
 	level._shake_amp = 1.0
 	_hint_out()
+	if _dark_on:
+		_dark_end()
+
+
+# ======================================================================= 黑窗听航道（终章）
+## 进云层：黑幕慢慢落下，轰鸣循环起来，提示换成「听——找最安静的那条」
+func _dark_start() -> void:
+	if _dark_on:
+		return
+	_dark_on = true
+	_dark = Node2D.new()
+	_dark.name = "DebrisDark"
+	_dark.z_index = 1
+	_dark.draw.connect(func(): _dark.draw_rect(Rect2(-40, -40, 560, 350), Color(DARK_C, _dark_a)))
+	cockpit.debris_layer.add_child(_dark)
+	var tw := create_tween()
+	tw.tween_method(_set_dark, 0.0, DARK_A, DARK_IN if not (_auto and not _real) else 0.4).set_trans(Tween.TRANS_SINE)
+	_play("flight_rumble", -8.0)
+	_rumble = _loop("flight_rumble", -60.0)
+	if is_instance_valid(_rumble):
+		_rumble.finished.connect(_rumble.play)
+	# 提示换一句（上一句淡出了也重新亮一下，5 秒后淡掉）
+	_hint.text = _tx("dark_hint")
+	_hint.set_meta("out", false)
+	var th := create_tween()
+	th.tween_property(_hint, "modulate:a", 0.85, 0.8).set_delay(0.8)
+	th.tween_interval(5.0)
+	th.tween_callback(_hint_out)
+
+
+## 穿出云层：黑幕慢慢退掉（云开），轰鸣收掉
+func _dark_end() -> void:
+	_dark_on = false
+	if is_instance_valid(_dark):
+		create_tween().tween_method(_set_dark, _dark_a, 0.0, DARK_IN if not (_auto and not _real) else 0.4).set_trans(Tween.TRANS_SINE)
+
+
+func _set_dark(a: float) -> void:
+	_dark_a = a
+	if is_instance_valid(_dark):
+		_dark.queue_redraw()
+
+
+## 最早一排还没过去的黑墙（没有 = 空）
+func _dark_wave() -> Dictionary:
+	for w in _waves:
+		if w["dark"] and not _wave_clear(w):
+			return w
+	return {}
+
+
+## 每帧：船离安全航道多远 → 轰鸣 / 气流的音量；铜铃引路；找久了提示加强
+func _dark_step(delta: float) -> void:
+	var w := _dark_wave()
+	var want_line := 0.0
+	if not w.is_empty() and _dark_on:
+		var d := absf(cockpit.ship_goal - float(w["safe"])) / maxf(1.0, _shift)     # 0 = 正在航道里，2 = 最远
+		var lost := d > DARK_NEAR
+		var since := _t - float(w["t0"])
+		if lost and since > DARK_HINT2:
+			_hint_lv = 2
+		elif lost and since > DARK_HINT1:
+			_hint_lv = maxi(_hint_lv, 1)
+		if is_instance_valid(_rumble):
+			_rumble.volume_db = lerpf(-36.0, -7.0, clampf(d, 0.0, 1.0))
+		if is_instance_valid(_air):
+			_air.volume_db = lerpf(-10.0, -30.0, clampf(d, 0.0, 1.0))
+		# 铜铃：按航道高低定音高，隔一会儿响一下（提示加强以后更响、更密）；进了航道就不响了（已经找到）
+		if _bell and lost:
+			_bell_t -= delta
+			if _bell_t <= 0.0:
+				_bell_t = 2.2 if _hint_lv == 0 else 1.3
+				var g := float(w["safe"]) / maxf(1.0, _shift)
+				_play("bell_soft", -16.0 if _hint_lv == 0 else -8.0, 1.0 - 0.22 * g, _pan(_ship_cx))
+		# 气流线：没铃一开始就淡淡亮着；有铃从第一档加强开始出来
+		if not _bell or _hint_lv >= 1:
+			want_line = [0.16, 0.26, 0.42][_hint_lv]
+	elif is_instance_valid(_rumble):
+		_rumble.volume_db = move_toward(_rumble.volume_db, -60.0, 30.0 * delta)
+	_line_a = move_toward(_line_a, want_line, delta * 0.5)
 
 
 # ======================================================================= 气流（声音 + 安全通道的气流线）
@@ -727,9 +877,14 @@ func _loop(snd: String, db: float) -> AudioStreamPlayer:
 ## 10-29 验收：原来 3×1 的点、透明度 .25～.5，在暗云上几乎看不见 → 加粗加亮（仍比碎石本身淡）。
 ## 气流线：安全通道那个高度、机头前面几道 1 像素的细线往右流（很淡、不闪）。
 func _draw_fx() -> void:
-	if _air_on > 0.0:
-		_draw_air()
+	if _dark_on or _dark_a > 0.05:
+		if _line_a > 0.01:
+			_draw_air(_line_a)                       # 黑窗：气流线只是引路提示（_dark_step 管亮度）
+	elif _air_on > 0.0:
+		_draw_air(floorf(_air_on * 4.0) / 4.0 * 0.32)
 	for w in _waves:
+		if w["dark"]:
+			continue                                 # 黑墙没有划痕预告
 		for r in w["rocks"]:
 			if str(r["state"]) != "warn":
 				continue
@@ -755,11 +910,10 @@ func _draw_fx() -> void:
 		_fx.draw_rect(Rect2((s["p"] as Vector2).round(), Vector2.ONE), Color(SPARK_C, floorf(k * 4.0) / 4.0 * 0.9))
 
 
-func _draw_air() -> void:
+func _draw_air(a: float) -> void:
 	var top := float(_hull.get("T", 100)) + _air_g
 	var bot := float(_hull.get("B", 206)) + _air_g
 	var nose := _front_x(top, bot)
-	var a := floorf(_air_on * 4.0) / 4.0 * 0.32
 	if a <= 0.0:
 		return
 	var n := 5

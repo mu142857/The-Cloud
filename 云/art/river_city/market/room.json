@@ -88,7 +88,8 @@
   "market_baskets": 90,
   "market_tool_stall": 330,
   "market_bridge": 830,
-  "market_to_oldstreet": 1424
+  "market_to_oldstreet": 1424,
+  "market_from_stairwell": 1398
  },
  "objects": {
   "market_baskets": {
@@ -130,6 +131,16 @@
     "default": 0,
     "tank_on_counter": 1
    }
+  },
+  "market_sign_down": {
+   "x": 1357,
+   "y": 161,
+   "w": 21,
+   "h": 40,
+   "frames": 1,
+   "states": {
+    "default": 0
+   }
   }
  },
  "walk": [
@@ -145,8 +156,8 @@
   },
   {
    "edge": "right",
-   "to": "oldstreet",
-   "at": "oldstreet_entry",
+   "to": "stairwell",
+   "at": "stairwell_top",
    "kind": "walk_fade"
   }
  ],

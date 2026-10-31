@@ -1,9 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://brx5xrcytvf7u"]
 
-[ext_resource type="Script" path="res://scripts/chen.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://c1aoa6bjaypos" path="res://scripts/chen.gd" id="1_script"]
 
-[node name="Chen" type="Node2D"]
+[node name="Chen" type="Node2D" unique_id=1244355363]
 script = ExtResource("1_script")
 
-[node name="Sprite" type="AnimatedSprite2D" parent="."]
+[node name="Sprite" type="AnimatedSprite2D" parent="." unique_id=1367284190]
 centered = false

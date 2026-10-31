@@ -1,0 +1,199 @@
+{
+ "_note": "tools/reed_field_art.py 生成，别手改（要改先改脚本）。云层星的芦苇地（第三章；结局一、结局二的 yard / east_meadow 都改成这张）。白天、最亮的一屏。会动的芦苇和惊鸟是 scripts/reed_field.gd（scripts 里），数据在 reeds.json / birds.json。约定见 docs/river_rooms_contract.md。",
+ "_note_town": "草原小镇留在 x 1110–1490：地是平的（ground 224），路前面是矮草地、后面没有高芦苇，中景这一段（mid.png 的 x 560–1080）也空着。小镇的房子画在这一段，放进 main 后面一层（scroll 1，z 在 main 前、晨后）。",
+ "size": [
+  1920,
+  270
+ ],
+ "origin": [
+  0,
+  1080
+ ],
+ "env": "reeds",
+ "bg": [
+  "#86bde0",
+  "#e3eeec"
+ ],
+ "layers": [
+  {
+   "id": "sky",
+   "img": "sky.png",
+   "scroll": 0.0,
+   "y": 0
+  },
+  {
+   "id": "wisps",
+   "img": "wisps.png",
+   "scroll": 0.03,
+   "y": 6,
+   "tile": true,
+   "drift": -1.2
+  },
+  {
+   "id": "clouds",
+   "img": "clouds.png",
+   "scroll": 0.06,
+   "y": 34,
+   "tile": true,
+   "drift": -0.35
+  },
+  {
+   "id": "far",
+   "img": "far.png",
+   "scroll": 0.2,
+   "y": 124,
+   "tile": true,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 1.0,
+    "speed": 0.9,
+    "wavelength": 240.0,
+    "power": 1.2,
+    "bend": 0.0
+   }
+  },
+  {
+   "id": "lake",
+   "img": "lake.png",
+   "scroll": 0.35,
+   "y": 155,
+   "tile": true
+  },
+  {
+   "id": "sunpath",
+   "img": "sunpath.png",
+   "scroll": 0.0,
+   "y": 155,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "speed": 0.8,
+    "wobble": 1.5,
+    "flicker": 0.0,
+    "show": 0.7
+   }
+  },
+  {
+   "id": "glints",
+   "img": "glints.png",
+   "scroll": 0.35,
+   "y": 155,
+   "tile": true,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "speed": 0.6,
+    "wobble": 1.0,
+    "flicker": 0.0,
+    "show": 0.55
+   }
+  },
+  {
+   "id": "mid",
+   "img": "mid.png",
+   "scroll": 0.55,
+   "y": 96,
+   "shader": "sway",
+   "shader_params": {
+    "amp": 1.0,
+    "speed": 0.75,
+    "wavelength": 260.0,
+    "power": 1.6,
+    "bend": 0.0
+   }
+  },
+  {
+   "id": "main",
+   "img": "main.png",
+   "scroll": 1.0,
+   "y": 0
+  }
+ ],
+ "ground": [
+  [
+   0,
+   228
+  ],
+  [
+   180,
+   227
+  ],
+  [
+   420,
+   227
+  ],
+  [
+   600,
+   226
+  ],
+  [
+   760,
+   226
+  ],
+  [
+   1000,
+   225
+  ],
+  [
+   1110,
+   224
+  ],
+  [
+   1490,
+   224
+  ],
+  [
+   1640,
+   225
+  ],
+  [
+   1800,
+   226
+  ],
+  [
+   1920,
+   227
+  ]
+ ],
+ "walk": [
+  24,
+  1896
+ ],
+ "markers": {
+  "reed_field_west": 60,
+  "reed_field_spot1": 400,
+  "reed_field_water": 905,
+  "reed_field_town": 1300,
+  "reed_field_spot3": 1650,
+  "reed_field_east": 1860
+ },
+ "objects": {},
+ "portals": [],
+ "ambient": [],
+ "scripts": [
+  {
+   "script": "res://scripts/reed_field.gd",
+   "x": 0,
+   "y": 0,
+   "z": -40,
+   "params": {
+    "data": "res://art/reed_field/reeds.json",
+    "birds": "res://art/reed_field/birds.json",
+    "spots": [
+     [
+      400,
+      5
+     ],
+     [
+      905,
+      7
+     ],
+     [
+      1650,
+      4
+     ]
+    ]
+   }
+  }
+ ]
+}

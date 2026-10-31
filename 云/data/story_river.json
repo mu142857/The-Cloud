@@ -5,6 +5,7 @@
 		"niff": {"zh": "妮芙", "en": "Niff"},
 		"ting": {"zh": "阿汀", "en": "Ting"},
 		"keeper": {"zh": "摊主", "en": "Stallkeeper"},
+		"jellyfish": {"zh": "水母", "en": "Jellyfish"},
 		"tape": {"zh": "影像里的声音", "en": "Voice on the tape"}
 	},
 	"markers": {
@@ -54,7 +55,13 @@
 		"market_tool_stall": 0,
 		"market_bridge": 0,
 		"market_to_oldstreet": 0,
+		"market_from_stairwell": 0,
 		"market_back": 0,
+		"stairwell_up": 0,
+		"stairwell_top": 0,
+		"stairwell_counter": 0,
+		"stairwell_jelly": 0,
+		"stairwell_down": 0,
 		"oldstreet_entry": 0,
 		"oldstreet_niff": 0,
 		"oldstreet_railing": 0,
@@ -108,7 +115,7 @@
 		"cockpit_seat": 0,
 		"cockpit_bell": 0
 	},
-	"rooms": ["river_bank", "river_home", "market", "oldstreet", "warehouse", "southbridge", "cockpit"],
+	"rooms": ["river_bank", "river_home", "market", "stairwell", "oldstreet", "warehouse", "southbridge", "cockpit"],
 	"objectives": [
 		{"need": ["river_farewell"], "not": ["river_done"], "zh": "上飞机", "en": "Get in the ship", "show_fuel": false, "added": true},
 		{"need": ["river_plane_fixed"], "not": ["river_farewell"], "zh": "回妮芙家道别", "en": "Go back to Niff's to say goodbye", "show_fuel": false, "added": true},
@@ -186,15 +193,18 @@
 		{"id": "market_bridge", "at": "market_bridge", "room": "market", "label": {"zh": "屋顶的桥", "en": "Rooftop bridges"}, "need": ["river_market"], "not": [], "once": false, "scene": "market_bridge"},
 		{"id": "niff_market", "at": "niff", "room": "market", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_market"], "not": [], "once": false, "scene": "niff_chat_market"},
 		{"id": "market_back", "at": "market_back", "room": "market", "label": {"zh": "回河岸", "en": "Back to the bank"}, "need": ["river_market"], "not": [], "once": false, "scene": "market_back"},
-		{"id": "to_oldstreet", "at": "market_to_oldstreet", "room": "market", "label": {"zh": "旧街", "en": "Old Street"}, "need": ["river_oldstreet"], "not": [], "once": false, "scene": "market_to_oldstreet_again"},
-		{"id": "to_oldstreet_first", "at": "market_to_oldstreet", "room": "market", "label": {"zh": "旧街", "en": "Old Street"}, "need": ["river_breather"], "not": ["river_oldstreet"], "once": false, "scene": "oldstreet_go"},
+		{"id": "to_stairwell", "at": "market_to_oldstreet", "room": "market", "label": {"zh": "下楼去旧街", "en": "Down to Old Street"}, "need": ["river_breather"], "not": [], "once": false, "scene": "market_to_stairwell", "_note": "10-31 作者：市集和旧街之间加一间楼梯间（旧街被水淹、比市集低，不能直接平移过去）。市集右头的门 → 楼梯间 → 石阶往下 → 旧街"},
+		{"id": "stairwell_up", "at": "stairwell_up", "room": "stairwell", "label": {"zh": "市集", "en": "Market"}, "need": [], "not": [], "once": false, "scene": "stairwell_to_market"},
+		{"id": "jellyfish", "at": "stairwell_jelly", "room": "stairwell", "label": {"zh": "水母", "en": "Jellyfish"}, "need": [], "not": [], "once": false, "scene": "stairwell_jelly"},
+		{"id": "to_oldstreet", "at": "stairwell_down", "room": "stairwell", "label": {"zh": "旧街", "en": "Old Street"}, "need": ["river_oldstreet"], "not": [], "once": false, "scene": "market_to_oldstreet_again"},
+		{"id": "to_oldstreet_first", "at": "stairwell_down", "room": "stairwell", "label": {"zh": "旧街", "en": "Old Street"}, "need": ["river_breather"], "not": ["river_oldstreet"], "once": false, "scene": "oldstreet_go"},
 		{"id": "sluice", "at": "sluice_wheel_1", "room": "oldstreet", "label": {"zh": "闸轮", "en": "Gate wheels"}, "need": ["river_oldstreet"], "not": ["river_sluice_done"], "once": false, "scene": "sluice"},
 		{"id": "oldstreet_marks", "at": "oldstreet_marks", "room": "oldstreet", "label": {"zh": "水位刻线", "en": "Water marks"}, "need": ["river_oldstreet"], "not": [], "once": false, "scene": "oldstreet_marks"},
 		{"id": "oldstreet_signs", "at": "oldstreet_signs", "room": "oldstreet", "label": {"zh": "两层招牌", "en": "Two rows of signs"}, "need": ["river_sluice_done"], "not": [], "once": false, "scene": "oldstreet_signs"},
 		{"id": "oldstreet_corner", "at": "oldstreet_corner", "room": "oldstreet", "label": {"zh": "拐角", "en": "Corner"}, "need": ["river_sluice_done"], "not": ["river_jam"], "once": false, "scene": "oldstreet_corner", "trigger": "enter", "range": 40},
 		{"id": "warehouse_go", "at": "oldstreet_warehouse_entry", "room": "oldstreet", "label": {"zh": "仓库入口", "en": "Warehouse entrance"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "warehouse_go"},
 		{"id": "niff_old", "at": "niff", "room": "oldstreet", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "niff_chat_old"},
-		{"id": "oldstreet_back", "at": "oldstreet_back", "room": "oldstreet", "label": {"zh": "回市集", "en": "Back to the market"}, "need": ["river_oldstreet"], "not": ["river_bell"], "once": false, "scene": "oldstreet_back"},
+		{"id": "oldstreet_back", "at": "oldstreet_back", "room": "oldstreet", "label": {"zh": "上楼回市集", "en": "Up to the market"}, "need": ["river_oldstreet"], "not": ["river_bell"], "once": false, "scene": "oldstreet_back"},
 		{"id": "warehouse_niff", "at": "niff", "room": "warehouse", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_jam"], "not": ["river_back_home"], "once": false, "scene": "warehouse_niff"},
 		{"id": "wh_in", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_wh_dive"], "not": ["river_back_home", "river_wh_in"], "once": true, "scene": "warehouse_in", "trigger": "enter", "range": 40, "cutscene": true, "added": true},
 		{"id": "warehouse_boxes", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_jam", "river_wh_in"], "not": ["river_back_home"], "once": false, "scene": "warehouse_boxes"},
@@ -849,8 +859,7 @@
 			{"do": "show", "who": "niff", "at": "market_niff"}
 		],
 		"oldstreet_go": [
-			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_entry", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "oldstreet_niff"},
+			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_entry", "with": ["niff"], "_note": "10-31：从楼梯间下来（楼梯间 room.json 的 portal：pan_down，渐黑 + 镜头往下）。原来接着 show 妮芙到 oldstreet_niff，淡入以后她会跳一下；with 已经把她放在晨旁边，删了"},
 			{"do": "ambient", "name": "pipe_gurgle", "at": "sluice_pipes", "on": true},
 			{"do": "prop", "id": "oldstreet_steps", "state": "submerged"},
 			{"say": "chen", "zh": "台阶都在水下面。", "en": "The steps are all underwater.", "added": true},
@@ -859,12 +868,23 @@
 			{"do": "flag", "set": "river_oldstreet"}
 		],
 		"oldstreet_back": [
-			{"do": "fade_to", "room": "market", "at": "market_to_oldstreet", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "market_niff"}
+			{"do": "fade_to", "room": "stairwell", "at": "stairwell_down", "with": ["niff"], "_note": "10-31：回市集先上楼梯间（旧街 room.json 的 portal：pan_up，渐黑 + 镜头往上）"}
 		],
 		"market_to_oldstreet_again": [
-			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_entry", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "oldstreet_niff"}
+			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_entry", "with": ["niff"]}
+		],
+		"market_to_stairwell": [
+			{"do": "fade_to", "room": "stairwell", "at": "stairwell_top", "with": ["niff"]}
+		],
+		"stairwell_to_market": [
+			{"do": "fade_to", "room": "market", "at": "market_from_stairwell", "with": ["niff"]}
+		],
+		"stairwell_jelly": [
+			{"do": "walk", "who": "chen", "to": "stairwell_counter", "_note": "10-31：站到柜台左头再说话（水母在柜台右边），晨不挡住她"},
+			{"do": "face", "who": "chen", "to": "stairwell_jelly"},
+			{"say": "jellyfish", "zh": "下楼的话，小心第三级台阶。", "en": "Going down? Mind the third step.", "added": true},
+			{"say": "jellyfish", "zh": "我没有脚，所以一直没弄明白它哪里不对。", "en": "I don't have feet, so I've never worked out what's wrong with it.", "added": true},
+			{"say": "chen", "zh": "……好，我记住了。", "en": "...Okay. I'll remember.", "added": true}
 		],
 		"oldstreet_marks": [
 			{"do": "face", "who": "chen", "to": "oldstreet_marks"},

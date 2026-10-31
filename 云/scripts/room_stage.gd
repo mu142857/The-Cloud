@@ -14,15 +14,17 @@ extends Node2D
 
 const NPC_GD := preload("res://scripts/npc_generic.gd")
 const DIRS := ["res://art/river_city/%s/", "res://art/%s/"]
-## 没有 room.json 时的默认（方案第 1.1 节的宽度；origin 让市集在河岸正上方、仓库在旧街正下方）
+## 没有 room.json 时的默认（方案第 1.1 节的宽度；origin 让市集在河岸正上方、仓库在旧街正下方；楼梯间和市集一样高，往下才到旧街）
 const DEFAULT := {
 	"river_bank": {"size": [1280, 270], "origin": [0, 0], "env": "river_day",
 		"markers": {"river_bank_plane": 110, "river_bank_hatch": 150, "river_bank_home_door": 870},
 		"portals": [{"to": "market", "kind": "pan_up"}]},
 	"market": {"size": [1100, 270], "origin": [880, -270], "env": "river_day",
-		"portals": [{"to": "river_bank", "kind": "pan_down"}, {"to": "oldstreet", "kind": "walk_fade"}]},
+		"portals": [{"to": "river_bank", "kind": "pan_down"}, {"to": "stairwell", "kind": "walk_fade"}]},
+	"stairwell": {"size": [480, 270], "origin": [2400, -270], "env": "river_day",
+		"portals": [{"to": "market", "kind": "walk_fade"}, {"to": "oldstreet", "kind": "pan_down"}]},
 	"oldstreet": {"size": [1200, 270], "origin": [3000, 0], "env": "river_day",
-		"portals": [{"to": "warehouse", "kind": "pan_down"}, {"to": "market", "kind": "walk_fade"},
+		"portals": [{"to": "warehouse", "kind": "pan_down"}, {"to": "stairwell", "kind": "pan_up"},
 			{"to": "southbridge", "kind": "walk_fade"}]},
 	"warehouse": {"size": [640, 270], "origin": [3000, 270], "env": "underwater", "portals": [{"to": "oldstreet", "kind": "pan_up"}]},
 	"southbridge": {"size": [1500, 270], "origin": [6000, 0], "env": "river_day",

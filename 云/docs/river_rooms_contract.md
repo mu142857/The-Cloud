@@ -19,6 +19,7 @@
 |---|---|---|
 | `river_bank` 河岸 | `art/river_city/river_bank/room.json` | C |
 | `market` 高处市集 | `art/river_city/market/room.json` | C |
+| `stairwell` 楼梯间（市集右头的门进去，石阶往下到旧街；10-31 加） | `art/river_city/stairwell/room.json`（`tools/river_stairwell_art.py`） | — |
 | `oldstreet` 旧街 + 水闸 | `art/river_city/oldstreet/room.json` | C |
 | `warehouse` 水下仓库 | `art/river_city/warehouse/room.json` | C |
 | `southbridge` 南桥 + 货台 | `art/river_city/southbridge/room.json` | C |
@@ -37,6 +38,7 @@
 |---|---|---|
 | river_bank | (0, 0) | 1280 |
 | market | (0, -270) | 1100 |
+| stairwell | (2400, -270)（和市集一样高：往下 pan 到旧街靠这个） | 480 |
 | oldstreet | (3000, 0) | 1200 |
 | warehouse | (3000, 270) | 640 |
 | southbridge | (6000, 0) | 1500 |
@@ -74,6 +76,7 @@
   "portals": [ ... 见 1.7 ... ],
   "ambient": [ ... 见 1.8 ... ],
   "walkers": [ ... 见 1.9 ... ],
+  "residents": [{"who": "jellyfish", "at": "stairwell_jelly", "z": -2, "face": 1}],   // 见 1.9.1
   "scripts": [ ... 见 1.10 ... ],
   "rope":    { ... 见 5 ... }
 }
@@ -205,6 +208,15 @@
 - `npc` = `art/characters/<npc>/<npc>.json`（第 2 节）；走路播 `walk`、停下播 `idle`。不能点。
 - `path` 的 y = 脚底那一行（房间坐标）。`loop`：`pingpong`（来回）/ `wrap`（走出去从另一头再进来）/ `once`。
 - `pause`：到头停几秒（数或 `[最少, 最多]`）。`count`：同时几个（错开出发）。
+
+### 1.9.1 residents（住在这个房间里的人，10-31）
+
+```jsonc
+"residents": [{"who": "jellyfish", "at": "stairwell_jelly", "z": -2, "face": 1}]
+```
+- 和 walkers 不一样：是剧本里的角色（`art/characters/<who>/<who>.json`，`say` / hotspot 都认），一直待在 `at` 那里。
+- 晨进这个房间时她还不在这儿就放好、显示出来（`story_runner._place_residents`，在 `_teleport` 里）——不用剧本 `show`，
+  跳节拍、F8 传送、自由探索进来都一样在；晨不在这个房间时照常藏着。`z` = 前后（−2 = 压到物件 / z −1 的层后面，柜台后面的人）；`face` = 朝向。
 
 ### 1.10 scripts（房间自己的装饰脚本）
 

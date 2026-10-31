@@ -46,7 +46,7 @@ extends Node2D
 ##                      剧情的某一步停了 20 秒以上、又没有对话框 / 点选 / 带路在等人 → STUCK_SCENE。结束打印 FUZZ_DONE。
 ##                      可以和 --beat 一起用（从某个节拍开始乱玩）
 ##   --hide=节点名,节点名  把这几个节点藏起来（查画面上某一层是谁用）
-##   --dev [--dev_tab=0..3]  一开始就打开 F8 面板（截图 / 测面板用）
+##   --dev [--dev_tab=0..3]（0 传送 1 状态 2 开关 3 探索）  一开始就打开 F8 面板（截图 / 测面板用）
 ##   F8（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
 ##                      见 scripts/dev_panel.gd 和 docs/forest_chapter.md 末尾
 ##   --chen_x=x         （和 --beat 一起）跳完以后让晨站到这个 x（截互动提示用）
@@ -89,11 +89,12 @@ const KEEPSAKE_C := Color("#dcc39a")         # 背包里纪念品名字的暖色
 const DEV_BEAT_META := "level_forest_dev_beat"
 const DEV_STAGE_META := "level_forest_dev_stage"
 const DEV_FREE_META := "level_forest_dev_free"   # F8「探索」：自由探索哪个场景（跨重新载入一直留着，退出探索时清掉）
+const DEV_FREE_CH_META := "level_forest_dev_free_ch"   # F8 传送页的地图：在哪一章自由探索（有它就不查 FREE_ROOMS，哪章哪个房间都行）
 const FREE_CLI_META := "level_forest_free_cli"   # --free= 只在第一次载入时用（退出探索重开本章时不再进去）
 ## 自由探索能去的场景：id → 章节（id 就是房间名；river_home 是河岸里的小屋，treehouse 是森林里的树屋）
 ## 面板只给 forest 和 river 两个入口（river = 从河岸起）；别的房间名只给命令行拍截图用
 const FREE_ROOMS := {"forest": "forest", "river": "river", "treehouse": "forest", "cockpit": "flight1", "river_bank": "river",
-	"river_home": "river", "market": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river"}
+	"river_home": "river", "market": "river", "stairwell": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river"}
 const FREE_STAIR := "free_stair_"   # 自由探索给多层小屋楼梯口加的 marker（上楼 / 下楼的进出口）
 const FREE_SHIFT := 1.0            # 自由探索按住 Shift：晨每帧走的距离再多这么多倍（chen.gd 的 Shift 已经 ×1.5，合起来 ×3；动画帧速不变）
 const DEV_OPEN_META := "level_forest_dev_open"   # 开场的外星人同伴：森林里不出现（那套图以后是河边的泥芙）
@@ -3768,10 +3769,14 @@ func _free_pick() -> void:
 			_open_test_scene.call_deferred("res://scenes/%s.tscn" % _free_cli)      # 小样场景：直接换过去（Esc 回来）
 		else:
 			push_warning("--free= 没有这个场景：%s（有：%s）" % [_free_cli, ", ".join(FREE_ROOMS.keys())])
-	if not Engine.has_meta(DEV_FREE_META) or not FREE_ROOMS.has(str(Engine.get_meta(DEV_FREE_META))):
+	if not Engine.has_meta(DEV_FREE_META):
 		return
-	free_roam = str(Engine.get_meta(DEV_FREE_META))
-	Engine.set_meta(CHAPTER_GD.CHAPTER_META, FREE_ROOMS[free_roam])
+	var fid := str(Engine.get_meta(DEV_FREE_META))
+	var fch := str(Engine.get_meta(DEV_FREE_CH_META)) if Engine.has_meta(DEV_FREE_CH_META) else str(FREE_ROOMS.get(fid, ""))
+	if not CHAPTER_GD.CHAPTERS.has(fch):
+		return
+	free_roam = fid
+	Engine.set_meta(CHAPTER_GD.CHAPTER_META, fch)
 	Engine.set_meta(CHAPTER_GD.PICK_META, true)
 	for m in [DEV_BEAT_META, DEV_STAGE_META]:
 		if Engine.has_meta(m):
@@ -3823,7 +3828,7 @@ func _start_free() -> void:
 ## 一开始站哪：forest = 坠毁现场；river = 河岸的出舱口（章节的 spawn）；别的房间名（拍截图用）= 那个房间的左头（小屋：中间）
 func _free_spawn(id: String) -> void:
 	var w: Node2D = story.world
-	if id in ["forest", "river", "cockpit"]:
+	if id in ["forest", "river", "cockpit"] and str(FREE_ROOMS[id]) == chapter:
 		return                                     # 已经在 _start_free / _start_chapter 里站好了
 	var x := chen.position.x
 	if id == "treehouse":
@@ -4081,7 +4086,7 @@ func free_show_npcs(on: bool) -> void:
 ## 每一步打印 FREE_TOUR（到没到），一路记有没有对话 / 点选 / 目标 / 剧情的 hotspot 出来过
 const FREE_TOUR := {
 	"forest": ["edge:right", "treehouse", "forest", "edge:left"],
-	"river": ["river_home", "up", "up", "down", "down", "river_bank", "market", "oldstreet", "warehouse", "oldstreet", "southbridge",
+	"river": ["river_home", "up", "up", "down", "down", "river_bank", "market", "stairwell", "oldstreet", "warehouse", "oldstreet", "southbridge",
 		"edge:left"],
 }
 
