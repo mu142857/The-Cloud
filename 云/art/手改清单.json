@@ -1,6 +1,8 @@
 {
  "_说明": "作者亲手改过的图。任何画图脚本（tools/*_art.py）都不许覆盖这里列出的文件；要改这些图，先问作者。",
  "files": {
-  "art/river_city/southbridge/main.png": "10-31 作者手改：去掉六个拱脚的直角台阶。tools/river_warehouse_bridge_art.py 不许再生成南桥"
+  "art/river_city/southbridge/main.png": "10-31 作者手改：去掉六个拱脚的直角台阶。tools/river_warehouse_bridge_art.py 不许再生成南桥",
+  "art/river_city/market/main.png": "10-31 作者手改：修补摊（立柱、雨棚、长凳）。tools/river_town_moon_art.py 不许再生成市集 main.png",
+  "art/river_city/market/market_tools.png": "10-31 作者手改：修补摊挂的工具"
  }
 }

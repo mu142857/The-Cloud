@@ -2384,6 +2384,12 @@ def check_alpha(d):
             print("半透明像素：", p.name, bad)
 
 
+def hand_edited():
+    """art/手改清单.json 里登记的作者手改图（相对 art/ 上一级的路径）：这些文件一张都不许覆盖。"""
+    p = ROOT / "art" / "手改清单.json"
+    return set(json.loads(p.read_text()).get("files", {})) if p.exists() else set()
+
+
 def build(room):
     d = OUT / room
     d.mkdir(parents=True, exist_ok=True)
@@ -2394,13 +2400,21 @@ def build(room):
     else:
         L, O = oldstreet_layers()
         j = oldstreet_json(old)
+    locked = hand_edited()
+
+    def save(name, write):
+        rel = (d / name).relative_to(ROOT).as_posix()
+        if rel in locked:
+            print("跳过（作者手改，见 art/手改清单.json）:", rel)
+            return
+        write(d / name)
     for k, cv in L.items():
-        cv.save(d / f"{k}.png")
+        save(f"{k}.png", cv.save)
     for k, img in O.items():
-        Image.fromarray(img).save(d / f"{k}.png")
+        save(f"{k}.png", Image.fromarray(img).save)
     if room == "market":
-        Image.fromarray(market_sky()).save(d / "sky.png")
-        Image.fromarray(market_moonpath()).save(d / "moonpath.png")
+        save("sky.png", Image.fromarray(market_sky()).save)
+        save("moonpath.png", Image.fromarray(market_moonpath()).save)
     (d / "room.json").write_text(json.dumps(j, ensure_ascii=False, indent=1) + "\n")
     for stale in ("shafts.png", "shafts.png.import"):     # 旧版的光柱层不用了
         if (d / stale).exists():
