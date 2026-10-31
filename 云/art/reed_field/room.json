@@ -1,6 +1,6 @@
 {
- "_note": "tools/reed_field_art.py 生成，别手改（要改先改脚本）。云层星的芦苇地（第三章；结局一、结局二的 yard / east_meadow 都改成这张）。白天、最亮的一屏。会动的芦苇和惊鸟是 scripts/reed_field.gd（scripts 里），数据在 reeds.json / birds.json。约定见 docs/river_rooms_contract.md。",
- "_note_town": "草原小镇留在 x 1110–1490：地是平的（ground 224），路前面是矮草地、后面没有高芦苇，中景这一段（mid.png 的 x 560–1080）也空着。小镇的房子画在这一段，放进 main 后面一层（scroll 1，z 在 main 前、晨后）。",
+ "_note": "tools/reed_field_art.py 生成，别手改（要改先改脚本）。云层星的芦苇地（第三章；结局一、结局二的 yard / east_meadow 都改成这张）。第二版：开阔的草甸，明黄 + 淡蓝交织，梦幻概括；浅草 / 浅水没过晨的脚踝（ankle / ankle_water 在晨前面）。会动的芦苇、惊鸟、晨在水里的倒影、晨身后压暗是 scripts/reed_field.gd（scripts 里），数据在 reeds.json / birds.json。约定见 docs/river_rooms_contract.md。",
+ "_note_town": "草原小镇留在 x 1110–1490：地是平的（ground 224），这一段没有成丛的芦苇、没有水，只是平缓的草地。小镇的房子画在这一段，放进 main 和 glints 之间一层（scroll 1，z 不写，在晨后面）；脚踝的草丛（ankle.png）在这一段照常有。",
  "size": [
   1920,
   270
@@ -11,8 +11,8 @@
  ],
  "env": "reeds",
  "bg": [
-  "#86bde0",
-  "#e3eeec"
+  "#9dd2f1",
+  "#fff0a8"
  ],
  "layers": [
   {
@@ -22,62 +22,40 @@
    "y": 0
   },
   {
-   "id": "wisps",
-   "img": "wisps.png",
+   "id": "streaks",
+   "img": "streaks.png",
    "scroll": 0.03,
-   "y": 6,
+   "y": 10,
    "tile": true,
-   "drift": -1.2
-  },
-  {
-   "id": "clouds",
-   "img": "clouds.png",
-   "scroll": 0.06,
-   "y": 34,
-   "tile": true,
-   "drift": -0.35
+   "drift": -1.0
   },
   {
    "id": "far",
    "img": "far.png",
-   "scroll": 0.2,
-   "y": 124,
+   "scroll": 0.12,
+   "y": 132,
    "tile": true,
    "shader": "sway",
    "shader_params": {
     "amp": 1.0,
-    "speed": 0.9,
+    "speed": 0.7,
     "wavelength": 240.0,
     "power": 1.2,
     "bend": 0.0
    }
   },
   {
-   "id": "lake",
-   "img": "lake.png",
-   "scroll": 0.35,
-   "y": 155,
+   "id": "mid",
+   "img": "mid.png",
+   "scroll": 0.4,
+   "y": 142,
    "tile": true
   },
   {
-   "id": "sunpath",
-   "img": "sunpath.png",
-   "scroll": 0.0,
-   "y": 155,
-   "shader": "water",
-   "shader_params": {
-    "palette_mode": false,
-    "speed": 0.8,
-    "wobble": 1.5,
-    "flicker": 0.0,
-    "show": 0.7
-   }
-  },
-  {
-   "id": "glints",
-   "img": "glints.png",
-   "scroll": 0.35,
-   "y": 155,
+   "id": "mid_glints",
+   "img": "mid_glints.png",
+   "scroll": 0.4,
+   "y": 142,
    "tile": true,
    "shader": "water",
    "shader_params": {
@@ -89,24 +67,60 @@
    }
   },
   {
-   "id": "mid",
-   "img": "mid.png",
-   "scroll": 0.55,
-   "y": 96,
-   "shader": "sway",
-   "shader_params": {
-    "amp": 1.0,
-    "speed": 0.75,
-    "wavelength": 260.0,
-    "power": 1.6,
-    "bend": 0.0
-   }
-  },
-  {
    "id": "main",
    "img": "main.png",
    "scroll": 1.0,
    "y": 0
+  },
+  {
+   "id": "glints",
+   "img": "glints.png",
+   "scroll": 1.0,
+   "y": 0,
+   "shader": "water",
+   "shader_params": {
+    "palette_mode": false,
+    "speed": 0.8,
+    "wobble": 1.0,
+    "flicker": 0.0,
+    "show": 0.6
+   }
+  },
+  {
+   "id": "cover_r0",
+   "img": "cover_r0.png",
+   "scroll": 1.0,
+   "y": 0,
+   "z": -36
+  },
+  {
+   "id": "cover_r1",
+   "img": "cover_r1.png",
+   "scroll": 1.0,
+   "y": 0,
+   "z": -26
+  },
+  {
+   "id": "ankle",
+   "img": "ankle.png",
+   "scroll": 1.0,
+   "y": 0,
+   "z": 20
+  },
+  {
+   "id": "cover_f",
+   "img": "cover_f.png",
+   "scroll": 1.25,
+   "y": 0,
+   "z": 111
+  },
+  {
+   "id": "ankle_water",
+   "img": "ankle_water.png",
+   "scroll": 1.0,
+   "y": 0,
+   "z": 21,
+   "alpha": 0.6
   }
  ],
  "ground": [
@@ -161,10 +175,10 @@
  ],
  "markers": {
   "reed_field_west": 60,
-  "reed_field_spot1": 400,
-  "reed_field_water": 905,
+  "reed_field_spot1": 150,
+  "reed_field_water": 664,
   "reed_field_town": 1300,
-  "reed_field_spot3": 1650,
+  "reed_field_spot3": 1680,
   "reed_field_east": 1860
  },
  "objects": {},
@@ -181,16 +195,26 @@
     "birds": "res://art/reed_field/birds.json",
     "spots": [
      [
-      400,
+      150,
+      6
+     ],
+     [
+      664,
       5
      ],
      [
-      905,
-      7
+      1680,
+      6
+     ]
+    ],
+    "water": [
+     [
+      536,
+      869
      ],
      [
-      1650,
-      4
+      1555,
+      1780
      ]
     ]
    }

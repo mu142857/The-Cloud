@@ -244,6 +244,9 @@ const ENVS := {
 	# 城市：楼缝漏下来的霾光，冷白，从上偏右；斗篷偏冷灰
 	"city": {"tint": Color(0.5, 0.55, 0.62), "tint_amt": 0.4, "rim": Color(0.78, 0.8, 0.85), "rim_amt": 0.3,
 		"dir": Vector2(0.35, -1.0), "back": 0.0, "halo": Color(0.86, 0.89, 0.96), "fx": "city"},
+	# 云层星的芦苇地（第三章，白天最亮的一屏）：左上的太阳，暖白；斗篷几乎不染色（亮主角）
+	"reeds": {"tint": Color(1.0, 0.93, 0.78), "tint_amt": 0.1, "rim": Color(1.0, 0.95, 0.8), "rim_amt": 0.32,
+		"dir": Vector2(-0.55, -0.85), "back": 0.0, "halo": Color(1.0, 0.96, 0.86), "fx": ""},
 }
 const LIGHT_IN := 7.0              # 走进光里变亮的快慢（越大越快；1/秒）
 const LIGHT_OUT := 2.5             # 走出去暗回来的快慢

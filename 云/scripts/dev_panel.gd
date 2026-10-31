@@ -17,7 +17,7 @@ extends CanvasLayer
 ##   3 开关  快走（晨的移动 ×3，动画帧速不变）、跳过对话（每句 0.15 秒自动推进）、显示 hotspot 范围和 marker 竖线、
 ##           雾开 / 关、前景层开 / 关、补写台词标蓝（剧本 "added": true 的台词正文用蓝色；debug 构建默认开）；
 ##           按钮：重开本章、给齐本章所有物品、燃料加满
-##   4 探索  自由探索（看美术用，level_forest.gd 的 free_roam / --free=forest|river）：两个入口，森林（坠毁现场起）、河流（河岸起）。
+##   4 探索  自由探索（看美术用，level_forest.gd 的 free_roam / --free=forest|river|reeds）：三个入口，森林（坠毁现场起）、河流（河岸起）、芦苇地（云层星，第三章还没接进剧本，借河流这一章临时建房间）。
 ##           进去以后不播剧情、对话，没有目标、卡关提示，trigger:"enter" 不触发，剧情加的墙（walk_when、倒木、坑、导绳……）不算；
 ##           换地方照常靠 E / 点击（进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥、走到边上的出口），不看剧情 flag，只显示这些进出口。
 ##           小按钮：角色（路人照常走，本章剧本里的角色排在晨右边）、退出（= 重开本章）。Shift 跑快（只改移动速度）。
@@ -726,6 +726,7 @@ func _build_free(v: VBoxContainer) -> void:
 	v.add_child(t)
 	v.add_child(_btn("森林（坠毁现场起）", _free_go.bind("forest"), "--free=forest"))
 	v.add_child(_btn("河流（河岸起）", _free_go.bind("river"), "--free=river"))
+	v.add_child(_btn("芦苇地（云层星，第三章）", _free_go.bind("reeds"), "--free=reeds"))
 	_free_dyn = VBoxContainer.new()
 	v.add_child(_free_dyn)
 	_free_refresh()

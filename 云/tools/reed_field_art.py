@@ -1,34 +1,39 @@
-"""第三章 · 云层星的芦苇地 reed_field（10-31 作者：「主题色是浅黄色和淡蓝色，主角走过去芦苇全都弯下去，会有鸟飞起来，
-相当唯美，美好且明亮的场景」）。结局一、结局二原来的两张草地（yard、east_meadow）都改成这一张；以后在它上面加「草原小镇」。
+"""第三章 · 云层星的芦苇地 reed_field。结局一、结局二原来的两张草地（yard、east_meadow）都改成这一张；以后在它上面加「草原小镇」。
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/reed_field_art.py [--preview 目录]
 
-白天，全游戏最亮的一屏：淡蓝的天、左上一轮白太阳、地平线上一大片积云（云层星）、浅黄的芦苇海、一片映着天的浅湖（太阳在湖里一道碎光）。
-晨走的那一层（main + 会动的芦苇）压低明度、降饱和（土金 / 卡其），保证晨的淡紫白头发和砖红斗篷一眼看得见（作者的「亮主角暗背景」）。
+第二版（10-31 作者看了第一版：「芦苇草地首先是草地，黄色是明黄色，蓝色是淡蓝色，这些颜色都交织在一起，而不是泾渭分明的分开来，
+不要卷云，天空中一层一层的就可以，最梦幻最唯美，不要太具体，浅草或者浅水没过了主角脚踝，地上有清澈透明甚至反光的河」）：
+- 首先是草地：一大片开阔的草甸，芦苇只是长在草里的几丛（会弯腰的那些），不是一整面芦苇墙。
+- 明黄 + 淡蓝交织：草甸、河、天都用同一条色阶 RAMP（深金 → 明黄 → 奶白 → 淡蓝 → 蓝），大块的色斑由噪声分档，黄和蓝之间隔着奶白，
+  边是一档档软过渡；横向的短笔触把黄掺进蓝、蓝掺进黄。芦苇穗也是黄的受光、淡蓝的背光。
+- 天：一层层柔和的横向色带（淡蓝 → 一道淡黄 → 淡蓝 → 地平线上一大片明黄），几条很薄很长的横云（蓝里的是奶黄、黄里的是淡蓝），
+  左边低处一团很淡的太阳光。没有积云。
+- 概括：远景融成色带，草不画一根根，只有色块 + 笔触。
+- 没过脚踝：ankle.png（草丛）/ ankle_water.png（水面，半透明）在晨前面画（z 20 / 21，不用 front: true —— 那个会在挡住晨时淡掉），
+  整段都有：草地上晨的脚踝一直埋在草丛里，水里水面线在脚底上方 3 行。
+- 地上的河：中景一条横着的清澈的河；路上两段浅水（WATERS），路整个泡在水里：远的一边映地平线的明黄、近处映天的淡蓝、
+  近处透出水底的沙色，波纹黄蓝互掺，亮纹用 water shader 闪。晨在水里时脚下有她的倒影（scripts/reed_field.gd 画）。
+- 亮主角：晨身后那一带的草深一档（深金 / 蓝），reed_field.gd 还在晨身后压一圈很淡的暗（正片叠底，三档），画面整体不变暗。
 
-横向 1920，从左到右：
-  0–690     芦苇丛，小路穿过去（惊鸟 1：x 400）
-  690–1090  小路沿着一片浅水走，水在路的前面（惊鸟 2：x 905）
-  1110–1490 平缓、空的一段：矮草地 + 几处小花，芦苇稀，远处的中景也空着 —— 留给以后的「草原小镇」（room.json 的 _note）
-  1510–1920 又是芦苇丛（惊鸟 3：x 1650）
+横向 1920：0–520 草甸（芦苇丛，惊鸟 1：x 330）/ 520–860 浅水（惊鸟 2：x 700）/ 860–1110 草甸 /
+1110–1490 平缓、空的草地，留给以后的「草原小镇」（room.json 的 _note_town）/ 1540–1780 浅水 / 1780–1920 草甸（惊鸟 3：x 1660 在水边）
 
 图层（room.json，从后往前）：
-  sky.png        480×270  scroll 0     天 + 太阳（固定在屏幕上）
-  wisps.png      960×56   scroll 0.03  高处几缕薄云（tile，drift 慢慢往左漂）
-  clouds.png     960×124  scroll 0.06  地平线上的积云（tile）
-  far.png        960×38   scroll 0.2   远处的芦苇海（tile，sway shader：随风轻摆 1 像素）
-  lake.png       960×50   scroll 0.35  浅湖（tile）
-  sunpath.png    480×50   scroll 0     太阳在湖里的碎光（water shader：每行晃、一会儿亮一会儿没）
-  glints.png     960×50   scroll 0.35  湖面别处零星的亮纹（water shader）
-  mid.png        1300×112 scroll 0.55  中景：湖里一簇簇芦苇岛 + 倒影（sway shader）
-  main.png       1920×270 scroll 1     后面的芦苇根丛、踩出来的小路、路前面的芦苇根丛 / 浅水 / 矮草地
-  会动的芦苇（scripts/reed_field.gd 画，不是图层）：
-    reeds.png + reeds.json   每种芦苇在 31 个弯曲角度下各画一帧（1 像素的秆四邻接画，弯到哪一帧都不断、不只角碰角），
-                             reeds.json 里还有每一根放在哪（四排：r0 后排高的、r1 路后、r2 路前、f 前景 scroll 1.25）
-    birds.png + birds.json   鸟：四种远近大小 × 扇翅三帧（100ms）+ 落在芦苇顶上的两帧
+  sky.png         480×270  scroll 0     天的色带 + 太阳光
+  streaks.png     960×130  scroll 0.03  很薄很长的横云（tile，drift）
+  far.png         960×34   scroll 0.12  远处的草甸（tile，sway shader 轻摆）
+  mid.png         960×44   scroll 0.4   中景：草甸 + 一条清澈的河（tile）
+  mid_glints.png  960×44   scroll 0.4   河上的亮纹（water shader）
+  main.png        1920×270 scroll 1     草甸、路、两段浅水
+  glints.png      1920×270 scroll 1     浅水上的亮纹（water shader）
+  （会动的芦苇、鸟、晨的倒影、晨身后压暗：scripts/reed_field.gd）
+  ankle.png       1920×270 scroll 1 z 20    没过脚踝的草丛
+  ankle_water.png 1920×270 scroll 1 z 21    没过脚踝的水面（alpha 0.6）
+会动的芦苇：reeds.png + reeds.json（每种芦苇 31 个弯曲角度各一帧；1 像素的秆四邻接画，弯到哪一帧都不断）；鸟：birds.png + birds.json。
 
-所有随机固定 seed；除了 sunpath / glints（water shader 用）以外 alpha 只有 0/255。不碰 art/手改清单.json 里的文件。
-画完自己扫一遍：只有对角相连、孤立单像素、细线缺口、虚线（tools/dotted_line_check.py 的规则）、地面直角台阶。
+所有随机固定 seed；除了 ankle_water / 亮纹层以外 alpha 只有 0/255。不碰 art/手改清单.json 里的文件。
+画完自己扫一遍：只有对角相连、孤立单像素、细线缺口、虚线、地面直角台阶。
 """
 from __future__ import annotations
 
@@ -49,10 +54,20 @@ W, H = 1920, 270
 GROUND = [[0, 228], [180, 227], [420, 227], [600, 226], [760, 226], [1000, 225], [1110, 224], [1490, 224], [1640, 225],
           [1800, 226], [1920, 227]]
 WALK = [24, 1896]
-WATER = (690, 1090)          # 路前面是浅水的一段
-TOWN = (1110, 1490)          # 留给草原小镇
-SPOTS = [400, 905, 1650]     # 惊鸟的地方（房间 x）
-SUN = (148, 40)              # 太阳（屏幕坐标，天是钉在屏幕上的）
+WATERS = [(520, 860), (1540, 1780)]     # 路泡在浅水里的两段（画完按水塘的真形状重算，见 draw_main）
+# 浅水塘：几团扁椭圆 (中心 x, 中心 y, 半宽, 半高) 叠起来，再用噪声把岸弄弯
+# 椭圆的中心放在画面下沿以下：画面里看到的是它的上半，两边的岸是斜着收下去的（不是竖直的一刀）
+POOLS = [[(690, 312, 236, 112), (596, 300, 120, 84), (792, 296, 128, 82), (706, 280, 70, 64)],
+         [(1660, 312, 180, 108), (1594, 300, 96, 80), (1736, 300, 96, 82)]]
+TOWN = (1110, 1490)                     # 留给草原小镇
+SPOTS = [150, 664, 1680]                # 惊鸟的地方（房间 x，都在芦苇丛里）
+# 芦苇聚成几大片（房间 x 范围）：r0 后面高的、r1 路后面的。中间留开阔的草地，草原小镇那段（TOWN）没有
+R0_MASSES = [(40, 250), (420, 640), (880, 1070), (1560, 1770)]
+R1_MASSES = [(80, 230), (600, 730), (950, 1060), (1620, 1740), (1800, 1900)]
+FRONT_MASSES = [(150, 210), (980, 1050), (2120, 2190)]      # 前景（scroll 1.25 的层坐标）
+SUN = (150, 112)                        # 太阳光（屏幕坐标，天是钉在屏幕上的）
+MEADOW_TOP = 174                        # 晨这一层草甸的上沿（大约）
+W_TOP = 198                             # 浅水的远岸（大约）
 
 
 def hexc(h, a=255):
@@ -67,37 +82,34 @@ def mix(a, b, k):
     return np.round(out).astype(np.uint8)
 
 
-# ---------------------------------------------------------------- 调色板
-SKY = ["#86bde0", "#93c4e4", "#a1cce8", "#b0d5eb", "#bfdded", "#cde4ee", "#d9eaee", "#e3eeec"]
-SKY_Y = [0, 30, 58, 82, 104, 122, 136, 146]           # 每一档从哪一行开始
-SUN_CORE, SUN_WARM = "#fffdf4", "#fff3cf"
-CLOUD = ["#c6d7e3", "#d6e3eb", "#e7eef1", "#f6f8f4", "#fffcef"]     # 最暗（云底）→ 受光的顶
-WISP = ["#e9f2f3", "#f5f9f6"]
-FAR = {"lit": "#f3e6bc", "plume": "#e8d6a3", "body": "#dccc9b", "low": "#d0c7a2", "deep": "#c6c4a8"}
-LAKE = ["#d8ecef", "#cbe5ed", "#bedeea", "#b2d6e6", "#a8cfe2"]       # 近地平线（亮）→ 近处（深一点：映的是高处的天）
-LAKE_REFL = ["#e6e2c2", "#dbdcc0"]                                    # 远处芦苇海的倒影
-GLINT = ["#fbfdf8", "#eaf5f6"]
-MIDR = {"lit": "#efd99c", "plume": "#e2c685", "shade": "#d2b273", "stem": "#c9b07a", "stem_d": "#b9a271",
-        "base": "#b4a573", "base_d": "#a69a70", "refl": "#c4d2c8", "refl_d": "#b4c8c6"}
-# 主层（晨那一层）：压暗、降饱和
-MAIN = {"tip": "#a69a6a", "mass": "#958b5e", "mass_d": "#857d56", "mass_dd": "#77714f", "shadow": "#6c6849",
-        "path": "#d3c39c", "path_lit": "#ddcfab", "path_edge": "#bfae88", "pebble": "#c6b894", "pebble_d": "#ad9c79",
-        "ftip": "#968b5f", "fmass": "#857c55", "fmass_d": "#776f4d", "fmass_dd": "#6a6446",
-        "mud": "#a8977a", "mud_d": "#958770",
-        "w0": "#a9c6c9", "w1": "#b7d8e6", "w2": "#c6e1ec", "w3": "#a6cde0", "w_lit": "#d7ecf2",
-        "grass_t": "#c2b680", "grass": "#b2a774", "grass_d": "#a1976a", "grass_dd": "#90885f",
-        "fl_blue": "#cfe0f0", "fl_cream": "#f4edcf", "fl_stem": "#8f8a5f"}
-# 会动的芦苇：每排一套色（stem 下 → 上、plume 暗 → 亮、leaf）
+# ---------------------------------------------------------------- 调色板（第三版的颜色：回到第二版的明黄 + 淡蓝，只去掉最深的那档深黄）
+# 10-31 作者：第三版淡成奶色「没有暖味道了，上一个去掉最深的深黄就差不多」。RAMP 第 0 档原来是 #d4a42e（深金），去掉；
+# 芦苇秆最深的那档也往上提一档。
+RAMP = ["#ecc23e", "#f2cb40", "#f9d847", "#fde67a", "#fef3bf", "#ddf1f5", "#bae2f3", "#95cfee", "#77b9e2"]
+SKY_STOPS = [(0, "#9dd2f1"), (34, "#b4def4"), (56, "#cde9f4"), (68, "#f6efc4"), (78, "#d6edf5"), (98, "#c4e6f5"),
+             (116, "#e6f2ee"), (126, "#fbf0bb"), (136, "#fee88a"), (146, "#ffe066"), (162, "#fff0a8")]
+SUN_WARM = "#fff6cf"
+STREAK = {"y": ["#fff6cf", "#fbeeb4"], "w": ["#fdfdf4", "#eef6f2"], "b": ["#d5edf6", "#bfe2f3"]}
+RIVER = ["#fff2a8", "#fde98c", "#f2f1d0", "#d8eef4", "#bfe3f4", "#a6d8f2"]       # 远（映地平线的黄）→ 近（映高处的蓝）
+RIVER_EDGE = "#fffbe0"
+CLUMP = ["#f1cc4c", "#fde67a", "#fff3bf"]
+CLUMP_REFL = "#f3ecbe"
+POOL = ["#fff0a0", "#fde88a", "#f4f0cc", "#dcefF3", "#c4e6f5", "#aedcf3", "#98d1ef"]
+POOL_SAND = ["#fbe9a0", "#f8e290", "#f5ebc4", "#e9eccf", "#dde8d6", "#d0e2d7", "#c3dbd6"]   # 透出水底的沙
+POOL_EDGE = "#fffbe2"
+SURF = ["#fffbe8", "#eef6ef", "#d3ecf4"]
+GLINT = ["#fffef6", "#f1fbff"]
+# 会动的芦苇：每排一套色（stem 下 → 上、plume 背光淡蓝 → 明黄 → 受光奶黄、leaf）。离晨越近的排越浓一点
 REED_PAL = {
-    "r0": {"stem": ["#8f8460", "#9c8f65", "#a89a6c"], "plume": ["#b29c6c", "#c4ad7a", "#d4bf8e"], "leaf": ["#8d855f", "#9a9067"]},
-    "r1": {"stem": ["#867b56", "#94875d", "#a09265"], "plume": ["#a99263", "#bba26f", "#cbb382"], "leaf": ["#857d57", "#928960"]},
-    "r2": {"stem": ["#766d4d", "#827853", "#8c8159"], "plume": ["#9a8459", "#ab9463", "#baa372"], "leaf": ["#736d4c", "#7f7853"]},
-    "f": {"stem": ["#605b43", "#6a6447", "#736c4c"], "plume": ["#7f704f", "#8f7e58", "#9d8c63"], "leaf": ["#5f5b42", "#6a6548"]},
+    "r0": {"stem": ["#dcc66a", "#e0cb6c", "#e8d57a"], "plume": ["#bfe1f2", "#fde67a", "#fff4c2"], "leaf": ["#a9d3ea", "#e0cb6c"]},
+    "r1": {"stem": ["#cfb34c", "#d5ba52", "#dbc05a"], "plume": ["#93cbec", "#f8d445", "#ffeb8e"], "leaf": ["#8cc3e3", "#cfb34c"]},
+    "r2": {"stem": ["#c4a644", "#cab04a", "#d0b350"], "plume": ["#86c1e6", "#f3cb3e", "#fde27a"], "leaf": ["#7fb8de", "#c4a644"]},
+    "f": {"stem": ["#b8a040", "#c0a346", "#c8ac4e"], "plume": ["#73b2dd", "#e9bf38", "#f8d866"], "leaf": ["#6caad6", "#b8a040"]},
 }
 # 每一帧的弯曲角度（度，正 = 往右弯）。0 附近密（风里轻摆一档只挪一两像素），越弯越疏
 ANGLES_POS = [0, 2, 4, 7, 10, 14, 18, 23, 28, 34, 40, 47, 54, 62, 70, 78]
 ANGLES = [-a for a in reversed(ANGLES_POS[1:])] + ANGLES_POS
-BIRD = {"wing": "#5c5147", "body": "#6d6052", "tail": "#887a68"}
+BIRD = {"wing": "#5e6a80", "body": "#6f7a8e", "tail": "#8c96a6"}
 
 
 # ---------------------------------------------------------------- 小工具
@@ -294,6 +306,24 @@ def alpha_fix(img):
             return
 
 
+def edge_diag_fill(img):
+    """corner_fix 之后还剩的：同色两格只在角上碰、旁边一格是透明的 —— 把透明那格补成它（轮廓多长一格）"""
+    h2, w2 = img.shape[:2]
+    for y in range(h2 - 1):
+        for x in range(w2 - 1):
+            q = img[y:y + 2, x:x + 2]
+            if q[0, 1, 3] and q[1, 0, 3] and (q[0, 1] == q[1, 0]).all() and (q[0, 0] != q[0, 1]).any() and (q[1, 1] != q[0, 1]).any():
+                if q[0, 0, 3] == 0:
+                    q[0, 0] = q[0, 1]
+                elif q[1, 1, 3] == 0:
+                    q[1, 1] = q[0, 1]
+            if q[0, 0, 3] and q[1, 1, 3] and (q[0, 0] == q[1, 1]).all() and (q[0, 1] != q[0, 0]).any() and (q[1, 0] != q[0, 0]).any():
+                if q[0, 1, 3] == 0:
+                    q[0, 1] = q[0, 0]
+                elif q[1, 0, 3] == 0:
+                    q[1, 0] = q[0, 0]
+
+
 def scan(name, img, alpha_only=False):
     """报告：只有对角相连（同色 / 同是不透明）、孤立单像素、细线缺口（一格透明，上下或左右都是一像素粗的线）"""
     h, w = img.shape[:2]
@@ -370,479 +400,529 @@ def dashes(name, img):
     return len(hits)
 
 
-# ---------------------------------------------------------------- 天
+# ---------------------------------------------------------------- 画面（第二版：开阔的草甸，明黄和淡蓝交织，梦幻、概括）
+def noise2(h, w, sx, sy, rng, period=None):
+    """平滑的二维噪声（值噪声 + smoothstep），sx / sy 是一格多大（横向拉长 = 地面、天上那种横的色带）。period 给了就左右无缝。"""
+    gw = (period // sx if period else w // sx + 2)
+    gh = h // sy + 3
+    g = rng.uniform(-1, 1, (gh, gw))
+    ys = np.arange(h) / sy
+    xs = np.arange(w) / sx
+    y0 = np.floor(ys).astype(int)
+    x0 = np.floor(xs).astype(int)
+    ty = ys - y0
+    tx = xs - x0
+    ty = ty * ty * (3 - 2 * ty)
+    tx = tx * tx * (3 - 2 * tx)
+    xa = x0 % gw if period else np.minimum(x0, gw - 1)
+    xb = (x0 + 1) % gw if period else np.minimum(x0 + 1, gw - 1)
+    a = g[y0][:, xa]
+    b = g[y0][:, xb]
+    c = g[y0 + 1][:, xa]
+    d = g[y0 + 1][:, xb]
+    top = a + (b - a) * tx[None, :]
+    bot = c + (d - c) * tx[None, :]
+    return top + (bot - top) * ty[:, None]
+
+
+def fbm(h, w, sx, sy, rng, period=None, octaves=3):
+    out = np.zeros((h, w))
+    amp = 1.0
+    tot = 0.0
+    for o in range(octaves):
+        p = period
+        out += amp * noise2(h, w, max(2, sx >> o), max(2, sy >> o), rng, p)
+        tot += amp
+        amp *= 0.5
+    return out / tot
+
+
+def ramp_paint(idx):
+    """色阶下标（可以是小数）→ 颜色。RAMP 从深金 → 明黄 → 奶白 → 淡蓝 → 蓝，黄和蓝之间隔着奶白，过渡是软的"""
+    i = np.clip(np.round(idx), 0, len(RAMP) - 1).astype(int)
+    pal = np.array([hexc(c) for c in RAMP])
+    return pal[i]
+
+
+def dabs(img, mask, rng, n, lmin, lmax, choose, period=None):
+    """印象派的笔触：横向的短梭形（两头尖，中间 1–2 行），颜色由 choose(原色下标) 给。只落在 mask 里"""
+    h, w = img.shape[:2]
+    pal = [tuple(hexc(c)) for c in RAMP]
+    for _ in range(n):
+        x0 = int(rng.integers(0, w))
+        y = int(rng.integers(0, h - 1))
+        if not mask[y, x0]:
+            continue
+        here = tuple(img[y, x0])
+        if here not in pal:
+            continue
+        k = choose(pal.index(here))
+        if k is None:
+            continue
+        k = int(np.clip(k, 0, len(RAMP) - 1))
+        c = hexc(RAMP[k])
+        L = int(rng.integers(lmin, lmax + 1))
+        thick = 2 if L >= 9 and rng.random() < 0.5 else 1
+        for i in range(L):
+            u = abs(i / max(1, L - 1) * 2 - 1)
+            xx = (x0 + i) % w if period else x0 + i
+            if not 0 <= xx < w:
+                break
+            if mask[y, xx]:
+                img[y, xx] = c
+            if thick == 2 and u < 0.55 and y + 1 < h and mask[y + 1, xx]:
+                img[y + 1, xx] = c
+
+
 def draw_sky():
+    """天：一层层柔和的横向色带，淡蓝（上）→ 一道淡黄 → 淡蓝 → 地平线上一大片明黄的光。每两档之间插一两档过渡色，色带边微微起伏。
+    左边低处一轮很淡的太阳（只是一团暖白的光，不画清楚的圆盘边）。"""
     rng = np.random.default_rng(11)
-    img = blank(480, H)
-    wob = [knots(480, 90, rng, 1.6) for _ in SKY_Y]
-    for x in range(480):
+    w = 480
+    img = blank(w, H)
+    cols = []
+    ys = []
+    for i in range(len(SKY_STOPS) - 1):
+        (y0, c0), (y1, c1) = SKY_STOPS[i], SKY_STOPS[i + 1]
+        n = 3 if y1 - y0 > 18 else 2
+        for k in range(n):
+            ys.append(y0 + (y1 - y0) * k / n)
+            cols.append(mix(hexc(c0), hexc(c1), k / n))
+    ys.append(SKY_STOPS[-1][0])
+    cols.append(hexc(SKY_STOPS[-1][1]))
+    wob = [knots(w, 110, rng, 1.8) + knots(w, 37, rng, 0.6) for _ in ys]
+    for x in range(w):
         for y in range(H):
             k = 0
-            for i, y0 in enumerate(SKY_Y):
-                if y >= y0 + (round(wob[i][x]) if i else 0):
+            for i, y0 in enumerate(ys):
+                if y >= y0 + (wob[i][x] if i else 0):
                     k = i
-            img[y, x] = hexc(SKY[k])
-    # 太阳：白芯 + 几圈越来越淡的暖光（一圈一档，平涂）
+            img[y, x] = cols[k]
+    # 太阳：地平线上方偏左，一团几圈越来越淡的暖光
     sx, sy = SUN
-    rings = [(54, 0.07), (39, 0.15), (28, 0.27), (19, 0.42), (12.5, 0.62), (8.5, 0.85)]
-    warm = hexc(SUN_WARM)
     base = img.copy()
-    for r, k in rings:
-        yy, xx = np.mgrid[0:H, 0:480]
-        m = (xx - sx) ** 2 + (yy - sy) ** 2 <= r * r
+    yy, xx = np.mgrid[0:H, 0:w]
+    for (rx, ry), k in [((96, 46), 0.12), ((66, 32), 0.22), ((44, 22), 0.36), ((27, 14), 0.52), ((15, 8), 0.72), ((8, 5), 0.9)]:
+        m = ((xx - sx) / rx) ** 2 + ((yy - sy) / ry) ** 2 <= 1
         for y, x in zip(*np.nonzero(m)):
-            img[y, x] = mix(base[y, x], warm, k)
-    fill_disc(img, sx, sy, 6.2, hexc(SUN_CORE))
+            img[y, x] = mix(base[y, x], hexc(SUN_WARM), k)
     corner_fix(img)
     speck_fix(img)
+    corner_fix(img)
     return img
 
 
-def draw_wisps():
-    """高处的几缕薄云：扁长的一片（两头尖、中间鼓），底边几乎平、顶边起伏，受光的上半亮一档。不画成线。"""
+def draw_streaks():
+    """很薄、很长的横向云层：两头尖的长条（2–4 行厚），在蓝的地方是奶黄的、在黄的地方是淡蓝的 —— 黄和蓝在天上也交织。左右无缝。"""
     rng = np.random.default_rng(23)
-    w, h = 960, 56
+    w, h = 960, 130
     img = blank(w, h)
-    for cx, cy, L, th in [(120, 22, 170, 7), (330, 40, 100, 5), (540, 16, 220, 8), (720, 44, 130, 5), (880, 28, 120, 6)]:
-        topn = knots(L + 1, 18, rng, 1.6)
-        botn = knots(L + 1, 40, rng, 0.8)
+    for cx, cy, L, th, kind in [(140, 22, 360, 3, "y"), (520, 12, 300, 2, "w"), (760, 34, 420, 3, "y"), (300, 52, 260, 2, "b"),
+                                (650, 66, 380, 3, "w"), (60, 84, 300, 2, "b"), (430, 98, 460, 3, "b"), (880, 108, 240, 2, "w"),
+                                (220, 116, 330, 2, "b")]:
+        topn = knots(L + 1, 60, rng, 1.0)
+        cols = STREAK[kind]
         for i in range(L + 1):
             u = i / L * 2 - 1
-            t = th * (1 - u * u) ** 0.8 + topn[i] * (1 - abs(u))
-            b = th * 0.25 * (1 - u * u) + botn[i] * (1 - abs(u))
-            top, bot = int(round(cy - t)), int(round(cy + b))
-            if bot < top:
+            t = th * (1 - u * u) ** 0.9 + topn[i] * (1 - abs(u)) * 0.8
+            top, bot = int(round(cy - t * 0.6)), int(round(cy + t * 0.4))
+            if bot < top or t < 0.5:
                 continue
             for y in range(top, bot + 1):
                 if 0 <= y < h:
-                    img[y, (cx - L // 2 + i) % w] = hexc(WISP[1] if y < (top + bot) / 2 - 0.5 else WISP[0])
+                    img[y, (cx - L // 2 + i) % w] = hexc(cols[0] if y <= (top + bot) // 2 else cols[1])
     corner_fix(img)
     speck_fix(img)
-    return img
-
-
-def draw_clouds():
-    """地平线上的积云（云层星）：一团团圆叠起来，按「球面法线 · 左上来的光」分五档（等亮线切出来的块，不是随机切面）。
-    底边平、在湖和芦苇海后面。左右无缝（960）。"""
-    rng = np.random.default_rng(7)
-    w, h = 960, 124
-    base_y = 118
-    circles = []
-    # (中心 x, 宽, 高)：一座高的、两座中等、一长条矮的
-    for mx, mw, mh in [(90, 230, 88), (330, 170, 52), (560, 260, 104), (800, 190, 66), (960 - 20, 90, 34)]:
-        n = max(4, mw // 22)
-        for i in range(n):
-            u = (i + 0.5) / n * 2 - 1
-            prof = (1 - u * u) ** 0.7
-            r = 10 + mh * 0.45 * prof * rng.uniform(0.8, 1.1)
-            cx = mx + u * mw / 2 + rng.uniform(-6, 6)
-            cy = base_y - r * 0.55 - mh * 0.25 * prof
-            circles.append((cx, cy, r))
-            # 顶上的小鼓包
-            if prof > 0.45 and rng.random() < 0.8:
-                r2 = r * rng.uniform(0.45, 0.65)
-                circles.append((cx + rng.uniform(-r * 0.4, r * 0.4), cy - r * 0.62, r2))
-    # 每一团顶上再冒几个小鼓包，轮廓不那么圆
-    extra = []
-    for cx, cy, r in circles:
-        if r > 16:
-            for k in range(int(rng.integers(1, 4))):
-                ang = rng.uniform(-2.6, -0.5)
-                extra.append((cx + math.cos(ang) * r * 0.85, cy + math.sin(ang) * r * 0.85, r * rng.uniform(0.18, 0.32)))
-    circles += extra
-    L = np.array([-0.55, -0.62, 0.56])
-    L = L / np.linalg.norm(L)
-    cols = [hexc(c) for c in CLOUD]
-    m = np.zeros((h, w), bool)
-    shade = np.zeros((h, w))
-    yy, xx = np.mgrid[0:h, 0:w]
-    # 先画大的、后画顶上的小鼓包（压在前面），一团团菜花似的叠出来
-    for cx, cy, r in sorted(circles, key=lambda c: -c[2]):
-        for off in (-w, 0, w):
-            dx = xx - (cx + off)
-            dy = yy - cy
-            cm = (dx * dx + dy * dy <= r * r) & (yy <= base_y)
-            if not cm.any():
-                continue
-            nx, ny = dx / r, dy / r
-            nz = np.sqrt(np.clip(1 - nx * nx - ny * ny, 0, 1))
-            b = nx * L[0] + ny * L[1] + nz * L[2]
-            shade[cm] = b[cm]
-            m |= cm
-    # 云底：最下面几行压暗（湖面反上来的冷光）
-    lo = np.clip((yy - (base_y - 16)) / 16.0, 0, 1)
-    # 等亮线不要太圆：加一点拉长的笔触扰动
-    nz = np.zeros((h, w))
-    for k in range(3):
-        fx, fy, ph = rng.uniform(0.02, 0.06), rng.uniform(0.05, 0.12), rng.uniform(0, 6.28, 2)
-        nz += np.sin(xx * fx * (2 * math.pi / (fx * w)) * round(fx * w / (2 * math.pi)) + ph[0]) * np.sin(yy * fy + ph[1]) / (k + 1)
-    b = shade - lo * 0.45 + nz * 0.06
-    lv = np.digitize(b, [-0.05, 0.3, 0.58, 0.82])
-    img = blank(w, h)
-    for i, c in enumerate(cols):
-        img[m & (lv == i)] = c
     corner_fix(img)
-    speck_fix(img)
-    corner_fix(img, max_iter=12)
-    # 剩下的（轮廓上一格受光的边只在角上碰）：把透明的那一格补成它，轮廓多长一格
-    h2, w2 = img.shape[:2]
-    for y in range(h2 - 1):
-        for x in range(w2 - 1):
-            q = img[y:y + 2, x:x + 2]
-            if q[0, 1, 3] and q[1, 0, 3] and (q[0, 1] == q[1, 0]).all() and (q[0, 0] != q[0, 1]).any() and (q[1, 1] != q[0, 1]).any():
-                if q[0, 0, 3] == 0:
-                    q[0, 0] = q[0, 1]
-                elif q[1, 1, 3] == 0:
-                    q[1, 1] = q[0, 1]
-            if q[0, 0, 3] and q[1, 1, 3] and (q[0, 0] == q[1, 1]).all() and (q[0, 1] != q[0, 0]).any() and (q[1, 0] != q[0, 0]).any():
-                if q[0, 1, 3] == 0:
-                    q[0, 1] = q[0, 0]
-                elif q[1, 0, 3] == 0:
-                    q[1, 0] = q[0, 0]
     return img
 
 
 def draw_far():
-    """远处的芦苇海：一条浅黄的带，上沿是一个个小穗子鼓起来（往右偏一点，风往右吹），下面是秆的竖纹，越往下越灰蓝（远）。
-    最下面一行是根（sway shader 按离最下面多高摆）。"""
+    """远处：草甸融成一条色带（明黄、奶白、淡蓝横着交织），上沿一点点起伏，几乎化进天里。左右无缝。"""
     rng = np.random.default_rng(31)
-    w, h = 960, 38
+    w, h = 960, 34
+    n = fbm(h, w, 96, 6, rng, period=960)
+    top = 6 + knots(w, 80, rng, 2.0, period=960) + knots(w, 23, rng, 0.8, period=960)
     img = blank(w, h)
-    top = 14 + knots(w, 120, rng, 2.5, period=960) + knots(w, 30, rng, 1.0, period=960)
+    yy = np.arange(h)[:, None]
+    idx = 4 + n * 3.2 - (yy / h) * 1.2              # 越往下越黄（近一点）
+    col = ramp_paint(np.clip(idx, 2, 6))
     for x in range(w):
         t = int(round(top[x]))
-        for y in range(t, h):
-            d = y - t
-            c = FAR["plume"] if d < 4 else FAR["body"] if d < 12 else FAR["low"] if d < 20 else FAR["deep"]
-            img[y, x] = hexc(c)
-    # 穗子：上沿冒出来的小椭圆，受光的上半亮
-    xs = np.sort(rng.choice(np.arange(w), 150, replace=False))
-    for x0 in xs:
-        t = top[x0]
-        pw, ph = rng.uniform(1.6, 3.2), rng.uniform(1.8, 3.4)
-        cy = t - ph * 0.6
-        for y in range(int(cy - ph - 1), int(t) + 2):
-            for x in range(int(x0 - pw - 2), int(x0 + pw + 3)):
-                u = (x - x0 - (t - y) * 0.35) / pw
-                v = (y - cy) / ph
-                if u * u + v * v <= 1.0 and 0 <= y < h:
-                    img[y, x % w] = hexc(FAR["lit"] if v < 0 else FAR["plume"])
-    # 竖纹：一截截秆的影子（随机位置、长短不一，不等距）
-    for _ in range(260):
-        x = int(rng.integers(0, w))
-        y0 = int(top[x]) + int(rng.integers(5, 14))
-        L = int(rng.integers(3, 9))
-        c = hexc(FAR["low"] if y0 < top[x] + 10 else FAR["deep"])
-        for y in range(y0, min(h, y0 + L)):
-            img[y, x] = c
+        img[t:, x] = col[t:, x]
+        img[t:t + 1, x] = hexc(RAMP[4])               # 上沿一行奶白，化进天
+    m = img[..., 3] > 0
+    dabs(img, m, rng, 120, 8, 26, lambda k: {2: 4, 3: 5, 4: 3, 5: 3, 6: 4}.get(k), period=960)
     corner_fix(img)
     speck_fix(img)
+    corner_fix(img)
+    edge_diag_fill(img)
     return img
 
 
-def draw_lake():
-    """浅湖：最上面是远处芦苇海的倒影（浅黄、波浪边），往下按映的天从亮到深分几档；档和档之间是一条条长的、两头尖的波纹。"""
-    rng = np.random.default_rng(41)
-    w, h = 960, 50
+def draw_mid():
+    """中景（scroll 0.4，左右无缝）：一条横着的清澈的河。上岸、下岸是草甸（色块），河面映着天：远的一边映地平线的明黄，近的一边映高处的淡蓝，
+    中间一道道两头尖的波纹把黄和蓝互相掺进去。（岸上的芦苇丛试过，远看像草垛，关掉了。）"""
+    rng = np.random.default_rng(53)
+    w, h = 960, 44
     img = blank(w, h)
-    cuts = [5, 13, 23, 35]
-    wob = [knots(w, 70, rng, 1.4, period=960) for _ in cuts]
-    refl = 3 + knots(w, 40, rng, 1.6, period=960)
+    bank_top = 3 + knots(w, 70, rng, 1.6, period=960)
+    r0 = 12 + knots(w, 120, rng, 1.2, period=960)          # 河的上沿
+    r1 = 30 + knots(w, 140, rng, 1.5, period=960)          # 河的下沿
+    n = fbm(h, w, 64, 6, rng, period=960)
+    yy = np.arange(h)[:, None]
+    grass = ramp_paint(np.clip(3.0 + n * 3.4 - (yy / h) * 1.0, 1, 7))
     for x in range(w):
-        for y in range(h):
-            k = 0
-            for i, c0 in enumerate(cuts):
-                if y >= c0 + round(wob[i][x]):
-                    k = i + 1
-            img[y, x] = hexc(LAKE[k])
-        r = int(round(refl[x]))
-        for y in range(0, max(1, r)):
-            img[y, x] = hexc(LAKE_REFL[0] if y < r - 1 else LAKE_REFL[1])
-    # 波纹：两头尖的长条，颜色取上一档（亮一档），长短不一
-    for _ in range(70):
-        y = int(rng.integers(6, h - 2))
+        a, b, t = int(round(r0[x])), int(round(r1[x])), int(round(bank_top[x]))
+        img[t:, x] = grass[t:, x]
+        for y in range(a, b):
+            u = (y - a) / max(1, b - a)
+            k = min(len(RIVER) - 1, int(u * len(RIVER)))
+            img[y, x] = hexc(RIVER[k])
+        img[a, x] = hexc(RIVER_EDGE)
+    # 河面上的波纹：两头尖的横条，取上一档 / 下一档的颜色（黄掺进蓝、蓝掺进黄）
+    for _ in range(160):
         x0 = int(rng.integers(0, w))
-        L = int(rng.integers(10, 46))
-        here = img[y, x0 % w].copy()
-        k = [i for i, c in enumerate(LAKE) if (hexc(c) == here).all()]
-        if not k or k[0] == 0:
+        a, b = int(round(r0[x0])), int(round(r1[x0]))
+        if b - a < 5:
             continue
-        c = hexc(LAKE[k[0] - 1])
+        y = int(rng.integers(a + 2, b - 1))
+        k = min(len(RIVER) - 1, int((y - a) / max(1, b - a) * len(RIVER)))
+        k2 = k + (1 if rng.random() < 0.5 else -1)
+        k2 = int(np.clip(k2 + (2 if rng.random() < 0.25 else 0) * (1 if k2 > k else -1), 0, len(RIVER) - 1))
+        L = int(rng.integers(6, 26))
         for i in range(L):
-            u = i / (L - 1) * 2 - 1
-            if abs(u) > 0.92 and rng.random() < 0.5:
-                continue
-            img[y, (x0 + i) % w] = c
-            if abs(u) < 0.45 and L > 24:
-                img[y + 1, (x0 + i) % w] = c
+            xx = (x0 + i) % w
+            if int(round(r0[xx])) + 1 < y < int(round(r1[xx])):
+                img[y, xx] = hexc(RIVER[k2])
+    # 岸上的芦苇丛：软软的一团团（上圆下平），明黄 / 奶白，背光一侧淡蓝；水里倒影是压扁、偏蓝的一片
+    for cx in rng.choice(np.arange(0, w, 24), 0, replace=False):     # 第二版不画岸上的芦苇丛（远看像草垛），留着写法
+        cx = int(cx + rng.integers(-8, 8))
+        cw = int(rng.integers(10, 26))
+        ch = int(rng.integers(5, 11))
+        base = int(round(r0[cx % w]))
+        for i in range(-cw // 2, cw // 2 + 1):
+            u = i / (cw / 2)
+            hh = ch * max(0.0, 1 - u * u) ** 0.6
+            for d in range(int(round(hh))):
+                y = base - d
+                c = CLUMP[0] if u > 0.35 else CLUMP[2] if d > hh * 0.55 else CLUMP[1]
+                img[max(0, y), (cx + i) % w] = hexc(c)
+            for d in range(1, int(round(hh * 0.5)) + 1):
+                y = base + d
+                if y < int(round(r1[(cx + i) % w])) - 1:
+                    img[y, (cx + i) % w] = hexc(CLUMP_REFL)
+    m = img[..., 3] > 0
+    river = np.zeros_like(m)
+    for x in range(w):
+        river[int(round(r0[x])):int(round(r1[x])), x] = True
+    dabs(img, m & ~river, rng, 120, 6, 18, lambda k: k + (1 if rng.random() < 0.5 else -1) if 1 <= k <= 6 else None, period=960)
     corner_fix(img)
     speck_fix(img)
+    corner_fix(img)
+    return img, r0, r1
+
+
+def in_water(x):
+    return any(a <= x <= b for a, b in WATERS)
+
+
+def water_amt(x):
+    """这一列有多「水」：水段中间 1，边上 50 像素里平滑过渡（岸是弯的，不切竖直一刀）"""
+    best = 0.0
+    for a, b in WATERS:
+        best = max(best, sstep(a - 30, a + 40, x) * (1 - sstep(b - 40, b + 30, x)))
+    return best
+
+
+def draw_main():
+    """晨这一层（第三版）：绵绵软软的一整片草甸 —— 一排排横着的、软软鼓起来的草团（像厚绒毯、一团团起伏的云），
+    从后往前一排压一排，每团只露出上面那一道圆弧：顶上一两行受光（奶白），身子淡黄或淡蓝，下面一档浅灰。看不到根，也没有一根根的草。
+    颜色：每一团按一张大的噪声决定偏黄 / 偏奶白 / 偏蓝，黄蓝交织，都很淡。晨身后那一带（脚底往上 8–56 行）用淡灰黄（暖），晨的淡紫白头发、砖红斗篷在上面跳出来。
+    两段浅水（POOLS）：清澈的浅水塘，按离地平线多远分一道道横的映天色带（远的一边淡黄、近处淡蓝），近处透出一点水底的沙色，波纹黄蓝互掺。
+    返回：图、草甸上沿、地面、水上沿、这一列的路是不是在水里、每个像素是哪一排草团画的（row_base：芦苇根前面的草团层用）。"""
+    rng = np.random.default_rng(67)
+    img = blank(W, H)
+    gy = np.array([ground(x) for x in range(W)])
+    top = MEADOW_TOP + knots(W, 110, rng, 2.0) + knots(W, 33, rng, 0.8)
+    row_base = np.full((H, W), -1, int)
+    fam = fbm(H, W, 120, 36, rng)
+    xs = np.arange(W)
+    # 一排排草团（后 → 前）
+    y_b = float(MEADOW_TOP + 6)
+    rows = []
+    while y_b < H + 14:
+        rows.append(y_b)
+        y_b += rng.uniform(9.0, 15.0)
+    for rb in rows:
+        x = -60.0 - rng.uniform(0, 40)
+        while x < W + 60:
+            w = rng.uniform(80, 210)
+            h = rng.uniform(8, 19)
+            cx = x + w / 2
+            base = rb + rng.uniform(-1.5, 1.5)
+            if rb < MEADOW_TOP + 10:
+                base = max(base, float(np.interp(cx, xs, top)) + h * 0.7)     # 最后一排的顶贴着草甸上沿
+            x0, x1 = int(max(0, cx - w / 2)), int(min(W, cx + w / 2 + 1))
+            if x1 > x0:
+                f = fam[int(np.clip(base, 0, H - 1)), int(np.clip(cx, 0, W - 1))]
+                near = (gy[int(np.clip(cx, 0, W - 1))] - 56) <= base <= (gy[int(np.clip(cx, 0, W - 1))] - 8)
+                if near:
+                    tones = [RAMP[0], RAMP[1], RAMP[3]]          # 晨身后：淡灰黄（暖）
+                elif f < -0.12:
+                    tones = [RAMP[1], RAMP[2], RAMP[4]]          # 偏黄
+                elif f > 0.22:
+                    tones = [RAMP[7], RAMP[6], RAMP[4]]          # 偏蓝
+                else:
+                    tones = [RAMP[2], RAMP[3], RAMP[4]] if f < 0.05 else [RAMP[6], RAMP[5], RAMP[4]]   # 奶白偏黄 / 偏蓝
+                cols = np.arange(x0, x1)
+                u = (cols - cx) / (w / 2)
+                ok = np.abs(u) <= 1
+                ytop = base - h * np.sqrt(np.clip(1 - u * u, 0, 1))
+                t0 = int(max(0, np.floor(ytop[ok].min()))) if ok.any() else H
+                if t0 < H:
+                    Y = np.arange(t0, H)[:, None]
+                    yt = np.round(ytop)[None, :]
+                    m = ok[None, :] & (Y >= yt)
+                    d = Y - ytop[None, :]
+                    lit = np.where(u < 0.25, 1.4 + 0.8 * (u < -0.4), -1.0)[None, :]   # 光从左上：只有左上那段圆弧亮一道
+                    k = np.where(d < lit, 2, np.where(d < h * 0.9, 1, 0))
+                    pal = np.array([hexc(c) for c in tones])
+                    sub = img[t0:H, x0:x1]
+                    sub[m] = pal[k][m]
+                    rb_sub = row_base[t0:H, x0:x1]
+                    rb_sub[m] = int(base)
+            x += w * rng.uniform(0.5, 0.85)
+    # 草甸上沿以上清掉（最后一排草团可能鼓出来一点：留着，那就是起伏的上沿）
+    # 浅水塘
+    field = np.full((H, W), -9.0)
+    yy, xx = np.mgrid[0:H, 0:W]
+    for pool in POOLS:
+        for (cx, cy, rx, ry) in pool:
+            e = 1 - ((xx - cx) / rx) ** 2 - ((yy - cy) / ry) ** 2
+            field = np.maximum(field, e)
+    field += fbm(H, W, 64, 16, rng) * 0.22
+    water_m = (field > 0) & (yy > top[None, :] + 6)
+    wtop = np.full(W, H + 2, int)
+    for x in range(W):
+        col = water_m[:, x]
+        if col.any():
+            wtop[x] = int(np.argmax(col))
+    for _ in range(300):
+        before = wtop.copy()
+        for x in range(1, W):
+            if abs(wtop[x] - wtop[x - 1]) > 2:
+                m = max(wtop[x], wtop[x - 1]) - 2
+                if wtop[x] < m:
+                    wtop[x] = m
+                if wtop[x - 1] < m:
+                    wtop[x - 1] = m
+        if (before == wtop).all():
+            break
+    water_m[:] = False
+    for x in range(W):
+        if wtop[x] < H:
+            water_m[wtop[x]:, x] = True
+    ws = np.array([1.0 if water_m[min(H - 1, gy[x] + 1), x] else 0.0 for x in range(W)])
+    sand = fbm(H, W, 26, 7, rng)
+    wwob = fbm(H, W, 90, 30, rng) * 3.0
+    for x in range(W):
+        a = wtop[x]
+        if a >= H:
+            continue
+        for y in range(a, H):
+            u = float(np.clip((y + wwob[y, x] - W_TOP) / (H - W_TOP), 0, 1))
+            k = min(len(POOL) - 1, int(u ** 0.8 * len(POOL)))
+            c = POOL[k]
+            if u > 0.35 and sand[y, x] > 0.18:
+                c = POOL_SAND[k]
+            img[y, x] = hexc(c)
+            row_base[y, x] = y
+        img[a, x] = hexc(POOL_EDGE)
+    # 水面的波纹：两头尖的横条，取相邻一档（黄蓝互掺）
+    for _ in range(900):
+        x0 = int(rng.integers(0, W))
+        y = int(rng.integers(0, H))
+        if not water_m[y, x0] or y <= wtop[x0] + 1:
+            continue
+        u = float(np.clip((y - W_TOP) / (H - W_TOP), 0, 1))
+        k = min(len(POOL) - 1, int(u ** 0.8 * len(POOL)))
+        k2 = int(np.clip(k + rng.choice([-2, -1, 1, 1, 2]), 0, len(POOL) - 1))
+        L = int(rng.integers(5, 24))
+        for i in range(L):
+            xx2 = x0 + i
+            if xx2 < W and water_m[y, xx2] and y > wtop[xx2] + 1:
+                img[y, xx2] = hexc(POOL[k2])
+    # 草甸最上沿：极少的几处毛边（1 像素宽、1–2 高，和下面同色）
+    for _ in range(40):
+        x = int(rng.integers(2, W - 2))
+        col = img[:, x, 3] > 0
+        if not col.any():
+            continue
+        t = int(np.argmax(col))
+        if t < 2 or water_m[t, x]:
+            continue
+        for k in range(1, int(rng.integers(1, 3)) + 1):
+            img[t - k, x] = img[t, x]
+            row_base[t - k, x] = row_base[t, x]
+    # 草甸上沿：两团草的圆弧接在一起的地方可能一下差好几行（直角台阶），往上补成一道最多差 2 的缓坡
+    t2 = np.array([int(np.argmax(img[:, x, 3] > 0)) for x in range(W)])
+    for _ in range(50):
+        ch = False
+        for x in range(1, W):
+            for (p, q) in ((x - 1, x), (x, x - 1)):
+                if t2[q] - t2[p] > 2:
+                    ny = t2[p] + 2
+                    img[ny:t2[q], q] = img[t2[q], q]
+                    row_base[ny:t2[q], q] = row_base[t2[q], q]
+                    t2[q] = ny
+                    ch = True
+        if not ch:
+            break
+    corner_fix(img)
+    speck_fix(img)
+    corner_fix(img)
+    edge_diag_fill(img)
+    top2 = np.array([int(np.argmax(img[:, x, 3] > 0)) for x in range(W)])
+    return img, top2, gy, wtop, ws, row_base
+
+
+def mound(img, a, b, base_fn, height, rng, lean=0.0):
+    """芦苇丛里鼓起来的一大团绒绒的草（盖住芦苇下半截的秆，芦苇像是从草堆里长出来的）：顶是几个圆包连起来的起伏，
+    受光的左上一道亮边，身子明黄，往下深一档。轮廓相邻两列最多差 2。"""
+    n = b - a + 1
+    xs = np.arange(n)
+    u = xs / max(1, n - 1)
+    env = np.sin(np.pi * u) ** 0.7
+    lumps = np.zeros(n)
+    for _ in range(int(rng.integers(3, 6))):
+        c = rng.uniform(0.1, 0.9)
+        w = rng.uniform(0.12, 0.3)
+        lumps += rng.uniform(0.15, 0.35) * np.clip(1 - ((u - c) / w) ** 2, 0, None) ** 0.5
+    hgt = height * env * (0.75 + lumps)
+    prev = None
+    for i in range(n):
+        x = a + i
+        if not 0 <= x < W:
+            continue
+        b0 = int(base_fn(x))
+        t = int(round(b0 - hgt[i]))
+        if prev is not None:
+            t = int(np.clip(t, prev - 2, prev + 2))
+        prev = t
+        tones = [RAMP[2], RAMP[3], RAMP[4]]      # 一整团同一套暖色（按列换色会切出竖直的接缝）
+        slope = (hgt[i + 1] - hgt[i - 1]) if 0 < i < n - 1 else 0.0
+        rim = 2 if slope > 0.15 else 1          # 往右上升的那一侧（朝左上的光）亮边宽一点
+        for y in range(max(0, t), min(H, b0 + 3)):
+            d = y - t
+            c = tones[2] if d < rim else tones[1] if d < hgt[i] * 0.55 + 2 else tones[0]
+            img[y, x] = hexc(c)
+
+
+def draw_root_cover(main, row_base, ranges, ylo_fn, yhi_fn):
+    """芦苇根前面那一层草团（z 在这一排芦苇前面）：抄 main 的像素，只取「前面那几排草团」画的那部分（row_base ≥ ylo），
+    所以上沿就是草团的圆弧 —— 芦苇像是从绒绒的草里长出来的，看不到根。只在芦苇丛的 x 范围里（别处不盖 main 上的亮纹）。"""
+    img = blank(W, H)
+    for (a, b) in ranges:
+        for x in range(max(0, a), min(W, b + 1)):
+            lo, hi = ylo_fn(x), yhi_fn(x)
+            for y in range(0, min(H, hi + 1)):
+                if row_base[y, x] >= lo and main[y, x, 3]:
+                    img[y, x] = main[y, x]
     return img
 
 
-def draw_glints(w, h, seed, n, center=None, spread=60):
-    """湖面的亮纹：长短不一的横段（2–9 像素），随机散开不等距。center 给了 = 太阳底下那一道：越靠近太阳的 x 越密、越长。
-    water shader（palette_mode false）让它每行晃、一会儿有一会儿没。"""
-    rng = np.random.default_rng(seed)
-    img = blank(w, h)
+def draw_ankle(main, gy, ws):
+    """没过脚踝的一层（在晨前面画，z 20）：草地上从脚底往上 3–6 行，颜色直接抄 main 同一位置的草（平时和后面的草甸连成一片看不出来，
+    晨走进去时脚踝埋在草里）。上沿是起伏的草丛顶（相邻两列最多差 1），顶上一行亮一档（草尖受光）。水里不画（ankle_water 管）。"""
+    rng = np.random.default_rng(71)
+    img = blank(W, H)
+    hgt = 4.4 + knots(W, 11, rng, 1.4) + knots(W, 41, rng, 0.7)
+    pal = [tuple(hexc(c)) for c in RAMP]
+    prev = None
+    for x in range(W):
+        if ws[x] > 0.5:
+            prev = None
+            continue
+        t = int(round(gy[x] - hgt[x]))
+        if prev is not None:
+            t = int(np.clip(t, prev - 1, prev + 1))
+        prev = t
+        b = int(gy[x]) + 3
+        img[t:b + 1, x] = main[t:b + 1, x]
+        here = tuple(img[t, x])
+        if here in pal:
+            k = pal.index(here)
+            img[t, x] = hexc(RAMP[3] if k <= 3 else RAMP[4] if k == 4 else RAMP[5])
+    corner_fix(img)
+    speck_fix(img)
+    corner_fix(img)
+    alpha_fix(img)
+    edge_diag_fill(img)
+    return img
+
+
+def draw_ankle_water(gy, ws):
+    """水里那一段没过脚踝的水面（在晨前面画，z 21，层的 alpha 0.6）：水面线在脚底上方 3 行，一道连续、微微起伏的亮线，
+    下面几行是映着天的水色（黄蓝两档交替的长条）。半透明：脚在水下看得见，颜色被水染了。"""
+    rng = np.random.default_rng(73)
+    img = blank(W, H)
+    wav = knots(W, 13, rng, 0.7)
+    band = 2.5 + knots(W, 23, rng, 1.2)
+    for x in range(W):
+        if ws[x] < 0.45:
+            continue
+        s = int(round(gy[x] - 3 + wav[x]))
+        img[s, x] = hexc(SURF[0])
+        for y in range(s + 1, int(gy[x]) + 6):
+            img[y, x] = hexc(SURF[1] if y - s <= band[x] else SURF[2])
+    corner_fix(img)
+    speck_fix(img)
+    corner_fix(img)
+    return img
+
+
+def draw_glints_main(gy, ws, wtop):
+    """浅水上的亮纹（water shader 让它晃、时有时无）：横的短段，长短不一、随机散开（不等距），黄白和淡蓝白两种"""
+    rng = np.random.default_rng(79)
+    img = blank(W, H)
     placed = 0
-    tries = 0
-    while placed < n and tries < n * 20:
-        tries += 1
-        y = int(rng.integers(1, h - 1))
-        if center is not None:
-            x = int(round(rng.normal(center, spread * (0.45 + y / h))))
-            L = int(rng.integers(2, 10 if abs(x - center) < spread * 0.5 else 6))
-        else:
-            x = int(rng.integers(0, w))
-            L = int(rng.integers(2, 6))
-        if x < 0 or x + L >= w:
+    for _ in range(4000):
+        if placed > 150:
+            break
+        x = int(rng.integers(0, W - 10))
+        if wtop[x] > H - 8:
             continue
-        if img[max(0, y - 1):y + 2, max(0, x - 2):x + L + 2, 3].any():
+        y = int(rng.integers(max(wtop[x] + 3, 0), H - 1))
+        if abs(y - gy[x]) < 5:
             continue
-        c = hexc(GLINT[0] if (center is not None and abs(x - center) < spread * 0.6) or rng.random() < 0.3 else GLINT[1])
-        img[y, x:x + L] = c
+        L = int(rng.integers(2, 8))
+        if img[max(0, y - 1):y + 2, max(0, x - 2):x + L + 2, 3].any() or y < wtop[x + L] + 3:
+            continue
+        img[y, x:x + L] = hexc(GLINT[0] if rng.random() < 0.5 else GLINT[1])
         placed += 1
     return img
 
 
-# ---------------------------------------------------------------- 静止的小芦苇（中景）
-def mini_reed(img, x, root, L, lean, pal, rng, plume=True):
-    """中景的一根：1 像素的秆（四邻接，微微往右偏）+ 顶上一个小穗"""
-    pts = []
-    for i in range(L + 1):
-        u = i / L
-        pts.append((x + lean * u ** 1.6, root - i))
-    px = path4(pts)
-    for j, (a, b) in enumerate(px):
-        c = pal["stem_d"] if j < len(px) * 0.4 else pal["stem"]
-        put(img, a, b, hexc(c))
-    if plume:
-        tx, ty = px[-1]
-        ph = int(rng.integers(3, 6))
-        for k in range(ph):
-            yy = ty + k - 1
-            ww = 1 if k in (0, ph - 1) else 2
-            for d in range(ww):
-                put(img, tx + d + (1 if k > ph // 2 and lean > 0.5 else 0), yy, hexc(pal["lit"] if k < ph // 2 and d == 0 else pal["plume"]))
-        put(img, tx, ty, hexc(pal["plume"]))
-
-
-def draw_mid():
-    """中景：湖里的一簇簇芦苇岛（scroll 0.55），每簇底下是根丛和倒影。x 580–1060 留空（镜头在草原小镇那段时，这里正好在后面）。"""
-    rng = np.random.default_rng(53)
-    w, h, oy = 1300, 112, 96            # 图上沿在房间 y 96；根在 y 186–198
+def draw_glints_mid(r0, r1):
+    rng = np.random.default_rng(81)
+    w, h = 960, 44
     img = blank(w, h)
-    islands = []
-    x = 10
-    while x < w - 20:
-        cw = int(rng.integers(40, 150))
-        if not (560 < x + cw / 2 < 1080):
-            islands.append((x, cw, int(rng.integers(186, 199)) - oy, int(rng.integers(24, 62))))
-        x += cw + int(rng.integers(30, 110))
-    islands.sort(key=lambda t: t[2])
-    for x0, cw, root, tall in islands:
-        prof = np.array([(1 - (2 * (i + 0.5) / cw - 1) ** 2) ** 0.6 for i in range(cw)])
-        # 倒影：根丛下面 3–5 行，颜色混了水
-        rh = int(rng.integers(3, 6))
-        for i in range(cw):
-            if prof[i] < 0.15:
-                continue
-            for d in range(1, int(rh * prof[i]) + 1):
-                put(img, x0 + i, root + d, hexc(MIDR["refl"] if d < rh * prof[i] * 0.6 else MIDR["refl_d"]))
-        # 秆：一根根往上
-        n = int(cw / 2.2)
-        for k in range(n):
-            i = int(rng.integers(2, cw - 2))
-            L = int(tall * prof[i] * rng.uniform(0.6, 1.05))
-            if L < 6:
-                continue
-            mini_reed(img, x0 + i, root - 2, L, rng.uniform(0.0, 2.5), MIDR, rng)
-        # 根丛：一条矮的厚边，上沿是叶尖
-        for i in range(cw):
-            t = int(round((4 + 6 * prof[i]) + rng.uniform(-1, 1)))
-            for d in range(t):
-                c = MIDR["base"] if d > 1 else MIDR["shade"]
-                if d > t * 0.6:
-                    c = MIDR["base_d"]
-                put(img, x0 + i, root - d, hexc(c))
-    corner_fix(img)
-    speck_fix(img)
-    corner_fix(img)
-    return img
-
-
-# ---------------------------------------------------------------- 主层（晨那一层，静止部分）
-def zone_reeds(x):
-    """这里路两边是不是芦苇丛：1 = 是，0 = 浅水 / 草地；交界处平滑过渡"""
-    def ramp(a, b):
-        return float(np.clip((x - a) / (b - a), 0, 1))
-    town = ramp(TOWN[0] - 40, TOWN[0] + 30) * (1 - ramp(TOWN[1] - 30, TOWN[1] + 40))
-    return 1 - town
-
-
-def front_kind(x):
-    if WATER[0] + 20 <= x <= WATER[1] - 20:
-        return "water"
-    if TOWN[0] <= x <= TOWN[1]:
-        return "meadow"
-    return "reeds"
-
-
-def draw_main():
-    rng = np.random.default_rng(67)
-    img = blank(W, H)
-    z = np.array([zone_reeds(x) for x in range(W)])
-    gy = np.array([ground(x) for x in range(W)])
-    # 后面的根丛：上沿（芦苇区 ~194–199，草地区 ~212）
-    btop = gy - (8 + 22 * z) + z * knots(W, 55, rng, 4.0) + knots(W, 13, rng, 1.0)
-    ptop = gy - 4 + np.round(knots(W, 80, rng, 0.8))          # 路的上沿
-    pbot = gy + 8 + np.round(knots(W, 70, rng, 1.2))          # 路的下沿
-    for x in range(W):
-        bt = int(round(btop[x]))
-        pt = int(ptop[x])
-        for y in range(bt, pt):
-            d = (y - bt) / max(1, pt - bt)
-            grass = z[x] < 0.3 + 0.4 * d          # 草地和芦苇根丛的交界是斜的
-            if grass:
-                c = MAIN["grass_t"] if y - bt < 2 else MAIN["grass"] if d < 0.6 else MAIN["grass_d"]
-            else:
-                c = MAIN["tip"] if y - bt < 2 else MAIN["mass"] if d < 0.45 else MAIN["mass_d"] if d < 0.85 else MAIN["shadow"]
-            img[y, x] = hexc(c)
-    # 根丛上沿冒出来的叶尖（1 像素宽、2–7 高、斜着，四邻接）
-    for _ in range(int(W * 0.55)):
-        x = int(rng.integers(2, W - 2))
-        bt = int(round(btop[x]))
-        grass = z[x] < 0.5
-        L = int(rng.integers(2, 5 if grass else 8))
-        lean = rng.uniform(-1.5, 2.5)
-        pts = path4([(x + lean * (i / L) ** 1.5, bt - i) for i in range(L + 1)])
-        for (a, b) in pts:
-            put(img, a, b, hexc(MAIN["grass_t"] if grass else MAIN["tip"]))
-    # 根丛里一道道叶片的明暗（细长、竖着偏一点，亮一档或暗一档），随机不等距
-    for _ in range(int(W * 0.9)):
-        x = int(rng.integers(0, W))
-        bt, pt = int(round(btop[x])), int(ptop[x])
-        if pt - bt < 6:
+    placed = 0
+    for _ in range(3000):
+        if placed > 60:
+            break
+        x = int(rng.integers(0, w - 8))
+        a, b = int(round(r0[x])), int(round(r1[x]))
+        if b - a < 6:
             continue
-        y0 = int(rng.integers(bt + 2, pt - 3))
-        L = int(rng.integers(3, 9))
-        grass = z[x] < 0.5
-        here = img[y0, x].copy()
-        if grass:
-            c = MAIN["grass_d"] if (here == hexc(MAIN["grass"])).all() else MAIN["grass"]
-        else:
-            c = MAIN["mass_d"] if (here == hexc(MAIN["mass"])).all() else MAIN["mass"] if (here == hexc(MAIN["mass_d"])).all() else MAIN["mass_dd"]
-        lean = rng.uniform(-0.5, 1.2)
-        for (a, b) in path4([(x + lean * i / L, y0 + i) for i in range(L)]):
-            if 0 <= a < W and b < pt - 1 and img[b, a, 3]:
-                img[b, a] = hexc(c)
-    # 小路：踩出来的土路，中间亮（踩得多），两边一圈深一点，偶尔几块小石子
-    for x in range(W):
-        pt, pb = int(ptop[x]), int(pbot[x])
-        for y in range(pt, pb):
-            c = MAIN["path"]
-            if y - pt < 1 or pb - y <= 1:
-                c = MAIN["path_edge"]
-            img[y, x] = hexc(c)
-    worn_a = gy - 1 + np.round(knots(W, 50, rng, 0.9))
-    worn_b = gy + 4 + np.round(knots(W, 60, rng, 1.0))
-    on = knots(W, 45, rng, 1.0) > -0.35
-    for x in range(W):
-        if on[x]:
-            for y in range(int(worn_a[x]), int(worn_b[x])):
-                img[y, x] = hexc(MAIN["path_lit"])
-    for _ in range(46):
-        x = int(rng.integers(10, W - 10))
-        y = int(rng.integers(int(ptop[x]) + 2, int(pbot[x]) - 2))
-        L = int(rng.integers(2, 4))
-        img[y, x:x + L] = hexc(MAIN["pebble"])
-        img[y + 1, x:x + L] = hexc(MAIN["pebble_d"])
-    # 路前面：芦苇丛 / 浅水 / 矮草地。交界不切竖直的一刀：水面的上沿、芦苇丛的上沿顺着一道斜坡（每列最多差一两格）交过去
-    ftop = pbot + np.round(knots(W, 40, rng, 1.0))
-    wtop = np.array([int(pbot[x]) + 2 for x in range(W)])
-    ew = np.array([sstep(WATER[0] - 10, WATER[0] + 60, x) * (1 - sstep(WATER[1] - 60, WATER[1] + 10, x)) for x in range(W)])
-    em = np.array([sstep(TOWN[0] - 60, TOWN[0] + 10, x) * (1 - sstep(TOWN[1] - 10, TOWN[1] + 60, x)) for x in range(W)])
-    water_y = np.round(wtop + (H - wtop) * (1 - ew) + 10 * ew * (1 - ew) * knots(W, 16, rng, 1.0)).astype(int)        # 这一列从哪一行起是水（H = 没有水）
-    mass_y = np.round(ftop + (H + 4 - ftop) * em).astype(int)           # 这一列从哪一行起是芦苇丛（往下）
-    for x in range(W):
-        pb, ft = int(pbot[x]), int(ftop[x])
-        for y in range(pb, H):
-            if y >= water_y[x]:
-                d = y - wtop[x]
-                c = MAIN["w0"] if d < 3 else MAIN["w1"] if d < 14 else MAIN["w2"] if d < 26 else MAIN["w3"]
-            elif ew[x] > 0.97:
-                c = MAIN["mud"] if y == pb else MAIN["mud_d"]
-            elif y >= mass_y[x]:
-                d = y - max(ft, mass_y[x])
-                c = MAIN["ftip"] if d < 2 else MAIN["fmass"] if d < 12 else MAIN["fmass_d"] if d < 24 else MAIN["fmass_dd"]
-                if water_y[x] < H and water_y[x] - y <= 1:
-                    c = MAIN["mud_d"]                  # 芦苇丛泡进水的那一圈：泥
-            elif em[x] > 0.02:
-                d = y - pb
-                c = MAIN["grass_t"] if d < 2 else MAIN["grass"] if d < 14 else MAIN["grass_d"] if d < 26 else MAIN["grass_dd"]
-            else:
-                c = MAIN["path_edge"]
-            img[y, x] = hexc(c)
-    # 路前芦苇丛的叶尖（往上冒）+ 里面的叶片明暗
-    for _ in range(int(W * 0.5)):
-        x = int(rng.integers(2, W - 2))
-        ft = int(ftop[x])
-        if not (mass_y[x] <= ft + 1 and water_y[x] > ft + 6):
-            continue
-        L = int(rng.integers(2, 7))
-        lean = rng.uniform(-1.5, 2.0)
-        for (a, b) in path4([(x + lean * (i / L) ** 1.5, ft - i) for i in range(L + 1)]):
-            if not 0 <= a < W or b < int(pbot[a]) + 1:
-                continue
-            put(img, a, b, hexc(MAIN["ftip"]))
-    for _ in range(int(W * 0.8)):
-        x = int(rng.integers(0, W))
-        ft = max(int(ftop[x]), int(mass_y[x]))
-        if ft > H - 8 or water_y[x] < H:
-            continue
-        y0 = int(rng.integers(ft + 3, H - 3))
-        L = int(rng.integers(3, 10))
-        here = img[y0, x].copy()
-        c = MAIN["fmass_d"] if (here == hexc(MAIN["fmass"])).all() else MAIN["fmass"] if (here == hexc(MAIN["fmass_d"])).all() else MAIN["fmass_d"]
-        lean = rng.uniform(-0.6, 1.0)
-        for (a, b) in path4([(x + lean * i / L, y0 + i) for i in range(L)]):
-            if 0 <= a < W and b < H and any((img[b, a] == hexc(MAIN[k])).all() for k in ("fmass", "fmass_d", "fmass_dd")):
-                img[b, a] = hexc(c)
-    # 浅水：映着天的亮纹（两头尖的横条，长短不一），岸边一条芦苇的倒影（深一档、横向抖）
-    for _ in range(40):
-        x = int(rng.integers(WATER[0] + 30, WATER[1] - 30))
-        y = int(rng.integers(wtop[x] + 5, H - 2))
-        L = int(rng.integers(6, 30))
-        for i in range(L):
-            if y >= water_y[x + i] + 2 and (img[y, x + i] != hexc(MAIN["w0"])).any():
-                img[y, x + i] = hexc(MAIN["w_lit"] if 0.15 < i / L < 0.85 else MAIN["w2"])
-    # 草地里一道道草叶的明暗（短、斜，亮一档或暗一档）
-    gset = {k: hexc(MAIN[k]) for k in ("grass", "grass_d", "grass_dd")}
-    for _ in range(900):
-        x = int(rng.integers(TOWN[0] - 50, TOWN[1] + 50))
-        y0 = int(rng.integers(int(pbot[x]) + 3, H - 3))
-        here = img[y0, x]
-        k = next((k for k, c in gset.items() if (here == c).all()), None)
-        if k is None:
-            continue
-        c = gset["grass_d"] if k == "grass" else gset["grass"] if k == "grass_d" else gset["grass_d"]
+        y = int(rng.integers(a + 2, b - 1))
         L = int(rng.integers(2, 6))
-        lean = rng.uniform(-0.8, 0.8)
-        for (a, b) in path4([(x + lean * i / L, y0 + i) for i in range(L)]):
-            if 0 <= a < W and b < H and (img[b, a] == here).all():
-                img[b, a] = c
-    # 草地上的小花：一格花 + 下面一格花茎（不是孤立的单点），稀稀拉拉
-    for _ in range(60):
-        x = int(rng.integers(TOWN[0] + 10, TOWN[1] - 10))
-        y = int(rng.integers(int(pbot[x]) + 4, H - 3))
-        c = MAIN["fl_blue"] if rng.random() < 0.55 else MAIN["fl_cream"]
-        img[y, x] = hexc(c)
-        img[y + 1, x] = hexc(MAIN["fl_stem"])
-    corner_fix(img)
-    speck_fix(img)
-    corner_fix(img)
-    return img, btop, ptop, pbot
+        if img[max(0, y - 1):y + 2, max(0, x - 2):x + L + 2, 3].any():
+            continue
+        img[y, x:x + L] = hexc(GLINT[0] if rng.random() < 0.5 else GLINT[1])
+        placed += 1
+    return img
 
 
 # ---------------------------------------------------------------- 会动的芦苇：每种在每个角度下画一帧
@@ -852,8 +932,8 @@ def reed_variants():
     rng = np.random.default_rng(83)
     out = {}
     #       种数  总长        穗长      穗宽         点头
-    spec = {"r0": (5, (58, 84), (16, 21), (4.4, 5.6), (62, 88)),
-            "r1": (7, (24, 58), (12, 17), (3.2, 4.2), (52, 78)),
+    spec = {"r0": (6, (40, 84), (16, 21), (5.2, 6.6), (62, 88)),
+            "r1": (7, (22, 56), (12, 17), (4.4, 5.6), (52, 78)),
             "r2": (5, (14, 26), (8, 11), (2.2, 2.8), (44, 64)),
             "f": (4, (50, 76), (15, 19), (4.8, 6.0), (56, 80))}
     for row, (n, lr, pr, wr, nr) in spec.items():
@@ -862,7 +942,7 @@ def reed_variants():
             P = int(rng.integers(pr[0], pr[1] + 1))
             PW = float(rng.uniform(*wr))
             leaves = []
-            nl = int(rng.integers(1, 3)) + (1 if L > 48 else 0)
+            nl = int(rng.integers(0, 2)) if row in ("r0", "r1") else int(rng.integers(1, 3))
             side = -1 if rng.random() < 0.5 else 1
             for k in range(nl):
                 s = rng.uniform(0.18, 0.5)
@@ -1028,51 +1108,6 @@ def build_reeds():
     return atlas, meta, vs
 
 
-def place_reeds(vs, btop, ptop, pbot):
-    """每一根放哪：[x, 根 y, 种类, 自己的风相位]。r0 后排高的成簇、中间留缝透出湖；r1 路后面密；r2 路前面；f 前景（scroll 1.25 的坐标）。"""
-    rng = np.random.default_rng(97)
-    names = {r: [n for n in vs if vs[n]["row"] == r] for r in ("r0", "r1", "r2", "f")}
-    out = {"r0": [], "r1": [], "r2": [], "f": []}
-    dens0 = knots(W, 90, rng, 1.0) + knots(W, 25, rng, 0.35)
-    dens1 = knots(W, 50, rng, 1.0)
-    x = 6.0
-    while x < W - 6:
-        xi = int(x)
-        z = zone_reeds(xi)
-        if z > 0.7 and dens0[xi] > 0.2:                              # 后排高的：一簇一簇，中间留缝透出湖
-            out["r0"].append([xi, int(round(btop[xi])) + int(rng.integers(6, 12)), str(rng.choice(names["r0"])), round(float(rng.uniform(0, 6.28)), 2)])
-        x += rng.uniform(3.0, 6.5)
-    x = 4.0
-    while x < W - 4:
-        xi = int(x)
-        z = zone_reeds(xi)
-        if (z > 0.5 and dens1[xi] > -0.55) or rng.random() < 0.06:
-            pool = names["r1"] if z > 0.5 else names["r1"][:2]       # 草地上只零星几根矮的
-            out["r1"].append([xi, int(ptop[xi]) - int(rng.integers(2, 8)), str(rng.choice(pool)), round(float(rng.uniform(0, 6.28)), 2)])
-        x += rng.uniform(2.6, 5.2) if z > 0.5 else rng.uniform(14, 30)
-    x = 4.0
-    while x < W - 4:
-        xi = int(x)
-        if front_kind(xi) == "reeds" and front_kind(xi - 14) == "reeds" and front_kind(xi + 14) == "reeds" \
-                and not (WATER[0] - 50 < xi < WATER[1] + 50) and not (TOWN[0] - 50 < xi < TOWN[1] + 50):
-            out["r2"].append([xi, int(pbot[xi]) + int(rng.integers(12, 28)), str(rng.choice(names["r2"])), round(float(rng.uniform(0, 6.28)), 2)])
-        x += rng.uniform(8.0, 17.0)
-    # 前景：一簇簇（3–6 根），簇和簇之间隔 140–300（层坐标；层宽 480 + 1440 × 1.25 = 2280）
-    fx = 60.0
-    fw = 480 + (W - 480) * 1.25
-    while fx < fw - 30:
-        # 这簇正好在屏幕中间时，晨那一层对着的 x
-        cl = (fx - 240) / 1.25
-        mx = cl + 240
-        if not (TOWN[0] - 60 < mx < TOWN[1] + 60):
-            for k in range(int(rng.integers(3, 7))):
-                out["f"].append([int(fx + k * rng.uniform(4, 9)), int(rng.integers(276, 292)), str(rng.choice(names["f"])), round(float(rng.uniform(0, 6.28)), 2)])
-        fx += rng.uniform(150, 310)
-    for r in out:
-        out[r].sort(key=lambda t: t[0])
-    return out
-
-
 # ---------------------------------------------------------------- 鸟
 # 背影（飞走的方向背对镜头）：D = 翅、B = 身、T = 尾。四种大小（近 → 远），每种 up / mid / down 三帧；
 # 翅膀斜着的地方一格一格竖着接（四邻接），不只角碰角。最后两帧是落在芦苇顶上的侧影（朝右），歇着 / 低头
@@ -1119,33 +1154,69 @@ def build_birds():
     return img, meta
 
 
+def place_reeds(vs, top, gy):
+    """芦苇聚成几大片（R0_MASSES、R1_MASSES）：每片里密密地一根挨一根（隔 1.6–2.6 像素），高矮按一个圆顶的包络排（中间高、两头矮），
+    穗头连成一条软软的淡色带，像起伏的一大团；根埋在前面的草团里（cover_r0 / cover_r1）。片和片之间是开阔的草地。
+    前景（f，scroll 1.25）两三团。路前面（r2）不放（第二版那种孤零零的一根根，作者不要）。"""
+    rng = np.random.default_rng(97)
+    names = {r: sorted([n for n in vs if vs[n]["row"] == r], key=lambda n: vs[n]["L"]) for r in ("r0", "r1", "r2", "f")}
+    out = {"r0": [], "r1": [], "r2": [], "f": []}
+
+    def mass(row, a, b, ybase):
+        n = len(names[row])
+        bump = knots(b - a + 1, 30, rng, 0.18)
+        x = a + rng.uniform(0, 2)
+        while x < b:
+            xi = int(x)
+            env = math.sin(math.pi * (x - a) / (b - a)) ** 0.6 + bump[xi - a]
+            k = int(np.clip(round(env * (n - 1) + rng.uniform(-1.2, 1.2)), 0, n - 1))
+            out[row].append([xi, int(ybase(xi)), names[row][k], round(float(rng.uniform(0, 6.28)), 2)])
+            x += rng.uniform(1.6, 2.6)
+
+    for a, b in R0_MASSES:
+        mass("r0", a, b, lambda x: top[x] + rng.integers(12, 20))
+    for a, b in R1_MASSES:
+        mass("r1", a, b, lambda x: gy[x] - rng.integers(4, 9))
+    fw = 480 + (W - 480) * 1.25
+    for (a, b) in FRONT_MASSES:
+        if b < fw:
+            mass("f", a, b, lambda x: rng.integers(286, 296))
+    for r in out:
+        out[r].sort(key=lambda t: t[0])
+    return out
+
+
 # ---------------------------------------------------------------- room.json
 def room_json():
     layers = [
         {"id": "sky", "img": "sky.png", "scroll": 0.0, "y": 0},
-        {"id": "wisps", "img": "wisps.png", "scroll": 0.03, "y": 6, "tile": True, "drift": -1.2},
-        {"id": "clouds", "img": "clouds.png", "scroll": 0.06, "y": 34, "tile": True, "drift": -0.35},
-        {"id": "far", "img": "far.png", "scroll": 0.2, "y": 124, "tile": True, "shader": "sway",
-         "shader_params": {"amp": 1.0, "speed": 0.9, "wavelength": 240.0, "power": 1.2, "bend": 0.0}},
-        {"id": "lake", "img": "lake.png", "scroll": 0.35, "y": 155, "tile": True},
-        {"id": "sunpath", "img": "sunpath.png", "scroll": 0.0, "y": 155, "shader": "water",
-         "shader_params": {"palette_mode": False, "speed": 0.8, "wobble": 1.5, "flicker": 0.0, "show": 0.7}},
-        {"id": "glints", "img": "glints.png", "scroll": 0.35, "y": 155, "tile": True, "shader": "water",
+        {"id": "streaks", "img": "streaks.png", "scroll": 0.03, "y": 10, "tile": True, "drift": -1.0},
+        {"id": "far", "img": "far.png", "scroll": 0.12, "y": 132, "tile": True, "shader": "sway",
+         "shader_params": {"amp": 1.0, "speed": 0.7, "wavelength": 240.0, "power": 1.2, "bend": 0.0}},
+        {"id": "mid", "img": "mid.png", "scroll": 0.4, "y": 142, "tile": True},
+        {"id": "mid_glints", "img": "mid_glints.png", "scroll": 0.4, "y": 142, "tile": True, "shader": "water",
          "shader_params": {"palette_mode": False, "speed": 0.6, "wobble": 1.0, "flicker": 0.0, "show": 0.55}},
-        {"id": "mid", "img": "mid.png", "scroll": 0.55, "y": 96, "shader": "sway",
-         "shader_params": {"amp": 1.0, "speed": 0.75, "wavelength": 260.0, "power": 1.6, "bend": 0.0}},
         {"id": "main", "img": "main.png", "scroll": 1.0, "y": 0},
+        {"id": "glints", "img": "glints.png", "scroll": 1.0, "y": 0, "shader": "water",
+         "shader_params": {"palette_mode": False, "speed": 0.8, "wobble": 1.0, "flicker": 0.0, "show": 0.6}},
+        {"id": "cover_r0", "img": "cover_r0.png", "scroll": 1.0, "y": 0, "z": -36},
+        {"id": "cover_r1", "img": "cover_r1.png", "scroll": 1.0, "y": 0, "z": -26},
+        {"id": "ankle", "img": "ankle.png", "scroll": 1.0, "y": 0, "z": 20},
+        {"id": "cover_f", "img": "cover_f.png", "scroll": 1.25, "y": 0, "z": 111},
+        {"id": "ankle_water", "img": "ankle_water.png", "scroll": 1.0, "y": 0, "z": 21, "alpha": 0.6},
     ]
     return {
         "_note": ("tools/reed_field_art.py 生成，别手改（要改先改脚本）。云层星的芦苇地（第三章；结局一、结局二的 yard / east_meadow 都改成这张）。"
-                  "白天、最亮的一屏。会动的芦苇和惊鸟是 scripts/reed_field.gd（scripts 里），数据在 reeds.json / birds.json。"
+                  "第二版：开阔的草甸，明黄 + 淡蓝交织，梦幻概括；浅草 / 浅水没过晨的脚踝（ankle / ankle_water 在晨前面）。"
+                  "会动的芦苇、惊鸟、晨在水里的倒影、晨身后压暗是 scripts/reed_field.gd（scripts 里），数据在 reeds.json / birds.json。"
                   "约定见 docs/river_rooms_contract.md。"),
-        "_note_town": f"草原小镇留在 x {TOWN[0]}–{TOWN[1]}：地是平的（ground {ground(TOWN[0])}），路前面是矮草地、后面没有高芦苇，"
-                      "中景这一段（mid.png 的 x 560–1080）也空着。小镇的房子画在这一段，放进 main 后面一层（scroll 1，z 在 main 前、晨后）。",
+        "_note_town": f"草原小镇留在 x {TOWN[0]}–{TOWN[1]}：地是平的（ground {ground(TOWN[0])}），这一段没有成丛的芦苇、没有水，"
+                      "只是平缓的草地。小镇的房子画在这一段，放进 main 和 glints 之间一层（scroll 1，z 不写，在晨后面）；"
+                      "脚踝的草丛（ankle.png）在这一段照常有。",
         "size": [W, H],
         "origin": [0, 1080],
         "env": "reeds",
-        "bg": ["#86bde0", "#e3eeec"],
+        "bg": ["#9dd2f1", "#fff0a8"],
         "layers": layers,
         "ground": GROUND,
         "walk": WALK,
@@ -1156,17 +1227,21 @@ def room_json():
         "ambient": [],
         "scripts": [{"script": "res://scripts/reed_field.gd", "x": 0, "y": 0, "z": -40,
                      "params": {"data": "res://art/reed_field/reeds.json", "birds": "res://art/reed_field/birds.json",
-                                "spots": [[SPOTS[0], 5], [SPOTS[1], 7], [SPOTS[2], 4]]}}],
+                                "spots": [[SPOTS[0], 6], [SPOTS[1], 5], [SPOTS[2], 6]],
+                                "water": [list(w) for w in WATERS]}}],
     }
 
 
-# ---------------------------------------------------------------- 预览：按 room.json 叠一屏 + 芦苇（风里的平时样子）+ 晨
-def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, birds=None, bmeta=None):
+# ---------------------------------------------------------------- 预览：按 room.json 叠一屏 + 芦苇 + 晨（含倒影、身后压暗，近似 reed_field.gd）
+SHADE_RINGS = [((44, 54), 0.99), ((35, 45), 0.98), ((27, 36), 0.97), ((20, 28), 0.962), ((13, 21), 0.955)]   # 晨身后压暗（和 reed_field.gd 一样）
+
+
+def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, birds=None, bmeta=None, chen_frame=18):
     j = room_json()
     out = np.zeros((H, 480, 4), np.uint8)
     out[...] = hexc(j["bg"][0])
 
-    def blit(src, x, y):
+    def blit(src, x, y, alpha=1.0):
         h, w = src.shape[:2]
         x0, y0 = max(0, x), max(0, y)
         x1, y1 = min(480, x + w), min(H, y + h)
@@ -1174,22 +1249,28 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
             return
         s = src[y0 - y:y1 - y, x0 - x:x1 - x]
         m = s[..., 3] > 0
-        out[y0:y1, x0:x1][m] = s[m]
+        if alpha >= 1.0:
+            out[y0:y1, x0:x1][m] = s[m]
+        else:
+            d = out[y0:y1, x0:x1].astype(float)
+            d[m, :3] = d[m, :3] * (1 - alpha) + s[m, :3].astype(float) * alpha
+            out[y0:y1, x0:x1] = np.round(d).astype(np.uint8)
 
-    for L in j["layers"]:
+    def layer(L):
         im = layers_img[L["id"]]
         sc = L.get("scroll", 1.0)
         x = round(L.get("x", 0) - cl * sc)
+        a = L.get("alpha", 1.0)
         if L.get("tile"):
             w = im.shape[1]
             x = x % w - w
             while x < 480:
-                blit(im, x, L["y"])
+                blit(im, x, L["y"], a)
                 x += w
         else:
-            blit(im, x, L["y"])
+            blit(im, x, L["y"], a)
 
-    def reeds(row, sc, zlist=None):
+    def reeds(row, sc):
         for (x, y, vn, ph) in place[row]:
             sx = round(x - cl * sc)
             if sx < -100 or sx > 580:
@@ -1199,19 +1280,49 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
             i = int(np.argmin([abs(a - th) for a in meta["angles"]]))
             fx, fy, fw, fh, ox, oy, _, _ = v["frames"][i]
             blit(atlas[fy:fy + fh, fx:fx + fw], sx + ox, y + oy)
-    reeds("r0", 1.0)
-    if birds is not None:
-        for (bx, by, idx) in birds:
-            cw, ch = bmeta["cell"]
-            blit(birds_img_global[0][:, idx * cw:(idx + 1) * cw], round(bx - cl - cw // 2), by - ch + 1)
-    reeds("r1", 1.0)
-    if chen_x is not None:
-        sheet = np.array(Image.open(ROOT / "art/characters/chen/chen_oscar.png").convert("RGBA"))
-        f = 18
-        fr = sheet[:, f * 68:(f + 1) * 68]
-        blit(fr, round(chen_x - cl - 26), ground(chen_x) - 58)
-    reeds("r2", 1.0)
-    reeds("f", 1.25)
+
+    sheet = np.array(Image.open(ROOT / "art/characters/chen/chen_oscar.png").convert("RGBA"))
+    fr = sheet[:, chen_frame * 68:(chen_frame + 1) * 68]
+
+    def do_birds():
+        if birds is not None:
+            for (bx, by, idx) in birds:
+                cw, ch = bmeta["cell"]
+                blit(birds_img_global[0][:, idx * cw:(idx + 1) * cw], round(bx - cl - cw // 2), by - ch + 1)
+
+    def do_shade():
+        if chen_x is None:
+            return
+        gx, g = round(chen_x - cl), ground(chen_x)
+        yy, xx = np.mgrid[0:H, 0:480]
+        for (rx, ry), k in SHADE_RINGS:          # 从外到里，每圈「以内一共乘多少」
+            m = ((xx - gx) / rx) ** 2 + ((yy - (g - 24)) / ry) ** 2 <= 1
+            out[m, :3] = np.round(out[m, :3] * (k / prev_k(k))).astype(np.uint8)
+
+    def prev_k(k):
+        ks = [1.0] + [r[1] for r in SHADE_RINGS]
+        return ks[ks.index(k) - 1]
+
+    def do_refl():
+        if chen_x is None or not in_water(chen_x):
+            return
+        gx, g = round(chen_x - cl), ground(chen_x)
+        ref = fr[::-1].copy()
+        m = ref[..., 3] > 0
+        ref[m, :3] = np.round(ref[m, :3] * 0.55 + np.array([196, 228, 244]) * 0.45).astype(np.uint8)
+        blit(ref, gx - 26, g, alpha=0.42)
+
+    def do_chen():
+        if chen_x is not None:
+            blit(fr, round(chen_x - cl) - 26, ground(chen_x) - 58)
+
+    items = []
+    for i, L in enumerate(j["layers"]):
+        items.append((L.get("z", -100 + i), i, lambda L=L: layer(L)))
+    items += [(-40, 0, lambda: reeds("r0", 1.0)), (-30, 0, lambda: reeds("r1", 1.0)), (5, 0, lambda: reeds("r2", 1.0)),
+              (110, 0, lambda: reeds("f", 1.25)), (-29, 0, do_birds), (-3, 0, do_refl), (-2, 0, do_shade), (0, 0, do_chen)]
+    for _z, _i, fn in sorted(items, key=lambda t: (t[0], t[1])):
+        fn()
     return out
 
 
@@ -1227,26 +1338,58 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
 
     imgs = {}
-    print("画：天、云、远景、湖、中景、主层……")
+    print("画：天、横云、远景、中景的河、草甸、浅水、脚踝……")
     imgs["sky"] = draw_sky()
-    imgs["wisps"] = draw_wisps()
-    imgs["clouds"] = draw_clouds()
+    imgs["streaks"] = draw_streaks()
     imgs["far"] = draw_far()
-    imgs["lake"] = draw_lake()
-    imgs["sunpath"] = draw_glints(480, 50, 5, 70, center=SUN[0], spread=34)
-    imgs["glints"] = draw_glints(960, 50, 6, 26)
-    imgs["mid"] = draw_mid()
-    imgs["main"], btop, ptop, pbot = draw_main()
+    imgs["mid"], r0, r1 = draw_mid()
+    imgs["mid_glints"] = draw_glints_mid(r0, r1)
+    imgs["main"], top, gy, wtop, ws, row_base = draw_main()
+    global WATERS
+    WATERS = []
+    x = 0
+    while x < W:
+        if ws[x] > 0.5:
+            a = x
+            while x < W and ws[x] > 0.5:
+                x += 1
+            WATERS.append((a, x - 1))
+        x += 1
+    print("  路泡在水里的段：", WATERS)
+    imgs["glints"] = draw_glints_main(gy, ws, wtop)
+    imgs["ankle"] = draw_ankle(imgs["main"], gy, ws)
+    imgs["ankle_water"] = draw_ankle_water(gy, ws)
     print("画：芦苇的弯曲帧、鸟……")
     atlas, meta, vs = build_reeds()
-    place = place_reeds(vs, btop, ptop, pbot)
+    place = place_reeds(vs, top, gy)
+    rngm = np.random.default_rng(89)
+    imgs["cover_r0"] = draw_root_cover(imgs["main"], row_base, [(a - 20, b + 20) for a, b in R0_MASSES],
+                                       lambda x: int(top[x]) + 10, lambda x: int(top[x]) + 34)
+    for a, b in R0_MASSES:                       # 后面那一大片：草堆盖住下半截（约四成高）
+        mound(imgs["cover_r0"], a - 14, b + 14, lambda x: int(top[x]) + 18, 30, rngm)
+    imgs["cover_r1"] = draw_root_cover(imgs["main"], row_base, [(a - 20, b + 20) for a, b in R1_MASSES],
+                                       lambda x: int(gy[x]) - 10, lambda x: int(gy[x]) - 1)
+    for a, b in R1_MASSES:
+        mound(imgs["cover_r1"], a - 10, b + 10, lambda x: int(gy[x]) - 5, 19, rngm)
+    # 前景（scroll 1.25）的芦苇丛也埋在一团草里
+    fwid = int(480 + (W - 480) * 1.25)
+    imgs["cover_f"] = blank(fwid, H)
+    for (fa, fb) in FRONT_MASSES:
+        mound(imgs["cover_f"], fa - 12, fb + 12, lambda x: 276, 30, rngm)
+    for k in ("cover_r0", "cover_r1", "cover_f"):
+        corner_fix(imgs[k])
+        speck_fix(imgs[k])
+        corner_fix(imgs[k])
+        edge_diag_fill(imgs[k])
     birds, bmeta = build_birds()
     birds_img_global[0] = birds
 
     print("自查：")
     bad = 0
-    for k in ("sky", "wisps", "clouds", "far", "lake", "mid", "main"):
+    for k in ("sky", "streaks", "far", "mid", "main", "ankle", "ankle_water", "cover_r0", "cover_r1", "cover_f"):
         bad += scan(k, imgs[k], alpha_only=False)
+        bad += dashes(k, imgs[k])
+    for k in ("glints", "mid_glints"):
         bad += dashes(k, imgs[k])
     nr = 0
     for vn, v in meta["variants"].items():          # 逐帧扫（整张图集里帧和帧之间的分隔列会被当成缺口）
@@ -1259,6 +1402,9 @@ def main():
     bad += scan("birds（只看轮廓）", birds, alpha_only=True)
     gl = [(x, ground(x + 1) - ground(x)) for x in range(W - 1) if abs(ground(x + 1) - ground(x)) > 1]
     print("  地面：相邻两列差 ≥2 像素的地方", gl)
+    tops = [int(np.argmax(imgs["main"][:, x, 3] > 0)) for x in range(W)]
+    st = [(x, tops[x + 1] - tops[x]) for x in range(W - 1) if abs(tops[x + 1] - tops[x]) > 2]
+    print("  草甸上沿：相邻两列跳 ≥3 像素（直角台阶嫌疑）", st[:10])
 
     def save(arr, name):
         rel = (OUT / name).relative_to(ROOT).as_posix()
@@ -1267,6 +1413,14 @@ def main():
             return
         Image.fromarray(arr, "RGBA").save(OUT / name)
 
+    # 第一版的图，这一版不用了
+    for old in ("wisps.png", "clouds.png", "lake.png", "sunpath.png"):
+        q = OUT / old
+        if q.exists() and q.relative_to(ROOT).as_posix() not in locked:
+            q.unlink()
+            imp = OUT / (old + ".import")
+            if imp.exists():
+                imp.unlink()
     for k, v in imgs.items():
         save(v, k + ".png")
     save(atlas, "reeds.png")
@@ -1275,23 +1429,25 @@ def main():
         rel = (OUT / name).relative_to(ROOT).as_posix()
         if rel not in locked:
             (OUT / name).write_text(json.dumps(data, ensure_ascii=False, indent=1 if name == "room.json" else None) + "\n", encoding="utf-8")
-    print("ok reed_field", W, H, "芦苇", {r: len(v) for r, v in place.items()}, "种类", len(vs), "atlas", atlas.shape[1], "×", atlas.shape[0])
+    print("ok reed_field", W, H, "芦苇", {r: len(v) for r, v in place.items()}, "种类", len(vs), "atlas", atlas.shape[1], "×", atlas.shape[0],
+          "问题", bad)
 
     if args.preview:
         pv = Path(args.preview)
         pv.mkdir(parents=True, exist_ok=True)
-        # 全图：镜头从左到右四屏拼起来；每屏各放一个晨
-        shots = []
-        for cl in (0, 480, 960, 1440):
-            shots.append(compose(imgs, atlas, meta, place, cl, chen_x=cl + 240,
-                                 birds=[(SPOTS[0] - 6, 150, 12)] if cl == 0 else None, bmeta=bmeta))
+        # 1 倍全图：镜头从左到右四屏拼起来（视差层每屏各算各的，屏和屏之间远景会错开），每屏中间站一个晨
+        shots = [compose(imgs, atlas, meta, place, cl, chen_x=cl + 240) for cl in (0, 480, 960, 1440)]
         full = np.concatenate(shots, axis=1)
         Image.fromarray(full).save(pv / "full_1x.png")
-        Image.fromarray(full).resize((full.shape[1] * 2, H * 2), Image.NEAREST).save(pv / "full_2x.png")
         for i, s in enumerate(shots):
-            Image.fromarray(s).resize((480 * 4, H * 4), Image.NEAREST).save(pv / f"screen{i}_4x.png")
+            Image.fromarray(s).resize((480 * 2, H * 2), Image.NEAREST).save(pv / f"screen{i}_2x.png")
+        # 晨所在位置 3 倍局部：草地里一张、水里一张
+        for name, cxr in (("chen_grass", 160), ("chen_water", 700)):
+            cl = cxr - 240
+            s = compose(imgs, atlas, meta, place, cl, chen_x=cxr)
+            crop = s[130:270, 160:320]
+            Image.fromarray(crop).resize((crop.shape[1] * 3, crop.shape[0] * 3), Image.NEAREST).save(pv / f"{name}_3x.png")
         Image.fromarray(atlas).resize((atlas.shape[1] * 3, atlas.shape[0] * 3), Image.NEAREST).save(pv / "reeds_3x.png")
-        Image.fromarray(birds).resize((birds.shape[1] * 8, birds.shape[0] * 8), Image.NEAREST).save(pv / "birds_8x.png")
         print("预览:", pv)
 
 
