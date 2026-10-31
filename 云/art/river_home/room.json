@@ -10,6 +10,7 @@
  "back": "home_back.png",
  "front": "home_front.png",
  "light": "home_light.png",
+ "view": "home_view.png",
  "floor": 279,
  "walk": [
   24,

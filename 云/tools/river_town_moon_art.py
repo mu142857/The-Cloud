@@ -66,9 +66,22 @@ def mix(c, d, t):
     return _MIX[key]
 
 
-def bg(y):
-    """这一行背后的天 / 水的颜色（不算月光的那团亮）。"""
-    return RA.L_color(float(RA.quant_L(RA.base_L(y))), y)
+SKY_KEEP = 124      # sky.png 里最低的云在 123 行；再往下到地平线（150）是一段雾蒙蒙的渐变
+
+
+def sky_row(y, hz=None):
+    """地平线挪到 hz 以后，屏幕第 y 行对应河岸 sky.png 的哪一行：云和月亮那截不动，云下的渐变拉长，地平线以下照搬原图的水。"""
+    if hz is None or hz == RA.HORIZON or y < SKY_KEEP:
+        return y
+    if y < hz:
+        return SKY_KEEP + (y - SKY_KEEP) * (RA.HORIZON - SKY_KEEP) / (hz - SKY_KEEP)
+    return RA.HORIZON + (y - hz)
+
+
+def bg(y, hz=None):
+    """这一行背后的天 / 水的颜色（不算月光的那团亮）。hz = 这间屋的地平线（默认河岸的 150）。"""
+    ys = sky_row(y, hz)
+    return RA.L_color(float(RA.quant_L(RA.base_L(ys))), ys)
 
 
 # ---------------------------------------------------------------- 画布
@@ -163,7 +176,7 @@ class Cv:
         Image.fromarray(self.a).save(path)
 
 
-def fog(cv, t_of_y, steps=6):
+def fog(cv, t_of_y, steps=6, hz=None):
     """整层往背后的天 / 水色褪 t(y)。一行一个褪色量（1/32 一档，细到看不出台阶），不抖——
     第四版：Bayer 抖动在中景石柱上是一片棋盘格，像脏了。steps 参数留着兼容，不用了。"""
     a = cv.a
@@ -174,7 +187,7 @@ def fog(cv, t_of_y, steps=6):
         tq = round(float(np.clip(t_of_y(y), 0, 1)) * 32) / 32
         if tq <= 0:
             continue
-        b = bg(y)
+        b = bg(y, hz)
         for x in np.nonzero(m)[0]:
             a[y, x, :3] = mix(a[y, x, :3], b, tq)
 
@@ -572,7 +585,7 @@ def tiny_digits(cv, x, y, text, c):
 
 # ---------------------------------------------------------------- 远景（两个房间共用的画法）
 
-def far_town(seed, width=960, waterline=151, n=9):
+def far_town(seed, width=960, waterline=151, n=9, hz=None):
     """远处水边的人家：贴着地平线的一块块圆石头（凿了门窗）和几根小石柱（柱身上一点灯），往雾里褪得很厉害，
     只剩一个个小灯点和水里的倒影。"""
     rng = np.random.default_rng(seed)
@@ -605,7 +618,7 @@ def far_town(seed, width=960, waterline=151, n=9):
     for x in range(width):
         for d in range(1 + int(round(1 + noise[x]))):
             cv.px(x, waterline - d, pal[0], empty=True)
-    fog(cv, lambda y: 0.5 + 0.3 * np.clip((y - 120) / 30, 0, 1))
+    fog(cv, lambda y: 0.5 + 0.3 * np.clip((y - waterline + 31) / 30, 0, 1), hz=hz)
     for (lx, ly) in lights:      # 灯点和倒影（褪过雾以后再点，雾里的灯不褪）
         cv.px(lx, ly, WARM[2])
         cv.px(lx, ly + 1, HALO)
@@ -1047,6 +1060,31 @@ def rock_town(width, spots, seed, foot=H + 6, pal=None, wl=None, refl=12):
     return cv, tops
 
 
+def statue_on_column(cv, x, base, seed, pal=None):
+    """提灯人立在石柱顶上：BM.lantern_statue 画在一张小画布上，只取水线以上那截（水线那一行起是涟漪和水下的倒影），
+    底下一块凿平的石座（上沿受月光、右沿亮一档、下面一行影子），石座下面一根石柱一直伸到画面外。base = 石座上沿。"""
+    pal = pal or BM.STONE_FAR
+    st = Cv(80)
+    BM.lantern_statue(st, 40, 100, seed=seed)
+    rng = np.random.default_rng(seed + 7)          # 柱身：一根直的方石柱（两边各有 0~2 格的起伏），材质照河岸的 stone_shade
+    ch = H + 6 - base - 4
+    lw, rw = RA.smooth1d(ch, rng, 30, 1.0), RA.smooth1d(ch, rng, 26, 1.0)
+    m = np.zeros((ch, 36), bool)
+    for yy in range(ch):
+        m[yy, 2 + int(round(1 + lw[yy])):34 - int(round(1 + rw[yy]))] = True
+    cv.paste(BM.stone_shade(m, rng, pal, facet_w=8), x - 18, base + 4)
+    for yy in range(base, base + 5):              # 石座：比柱子宽一圈、比人像脚宽一点
+        cv.hline(x - 21, x + 20, yy, pal[2] if yy < base + 4 else pal[0])
+    cv.hline(x - 21, x + 20, base, pal[4])
+    cv.vline(x + 20, base, base + 3, pal[3])
+    cv.vline(x - 21, base + 1, base + 4, pal[1])
+    cv.hline(x - 17, x + 16, base + 5, pal[0])    # 石座压在柱头上的一道影子
+    cv.paste(st.a[:100], x - 40, base - 100)
+    for xx in range(x - 16, x + 18):              # 人像脚下贴着石座的一行接触暗
+        if cv.a[base - 1, xx, 3]:
+            cv.px(xx, base, mix(cv.get(xx, base), pal[0], 0.5))
+
+
 def rewarm(cv):
     """雾褪过以后，窗里的暖光拉回来一点（雾里的灯不该被雾吃掉太多）。"""
     a = cv.a
@@ -1154,6 +1192,180 @@ def ripples_img(width, lamps, h=14, seed=4):
 # ---------------------------------------------------------------- 市集 market（1440 宽，地面 200）
 
 MK_W, MK_G = 1440, 200
+# 10-30 作者：「后面还是有一部分河流在地面之上」。市集在河岸正上方 270 像素，人站在高处往远处看，河在脚下：
+# 原来天 / 远石柱 / 雾 / 月光碎片照搬河岸那套（地平线 150），水面占了画面 40%~65%，比桥面（200）高出一大截。
+# 现在地平线压到桥面上面 4 行：桥面上只露对岸一线和一线水光，近一点的河要从桥下的拱洞里往下看；天多露 46 行，显得高。
+MK_HZ = 196
+MK_DY = MK_HZ - RA.HORIZON          # 河岸的 ridge / mist 整层往下挪这么多
+
+
+def market_sky():
+    """市集自己的天（从河岸的 art/river/sky.png 改，那张不动）：云和月亮那截（0..123）原样（月亮还在 x=338，月光条对得上）；
+    云下到地平线那段渐变按河岸的亮度表重算、拉长到 MK_HZ（同一套 Bayer 抖动）；地平线以下接原图的水。"""
+    src = np.array(Image.open(ROOT / "art" / "river" / "sky.png").convert("RGBA"))
+    out = np.zeros_like(src)
+    out[:SKY_KEEP] = src[:SKY_KEEP]
+    xs = np.arange(RA.SW)
+    mw, _ = RA.milky_way_field()
+    for y in range(SKY_KEEP, MK_HZ):
+        ys = sky_row(y, MK_HZ)
+        L = RA.bg_L(xs, ys) + mw[min(int(ys), RA.HORIZON - 1)]
+        lo = np.floor(L / RA.L_STEP)
+        idx = lo + (RA.BAYER[y % 4, xs % 4] < (L / RA.L_STEP - lo))
+        for x in xs:
+            out[y, x] = RA.rgba(RA.L_color(idx[x] * RA.L_STEP, ys))
+    out[MK_HZ:] = src[RA.HORIZON:RA.HORIZON + H - MK_HZ]
+    return out
+
+
+def market_moonpath():
+    """月光条遮罩（给 scripts/river_moonpath.gdshader；通道含义见 river_bank_moon_art.moonpath_img）：从市集的地平线下一行铺到画面底，
+    还是对着月亮的那一竖条、上亮下暗、上密下稀。桥面上面只露 3 行（远处一线水光），其余要从桥下的拱洞里才看得见。
+    视差：贴着地平线的远水 0.16，拱洞里看到的近一点的水 0.3~0.45（都比中景石柱 0.6 慢，河在它们脚下更远处）。"""
+    y0 = MK_HZ + 1
+    a = np.zeros((H - y0, RA.SW, 4), np.uint8)
+    for y in range(y0, H):
+        d = y - y0
+        dens = np.interp(d, (0, 15, 45, 73), (0.85, 0.7, 0.45, 0.3))
+        if BM._hash01(0, y, 13) < 0.3:
+            dens *= 0.4
+        lvl = np.interp(d, (0, 15, 45, 73), (1.0, 0.92, 0.75, 0.62))
+        sc = float(np.interp(y, (y0, 214, H), (0.16, 0.3, 0.45)))
+        lo = BM.MOON_X - BM.MOON_HW - int(BM._hash01(y // 2, 1, 93) * 3)
+        hi = BM.MOON_X + BM.MOON_HW + int(BM._hash01(y // 2, 2, 93) * 3)
+        for x in range(lo, hi):
+            u = abs(x + 0.5 - BM.MOON_X) / (hi - lo) * 2
+            f = max(0.0, 1.0 - u ** 2)
+            a[y - y0, x] = (int(255 * lvl * (0.7 + 0.3 * f)), int(round(sc / 2 * 255)), int(255 * dens * (0.3 + 0.7 * f)), 255)
+    return a
+
+
+STALL_X0, STALL_X1 = 290, 388    # 修补摊两根立柱（左柱贴着石柱，右柱在灯那头）
+STALL_ROD = 160                   # 挂工具的横杆那一行 = market_tools 物件的 y（物件第 0、1 行就是这根杆）
+
+
+def repair_stall(m, G):
+    """修补摊（10-31 作者：「这个右侧悬空的东西是啥」——原来只有一条布篷 + 一根横杆，左边和中间没撑，浮在半空）。
+    现在：两根木立柱插进桥面（脚下一圈铁箍），一根顶梁左头凿进石柱、右头搭在右柱上，布篷搭在顶梁上；
+    两根斜撑托着顶梁；横杆两头绑在立柱上（工具挂在杆上，是 market_tools 物件）；杆下一张摊桌，桌上台钳、补了一半的壶、
+    一盒零件，桌下一只木箱、一只铁桶。光从右上：木头右边和上沿亮一档；灯挂在杆的右头，只照右半张桌子和右柱。"""
+    W = RA.bramp(5, .12, .36, 256, 242)          # 风吹日晒发白的旧木头（BM.WOOD 太黑，在雾前面成了一块剪影）
+    x0, x1, rod = STALL_X0, STALL_X1, STALL_ROD
+    beam = rod - 14                                # 顶梁（146、147 两行）
+    # 顶梁：左头凿进石柱（梁头伸进去 4 格，梁上下两道凿口的影子），右头搭在右柱上再伸出 3 格
+    edge = x0 - 1
+    while edge > x0 - 40 and not m.a[beam, edge, 3]:
+        edge -= 1                                  # 石柱这一行的右边沿
+    bl = edge - 4
+    m.rect(bl, beam, x1 + 6, beam + 2, W[2])
+    m.hline(bl, x1 + 6, beam, W[3])
+    m.vline(x1 + 5, beam, beam + 2, W[4])
+    m.hline(bl - 1, edge + 1, beam - 1, STONE[1])  # 凿口：梁上沿一道浅槽、梁下一道影子
+    m.hline(bl - 1, edge + 1, beam + 2, STONE[0])
+    m.vline(bl - 1, beam - 1, beam + 3, STONE[0])
+    # 布篷：搭在顶梁上往前垂，左高右低一点；竖条布纹（6 格一条），右边受光亮一档；
+    # 下沿是一整条起伏的边（一段 3~8 格长低一格、再一段高回来），不是一格一格的毛刺（像虚线）
+    sag, run, x = {}, 0, edge - 2
+    while x < x1 + 6:
+        n = 3 + int(BM._hash01(x, 5, 91) * 6)
+        for k in range(n):
+            sag[x + k] = run % 2
+        run += 1
+        x += n
+    for x in range(edge - 2, x1 + 6):
+        yb = beam + 8 + (x - x0) // 40 + sag[x]
+        lit = x > x0 + (x1 - x0) * 2 // 3
+        a, b = (BM.B(.13, .03, 230), BM.B(.16, .03, 226)) if not lit else (BM.B(.15, .03, 228), BM.B(.18, .03, 224))
+        m.vline(x, beam + 2, yb, a if (x // 6) % 2 else b)
+        m.px(x, beam + 2, BM.B(.24, .03, 222))
+        m.px(x, yb - 1, BM.B(.11, .03, 232))       # 下沿往里卷的那道折边（暗一档）
+    # 两根立柱：3 宽，左边暗、右边亮；从顶梁一直插到桥面下面，脚下一圈铁箍 + 桥面上一道接缝的影子
+    for px_ in (x0, x1):
+        m.rect(px_ - 1, beam, px_ + 2, G + 2, W[2])
+        m.vline(px_ - 1, beam, G + 2, W[1])
+        m.vline(px_ + 1, beam, G + 2, W[4])
+        m.rect(px_ - 2, G - 3, px_ + 3, G, IRON)
+        m.hline(px_ - 2, px_ + 3, G - 3, IRON_LIT)
+        m.px(px_ + 2, G - 2, IRON_LIT)
+        m.hline(px_ - 3, px_ + 4, G, STONE[0])
+        m.rect(px_ - 1, beam - 1, px_ + 2, beam, W[3])         # 柱头顶着梁，露出一格柱头
+    # 斜撑：立柱往里斜着顶到顶梁下（2 宽，上沿亮）
+    for k in range(9):
+        for sx, d in ((x0 + 2, 1), (x1 - 2, -1)):
+            xx, yy = sx + d * k, rod + 2 - k
+            if yy <= beam + 1:
+                continue
+            m.px(xx, yy, W[3])
+            m.px(xx, yy + 1, W[2])
+            m.px(xx, yy - 1, W[4] if d < 0 else W[3])
+    # 横杆：两头绑在立柱上（物件自己也画了中间那段杆，两头接上）；绳圈 3 道，最上一道亮
+    m.rect(x0 - 1, rod, x1 + 2, rod + 2, W[1])
+    m.hline(x0 - 1, x1 + 2, rod, W[2])
+    rope = [BM.B(.22, .014, 80), BM.B(.3, .016, 84)]   # 麻绳：灰白，不带暖色（灯只照右头）
+    for px_ in (x0, x1):
+        for k, yy in enumerate((rod - 1, rod, rod + 1, rod + 2)):
+            m.hline(px_ - 2, px_ + 3, yy, rope[1] if k == 0 else rope[0])
+        m.px(px_ + 2, rod + 1, rope[1])
+    # 摊桌：桌面两行（上沿受光），前面一块挡板（右头亮一档），两条腿，桌下一块搁板
+    tx0, tx1, ty = x0 + 5, x1 - 4, 186
+    m.rect(tx0, ty, tx1, ty + 2, W[3])
+    m.hline(tx0, tx1, ty, W[4])
+    m.rect(tx0, ty + 2, tx1, ty + 6, W[2])
+    m.hline(tx0, tx1, ty + 5, W[1])
+    for k in range(tx0 + 14, tx1, 22):            # 挡板上几道木板缝（不是虚线：整条竖缝）
+        m.vline(k, ty + 2, ty + 5, W[1])
+    m.vline(tx1 - 1, ty, ty + 6, W[4])
+    for lx in (tx0 + 2, tx1 - 4):
+        m.rect(lx, ty + 6, lx + 3, G, W[1])
+        m.vline(lx + 2, ty + 6, G, W[2])
+    m.rect(tx0 + 5, G - 5, tx1 - 4, G - 4, W[1])   # 搁板
+    m.hline(tx0 + 5, tx1 - 4, G - 5, W[2])
+    # 桌下：左边一只铁桶（搁板上），右边地上一只木箱（板缝、上沿亮、右面亮一档）
+    bx = tx0 + 9
+    m.rect(bx, G - 11, bx + 8, G - 5, BM.B(.13, .02, 250))
+    m.vline(bx + 6, G - 11, G - 5, BM.B(.19, .02, 244))
+    m.vline(bx, G - 11, G - 5, BM.B(.1, .02, 254))
+    m.hline(bx, bx + 8, G - 11, BM.B(.22, .02, 242))
+    m.hline(bx, bx + 8, G - 8, BM.B(.1, .02, 254))
+    cx0 = tx1 - 26
+    m.rect(cx0, G - 9, cx0 + 16, G, W[2])
+    m.vline(cx0, G - 9, G, W[1])
+    m.hline(cx0, cx0 + 16, G - 9, W[3])
+    m.vline(cx0 + 15, G - 9, G, W[3])
+    m.hline(cx0, cx0 + 15, G - 5, W[1])
+    m.vline(cx0 + 8, G - 8, G, W[1])
+    # 桌面上：左头一只台钳（铁，螺杆手柄横着伸出来），中间一把补了一半的壶，右头一盒零件
+    vx = tx0 + 4
+    m.rect(vx, ty - 6, vx + 7, ty, IRON)
+    m.hline(vx, vx + 7, ty - 6, IRON_LIT)
+    m.vline(vx + 6, ty - 6, ty, IRON_LIT)
+    m.hline(vx - 4, vx, ty - 3, IRON_LIT)
+    m.vline(vx - 4, ty - 4, ty - 1, IRON)
+    kx = tx0 + 38
+    pot = [BM.B(.16, .02, 248), BM.B(.22, .02, 244), BM.B(.3, .02, 240)]
+    m.rect(kx, ty - 6, kx + 9, ty, pot[0])
+    m.rect(kx + 1, ty - 7, kx + 8, ty - 6, pot[1])
+    m.vline(kx + 7, ty - 6, ty, pot[1])
+    m.hline(kx + 1, kx + 8, ty - 7, pot[2])
+    m.rect(kx + 3, ty - 9, kx + 6, ty - 7, pot[0])           # 壶盖钮
+    m.line(kx + 9, ty - 4, kx + 12, ty - 7, pot[1])          # 壶嘴
+    m.px(kx + 3, ty - 3, BM.B(.08, .015, 262))               # 还没补上的那个洞
+    m.px(kx + 4, ty - 3, BM.B(.08, .015, 262))
+    m.px(kx + 4, ty - 2, pot[2])                             # 洞下沿新补的一小块锡（亮）
+    ox = tx1 - 16
+    m.rect(ox, ty - 4, ox + 11, ty, W[1])
+    m.hline(ox, ox + 11, ty - 4, W[3])
+    m.vline(ox + 10, ty - 4, ty, W[3])
+    for k, c in enumerate((BM.B(.3, .02, 244), BM.B(.24, .02, 248), BM.B(.34, .02, 240), BM.B(.26, .02, 246))):
+        m.px(ox + 2 + k * 2, ty - 5, c)                      # 盒子里冒出来的螺丝、铁片
+    # 桌下和摊子脚下的影子：光从右上来，影子往左下落（桥面上压暗两行，不描线）
+    for yy in (G, G + 1):
+        for xx in range(tx0 - 3, tx1 - 2):
+            if m.a[yy, xx, 3]:
+                m.a[yy, xx, :3] = mix(m.a[yy, xx, :3], DARK, 0.45 if yy == G else 0.25)
+    # 灯：挂在横杆右头（柱子里边），只照右柱、右半张桌子和那盒零件
+    BM.lantern(m, x1 - 6, rod + 7, "hang", r=20)
+    BM.glow(m, x1 - 14, ty, 22)                    # 灯光落在桌面右半张、零件盒和右柱脚上
 
 
 def market_layers():
@@ -1161,19 +1373,20 @@ def market_layers():
     G = MK_G
     L = {}
     # ---- far（scroll 0.2，平铺 960）
-    L["far"], _ = far_town(21, n=10)
+    L["far"], _ = far_town(21, n=10, waterline=MK_HZ + 1, hz=MK_HZ)     # 对岸贴着压低了的地平线
 
     # ---- mid（scroll 0.6）：从下面升上来的石柱，柱身上凿出人家（小窗透暖光），两处之间拉着细桥
     mw = 480 + int((MK_W - 480) * 0.6) + 4
     spots = [(40, 112, 30, 3, False), (150, 96, 40, 4, True), (262, 128, 26, 2, False), (390, 84, 46, 5, True),
              (520, 118, 30, 3, False), (640, 100, 38, 4, True), (880, 90, 44, 5, True), (1000, 120, 32, 3, False)]
-    mid, tops = rock_town(mw, spots, 300, wl=192, refl=MK_G + 2 - 192)   # 和提灯人同一条水线
-    # 提灯人（中景，晨走到留白那段时它在雾里）：半截泡在水里，水线在平台上沿上面一点，灯在水里拖一道断续的倒影
-    # 第六版：直接用河岸的 BM.lantern_statue（整章一个样式），换个 seed
-    BM.lantern_statue(mid, 760, 192, seed=4150, refl_to=MK_G + 2)   # 倒影整块不透明，盖到主层路面下（挡住后面的月光碎片）
+    # 10-30 第二版：石柱从桥面下面（脚下很远的河里）长上来，柱脚和水线都在画面外，看不见（原来水线 192，比桥面还高）
+    mid, tops = rock_town(mw, spots, 300)
+    # 提灯人（中景，晨走到留白那段时它在雾里）：直接用河岸的 BM.lantern_statue（整章一个样式），换个 seed。
+    # 河在脚下，它不能再半截泡在桥面高度的水里——立在一根升上来的石柱顶上，只取水线以上那截，脚下一块凿平的石座
+    statue_on_column(mid, 760, 150, seed=4150)
     for i in (0, 4):                              # 只有两处拉着吊桥：两根柱子同一高度凿出石台，桥挂在两块石台之间
         pillar_bridge(mid, tops[i], tops[i + 1])
-    fog(mid, lambda y: 0.36 + 0.4 * np.clip((y - 150) / 120, 0, 1))
+    fog(mid, lambda y: 0.36 + 0.4 * np.clip((y - 150) / 120, 0, 1), hz=MK_HZ)
     rewarm(mid)
     L["mid"] = mid
 
@@ -1222,16 +1435,7 @@ def market_layers():
     # 修补摊：一根石柱的脚下，柱子右边支出一块旧布篷，工具挂在篷下（market_tools）
     dwelling_pillar(m, 266, gb, 36, 182, 442, [(-60, "arch", 4, 6, True, False), (-98, "arch", 5, 7, True, False),
                                                (-140, "round", 4, 4, True, False)])
-    for x in range(286, 392):
-        y = 160 + (x - 286) // 25
-        m.vline(x, 158, y + 3, BM.B(.13, .03, 230) if (x // 6) % 2 else BM.B(.16, .03, 226))
-        m.px(x, 158, BM.B(.24, .03, 222))
-        if (x * 7 + 3) % 11 < 4:                  # 布篷下沿磨破的毛边：长短不一的几缕（10-30：原来每 3 格一个黑点，像虚线）
-            m.vline(x, y + 3, y + 4 + (x * 5) % 3 // 2, BM.B(.11, .03, 232))
-    m.line(282, 156, 288, 158, BM.B(.07, .015, 262))
-    m.rect(389, 158, 391, G, BM.WOOD[1])
-    m.vline(390, 158, G, BM.WOOD[3])
-    BM.lantern(m, 381, 170, "hang")
+    repair_stall(m, G)
     # 气瓶柜台：一块圆巨石，正面凿出一个宽的弧顶柜台口（不是贴上去的方框）：
     # 口沿左、上两道内壁在影子里，弧顶外一圈券石亮一档；里面上暗下亮几块干净的暖色，搁板上挂面罩，下面一排气瓶背着光
     rock(m, 456, 568, gb, 120, 443, p=3.2)
@@ -1323,7 +1527,7 @@ def market_layers():
         m.vline(bx + 5, G - 8, G, BM.WOOD[3])
     stone_post(m, 236, G - 1)
     ground_ao(m, lambda x: G, 0, MK_W)
-    fog_bottom(m, 236)
+    fog_bottom(m, 236, hz=MK_HZ)
     L["main"] = m
 
     # ---- rail（人前面）：平台外沿的木栏杆，只在左边一段和楼梯井口
@@ -1416,8 +1620,8 @@ def ground_ao(cv, ground, x0, x1, depth=4):
             cv.px(x, g - k, mix(o, DARK, (0.42, 0.3, 0.18, 0.1, 0.05)[min(4, k - 1)]))
 
 
-def fog_bottom(cv, y0):
-    fog(cv, lambda y: 0 if y < y0 else ((y - y0) / (H - y0)) ** 1.2 * 0.95, steps=8)
+def fog_bottom(cv, y0, hz=None):
+    fog(cv, lambda y: 0 if y < y0 else ((y - y0) / (H - y0)) ** 1.2 * 0.95, steps=8, hz=hz)
 
 
 def frond(cv, x, base, hgt, seed):
@@ -1478,7 +1682,7 @@ def tools_strip():
     一下一下轻轻晃（下端左右错 1 像素），亮点在金属上挪。"""
     w, h = 76, 26
     out = np.zeros((h, w * 4, 4), np.uint8)
-    metal = RA.bramp(4, .14, .44, 256, 246)
+    metal = RA.bramp(4, .2, .52, 256, 246)        # 10-31 提亮一档：原来在雾里的远柱前面几乎看不见
     items = [(4, "wrench", 18), (14, "hammer", 16), (25, "ladle", 20), (36, "coil", 12), (48, "keys", 10),
              (58, "scissor", 14), (68, "wrench", 15)]
     for f in range(4):
@@ -1517,6 +1721,7 @@ def tools_strip():
         gx, gy = [(5, 8), (26, 18), (49, 12), (69, 14)][f]       # 一点亮光在金属上挪
         if cv.get(gx, gy):
             cv.px(gx, gy, metal[3])
+        BM.glow(cv, STALL_X1 - 6 - 300, 7, 20)                   # 杆右头那盏灯只照到最右边两三件（物件 x=300）
         out[:, f * w:(f + 1) * w] = cv.a
     return out
 
@@ -2019,9 +2224,26 @@ NOTE = "tools/river_town_moon_art.py 生成，别手改。约定见 docs/river_r
 BG = ["#03060f", "#0a1424"]
 
 
+def market_sky_layers():
+    """市集站在高处：天换成自己的 sky.png（地平线 MK_HZ），河岸的远石柱和雾整层往下挪 MK_DY，
+    月光碎片换成河岸那套 river_moonpath.gdshader 的竖条遮罩（moonpath.png），从压低了的地平线开始。"""
+    out = []
+    for l in SKY_LAYERS:
+        l = dict(l)
+        if l["id"] == "sky":
+            l["img"] = "sky.png"
+        elif l["id"] in ("ridge", "mist"):
+            l["y"] = MK_DY
+        elif l["id"] == "glints":
+            l = {"id": "glints", "img": "moonpath.png", "scroll": 0.0, "y": MK_HZ + 1, "shader": "moonpath",
+                 "shader_params": dict(BM.MOON_PARAMS)}
+        out.append(l)
+    return out
+
+
 def market_json(old):
     j = {"_note": NOTE, "size": [MK_W, H], "env": "river", "bg": BG,
-         "layers": SKY_LAYERS + [
+         "layers": market_sky_layers() + [
              {"id": "rail", "img": "rail.png", "scroll": 1.0, "y": 0, "front": True},
              {"id": "front", "img": "front.png", "scroll": 1.3, "y": 0, "front": True}],
          "ground": MK_G}
@@ -2029,13 +2251,13 @@ def market_json(old):
     j["objects"] = {
         "market_baskets": {"x": 46, "y": 187, "w": 70, "h": 40, "frames": 2, "ms": 600, "front": True,
                            "states": {"default": [0, 1]}},
-        "market_tools": {"x": 300, "y": 168, "w": 76, "h": 26, "frames": 4, "fps": 4, "states": {"default": [0, 3]}},
+        "market_tools": {"x": 300, "y": STALL_ROD, "w": 76, "h": 26, "frames": 4, "fps": 4, "states": {"default": [0, 3]}},
         "market_breather_stall": {"x": 489, "y": 171, "w": 30, "h": 22, "frames": 2,
                                   "states": {"default": 0, "tank_on_counter": 1}},
     }
     j["walk"] = old.get("walk", [10, 1380])
-    j["walkers"] = [{"npc": "vendor", "path": [[160, 199], [250, 199]], "speed": 8, "pause": [4, 10], "z": -20,
-                     "loop": "pingpong"}]
+    # 10-31 作者：戴帽子提篮子的路人（vendor）先不出场，美术姐画了新的再加回来：
+    # {"npc": "vendor", "path": [[160, 199], [250, 199]], "speed": 8, "pause": [4, 10], "z": -20, "loop": "pingpong"}
     for k in ("portals", "ambient", "walk_when", "origin", "water", "scripts"):
         if k in old:
             j[k] = old[k]
@@ -2110,6 +2332,8 @@ def preview(room, cam_x, path, water_y=None, chen_x=None):
             src = it["img"]
             p = ROOT / src[6:] if src.startswith("res://") else d / src
             im = Image.open(p).convert("RGBA")
+            if it.get("shader") == "moonpath":
+                im = Image.fromarray(BM.moonpath_rgb(np.array(im), cam_x))
             sx = int(round(cam_x * it["scroll"]))
             y = it.get("y", 0) + (shift if it.get("water") else 0)
             if it.get("tile"):
@@ -2174,6 +2398,9 @@ def build(room):
         cv.save(d / f"{k}.png")
     for k, img in O.items():
         Image.fromarray(img).save(d / f"{k}.png")
+    if room == "market":
+        Image.fromarray(market_sky()).save(d / "sky.png")
+        Image.fromarray(market_moonpath()).save(d / "moonpath.png")
     (d / "room.json").write_text(json.dumps(j, ensure_ascii=False, indent=1) + "\n")
     for stale in ("shafts.png", "shafts.png.import"):     # 旧版的光柱层不用了
         if (d / stale).exists():

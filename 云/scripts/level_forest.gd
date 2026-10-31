@@ -57,7 +57,8 @@ extends Node2D
 ##   --free_check [--free_shots=目录]  （和 --free=forest|river 一起）自测：按进出口把这一章走一遍（河岸 → 妮芙家 → 上楼 → 下楼 → 出门 →
 ##                      市集 → 旧街 → 仓库 → 回旧街 → 南桥 → 回旧街；森林 → 树屋段 → 树屋 → 出来 → 回旧路），每一步打印 FREE_TOUR，
 ##                      一路有没有对话 / 点选 / 目标 / 剧情 hotspot 出来过；给了目录就每一步存一张图。打印 FREE_CHECK 后退出
-##                      --free_tour=market,river_bank 只走这几步（房间名 / up / down / edge:left|right）
+##                      --free_tour=market,river_bank 只走这几步（房间名 / up / down / edge:left|right）；
+##                      --free_npcs 一开始就打开面板的「角色」
 ##   --open_bag=物品id [--bag_line=n]  （和 --beat 一起）跳完以后打开背包、选中这件，描述翻到第 n 行（截背包 / 日记用）
 ## 例：Godot --path . --fixed-fps 60 -- --stage=crash --shot=/tmp/a.png --shot_at=3.6
 ##     Godot --path . --fixed-fps 60 -- --story_auto --story_shots=/tmp/shots
@@ -2430,6 +2431,7 @@ func _process(delta: float) -> void:
 
 	_update_walls()
 	_update_portal(delta)
+	_guard_forest_cast()
 	if free_roam != "":
 		_free_tick()
 	else:
@@ -2518,26 +2520,48 @@ func _update_camera(delta: float) -> void:
 		cam.offset = Vector2.ZERO
 
 
-## 多房间章节：正在显示的房间（竖直平移时是两个）上下以外盖黑。房间是上下摞着的（市集在河岸正上方），
-## 窗口比 16:9 高、或者镜头被拉到房间外面时，不能露出别的房间。森林、驾驶舱没有 stage，不盖。
-## 竖直平移时两个房间连着显示，可两张图的接缝（市集桥洞底边直接压在河岸的天上）很硬：接缝那里盖一条
-## 上下渐变的夜色带，镜头像穿过一段夜色；浓淡跟镜头离开两头停的位置多远走，平移开头、结尾不会一下变暗。
-const SEAM_H := 64.0         # 夜色带接缝上下各多高（中间 1/4 全遮）
-const SEAM_IN := 70.0        # 镜头离开停的位置这么远，夜色带才全浓
-var _room_mask: Array[CanvasItem] = []
+## 多房间章节（河岸、妮芙家、市集、旧街、仓库、南桥……）里，森林的角色和林子里的动物一律不出现、不跑：
+## 鹿、弥洛、外星人同伴藏起来停掉；ForestShadows（林子深处的鹿 / 驼鹿 / 狐狸剪影）停掉，连它开场搬出去的 Deep 层
+## （驼鹿那层，forest_shadows.tscn 的 deep_before 把它挪到 level 底下，_start_chapter 藏 ForestShadows 藏不到它）。
+## 10-30 作者：旧街水里、仓库柜子上站着一只第一章的「鹿」，其实是 Deep 层的驼鹿剪影。不靠 story_runner，每帧都管。
+func _guard_forest_cast() -> void:
+	if story == null or story.world == null or not story.world.is_stage(story.world.room):
+		return
+	for n in [story.deer, story.miluo, alien, shadows, shadows.get("deep") if shadows != null else null]:
+		if n is CanvasItem and is_instance_valid(n):
+			var c := n as CanvasItem
+			if c.visible:
+				c.visible = false
+			if c.process_mode != Node.PROCESS_MODE_DISABLED:
+				c.process_mode = Node.PROCESS_MODE_DISABLED
+
+
+## 自测用：鹿、弥洛、外星人同伴、林子剪影（ForestShadows / Deep 层）哪些还亮着（「无」= 都藏好了）
+func _forest_cast_seen() -> String:
+	var out: Array[String] = []
+	var d: Node = shadows.get("deep") if shadows != null else null
+	for pair in [["鹿", story.deer], ["弥洛", story.miluo], ["外星人", alien], ["林子剪影", shadows], ["驼鹿层", d]]:
+		var c = pair[1]
+		if c is CanvasItem and is_instance_valid(c) and (c as CanvasItem).is_visible_in_tree():
+			out.append(str(pair[0]))
+	return "、".join(out) if not out.is_empty() else "无"
+
+
+## 多房间章节：正在显示的房间上下以外盖黑。房间是上下摞着的（市集在河岸正上方），窗口比 16:9 高、
+## 或者镜头被拉到房间外面时（竖直平移渐黑时镜头往上 / 下多走的那一段，story_runner._pan_to），不能露出别的房间。
+## 森林、驾驶舱没有 stage，不盖。
+var _room_mask: Array[ColorRect] = []
 
 
 func _update_room_mask(cc: Vector2) -> void:
 	var w: Node2D = story.world if story != null else null
 	var top := INF
 	var bot := -INF
-	var shown: Array[Node2D] = []
 	if w != null and state != S.TITLE:
 		for r in w.stages:
 			var sg: Node2D = w.stages[r]
 			if not sg.is_visible_in_tree():
 				continue
-			shown.append(sg)
 			top = minf(top, sg.origin.y)
 			bot = maxf(bot, sg.origin.y + sg.size.y)
 			if sg._sky_up != null and sg._sky_up.visible:
@@ -2559,56 +2583,10 @@ func _update_room_mask(cc: Vector2) -> void:
 			m.size = Vector2(4000, 2000)
 			w.add_child(m)
 			_room_mask.append(m)
-		var band := TextureRect.new()
-		band.name = "RoomSeam"
-		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		band.z_as_relative = false
-		band.z_index = 3999
-		band.stretch_mode = TextureRect.STRETCH_SCALE
-		band.size = Vector2(4000, SEAM_H * 2.0)
-		w.add_child(band)
-		_room_mask.append(band)
 	_room_mask[0].position = Vector2(roundf(cc.x) - 2000.0, top - 2000.0)
 	_room_mask[1].position = Vector2(roundf(cc.x) - 2000.0, bot)
-	_room_mask[0].visible = true
-	_room_mask[1].visible = true
-	_update_seam(_room_mask[2] as TextureRect, shown, cc)
-
-
-## 两个上下相接（上面那个的底 = 下面那个的顶）的房间同时显示：接缝盖夜色带
-func _update_seam(band: TextureRect, shown: Array[Node2D], cc: Vector2) -> void:
-	var up: Node2D = null
-	var dn: Node2D = null
-	for a in shown:
-		for b in shown:
-			if a != b and not a.is_house and not b.is_house and absf(a.origin.y + a.size.y - b.origin.y) < 1.0 \
-					and a.origin.x < b.origin.x + b.size.x and b.origin.x < a.origin.x + a.size.x:
-				up = a
-				dn = b
-	if up == null:
-		band.visible = false
-		return
-	var k := clampf(minf(absf(cc.y - up.cam_y()), absf(cc.y - dn.cam_y())) / SEAM_IN, 0.0, 1.0)
-	band.visible = k > 0.0
-	if not band.visible:
-		return
-	if band.get_meta("pair", "") != str(up.id) + ">" + str(dn.id):
-		band.set_meta("pair", str(up.id) + ">" + str(dn.id))
-		var c0 := Color(str((up.cfg.get("bg", ["#03060f", "#0a1424"]) as Array).back()))
-		var c1 := Color(str((dn.cfg.get("bg", ["#0b1220"]) as Array).front()))
-		var c := c0.lerp(c1, 0.5)
-		var g := Gradient.new()
-		g.offsets = PackedFloat32Array([0.0, 0.375, 0.625, 1.0])
-		g.colors = PackedColorArray([Color(c, 0.0), c, c, Color(c, 0.0)])
-		var gt := GradientTexture2D.new()
-		gt.gradient = g
-		gt.width = 1
-		gt.height = 64
-		gt.fill_from = Vector2(0, 0)
-		gt.fill_to = Vector2(0, 1)
-		band.texture = gt
-	band.position = Vector2(roundf(cc.x) - 2000.0, dn.origin.y - SEAM_H)
-	band.modulate.a = smoothstep(0.0, 1.0, k)
+	for m in _room_mask:
+		m.visible = true
 
 
 ## 镜头不声不响地停一下（远处有东西走过的时候）
@@ -2616,13 +2594,13 @@ var _cam_hold := 0.0
 var _cam_override := Vector2(NAN, NAN)    # 剧本让镜头去别处（树冠缺口）：镜头就在这，不跟晨
 
 
-## 镜头移到 to（世界坐标的镜头中心），sec 秒，到了返回
-func camera_pan(to: Vector2, sec: float) -> void:
+## 镜头移到 to（世界坐标的镜头中心），sec 秒，到了返回。ease：默认两头都缓；竖直平移的前半段 EASE_IN、后半段 EASE_OUT
+func camera_pan(to: Vector2, sec: float, ease := Tween.EASE_IN_OUT) -> void:
 	_kill_cam_pan()
 	_cam_override = cam.position
 	var tw := create_tween()
 	_cam_pan_tw = tw
-	tw.tween_property(self, "_cam_override", to, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_property(self, "_cam_override", to, sec).set_trans(Tween.TRANS_SINE).set_ease(ease)
 	while tw.is_valid() and tw.is_running():          # 被别的镜头指令停掉也会返回（停掉的 tween 不发 finished）
 		if not is_inside_tree():
 			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
@@ -3550,7 +3528,7 @@ func _start_chapter(play: bool) -> void:
 	_kill_cine()
 	_hp_root.modulate.a = 0.0
 	_title_root.visible = false
-	for n in ["Sky", "Ridge", "Far", "ForestShadows", "MidFar", "Mid", "Main", "PuffsBack", "Wreck", "Ship", "Alien", "Wood",
+	for n in ["Sky", "Ridge", "Far", "ForestShadows", "Deep", "MidFar", "Mid", "Main", "PuffsBack", "Wreck", "Ship", "Alien", "Wood",
 			"PuffsFront", "Front", "StoryProps", "StoryFogProps", "TreehouseFront", "Deer", "Snake"]:
 		var node := get_node_or_null(n)
 		if node is CanvasItem:
@@ -3820,6 +3798,8 @@ func _start_free() -> void:
 	var w := free_walls()
 	print("FREE_ROAM %s chapter=%s room=%s walk=%d..%d x=%d exits=%d" % [free_roam, chapter, story.world.room, w.x, w.y,
 		chen.position.x, story.hotspots.defs.size()])
+	if "--free_npcs" in OS.get_cmdline_user_args():
+		free_show_npcs(true)
 	if _free_check:
 		_free_tour.call_deferred()
 
@@ -4118,8 +4098,8 @@ func _free_tour() -> void:
 				good = story.world.room == step
 		if good:
 			ok += 1
-		print("FREE_TOUR %d %s: %s（%s）room=%s 层=%d x=%d" % [i + 1, step, "ok" if good else "FAILED", how, story.world.room,
-			sg2.chen_lv if sg2 != null else -1, chen.position.x])
+		print("FREE_TOUR %d %s: %s（%s）room=%s 层=%d x=%d 森林的角色/动物: %s" % [i + 1, step, "ok" if good else "FAILED", how, story.world.room,
+			sg2.chen_lv if sg2 != null else -1, chen.position.x, _forest_cast_seen()])
 		await _free_shot(i + 1, step.replace(":", "_"))
 	print("FREE_CHECK %s 走了 %d / %d 步 ok，一路出现过: %s" % [chapter, ok, steps.size(), "、".join(seen) if not seen.is_empty() else "无"])
 	get_tree().quit()

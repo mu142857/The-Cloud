@@ -3256,20 +3256,34 @@ func _fade_people(on: bool, sec: float, with: Array) -> void:
 	await tw.finished
 
 
-## 竖直平移：晨（和同行的）走进楼梯口淡掉 → 镜头 1.2 秒竖直移到上 / 下面的房间（两个房间同时显示）→ 出来
+## 竖直平移（10-31 作者：两个房间不拼在一起、也不要夜空，渐黑再渐亮，但要看得出在往上 / 往下走）：
+## 晨（和同行的）淡掉 → 渐黑的同时镜头在这个房间里往上（下）移 PAN_SHIFT、平滑起步 → 黑着换房间 →
+## 渐亮的同时镜头从新房间下（上）面 PAN_SHIFT 接着往上（下）移、减速停住 → 人淡出来。
+## 两段距离、时长一样，sine 前半段 EASE_IN、后半段 EASE_OUT，接上的地方速度相等，看着是一口气。
+## 镜头移出房间露出来的地方 level_forest 的房间上下盖黑会盖住（本来就在变黑）。
+const PAN_SHIFT := 40.0
+const PAN_HALF := 0.85
 func _pan_to(room: String, x: float, with: Array, st: Dictionary) -> void:
 	var to_st: Node2D = world.stage(room)
-	world.show_stage(room, true)
-	level.camera_hold_at(level.cam.position)
+	var from_st: Node2D = world.cur_stage()
+	var dir := -1.0 if from_st == null or to_st.origin.y < from_st.origin.y else 1.0      # -1：往上（镜头 y 变小）
+	var c0: Vector2 = level.cam.position.round()
+	level.camera_hold_at(c0)
 	await _fade_people(false, 0.35, with)
+	level.camera_pan(c0 + Vector2(0, dir * PAN_SHIFT), PAN_HALF, Tween.EASE_IN)
+	await level.fade_to_black(PAN_HALF)
 	var target := Vector2(to_st.clamp_cam_x(x + chen.facing * 24.0), to_st.cam_y())
-	await level.camera_pan(target, 1.2)
 	_teleport(room, x, with, false)
 	_fade_place(st)
-	level.camera_hold_at(target)
 	for n in [chen] + with.map(func(w): return npc(str(w))):
 		if n != null:
 			(n as Node2D).modulate.a = 0.0
+	var start := target - Vector2(0, dir * PAN_SHIFT)
+	level.camera_hold_at(start)
+	level.cam.position = start.round()
+	level.camera_pan(target, PAN_HALF, Tween.EASE_OUT)
+	await level.fade_from_black(PAN_HALF)
+	level.camera_hold_at(target)
 	await _fade_people(true, 0.35, with)
 	level.camera_release()
 

@@ -1,0 +1,66 @@
+{
+ "_note": "手写的，tools/river_town_moon_art.py 不碰这个文件（room_stage.gd 把这里的 scripts 接在 room.json 的后面）。鳐鱼快递员在远处：跟中景层（scroll 0.6）一起视差、缩小 2 倍（ray_swim_d2.png）、压暗得比河岸那只多，停在中景右边那座绳桥上（绳最低 y 132）。under mid：画在中景后面，中景的石柱、桥绳挡在它前面。path 是身体中心（层坐标）。",
+ "scripts": [
+  {
+   "script": "res://scripts/ray_courier.gd",
+   "x": 0,
+   "y": 0,
+   "z": -95,
+   "params": {
+    "scroll": 0.6,
+    "small": 2,
+    "path": [
+     [
+      -30,
+      70
+     ],
+     [
+      200,
+      84
+     ],
+     [
+      420,
+      104
+     ],
+     [
+      581,
+      121
+     ],
+     [
+      720,
+      100
+     ],
+     [
+      900,
+      80
+     ],
+     [
+      1100,
+      66
+     ]
+    ],
+    "rest": 3,
+    "speed": 11.0,
+    "accel": 5.0,
+    "period": [
+     25.0,
+     45.0
+    ],
+    "first": [
+     4.0,
+     10.0
+    ],
+    "dim": [
+     0.52,
+     0.57,
+     0.68
+    ],
+    "bob": 1.0,
+    "bob_s": 2.6,
+    "tap": false,
+    "seed": 23,
+    "under": "mid"
+   }
+  }
+ ]
+}

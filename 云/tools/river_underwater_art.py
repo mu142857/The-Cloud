@@ -228,11 +228,11 @@ class Struct:
             u = (x + 0.5 - (wx0 + wx1) / 2) / ((wx1 - wx0) / 2)
             top = wy0 + int(round(9 * (1 - math.sqrt(max(0, 1 - u * u)))))
             self.holes[top:wy1, x] = True
-        # 左墙
+        # 左墙：10-30 作者（「这是门吗？那为什么之间有缝隙」）——原来左墙剖面上开了门洞，门洞上面那截墙悬着，
+        # 前景再立一根断柱，看着像一扇有缝的门。现在左墙塌得只剩一截矮墙根（顶 ~y 188~197，参差），晨从它前面走过去
         for x in range(LW[0], LW[1]):
-            t = 114 + (x - LW[0]) // 3 + int(rng.integers(0, 2))
+            t = 188 + int(round(4 * abs(math.sin(x * 0.7)))) + (x - LW[0]) // 5 + int(rng.integers(0, 2))
             self.sect[t:G, x] = True
-        self.sect[DOOR_TOP:G, LW[0]:LW[1]] = False
         # 隔墙（上到屋顶）
         self.sect[ROOF_Y[1]:G, PART[0]:PART[1]] = True
         self.sect[DOOR_TOP:G, PART[0]:PART[1]] = False
@@ -652,7 +652,7 @@ def weathering(img, st, solid):
     for _ in range(int(len(ys) / 520)):
         i = int(rng.integers(0, len(ys)))
         y, x = ys[i], xs[i]
-        if not (solid[y - 1:y + 2, x - 1:x + 3].all()):
+        if x < 3 or x > w - 4 or not (solid[y - 1:y + 2, x - 1:x + 3].all()):
             continue
         k = int(rng.integers(1, 4))
         for j in range(k):
@@ -965,7 +965,7 @@ def roof_top(img, st):
 
 def lintels(img, st):
     """门洞上的过梁：一整条长石（比墙里的石块长），底面一行暗。"""
-    for (x0, x1) in ((LW[0] - 2, LW[1] + 2), (PART[0] - 1, PART[1] + 1)):
+    for (x0, x1) in ((PART[0] - 1, PART[1] + 1),):                       # 左墙不再有门洞（塌成矮墙根了）
         y0, y1 = DOOR_TOP - 9, DOOR_TOP
         for x in range(x0, x1):
             for y in range(y0, y1):
@@ -1766,32 +1766,11 @@ def make_sluice():
 
 # ====================================================================== 其他层
 def front_layer(st):
-    """前景（scroll 1，在人前面）：塌掉的前墙只剩地上一排碎石（比晨的脚低）和左边一截断柱；近黑，顶上一格亮一档。"""
+    """前景（scroll 1，在人前面）：塌掉的前墙只剩地上一排碎石（比晨的脚低）；近黑，顶上一格亮一档。不挡晨。"""
     img = Img(W, H)
     rng = np.random.default_rng(101)
     pal = FRONT
-    # 左前角的断柱（一截截方石垒的）
-    x0, x1 = 686, 698
-    top = 152
-    y = H
-    while y > top:
-        bh = int(rng.integers(9, 15))
-        y0 = max(top, y - bh)
-        for Y in range(y0, y):
-            for X in range(x0 - (Y - y0 == 0), x1):
-                lv = 1
-                if Y == y0:
-                    lv = 2 if X > x0 else 1
-                elif X == x1 - 1:
-                    lv = 2
-                if Y == y - 1:
-                    lv = 0
-                img.put(X, Y, pal[lv])
-        y = y0 - 1
-        x0 += int(rng.integers(-1, 2))
-    for X in range(686, 698):                            # 断口：参差、受光
-        t = top - int(rng.integers(0, 4)) * (X % 3 == 0)
-        img.put(X, t, pal[3])
+    # 原来左前角立着一截断柱（在人前面，挡住晨，和左墙的门洞一起像一扇有缝的门）——10-30 去掉了，只留贴地的碎石
     # 地上一排碎石（前墙塌下来的）
     x = OPEN + 10
     while x < W:

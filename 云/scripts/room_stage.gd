@@ -78,6 +78,8 @@ var chen_lv := 0                       # 晨在哪层
 var chen_stair := -1                   # 晨正在走哪段石阶（−1 = 没在楼梯上）
 var npc_lv := {}                       # NPC 节点名 → 层号（没记的 = 跟晨同层）
 var _sky_up: Sprite2D                  # 镜头升到 host 顶上时补的夜空
+var _view: Sprite2D                    # 小屋的窗玻璃（room.json "view"）：当遮罩（clip_children），里面画 host 远景层的替身
+var _view_src: Array = []              # [[替身 Sprite2D, host 的那层 / _sky_up]]：每帧跟着原层的位置、region 走（视差一样）
 
 
 ## room.json（没有就 DEFAULT）先看一眼：是不是小屋、host 是谁（建房间的先后要用）
@@ -326,6 +328,47 @@ func _build_house() -> void:
 	add_child(house_front)
 	if has_levels() and size.y > 220.0:
 		_build_sky_up()
+	_build_view()
+
+
+## 窗玻璃透出去（10-31 作者：「你这窗口是实心的啊」）：back 在玻璃那里是透明的，room.json "view" 是一张同样大小的遮罩（玻璃 = 不透明）。
+## 遮罩挂在 back 下面（z −11，host 的层都在 −100 起，所以在它们前面），clip_children 只让子节点画在玻璃里；子节点是 host 里
+## main 以外、比 main 远的层（scroll < 1，不是 front）+ _sky_up 的替身，同一张图、同一个 shader，位置每帧照抄原层（update 里）。
+## 所以透过窗看到的就是屋子背后真的天、月亮、远景，跟着视差一起动；main（巨石本身的外壁）不画。
+func _build_view() -> void:
+	var m := _tex(str(cfg.get("view", "")))
+	if m == null or host == null:
+		return
+	_view = Sprite2D.new()
+	_view.name = "HouseView"
+	_view.centered = false
+	_view.texture = m
+	_view.z_index = -11
+	_view.clip_children = CanvasItem.CLIP_CHILDREN_ONLY
+	add_child(_view)
+	var srcs: Array = []
+	if _sky_up != null:
+		srcs.append(_sky_up)
+	var hl: Array = []
+	for L in host._layers:
+		var c: Dictionary = L["cfg"]
+		if not c.get("front", false) and float(c.get("scroll", 1.0)) < 1.0:
+			hl.append(L["node"])
+	hl.sort_custom(func(a, b): return (a as Sprite2D).z_index < (b as Sprite2D).z_index)
+	srcs.append_array(hl)
+	for s in srcs:
+		var src: Sprite2D = s
+		var d := Sprite2D.new()
+		d.centered = src.centered
+		d.texture = src.texture
+		d.region_enabled = src.region_enabled
+		d.region_rect = src.region_rect
+		d.texture_repeat = src.texture_repeat
+		d.texture_filter = src.texture_filter
+		d.material = src.material
+		d.scale = src.scale
+		_view.add_child(d)
+		_view_src.append([d, src])
 
 
 ## 小屋占位：back = 暗墙 + 地板线 + 门；front = 不透明的前墙 + 一扇暖窗（进屋淡出）
@@ -819,8 +862,17 @@ func update(delta: float, cam_center: Vector2) -> void:
 				s.position.x = roundf(x + cl * (1.0 - sc))
 		if _layers.size() > 0 and _t < delta * 1.5:
 			_place_layers_y()
-	elif _sky_up != null:
-		_sky_up.position = Vector2(roundf(cam_center.x - 240.0) - origin.x, -float(_sky_up.texture.get_height()) - origin.y)
+	else:
+		if _sky_up != null:
+			_sky_up.position = Vector2(roundf(cam_center.x - 240.0) - origin.x, -float(_sky_up.texture.get_height()) - origin.y)
+		for pr in _view_src:                    # 窗里的远景替身：照抄原层（host 先 update，这一帧的位置已经摆好）
+			var d: Sprite2D = pr[0]
+			var src: Sprite2D = pr[1]
+			d.global_position = src.global_position
+			d.region_rect = src.region_rect
+			d.visible = src.visible
+			d.modulate = src.modulate
+			d.self_modulate = src.self_modulate
 	for oid in objects:
 		var s: Sprite2D = objects[oid]
 		_refresh_vis(oid)
@@ -899,8 +951,16 @@ func _update_walkers(delta: float) -> void:
 
 
 # ======================================================================= 装饰脚本
+## 另外读同一文件夹里的 room_extra.json 的 scripts（手写的，生成 room.json 的工具不碰它；比如鳐鱼快递员 ray_courier.gd）
 func _build_scripts() -> void:
-	for sc in cfg.get("scripts", []):
+	var all: Array = cfg.get("scripts", []).duplicate()
+	if has_json and FileAccess.file_exists(dir + "room_extra.json"):
+		var ex = JSON.parse_string(FileAccess.get_file_as_string(dir + "room_extra.json"))
+		if ex is Dictionary:
+			all.append_array(ex.get("scripts", []))
+		else:
+			_warn("room_extra.json 读不出来：" + dir)
+	for sc in all:
 		if not sc is Dictionary or not ResourceLoader.exists(str(sc.get("script", ""))):
 			_warn("scripts：找不到 " + str(sc.get("script", "") if sc is Dictionary else sc))
 			continue

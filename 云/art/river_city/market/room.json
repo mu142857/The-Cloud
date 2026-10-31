@@ -12,7 +12,7 @@
  "layers": [
   {
    "id": "sky",
-   "img": "res://art/river/sky.png",
+   "img": "sky.png",
    "scroll": 0.0,
    "y": 0
   },
@@ -20,26 +20,27 @@
    "id": "ridge",
    "img": "res://art/river/ridge.png",
    "scroll": 0.05,
-   "y": 0,
+   "y": 46,
    "tile": true
   },
   {
    "id": "mist",
    "img": "res://art/river/mist.png",
    "scroll": 0.1,
-   "y": 0,
+   "y": 46,
    "tile": true,
    "drift": -2.5
   },
   {
    "id": "glints",
-   "img": "res://art/river/glints.png",
+   "img": "moonpath.png",
    "scroll": 0.0,
-   "y": 155,
-   "shader": "water",
+   "y": 197,
+   "shader": "moonpath",
    "shader_params": {
-    "palette_mode": true,
-    "wobble": 2.0
+    "speed": 1.0,
+    "wobble": 1.5,
+    "flicker": 0.9
    }
   },
   {
@@ -107,7 +108,7 @@
   },
   "market_tools": {
    "x": 300,
-   "y": 168,
+   "y": 160,
    "w": 76,
    "h": 26,
    "frames": 4,
@@ -134,28 +135,6 @@
  "walk": [
   10,
   1430
- ],
- "walkers": [
-  {
-   "npc": "vendor",
-   "path": [
-    [
-     160,
-     199
-    ],
-    [
-     250,
-     199
-    ]
-   ],
-   "speed": 8,
-   "pause": [
-    4,
-    10
-   ],
-   "z": -20,
-   "loop": "pingpong"
-  }
  ],
  "portals": [
   {

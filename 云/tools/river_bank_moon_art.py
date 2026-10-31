@@ -55,7 +55,7 @@ INLET = (1930, 2050)            # 面包店和修补摊之间那一小片浅水
 STALL = (1975, 2025)            # 修补摊（浅水里一块平顶大石头）
 TOWERS = (2088, 2166)           # 两根凿了人家的石柱（作者喜欢的那种）
 STAIR = 2240                    # 去市集：大石柱脚下凿进去的拱门洞，石阶在里面往上
-SOUTH = 2306                    # 往南桥的窄巷口
+END_X = 2284                    # 河岸到头：最右一整面岩壁的左沿（10-31 作者：南桥回来不是河岸，河岸不再通南桥，南桥只从旧街右头走）
 
 GROUND = [[0, 214], [110, 214], [150, 212], [330, 206], [STEPS_X, 206], [STEPS_X + 12, 209], [STEPS_X + 25, 212],
           [STEPS_X + 38, 215], [STEPS_X + 88, 215], [STEPS_X + 101, 212], [STEPS_X + 114, 209], [STEPS_X + 128, 206],
@@ -432,6 +432,8 @@ def stone_shade(m, rng, pal, facet_w=9.0, joints=0.75, ledges=1.0, moss=0.6, sta
             if (on_top and mo[y, x] > 1 - 0.55 * moss) or (shady and mo[y, x] > 1 - 0.12 * moss):
                 img[y, x, :3] = MOSS[2] if (on_top and mo[y, x] > 0.85) else (MOSS[1] if on_top else MOSS[0])
     # 水位线以下：更深、更湿，水线上一道湿亮
+    # （10-31 作者：「不要有虚线或者这种点线」——以前湿亮是 (x*7+y)%5 隔两格点一个，整面墙一排等距亮点。
+    #   现在是一道连续的线：亮度沿着走慢慢起伏（两档），只在石缝（这一格比这一行暗很多）那里自然断开）
     if water_row is not None:
         for y in range(max(0, water_row - 6), h):
             for x in np.nonzero(m[y])[0]:
@@ -440,10 +442,18 @@ def stone_shade(m, rng, pal, facet_w=9.0, joints=0.75, ledges=1.0, moss=0.6, sta
                     img[y, x, :3] = mixc(c, B(.06, .03, 236), 0.5)
                 elif y >= water_row - 6:
                     img[y, x, :3] = mixc(c, B(.08, .03, 238), 0.25)
-            if y == water_row - 1:
-                for x in np.nonzero(m[y])[0]:
-                    if (x * 7 + y) % 5 < 2:
-                        img[y, x, :3] = B(.3, .03, 236)
+        y = water_row - 1
+        if 0 <= y < h:
+            xs = np.nonzero(m[y])[0]
+            L = img[y, xs, :3].astype(float) @ (0.299, 0.587, 0.114) if len(xs) else []
+            med = float(np.median(L)) if len(xs) else 0.0
+            ph = (water_row * 0.37 + w * 0.11) % 6.2832
+            for x, l in zip(xs, L):
+                if l < 0.6 * med:                     # 石缝：断开
+                    continue
+                t = 0.6 * math.sin(x * 0.083 + ph) + 0.4 * math.sin(x * 0.29 + 2 * ph)
+                c = tuple(int(v) for v in img[y, x, :3])
+                img[y, x, :3] = mixc(c, B(.3, .03, 236), 0.75 if t > 0.15 else 0.45)
     return img
 
 
@@ -1027,13 +1037,15 @@ def bank_mid():
     r1 = rows_of(*ims[0], by)
     r2 = rows_of(*ims[1], by)
     x0, x1 = r1[1] + 1, r2[0] - 1
+    post = x0 + 2
     for x in range(x0, x1 + 1):
         t = (x - x0) / max(1, x1 - x0)
         yy = by + int(round(1.5 * math.sin(math.pi * t)))
         cv.px(x, yy, B(.09, .02, 258))
-        if x % 4 == 0:
+        if x == post:                                 # 竖杆 3–6 格一根，不等距（不要虚线）
             cv.px(x, yy - 3, B(.11, .02, 256))
             cv.px(x, yy - 2, B(.11, .02, 256))
+            post += 3 + int(_hash01(x, 7, 3141) * 4)
     rope_line(cv, x0, by - 4, x1, by - 4, 1.5, B(.12, .02, 254))
     FAR_BRIDGE = (int(x0) + 2, int(x1) - 2, int(by))
     # 石头之间几块露出水面的踏脚石（也接水线和一点倒影；第五版去掉了 reflect_down 那层稀疏的点）
@@ -1227,9 +1239,13 @@ def quay(cv: Cv, rng):
         if beach:
             cv.px(x, top, P[7] if _hash01(x, 0, 5) > 0.3 else P[5])
         else:
-            cv.px(x, top, P[8] if (x * 13) % 17 < 3 else P[7])    # 路面最外沿一道冷亮边
-        if WL - 1 < SH and _hash01(x // 3, 1, 9) > 0.6:
-            cv.px(x, WL - 1, B(.24, .03, 238))         # 水线上一行湿亮
+            cv.px(x, top, P[8] if _hash01(x // 2, 3, 41) > 0.84 else P[7])    # 路面最外沿一道冷亮边（亮的几格随机，不等距）
+        # 水线上一行湿亮：连续的一道，亮暗慢慢起伏，只在条石的竖缝那里断开（10-31：不要虚线，以前是随机三格一段）
+        dd = WL - 1 - top - 3
+        joint = not beach and dd >= 0 and (x + ((dd // 6) * 11) % 19) % 19 == 0
+        if WL - 1 < SH and not joint:
+            t = 0.6 * math.sin(x * 0.061) + 0.4 * math.sin(x * 0.23 + 1.7)
+            cv.px(x, WL - 1, B(.24, .03, 238) if t > 0.1 else B(.19, .03, 240))
 
 
 def steps(cv: Cv):
@@ -1248,7 +1264,7 @@ def steps(cv: Cv):
             cv.px(x0, y, P[1])
     px0, px1 = STEPS_X + 38, STEPS_X + 88
     for x in range(px0, px1):                          # 平台：两块大石板
-        cv.px(x, 215, P[8] if (x * 7) % 11 < 2 else P[7])
+        cv.px(x, 215, P[8] if _hash01(x // 2, 5, 43) > 0.8 else P[7])
         cv.px(x, 216, P[5] if x != px0 + 25 else P[2])
     d = STEPS_X - 572
     for (xx, yy) in ((629, 217), (630, 216), (631, 217)):
@@ -1361,14 +1377,16 @@ def lamp_bridge(cv: Cv, x0, x1, y):
     """两根石柱的石台之间一座窄绳桥（作者点赞的那屏有：桥下挂着几盏小灯）。木板一块块长短不一、有一两块缺了，
     两根绳栏杆往下垂，绳子上挂两三盏很小的灯。上面不走人（邮差去掉了）。"""
     sag = max(2, (x1 - x0) // 14)
+    post = x0 + 2
     for x in range(x0, x1 + 1):
         t = (x - x0) / max(1, x1 - x0)
         yy = y + int(round(sag * math.sin(math.pi * t)))
-        if _hash01(x // 3, 0, 21) > 0.08:              # 木板（偶尔缺一块）
-            cv.px(x, yy + 1, WOOD[3] if (x // 3) % 2 else WOOD[2])
+        if _hash01(x // 3, 0, 21) > 0.08:              # 木板（偶尔缺一块）；深浅随机，不是隔一块换一个色
+            cv.px(x, yy + 1, WOOD[3] if _hash01(x // 3, 1, 22) > 0.45 else WOOD[2])
             cv.px(x, yy + 2, WOOD[0])
-        if x % 5 == 0:
+        if x == post:                                 # 竖杆 4–7 格一根，不等距
             cv.vline(x, yy - 6, yy + 1, WOOD[1])
+            post += 4 + int(_hash01(x, 2, 23) * 4)
     rope_line(cv, x0, y - 6, x1, y - 6, sag + 1, WOOD[3])
     rope_line(cv, x0, y + 3, x1, y + 3, sag + 3, B(.18, .03, 70))          # 下面一根挂灯的绳
     n = max(2, (x1 - x0) // 22)
@@ -1418,8 +1436,11 @@ def bakery(cv: Cv):
     x0, y0 = boulder_house(cv, BAKERY, G, 86, 64, 4301, pipe=62,
                            openings=(("rect", 8, 7, 22, 13, True, False), ("arch", 40, 0, 10, 20, True, True),
                                      ("arch", 64, 30, 7, 9, True, False), ("round", 22, 36, 6, 6, False, False)))
-    for k in range(4):                                   # 窗里一排面包：暗暖的圆
-        cv.rect(x0 + 11 + k * 4, G - 13, x0 + 14 + k * 4, G - 11, DEEP[1])
+    for (ox, lw, lh) in ((10, 4, 2), (15, 3, 3), (19, 5, 2), (26, 3, 2)):   # 窗里一排面包：大小、间距都不一样（不排成一条虚线）
+        cv.rect(x0 + ox, G - 11 - lh, x0 + ox + lw, G - 11, DEEP[1])
+        if lw >= 4:                                                         # 大的两个圆角
+            cv.px(x0 + ox, G - 11 - lh, DEEP[0])
+            cv.px(x0 + ox + lw - 1, G - 11 - lh, DEEP[0])
     sx = x0 + 6                                          # 招牌：铁架子挑出来一块木板，上面一道暖色的字
     cv.hline(sx, sx + 12, G - 34, B(.1, .015, 250))
     cv.rect(sx + 1, G - 33, sx + 19, G - 27, WOOD[1])
@@ -1470,7 +1491,7 @@ def boat(cv: Cv, x0, wl, tie_x):
 def market_gate(cv: Cv):
     """右端：一根粗大的石柱（上面是高处市集），柱身上凿了几扇住人的窗；柱脚凿进去一道拱门洞（STAIR），
     洞里几级石阶往上拐进黑里，洞顶挂一盏灯（第三版：不再在外面画之字形的楼梯）。
-    最右一块岩壁上一道窄巷口往南桥，深处一点暖灯。"""
+    （最右那面到头的岩壁在 bank_end 里画，压在码头上面。）"""
     cx = STAIR + 10
     img = stone_pillar(72, 220, 4401, ROCK, crown=[B(.07, .02, 258), B(.1, .022, 252)], kind="tower")
     ox, oy = cx - img.shape[1] // 2, G - img.shape[0] + 1
@@ -1504,20 +1525,23 @@ def market_gate(cv: Cv):
         if len(row):
             cv.px(gx + row[-1] + 1, G - gh + 1 + yy, st[4])
             cv.px(gx + row[0] - 1, G - gh + 1 + yy, st[1])
-    # 往南桥的窄巷：最右一块岩壁，拱形的口子，里面暗，深处一点暖灯
-    img2 = stone_pillar(40, 150, 4402, ROCK, crown=None, kind="stack")
-    cv.paste(img2, W + 4 - img2.shape[1] // 2, G - img2.shape[0] + 1)
-    for y in range(G - 44, G):
-        half = 9 if y > G - 34 else int(math.sqrt(max(0, 81 - (G - 34 - y) ** 2 * 1.2)))
-        for x in range(SOUTH - half, SOUTH + half + 1):
-            cv.px(x, y, B(.035, .02, 266))
-        cv.px(SOUTH - half - 1, y, st[1])
-        cv.px(SOUTH + half + 1, y, st[4])
-    cv.rect(SOUTH - 2, G - 22, SOUTH + 1, G - 19, WARM[2])
-    cv.px(SOUTH - 1, G - 21, WARM[3])
-    lantern(cv, SOUTH - 14, G - 40, "hang", r=8)
-    LIGHTS_X.append((SOUTH - 14, 1))
     return [(gx + 3, gw - 6)]
+
+
+def bank_end(cv: Cv):
+    """河岸右头到头：一整面岩壁从画面顶上一直下到水里，码头撞在它脚下断掉（画在码头后面、压在码头上），
+    没有口子、没有灯，看得出这边走不过去了。晨的 walk 右边界停在它前面。"""
+    img = stone_pillar(84, SH + 40, 4402, ROCK, crown=None, kind="tower")
+    img = moon_rim(img[:, ::-1], 4402, dark=0.5)[:, ::-1].copy()   # 月亮一直在它左边：亮棱放左边，右边压暗
+    oy = SH + 24 - img.shape[0]
+    left = min(int(np.nonzero(img[y, :, 3])[0].min()) for y in range(G - 50 - oy, G - oy))
+    ox = END_X - left                                 # 晨身高那一段，岩壁最靠左的地方对上 END_X
+    cv.paste(img, ox, oy)
+    # 脚下贴着水面：一行暗的湿痕，再上面一行被水映亮的边
+    for x in range(ox, min(W, ox + img.shape[1])):
+        if img[WL - 1 - oy, x - ox, 3]:
+            cv.px(x, WL - 1, B(.05, .02, 262))
+            cv.px(x, WL - 2, B(.1, .022, 254))
 
 
 def plane_beach(cv: Cv, rng):
@@ -1566,6 +1590,7 @@ def bank_main():
     steps(cv)
     for (dx, dw) in doors:
         door_spill(cv, dx, dw, G + 1)
+    bank_end(cv)
     mooring_post(cv, POST, G)
     reeds_near(cv, 152, gy(152), 18, 4701)
     reeds_near(cv, 326, gy(326), 14, 4702, k=4)
@@ -1704,7 +1729,7 @@ def crates_frames():
         box.vline(x0, y0, y0 + h, wood[0])
         for yy in range(y0 + h - 4, y0 + h):                      # 下面泡过水：暗一档、发青
             for xx in range(x0 + 1, x0 + w - 1):
-                if (xx + yy) % 2 == 0 or yy > y0 + h - 3:
+                if _hash01(xx, yy, 77) > 0.45 or yy > y0 + h - 3:     # 斑驳（以前是棋盘格，最上一行成了点线）
                     box.px(xx, yy, B(.08, .024, 236))
         lx, ly = x0 + w // 2 - 3, y0 + 5
         box.rect(lx, ly, lx + 6, ly + 4, paper)
@@ -1716,7 +1741,7 @@ def crates_frames():
         top = 5 + int(round(2 * math.sin(t * 3.1)))
         bot = 12 + int(round(5 * t + 2 * math.sin(x / 2.5)))
         for y in range(top, bot):
-            k = 2 if y == top else (0 if (x % 5 == 0) else 1)
+            k = 2 if y == top else (0 if x in (9, 13, 19, 26) else 1)          # 几道褶，不等距
             box.px(x, y, tarp[k])
     rope_line(box, 2, 24, 26, 26, 1, B(.24, .03, 70))
     rope_line(box, 48, 22, 74, 21, 1, B(.24, .03, 70))
@@ -1786,12 +1811,14 @@ def objects():
     rp = []                                  # 剧本 prop river_bank_shallow floating：东西漂进浅滩，水面一圈圈的银纹（以前没有图，引擎画占位方块）
     for k in range(3):
         cv = Cv(28, 7)
-        for (rx, ry, c) in ((4 + k * 3, 1 + k // 2, SILVER[2 - k]), (9 + k * 3, 2 + k // 2, SILVER[max(0, 1 - k)])):
+        for j, (rx, ry, c) in enumerate(((4 + k * 3, 1 + k // 2, SILVER[2 - k]),
+                                         (9 + k * 3, 2 + k // 2, SILVER[max(0, 1 - k)]))):
+            gap = 1.5 * math.pi - 0.7 + 0.8 * j + 0.35 * k   # 每圈只在远的那半边（上半圈）断开一小段（以前是一段一段的虚线圈）
             for i in range(64):
                 t = i / 64 * 2 * math.pi
                 x, y = int(round(14 + rx * math.cos(t))), int(round(3 + ry * math.sin(t)))
-                if (i // 4) % 2 == 0 and 0 <= y < 7:
-                    cv.px(x, y, c)
+                if abs((t - gap + math.pi) % (2 * math.pi) - math.pi) > 0.45 and 0 <= y < 7:
+                    cv.px(x, y, c if math.sin(t) > -0.2 else SILVER[0])
         rp.append(cv.a)
     rp.append(np.zeros_like(rp[0]))          # default = 空的一帧（不能 hidden：hotspot「水底的街」at 同一个名字，要靠这个物件的框）
     out.append(("river_bank_shallow", rp, SHALLOW[0] + 70 - 14, WL - 3, {"ms": 400,
@@ -1954,7 +1981,7 @@ def bank_json(objs):
                "river_bank_ting": 360, "river_bank_shallow": SHALLOW[0] + 70, "river_bank_toolkit": 304,
                "river_bank_home_door": HOME[0] + HOUSE_DOOR, "river_bank_doorplate": HOME[0] + HOUSE_PLATE[0] + 5,
                "river_bank_bakery": BAKERY, "river_bank_postman": (TOWERS[0] + TOWERS[1]) // 2 + 2,
-               "river_bank_to_market": STAIR, "river_bank_to_south": SOUTH + 2, "river_bank_arrive": SOUTH - 30,
+               "river_bank_to_market": STAIR, "river_bank_arrive": STAIR + 18,
                "river_bank_drift_start": DRIFT}
     objd = {}
     for oid, frames, x, y, spec in objs:
@@ -1967,7 +1994,7 @@ def bank_json(objs):
         "_note": "tools/river_bank_moon_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。月夜：天、远岸、雾、碎光沿用 art/river/。第三版：加长，左边一大段空的河岸（330–820）没有人家、没有能点的东西。",
         "size": [W, SH], "env": "river", "bg": ["#0b1220", "#141d2c"],
         "layers": layers, "ground": GROUND, "markers": markers, "objects": objd,
-        "water": {"y": WL}, "walk": [150, W - 10],
+        "water": {"y": WL}, "walk": [150, END_X - 10],
         # 没遇到妮芙以前最远走到箱子跟前（停在 meet_niff 的触发范围里：路过时正好在播别的、没触发，停下来也会补上）
         # （10-30 作者：晨一个人走过了箱子、一直走到妮芙家门口，没有妮芙、没有任何提示）
         "walk_when": [{"need": ["river_ashore"], "not": ["river_met"],
@@ -1975,8 +2002,7 @@ def bank_json(objs):
         "scripts": [{"script": "res://scripts/river_far_lantern.gd", "x": 0, "y": 0,
                      "z": -100 + [l["id"] for l in layers].index("mid"),             # 和中景一层（在近中层后面）
                      "params": {"scroll": MID_S, "x0": FAR_BRIDGE[0], "x1": FAR_BRIDGE[1], "y": FAR_BRIDGE[2]}}],
-        "portals": [{"to": "market", "at": "market_entry", "kind": "pan_up", "x": STAIR},
-                    {"edge": "right", "to": "southbridge", "at": "southbridge_entry", "kind": "walk_fade"}],
+        "portals": [{"to": "market", "at": "market_entry", "kind": "pan_up", "x": STAIR}],   # 右头是墙，不通南桥
         "ambient": [{"name": "river_flow", "db": -12}],
     }
 

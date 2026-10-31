@@ -41,7 +41,8 @@ import river_art as RA  # noqa: E402
 from river_art import lch, shade_rock, smooth1d  # noqa: E402
 import river_bank_moon_art as bm  # noqa: E402  石头的画法（整块石头、粗石墙、凿洞）和河岸会话共用
 import river_city_art as rca  # noqa: E402
-import uw_props as up  # noqa: E402  泡过水的木头、铁、纸的材质画法（和水下仓库同一套）
+import uw_props as up  # noqa: E402
+import river_underwater_art as RU  # noqa: E402  不规则石块的切法（voronoi_stones）  泡过水的木头、铁、纸的材质画法（和水下仓库同一套）
 
 ROOT = TOOLS.parent
 OUT = ROOT / "art" / "river_city"
@@ -1092,8 +1093,22 @@ D0 = SX + GAP                    # 水道、货台那一组整体往右挪多少
 SB_W = 1500 + SX + GAP
 SB_G = 228                       # 泥滩（桥下）
 DOCK_Y = 196                     # 货台台面
-SB_GROUND = [[0, 212], [SX + 44, 212], [SX + 64, 213], [SX + 84, 217], [SX + 104, 223], [SX + 124, 228],
-             [D0 + 1180, 228], [D0 + 1192, 225], [D0 + 1204, 216], [D0 + 1216, 204], [D0 + 1228, 197], [D0 + 1238, 196], [SB_W, 196]]
+
+
+def _ease(x0, y0, x1, y1, step=4):
+    """一段顺的坡（smoothstep，两头和平地相切）：每 step 像素一个点。10-31 作者：「那段坡也是几条直线拼起来的」。"""
+    out = []
+    for x in list(range(x0, x1, step)) + [x1]:
+        u = (x - x0) / (x1 - x0)
+        out.append([x, int(round(y0 + (y1 - y0) * u * u * (3 - 2 * u)))])
+    return out
+
+
+BANK_END = SX + 124              # 左岸的坡落到泥滩的地方
+DOCK_X0 = D0 + 1146              # 货台坡道起坡
+SB_GROUND = [[0, 212]] + _ease(SX + 44, 212, BANK_END, 228) + _ease(DOCK_X0, 228, D0 + 1206, 196) + [[SB_W, 196]]
+# 10-30 作者：「悬空的房子」——货棚巨石的左下角原来压在坡道半腰上（坡道 1680→1738 才爬到台面），底下透出后面的河。
+# 现在货台台面往左一直铺到挡土岩体（D0+1200），坡道挪到挡土岩体前面沿着它爬上来，门口前是平的台面。
 DECK = 58                        # 桥面（= 拱肩里那几户的屋顶）
 SPRING = 150                     # 拱脚
 ARCHES = [(SX + 310, 120, 72), (SX + 590, 120, 72), (SX + 850, 100, 68)]   # (中心 x, 半跨, 矢高)
@@ -1112,6 +1127,7 @@ PLAST = [col(v, 0.016, 236) for v in (0.15, 0.185, 0.215, 0.245, 0.29)]
 ROOF = [blue(v, 0.02, 262) for v in (0.1, 0.14, 0.19, 0.25)]
 MUD = [blue(v, 0.03, 262) for v in (0.06, 0.08, 0.1, 0.125, 0.16, 0.22)]
 GLASS = blue(0.16, 0.03, 250)
+SKIN = [blue(v, 0.03, 250 - v * 20) for v in (0.31, 0.27, 0.245, 0.225, 0.205, 0.185)]   # 泥面受光的那层（和河堤走道的石面差不多亮）
 MOSS = [col(v, 0.03, 190) for v in (0.12, 0.17, 0.22)]
 
 
@@ -1168,6 +1184,131 @@ def ring_mask(cx, hs, rise, t, w=SB_W):
     return (inner >= 1) & (outer < 1) & (yy <= SPRING)
 
 
+def toe_y(d, n=0.0):
+    """河堤 / 货台的石脚埋进泥里：离起坡 d 像素处，石头的上沿在哪一行（越往外埋得越深）。"""
+    return int(round(SB_G + 2 + min(4.0, d * 0.5) + d * 0.5 + n))
+
+
+def sink_face(cv, m):
+    """石面越往下越暗：离地面 8 行以下开始压暗，到 40 行左右只剩六成（和泥一个深浅，不在交界处跳一档）。"""
+    ys, xs = np.nonzero(m)
+    for y, x in zip(ys, xs):
+        g = min(sb_ground(x), SB_G)
+        k = 1 - 0.4 * np.clip((y - g - 8) / 32.0, 0, 1)
+        if k < 1 and cv.a[y, x, 3]:
+            cv.a[y, x, :3] = (cv.a[y, x, :3].astype(float) * k).astype(np.uint8)
+
+
+def wet_edge(cv, stone, mud):
+    """石头被泥盖住的那条边：贴着泥的一格石头湿、暗，第二格暗一点；石头顶上偶尔一点苔。"""
+    near1 = stone & (np.roll(mud, 1, 0) | np.roll(mud, 1, 1) | np.roll(mud, -1, 1))
+    near2 = stone & ~near1 & (np.roll(near1, 1, 0) | np.roll(near1, 1, 1) | np.roll(near1, -1, 1))
+    for m_, k in ((near1, 0.64), (near2, 0.82)):
+        ys, xs = np.nonzero(m_ & (cv.a[..., 3] > 0))
+        cv.a[ys, xs, :3] = (cv.a[ys, xs, :3].astype(float) * k).astype(np.uint8)
+    ys, xs = np.nonzero(near1 & np.roll(mud, 1, 0))
+    for y, x in zip(ys, xs):
+        if (x * 7 + y * 3) % 11 == 0:
+            cv.put(x, y, bm.MOSS[0])
+
+
+def rubble(cv, spots, side, rng):
+    """石脚边上半埋在泥里的碎石：沿着石脚往外，一块比一块小。底下两行沉在泥里（暗），左下贴一点影。"""
+    for i, (x, n) in enumerate(spots):
+        w = int(max(4, 13 - i * 2 + rng.integers(-1, 2)))
+        h = int(max(3, w * 0.55))
+        d = abs(x - (BANK_END if side > 0 else DOCK_X0))
+        y = min(H - h - 4, toe_y(d, n) - h + 3 + int(rng.integers(0, 3)) + i * 2)
+        mm = bm.blob_mask(w, h, rng)
+        img = bm.stone_shade(mm, rng, RPAL, facet_w=7.0, ledges=0.3)
+        img[-2:, :, :3] = (img[-2:, :, :3].astype(float) * 0.6).astype(np.uint8)
+        x0 = x - w // 2
+        for xx in range(x0 - 1, x0 + w - 2):
+            if cv.a[y + h, xx, 3]:
+                cv.put(xx, y + h, MUD[0])
+        cv.paste(img, x0, y)
+
+
+def buttress_off(y, steps):
+    """桥台扶壁在第 y 行往外放出几格：整面墙往下收分（越往下越往外斜），中间两级各一段 45° 的斜压顶（6 行放出 6 格）。"""
+    s1, s2 = steps
+    if y < s1:
+        return max(0, (y - DECK - 6) // 16)
+    a = (s1 - 1 - DECK - 6) // 16
+    if y < s1 + 6:
+        return a + y - s1 + 1
+    if y < s2:
+        return a + 6 + (y - s1 - 6) // 6
+    b = a + 6 + (s2 - 1 - s1 - 6) // 6
+    if y < s2 + 6:
+        return b + y - s2 + 1
+    return b + 6 + (y - s2 - 6) // 5
+
+
+def buttress_copings(cv, side, edge, steps, rng):
+    """扶壁每一级的斜压顶：一条 3 像素厚的斜石（顶面受光，朝右的那头更亮），每 4~6 格一道缝；
+    压顶比下面的墙面多挑出一格，下面贴一点影（披水）。"""
+    P = bm.expand_pal(SPAL)
+    for s in steps:
+        cut = s + int(rng.integers(2, 4))
+        for y in range(s - 1, s + 7):
+            off = buttress_off(y, steps)
+            xo = edge - off if side < 0 else edge + off
+            if off <= 0:
+                xo = edge
+            for k in range(3):
+                x = xo - side * k
+                lv = (7.4 if side > 0 else 6.2) - k * 1.5 + 0.4 * (rng.random() - 0.5)
+                if y == cut or y == cut + 4:
+                    lv -= 2.0                                            # 压顶石之间的缝
+                cv.put(x, y, P[int(np.clip(round(lv), 1, 8))])
+        yb = s + 6                                                       # 披水：压顶最外挑出一格，底下贴一行影
+        off = buttress_off(yb, steps)
+        xo = edge - off if side < 0 else edge + off
+        cv.put(xo + side, yb - 1, P[4 if side > 0 else 3])
+        for k in range(0, 4):
+            x = xo - side * k
+            if cv.a[yb + 1, x, 3]:
+                c = cv.a[yb + 1, x, :3].astype(float) * 0.7
+                cv.put(x, yb + 1, tuple(int(v) for v in c))
+
+
+def deck_end_post(cv, x0, base, rng):
+    """桥面头上的端石：比屋脊小石像大一号的一块圆顶方石（收头），左暗右亮、右沿冷亮边、脚下一点影、顶上一撮苔。"""
+    w, h = 9, 12
+    mm = bm.blob_mask(w, h, rng, p=2.5, lump=0.08)
+    img = bm.stone_shade(mm, rng, SPAL, facet_w=6.0, ledges=0.2)
+    cv.paste(img, x0, base - h + 1)
+    for x in range(x0 + 1, x0 + w - 1):
+        ys = np.nonzero(mm[:, x - x0])[0]
+        if len(ys) and rng.random() < 0.4:
+            cv.put(x, base - h + 1 + ys[0], bm.MOSS[1])
+
+
+def tunnel_jambs(cv, rng):
+    """水道洞口两边的门框石：一块块大小不一的条石竖着垒（宽 3~6，高 6~11），往墙里那头参差不齐；
+    朝洞口那一面：左框迎月光亮、右框背光暗；每块顶上一行受光、底下一道缝。"""
+    for side in (-1, 1):
+        inner = TUNNEL_X - 41 if side < 0 else TUNNEL_X + 41
+        y = SPRING
+        while y < SB_G:
+            hq = int(rng.integers(9, 17))
+            wq = int(rng.integers(3, 7))
+            tone = rng.choice([-0.3, 0, 0, 0.4])
+            for yy in range(y, min(SB_G, y + hq)):
+                for k in range(wq):
+                    x = inner + side * k
+                    lv = 1.8 + tone + 0.5 * (rng.random() - 0.5)
+                    if k == 0:
+                        lv += 1.0 if side < 0 else -0.6
+                    if yy == y and k > 0:
+                        lv += 0.6
+                    if yy == y + hq - 1 and k > 0:
+                        lv -= 0.8
+                    cv.put(x, yy, RPAL[int(np.clip(round(lv), 0, 4))])
+            y += hq
+
+
 SPAL = bm.STONE                  # 桥、人家：河岸会话的「住处的石头」（比码头亮一点、往青灰偏）
 RPAL = bm.ROCK                   # 河堤、挡土墙、货台：码头那种暗石头
 
@@ -1183,47 +1324,68 @@ def sb_main():
         holes |= arch_open(cx, hs, rise)
         rings |= ring_mask(cx, hs, rise, RING)
     body = (xx >= a0) & (xx < a1) & (yy >= DECK + 6) & (yy <= SB_G) & ~holes
-    # 桥墩（拱脚以下）：一根根整石，底下 30 像素往外扩成分水尖
+    # 桥墩（拱脚以下）+ 两头桥台：底下 30 像素往外放脚（分水尖 / 桥台放脚）
     piers = np.zeros_like(body)
+    widen = np.clip((yy - (SB_G - 30)) / 7.0, 0, 4).astype(int)
     for p0, p1 in PIERS:
-        widen = np.clip((yy - (SB_G - 30)) / 7.0, 0, 4).astype(int)
         piers |= (xx >= p0 - widen) & (xx <= p1 + widen) & (yy > SPRING) & (yy <= SB_G)
-    for pm in ((xx >= a0) & (xx < PIERS[0][0]) & (yy > SPRING) & (yy <= SB_G),
-               (xx > PIERS[-1][1]) & (xx < a1) & (yy > SPRING) & (yy <= SB_G)):
-        piers |= pm
-    lab_, n_ = RA.components(piers)                                  # 连在一起的（桥墩 + 桥头）一整块上色：交界不出一道暗缝
-    for k in range(1, n_ + 1):
-        rock(cv, lab_ == k, rng, SPAL, ledges=0.3)                   # 和拱肩同一种石料（一座桥一种石头）
+    piers |= (xx >= a0 - widen) & (xx < PIERS[0][0]) & (yy > SPRING) & (yy <= SB_G)
+    piers |= (xx > PIERS[-1][1]) & (xx < a1) & (yy > SPRING) & (yy <= SB_G)
+    # 10-31 作者：「又一条很直的分界线」——两头桥台原来是一刀切下来的竖边（桥面到泥滩一条直线、外面直接是天）。
+    # 现在桥台外侧砌成扶壁：往下分两级往外放，每一级是一段 45° 的斜压顶石（披水），放出去的那段墙面再微微往外斜（收分），
+    # 最下面最宽、坐在地上。轮廓是一级一级退上去的，不是一条直线。
+    butt = np.zeros_like(body)
+    for side, edge, steps in ((-1, a0, (108, 168)), (1, a1 - 1, (84, 150))):
+        for y in range(DECK + 6, SB_G + 1):
+            off = buttress_off(y, steps)
+            if off > 0:
+                if side < 0:
+                    butt[y, edge - off:edge] = True
+                else:
+                    butt[y, edge + 1:edge + 1 + off] = True
+    piers |= butt
     body |= piers
-    # 拱肩：一整块大石头里凿出来的人家（每一块各自上色，边上受光），门窗是凿的洞
+    # 拱肩：门窗是凿的洞（见 house_in_spandrel）
     spand = body & ~rings & (yy <= SPRING) & (yy > DECK + 6)
-    lab, n = RA.components(spand)
-    for k in range(1, n + 1):
-        rock(cv, lab == k, rng, SPAL)
+    # 10-30 作者：「南桥这个切的太干脆了」——桥墩、桥台、拱肩原来是分开上色的几整块，竖边笔直、被横线切成几段，
+    # 拱圈落到桥墩上是硬切的。现在整座桥身一起砌：错缝的方石，横缝从桥台一路通到桥台，桥墩竖面有受光的侧面，
+    # 轮廓上石块的角磕掉，旧水位以下一片深色湿痕；每根桥墩顶上挑出一层托石，券石压在托石上起拱。
+    masonry(cv, piers | spand | (rings & body), rng, wet_y=OLD_WATER, solid=rings)   # 拱圈底下也铺满：券石漏画的格子不露背景
     for i, (p0, p1) in enumerate(PIERS):
         house_in_spandrel(cv, (p0 + p1) // 2, i, rng, spand)
     # 拱圈：一圈放射的大块券石，每块有体积（见 voussoirs）；擦痕刻在这圈石沿上（物件）
     for k, (cx, hs, rise) in enumerate(ARCHES):
-        voussoirs(cv, cx, hs, rise, np.random.default_rng(60 + k))
-    # 桥墩上的旧水位线：线以下更深、更湿（一道湿亮的冷边、往下的水渍），线上一层发灰的泥壳；不用黄色
-    water_mark(cv, piers, rng)
-    for p0, p1 in PIERS:                                           # 墩子顶上压一条长石（拱脚）：顶面受光、正面、底下一道影
-        imposts(cv, p0 - 3, p1 + 3, SPRING + 1, rng)
+        voussoirs(cv, cx, hs, rise, np.random.default_rng(60 + k), soffit_to=SPRING)
+    # 10-31 作者：「我说了多少遍这个直角要去掉」——拱腹那条暗带原来在拱脚上面 6 行就平着断掉，底下墩身又比它缩进去 8 格，
+    # 再加一条细托石挑出来：拱洞的轮廓在这里拐了两三个直角。现在拱腹一直落到托石上，托石挑得和拱腹一样宽，
+    # 底下用一块牛腿石（下沿内凹的弧）顺着收回墩身，从拱弧到墩身一条顺的轮廓，没有直角。
+    for p0, p1 in PIERS:
+        springers(cv, p0, p1, rng, holes)
+    for side, edge, steps in ((-1, a0, (108, 168)), (1, a1 - 1, (84, 150))):
+        buttress_copings(cv, side, edge, steps, rng)
     # 桥面：一整条厚石板（挑出去一点，顶上长苔）——它就是拱肩里这几户的屋顶；屋脊上一排小石像，远看像栏杆
     r = rc(cv)
     deck_slab(cv, a0 - 6, a1 + 6, rng)
     ornament_row(cv, a0 + 2, a1 - 2, DECK - 1, np.random.default_rng(71))
+    for ex in (a0 - 5, a1 - 3):                                     # 桥面两头的收头：一块圆顶的端石，桥面不是平着切断的
+        deck_end_post(cv, ex, DECK - 1, rng)
     for lx in LAMPS:
         lamp_post(cv, lx, DECK - 1)
     # ---- 左岸：一长段石砌河堤（空的，只有一盏石灯笼），坡下到泥滩（不砌台阶，一道缓坡）
+    # 10-31 作者：「地板分界线为什么这么割裂，像是直接被切断」——河堤的石面原来到 x=380 一刀切断，右边直接是黑的泥。
+    # 现在河堤的石头斜着往下埋进泥里（石脚一路往右下沉，泥越往右越厚地盖在上面），交界一道湿暗边、几块半埋的碎石；
+    # 石面越往下越暗、越湿，到底下和泥一个深浅。
     lm = np.zeros((H, SB_W), bool)
     prof = smooth1d(SX + 140, np.random.default_rng(33), 50, 1.5)
-    for x in range(0, SX + 140):
+    tn = smooth1d(SB_W, np.random.default_rng(34), 16, 1.8)
+    for x in range(0, BANK_END + 90):
         g = sb_ground(x)
-        if x >= a0 and g >= SB_G:
-            continue
-        lm[g + int(max(0, prof[x])) // 2:, x] = True
+        if x <= BANK_END:
+            lm[g + int(max(0, prof[x])) // 2:, x] = True
+        else:
+            lm[toe_y(x - BANK_END, tn[x]):, x] = True
     rock(cv, lm, rng, RPAL, face=True)
+    sink_face(cv, lm)
     walk_top(cv, 0, SX + 124, np.random.default_rng(55))
     for bx, bw, bh in ((SX + 70, 14, 9), (SX + 98, 10, 6), (SX + 30, 8, 5)):   # 坡上几块滚下来的圆石
         mm = bm.blob_mask(bw, bh, rng)
@@ -1238,13 +1400,29 @@ def sb_main():
         mm = bm.blob_mask(bw, bh, rng)
         cv.paste(bm.stone_shade(mm, rng, RPAL, facet_w=8.0, ledges=0.3), bx, SB_G - bh + 3)
     # ---- 右边：一段挡土的岩体（顶上起伏）+ 旧运输水道的石拱洞口（洞口是物件 southbridge_waterway）
+    # 10-31：岩体左头原来在 1540 竖着落下 60 行（外面就是天），右头在 1700 竖着切到台面。现在左头一个圆肩一直顺到泥滩、
+    # 脚下几块滚下来的石头；右头顺着落到货台台面上，和货棚巨石接上。
     wall = np.zeros((H, SB_W), bool)
     wp = smooth1d(160, np.random.default_rng(41), 40, 6.0)
-    for i, x in enumerate(range(D0 + 1040, D0 + 1200)):
-        u = min(1.0, (x - (D0 + 1040)) / 22.0)
-        top = int(128 + wp[i] + 40 * (1 - np.sqrt(max(0.0, 1 - (1 - u) ** 2))))
-        wall[top:SB_G + 1, x] = True
+    WL0, WL1 = D0 + 1018, D0 + 1246
+    wr = smooth1d(WL1 - WL0, np.random.default_rng(42), 9, 2.5)                                 # 右头一直伸到货棚巨石后面（中间不留透天的缝）
+    for x in range(WL0, WL1):
+        bt = 128 + wp[int(np.clip(x - (D0 + 1040), 0, 159))] + wr[x - WL0]   # 顶上再加一层碎的起伏：不是平切的
+        ul = min(1.0, (x - WL0) / 46.0)
+        ur = min(1.0, (WL1 - 1 - x) / 34.0)
+        top_l = SB_G - (SB_G - bt) * np.sin(ul * np.pi / 2) ** 0.9
+        top_r = DOCK_Y - (DOCK_Y - bt) * np.sin(ur * np.pi / 2) ** 0.9
+        wall[int(max(top_l, top_r)):SB_G + 1, x] = True
     rock(cv, wall, rng, RPAL, face=True)
+    for x in range(WL0, WL1):                                        # 岩脚贴着泥的几行：湿、暗
+        for d in range(0, 6):
+            y = SB_G - d
+            if wall[y, x] and cv.a[y, x, 3]:
+                c = cv.a[y, x, :3].astype(float) * (0.62 + 0.065 * d)
+                cv.put(x, y, tuple(int(v) for v in c))
+    for bx, bw, bh in ((WL0 - 14, 15, 9), (WL0 + 2, 10, 6), (WL0 - 26, 7, 4)):   # 岩脚滚下来的几块石头
+        mm = bm.blob_mask(bw, bh, rng)
+        cv.paste(bm.stone_shade(mm, rng, RPAL, facet_w=8.0, ledges=0.3), bx, SB_G - bh + 2)
     for x in range(D0 + 1040, D0 + 1200):
         ys = np.nonzero(wall[:, x])[0]
         if len(ys) and rng.random() < 0.5:
@@ -1267,34 +1445,68 @@ def sb_main():
         if (x * 5) % 7 < 3:
             cv.put(x, SB_G - 3, blue(0.16, 0.03, 248))
     voussoirs(cv, TUNNEL_X, 40, 34, np.random.default_rng(77), t_=7)
-    cv.rect(TUNNEL_X - 44, SPRING, TUNNEL_X - 41, SB_G, RPAL[1])
-    cv.rect(TUNNEL_X + 41, SPRING, TUNNEL_X + 44, SB_G, RPAL[3])
+    tunnel_jambs(cv, rng)
     # ---- 货台：一道缓坡上去，台面是整块的石头；背后一块凿出货棚的巨石、贴航线图的石面、挂编号牌的石门框
+    # 货台的石脚也一样：起坡那里不竖着切，石头往左下埋进泥里
     dm = np.zeros((H, SB_W), bool)
-    for x in range(D0 + 1176, SB_W):
-        g = sb_ground(x)
-        if g < SB_G or x >= D0 + 1186:
-            dm[g:, x] = True
+    for x in range(DOCK_X0 - 90, SB_W):
+        if x >= DOCK_X0:
+            dm[sb_ground(x):, x] = True
+        else:
+            dm[toe_y(DOCK_X0 - x, tn[x]):, x] = True
     rock(cv, dm, rng, RPAL, face=True)
-    walk_top(cv, D0 + 1180, SB_W, np.random.default_rng(56))
+    sink_face(cv, dm)
+    walk_top(cv, DOCK_X0, SB_W, np.random.default_rng(56))
+    for x in range(D0 + 1150, SB_W):                                     # 台面 / 坡道的石壁贴着泥的那几行：湿、暗，缝里长苔
+        for d in range(1, 7):
+            y = SB_G - d + 1
+            if cv.a[y, x, 3] and dm[y, x]:
+                c = cv.a[y, x, :3].astype(float) * (0.62 + 0.06 * d)
+                cv.put(x, y, tuple(int(v) for v in c))
+        if rng.random() < 0.08:
+            cv.put(x, SB_G - 6 + int(rng.integers(0, 3)), bm.MOSS[1])
     dock_shed(cv, rng)
-    # ---- 泥滩（蓝黑，和河岸的地一路）：上沿一条被月光擦亮的湿泥，往下很快沉进黑
-    m0, m1 = SX + 120, D0 + 1186
+    # ---- 泥滩（蓝黑，和河岸的地一路）
+    # 10-31 作者：「桥面那条线也是细细一条」——泥面原来只有一行亮边，下面马上沉进黑，和左边河堤厚厚的石面接不上。
+    # 现在泥面是一层有厚度的湿泥：最上一行被月光擦亮（偶尔一点水光），下面四行受光的泥面一团团深浅、嵌着小卵石，
+    # 再一行暗，往下才慢慢沉下去。河堤、货台的石面埋进泥里的地方，石头上的走道和泥面一团团交错着过渡（不是一条竖线）。
+    m0, m1 = BANK_END - 14, DOCK_X0 + 12
+    stone = lm | dm
     mb = blobs(H, SB_W, np.random.default_rng(5), 1.5, 6.0)
+    sk = blobs(1, SB_W, np.random.default_rng(6), 1, 3.0)[0]
+    mix = blobs(8, SB_W, np.random.default_rng(7), 1.5, 2.0)
     for x in range(m0, m1):
         g = SB_G
-        if dm[g + 1:, x].any():
-            continue
-        for y in range(g + 1, H):
-            t = (y - g) / (H - g)
-            k = 3.0 - t * 3.6 + (mb[y, x] - 0.5) * 1.6
+        p_ = np.clip(min((x - m0) / 24.0, (m1 - x) / 22.0), 0, 1)       # 靠近河堤 / 货台：泥一团团盖到石头走道上
+        u = sk[x]
+        skin = [SKIN[0] if u > 0.8 else SKIN[1],
+                SKIN[1] if u > 0.6 else SKIN[2],
+                SKIN[2] if u > 0.3 else SKIN[3],
+                SKIN[3] if u > 0.62 else SKIN[4],
+                SKIN[4] if u > 0.4 else SKIN[5],
+                SKIN[5],
+                MUD[4]]
+        for d, c in enumerate(skin):
+            y = g + d
+            if stone[y, x] and mix[d, x] >= p_:
+                continue
+            cv.put(x, y, c)
+        for y in range(g + len(skin), H):
+            if stone[y, x]:
+                continue
+            t = (y - g - len(skin)) / (H - g - len(skin))
+            k = 3.1 - t * 3.3 + (mb[y, x] - 0.5) * 1.6
             cv.put(x, y, MUD[int(np.clip(np.floor(k), 0, 4))])
-        cv.put(x, g, MUD[5])
-        cv.put(x, g + 1, MUD[4])
+    mudm = np.zeros((H, SB_W), bool)
+    mudm[SB_G:, m0:m1] = True
+    mudm &= ~stone
+    wet_edge(cv, stone, mudm)
     for _ in range(64):                                              # 积水的小水洼（映着天，亮一档）
         x = int(rng.integers(m0 + 10, m1 - 30))
         y = int(rng.integers(SB_G + 7, H - 6))
         w = int(rng.integers(8, 30))
+        if stone[y - 1:y + 3, x - 1:x + w + 2].any():
+            continue
         cv.rect(x, y, x + w, y, blue(0.17, 0.035, 252))
         cv.rect(x + 2, y + 1, x + w - 3, y + 1, blue(0.13, 0.035, 256))
         if rng.random() < 0.4:
@@ -1302,8 +1514,15 @@ def sb_main():
     for _ in range(190):                                             # 卵石：顶上一点亮
         x = int(rng.integers(m0, m1))
         y = int(rng.integers(SB_G + 3, H - 2))
+        if stone[y:y + 2, x:x + 2].any():
+            continue
         cv.rect(x, y, x + 1, y, MUD[4])
         cv.put(x, y + 1, MUD[0])
+    # 石脚埋进泥里的地方：几块碎石半埋在泥里（越往外越小、越稀）
+    rubble(cv, [(BANK_END + d, tn[BANK_END + d]) for d in (2, 12, 25, 41, 58)], 1, rng)
+    rubble(cv, [(DOCK_X0 - d, tn[DOCK_X0 - d]) for d in (4, 15, 29, 47)], -1, rng)
+    for (xa, xb) in ((a0, PIERS[0][1]), PIERS[1], PIERS[2], (PIERS[3][0], a1)):   # 墩脚泡在泥里的积水：水线 + 倒影
+        pier_puddle(cv, xa - 4, xb + 4, np.random.default_rng(xa))
     fallen_float_lamp(cv, SX + 474, SB_G)
     # 泥里一盏还亮着的浮灯（空泥滩那段，水洼里一点暖的倒影）
     lx = a1 + 210
@@ -1329,7 +1548,7 @@ def lv_to(cv, m, lv, pal, ox=0, oy=0):
         cv.put(ox + x, oy + y, pal[idx[y, x]])
 
 
-def voussoirs(cv, cx, hs, rise, rng, t_=RING):
+def voussoirs(cv, cx, hs, rise, rng, t_=RING, soffit_to=SPRING - 7):
     """一圈券石。月光从右上来：每块石头朝光的那条边（外沿、一侧的接缝边）亮一档，背光的边暗一档，
     拱腹（内沿）一律暗；块与块之间一道暗缝，外沿的角有几处磕掉；块面上 2~3 色的小色团（不是棋盘格）；
     从拱脚往上一段越来越湿、发暗、长苔，几道水渍顺着拱腹往下挂；外沿迎光的一侧一道断断续续的冷亮边。"""
@@ -1405,7 +1624,7 @@ def voussoirs(cv, cx, hs, rise, rng, t_=RING):
         if (x * 7 + y * 3) % 9 < 6:
             cv.put(x0 + x, y0 + y, SPAL[5])
     # 拱腹（桥的厚度）：洞里贴着石沿一条 3 像素的暗带，越往拱脚越窄；几道水渍从这里往下挂
-    inside = (ri < 1) & (ri > 0.93 - 0.05 * (np.sin(ar) > 0.5)) & (yy < SPRING - 6)
+    inside = (ri < 1) & (ri > 0.93 - 0.05 * (np.sin(ar) > 0.5)) & (yy <= soffit_to)   # 桥的拱：一直落到托石上
     lvs = 0.6 + (blobs(h, w, rng, 1.5, 3.0) - 0.5) * 1.2 + (ri - 0.95) * 10
     lv_to(cv, inside, lvs, SPAL, x0, y0)
     for _ in range(int(rng.integers(3, 6))):
@@ -1448,40 +1667,395 @@ def water_mark(cv, piers, rng):
 
 
 def imposts(cv, x0, x1, y, rng):
-    """拱脚压的一条长石：顶面一道受光（右边更亮）、正面、底下一道影；两头的角磕圆了。"""
-    for x in range(x0, x1 + 1):
-        u = (x - x0) / max(1, x1 - x0)
-        cv.put(x, y, SPAL[4] if u > 0.35 or (x % 3) else SPAL[3])
-        cv.put(x, y + 1, SPAL[3])
-        cv.put(x, y + 2, SPAL[2] if rng.random() < 0.8 else SPAL[3])
-        cv.put(x, y + 3, SPAL[0])
-    cv.put(x0, y, SPAL[2])
-    cv.put(x1, y, SPAL[5])
-    cv.put(x1, y + 1, SPAL[4])
+    """拱脚的托石（10-30 作者：「切得太干脆」）：桥墩顶上挑出来的一层大石块（比墩身两边各宽出 2 格），券石就压在它上面起拱。
+    顶面一行受光（右边更亮）、正面两行、底下一行影；托石之间一道缝（只暗两档），两头的角磕圆；墩身贴着托石下沿一行影。"""
+    P = bm.expand_pal(SPAL)
+    xs = list(range(x0, x1 + 1))
+    cuts = set()
+    x = x0 + int(rng.integers(8, 14))
+    while x < x1 - 5:
+        cuts.add(x)
+        x += int(rng.integers(9, 16))
+    for X in xs:
+        u = (X - x0) / max(1, x1 - x0)
+        joint = X in cuts
+        top = P[6] if u > 0.4 else P[5]
+        col_ = [top, P[4], P[3] if (X * 5) % 7 else P[4], P[1]]
+        if joint:
+            col_ = [P[3], P[2], P[2], P[1]]
+        for k, c in enumerate(col_):
+            cv.put(X, y + k, c)
+        if (X + 1) in cuts:
+            cv.put(X, y + 1, P[5])                                       # 缝左边那块的右沿迎光
+    for X, out_ in ((x0, x0 - 1), (x1, x1 + 1)):                          # 挑到空处的那头：上下两个外角磨圆（伸进墙里的那头不磨）
+        if not cv.a[y + 2, out_, 3]:
+            cv.a[y, X, 3] = 0
+            cv.a[y + 3, X, 3] = 0
+    cv.put(x1, y + 1, P[6])
+    cv.put(x1, y + 2, P[5])
+    for X in range(x0 + 2, x1 - 1):                                      # 托石下面墩身上一行影
+        if cv.a[y + 4, X, 3]:
+            c = cv.a[y + 4, X, :3].astype(float) * 0.62
+            cv.put(X, y + 4, tuple(int(v) for v in c))
+
+
+CORBEL_L = 14                    # 牛腿石下沿那段内凹弧有多高
+
+
+def springers(cv, p0, p1, rng, holes):
+    """拱脚（10-31 作者：「这个直角要去掉」）：桥墩顶上一层托石，挨着拱洞的那头是一块挑出去的牛腿石。
+    - 托石挑出去的宽度 = 拱腹那条暗带落到这里的宽度：拱腹整个坐在托石顶上，边和拱腹齐平（不留台阶）；
+    - 牛腿石下沿是一段内凹的弧（越往下挑得越少），最后和墩身相切地收回去——拱弧、托石、墩身一条顺的轮廓；
+    - 托石分上下两块（上块宽、压进墩身 9 格，下块窄），和中间那段托石、墩身之间是一道只暗两档的缝；
+    - 月光从右上来：托石顶一行受光，朝右的牛腿面亮、朝左的暗，弧的底面越往下越朝下、越暗；
+    - 托石顶外沿几点苔、一两道从拱腹淌下来的水渍，牛腿弧上磕掉一格。
+    挨着桥台（实的）那头不挑，托石只伸进桥台 3 格。"""
+    P = bm.expand_pal(SPAL)
+    n = len(P) - 2
+    y0 = SPRING + 1
+    yb = y0 + 3 + CORBEL_L                                               # 牛腿石最底一行
+    ext = {}                                                             # (side, y) → 往拱洞里挑出几格
+    open_ = {}
+    for s, F in ((-1, p0), (1, p1)):
+        op = bool(holes[SPRING + 8, F + s])
+        open_[s] = op
+        if not op:
+            for y in range(y0, y0 + 4):
+                ext[(s, y)] = 3
+            continue
+        e = 0
+        while cv.a[SPRING, F + s * (e + 1), 3]:                          # 拱腹暗带落到拱脚时有多宽
+            e += 1
+        N = e                                                            # 和拱腹齐平：拱腹的边直接顺下来变成牛腿的边，不留台阶
+        for y in range(y0, y0 + 4):
+            ext[(s, y)] = N
+        for y in range(y0 + 4, yb + 1):
+            u = (y - (y0 + 3)) / CORBEL_L
+            ext[(s, y)] = int(round((N - 1) * (1 - u) ** 1.7 + (1 - u) * 0.6))
+    face = {-1: p0, 1: p1}
+    # 每一格属于哪块石头
+    blk = {}
+    for y in range(y0, yb + 1):
+        for s in (-1, 1):
+            if (s, y) not in ext:
+                continue
+            F = face[s]
+            inner = 9 if y < y0 + 8 else 6
+            if not open_[s]:
+                inner = 0
+            for o in range(-(inner - 1), ext[(s, y)] + 1):
+                if not open_[s] and o <= 0:
+                    continue
+                blk[(F + s * o, y)] = ("U" if y < y0 + 8 else "L", s)
+        if y < y0 + 4:
+            for x in range(p0 - ext.get((-1, y), 0), p1 + ext.get((1, y), 0) + 1):
+                blk.setdefault((x, y), None)
+    cuts = []
+    x = p0 + (9 if open_[-1] else 1) + int(rng.integers(6, 11))
+    while x < p1 - (9 if open_[1] else 1) - 5:
+        cuts.append(x)
+        x += int(rng.integers(9, 15))
+    for (x, y), b in list(blk.items()):
+        if b is None:
+            blk[(x, y)] = ("M", sum(1 for c in cuts if c <= x))
+    keys = sorted(set(blk.values()), key=str)
+    tone = {k: rng.uniform(-0.45, 0.45) for k in keys}
+    nz = blobs(yb - y0 + 3, p1 - p0 + 40, rng, 1.5, 2.5)
+    L = np.array([0.7071, 0.7071])                                       # 月光：右、上
+    lvs = {}
+    for (x, y), b in blk.items():
+        lv = 3.5 + tone[b] + (nz[y - y0, x - p0 + 20] - 0.5) * 1.1
+        lv += 0.35 * (x - (p0 + p1) / 2) / max(1, p1 - p0)               # 整根托石右边亮一点
+        if y == y0:
+            lv += 1.4                                                    # 托石顶：受光的一行
+        if b[0] == "M" and y == y0 + 3:
+            lv -= 1.0                                                    # 中段托石的底面
+        if b[0] in ("U", "L"):
+            top = y0 if b[0] == "U" else y0 + 8
+            hgt = (y0 + 7 if b[0] == "U" else yb) - top + 1
+            lv += 0.6 * (1 - (y - top) / hgt)                            # 每块石头微微鼓：上面亮
+            s = b[1]
+            o = (x - face[s]) * s
+            e_ = ext[(s, y)]
+            if open_[s] and o > 0 and o >= e_ - 1:                       # 轮廓那一两格：按朝向受光
+                g = (ext.get((s, y - 1), e_) - ext.get((s, y + 1), 0)) / 2.0 if y > y0 + 3 else 0.0
+                nx, nd = s / np.hypot(1, g), g / np.hypot(1, g)
+                dot = L[0] * nx - L[1] * nd
+                below = ext.get((s, y + 1), -99)
+                if o > below and y > y0 + 3:                              # 下面一行缩回去了：这一格是弧的底面
+                    dot = min(dot, L[0] * nx * 0.4 - L[1] * 0.9)
+                lv += (2.0 if o == e_ else 0.8) * dot
+            if y == y0 and open_[s] and o > 0:
+                lv += 0.6                                                # 托石顶挑出去那段：拱腹压在它上面，外沿最亮
+        lvs[(x, y)] = lv
+    # 缝：和左边 / 上边不是一块；或者挨着墩身（左右、下）
+    def solid_other(x, y):
+        return (x, y) not in blk and cv.a[y, x, 3] > 0
+    joint = set()
+    for (x, y), b in blk.items():
+        if (x - 1, y) in blk and blk[(x - 1, y)] != b:
+            joint.add((x, y))
+        elif (x, y - 1) in blk and blk[(x, y - 1)] != b:
+            joint.add((x, y))
+        elif y > y0 and (solid_other(x - 1, y) or solid_other(x + 1, y) or solid_other(x, y + 1)):
+            joint.add((x, y))
+    for (x, y) in joint:
+        nb = [lvs[q] for q in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)) if q in lvs and q not in joint]
+        lvs[(x, y)] = max(1.0, (np.mean(nb) if nb else lvs[(x, y)]) - 2.0)
+    # 缝的角磨圆：横缝和竖缝相交那格不压暗那么多
+    for (x, y) in list(joint):
+        if (x + 1, y) in joint and (x, y + 1) in joint:
+            lvs[(x, y)] += 0.7
+    for (x, y), lv in lvs.items():
+        cv.put(x, y, P[int(np.clip(round(lv), 0, n))])
+    for s in (-1, 1):
+        if not open_[s]:
+            continue
+        F = face[s]
+        e_ = ext[(s, y0)]
+        for o in range(max(1, e_ - 4), e_ + 1):                          # 托石顶外沿几点苔
+            if rng.random() < 0.45:
+                cv.put(F + s * o, y0, bm.MOSS[1 if rng.random() < 0.6 else 2])
+        for _ in range(int(rng.integers(1, 3))):                         # 拱腹淌下来的水渍
+            o = int(rng.integers(1, max(2, ext[(s, y0 + 2)] - 1)))
+            for d in range(1, int(rng.integers(4, 9))):
+                q = (F + s * o, y0 + d)
+                if q in lvs and q not in joint:
+                    cv.put(q[0], q[1], P[int(np.clip(round(lvs[q] - 1.1), 0, n))])
+        yc = y0 + 5 + int(rng.integers(0, 4))                            # 牛腿弧上磕掉一格：缺口里暗、下唇亮
+        o = ext[(s, yc)]
+        if o > 2:
+            cv.a[yc, F + s * o, 3] = 0
+            q = (F + s * (o - 1), yc)
+            cv.put(q[0], q[1], P[max(1, int(round(lvs[q] - 1.3)))])
+            q = (F + s * (o - 1), yc + 1)
+            if q in lvs:
+                cv.put(q[0], q[1], P[int(np.clip(round(lvs[q] + 0.4 * s), 0, n))])
+    # 中段托石挑出墙面一点：底下墩身上一行影
+    for X in range(p0 + 9, p1 - 8):
+        if (X, y0 + 4) not in blk and cv.a[y0 + 4, X, 3]:
+            c = cv.a[y0 + 4, X, :3].astype(float) * 0.66
+            cv.put(X, y0 + 4, tuple(int(v) for v in c))
+
+
+def masonry(cv, m, rng, wet_y=None, solid=None):
+    """桥身（桥台、桥墩、拱肩）：错缝砌的方石，整座桥的横缝是通的（一层层砌上去），每层石块长短不一、上下错缝，越往下越厚。
+    每块石头：底色按月光（越高越亮）+ 自己深一点浅一点；上沿一行受光、右沿亮、下沿和左沿暗；块面上一团团小色块；
+    缝只比石头暗两档（不描黑边）；有的角磕掉一格（缺口暗、下唇亮）。
+    桥墩的竖面（拱脚以下）有厚度：每一行最右边 3 格是受月光的侧面（亮两档），最左边 2 格背光。
+    轮廓上：石块的角磕掉、偶尔缺一格，不是一刀切的直边。
+    wet_y：旧水位——以下一片深色湿痕（上沿跟着慢噪声起伏，不是一条直线），湿的那截缝里长苔、挂水草。"""
+    ys, xs = np.nonzero(m)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    M = m[y0:y1, x0:x1]
+    h, w = M.shape
+    P = bm.expand_pal(SPAL)
+    n = len(P) - 1
+    # 10-30 第四轮（作者：「不要砖」）：不再是一排排长方形——粗凿的石块，用仓库后墙那套 p 范数 Voronoi 切（圆钝、大小不一、上下错落），
+    # 有的几块并成一整块岩体（不切缝）
+    ids_all, eg_all = RU.voronoi_stones(m, rng, cw=30.0, ch=19.0, p=2.15, row_jit=0.32)
+    bid = ids_all[y0:y1, x0:x1].copy()
+    eg = eg_all[y0:y1, x0:x1]
+    order = np.argsort(bid.ravel(), kind="stable")
+    sb = bid.ravel()[order]
+    starts = np.searchsorted(sb, np.unique(sb[sb >= 0]))
+    groups = np.split(order, np.r_[starts[1:], len(sb)])[:len(starts)] if len(starts) else []
+    for g in groups:
+        if rng.random() < 0.2:                                           # 并到右边那块：一整块岩体
+            gy, gx = np.divmod(g, w)
+            cy, cx = int(gy.mean()), int(gx.max()) + 2
+            if 0 <= cx < w and bid[cy, cx] >= 0:
+                bid.ravel()[g] = bid[cy, cx]
+    k = int(bid.max()) + 1 if (bid >= 0).any() else 1
+    U = np.zeros((h, w))
+    V = np.zeros((h, w))
+    order = np.argsort(bid.ravel(), kind="stable")
+    sb = bid.ravel()[order]
+    for idv in np.unique(sb[sb >= 0]):
+        g = order[np.searchsorted(sb, idv):np.searchsorted(sb, idv, side="right")]
+        gy, gx = np.divmod(g, w)
+        U.ravel()[g] = (gx - gx.min() + 0.5) / (gx.max() - gx.min() + 1)
+        V.ravel()[g] = (gy - gy.min() + 0.5) / (gy.max() - gy.min() + 1)
+        if gx.max() - gx.min() > 22 and rng.random() < 0.7:               # 大块上一两道竖的节理面：左边暗一点、右边迎光
+            cut = gx.min() + int((gx.max() - gx.min()) * rng.uniform(0.35, 0.7))
+            sel = gx < cut
+            U.ravel()[g[sel]] -= 0.25
+    # 缝：和上面 / 左边不是同一块的那一格；靠缝的地方偶尔多磨一格（缝宽窄不一、角是圆钝的）
+    joint = np.zeros((h, w), bool)
+    joint[1:] |= bid[1:] != bid[:-1]
+    joint[:, 1:] |= bid[:, 1:] != bid[:, :-1]
+    joint |= (eg < 1.25) & (blobs(h, w, rng, 1.5, 1.5) < 0.32)
+    Y = np.arange(h)[:, None] + y0
+    X = np.arange(w)[None, :] + x0
+    tone = np.array([rng.uniform(-0.8, 0.8) for _ in range(k + 1)])
+    lv = 3.5 + tone[np.clip(bid, 0, None)] + 1.1 * np.clip((SB_G - Y) / (SB_G - DECK), 0, 1)
+    lv = lv + 0.9 * (1 - V) ** 2 * 0.8 + 0.5 * U - 0.35                 # 每块石头微微鼓：上面、右边亮
+    up_ = ~joint & np.vstack([np.ones((1, w), bool), joint[:-1]])        # 缝下面那一行：石块的上沿，受光
+    rt = ~joint & np.hstack([joint[:, 1:], np.ones((h, 1), bool)])       # 下一列是缝：石块的右沿
+    dn = ~joint & np.vstack([joint[1:], np.ones((1, w), bool)])
+    lf = ~joint & np.hstack([np.ones((h, 1), bool), joint[:, :-1]])
+    lv = lv + 0.9 * up_ + 0.6 * rt - 0.8 * dn - 0.3 * lf
+    lv = lv + (blobs(h, w, rng, 2.2, 3.0) - 0.5) * 1.1
+    # 桥墩竖面的厚度：拱脚以下，每一行的右端 3 格亮（侧面迎月光），左端 2 格暗
+    for yy in range(h):
+        if Y[yy, 0] <= SPRING + 4:
+            continue
+        xs_ = np.nonzero(M[yy])[0]
+        if not len(xs_):
+            continue
+        for run in np.split(xs_, np.nonzero(np.diff(xs_) > 1)[0] + 1):
+            a, b = run[0], run[-1]
+            if b - a < 10:
+                continue
+            lv[yy, b - 2:b + 1] += 2.2
+            lv[yy, b - 3] -= 0.6                                         # 正面和侧面交界的那条棱下一点暗
+            lv[yy, a:a + 2] -= 0.9
+    # 旧水位以下：一片深色湿痕，上沿起伏
+    wet = np.zeros((h, w), bool)
+    if wet_y is not None:
+        prof = smooth1d(SB_W, rng, 26, 1.0)[x0:x1]
+        wl = wet_y + np.round(prof * 2.2).astype(int)
+        wet = Y > wl[None, :]
+        lv = lv - 1.2 * wet - 0.5 * (wet & (Y < wl[None, :] + 4))
+        crust = (Y == wl[None, :]) | ((Y == wl[None, :] - 1) & (prof[None, :] > 0.3))
+        lv = lv + 0.8 * (crust & ~joint)                                 # 线上一层薄泥壳（只亮一点，跟着起伏，不连成直线）
+    lv = lv - 0.9 * np.clip((Y - (SB_G - 6)) / 6, 0, 1)                   # 贴地几行暗
+    jl = np.maximum(1, lv - 2.0)                                          # 缝：只比石头暗两档
+    lv = np.where(joint, jl, lv)
+    # 磕掉的角
+    corners = np.argwhere(joint[1:, 1:] & joint[:-1, 1:] & joint[1:, :-1])
+    for (cy, cx) in corners:
+        if rng.random() < 0.3:
+            yy, xx = cy + 1, cx + 1
+            if yy + 1 < h and xx + 1 < w:
+                lv[yy, xx] = jl[yy, xx]
+                lv[yy + 1, xx + 1] += 0.8
+    # 块面上：几个坑点（暗一格、右下亮一格）、偶尔一道短的细裂
+    for _ in range(k // 2):
+        yy, xx = int(rng.integers(1, h - 2)), int(rng.integers(1, w - 2))
+        if M[yy, xx] and not joint[yy, xx]:
+            lv[yy, xx] -= 1.4
+            lv[yy + 1, xx + 1] += 0.6
+    for _ in range(k // 6):
+        yy, xx = int(rng.integers(1, h - 8)), int(rng.integers(1, w - 2))
+        for d in range(int(rng.integers(3, 7))):
+            if M[yy + d, xx] and not joint[yy + d, xx]:
+                lv[yy + d, xx] = jl[yy + d, xx] + 0.4
+            xx += int(rng.choice([-1, 0, 0, 1]))
+            xx = int(np.clip(xx, 0, w - 1))
+    idx = np.clip(np.round(lv), 0, n - 1).astype(int)
+    out = cv.a[y0:y1, x0:x1]
+    keep = M.copy()
+    # 轮廓上的石块各自凹进去 0~2 格（砌的边不是一条直线），凹进去那块的角磕得更圆
+    rec = {}
+    for yy in range(h):
+        xs_ = np.nonzero(M[yy])[0]
+        if not len(xs_) or Y[yy, 0] >= SB_G - 1 or SPRING - 12 <= Y[yy, 0] <= SPRING + 12:
+            continue                                                     # 托石上下几行不凹：拱脚坐得稳
+        for run in np.split(xs_, np.nonzero(np.diff(xs_) > 1)[0] + 1):
+            for end, sgn in ((run[0], 1), (run[-1], -1)):
+                nx_ = x0 + end - sgn                                     # 轮廓外面那一格
+                if solid is not None and ((0 <= nx_ < SB_W and solid[Y[yy, 0], nx_]) or solid[Y[yy, 0], x0 + end]):
+                    continue                                             # 挨着拱圈（实的）：不凹，不然露出背景
+                b_ = bid[yy, end]
+                key = (b_, sgn)
+                if key not in rec:
+                    rec[key] = int(rng.choice([0, 0, 1, 1, 2]))
+                d = rec[key]
+                vv = V[yy, end]
+                d += 1 if (vv < 0.12 or vv > 0.88) and d > 0 else 0           # 凹进去的那块四角再圆一点
+                for t in range(d):
+                    xx = end + sgn * t
+                    if 0 <= xx < w:
+                        keep[yy, xx] = False
+    # 轮廓上磕掉的格子：缝碰到外沿的地方缺一两格；竖边上偶尔缺一格
+    outside = ~M
+    edge = M & (np.roll(outside, 1, 1) | np.roll(outside, -1, 1))
+    edge[:, 0] |= M[:, 0]
+    edge[:, -1] |= M[:, -1]
+    def outward_ok(yy, xx):
+        if Y[yy, 0] >= SB_G - 2 or SPRING - 12 <= Y[yy, 0] <= SPRING + 12:
+            return False                                                 # 贴地、拱脚和托石上下一截：不磕
+        if solid is not None and solid[Y[yy, 0], x0 + xx]:
+            return False                                                 # 拱圈那圈：券石要整整齐齐压上去
+        for nx_ in (x0 + xx - 1, x0 + xx + 1):
+            if 0 <= nx_ < SB_W and not m[Y[yy, 0], nx_]:
+                if solid is not None and solid[Y[yy, 0], nx_]:
+                    return False
+                return True
+        return False
+    for yy, xx in zip(*np.nonzero(edge & (joint | np.vstack([joint[1:], np.zeros((1, w), bool)])))):
+        if rng.random() < 0.55 and outward_ok(yy, xx):
+            keep[yy, xx] = False
+    for yy, xx in zip(*np.nonzero(edge)):
+        if rng.random() < 0.05 and outward_ok(yy, xx):
+            keep[yy, xx] = False
+    out[keep, :3] = np.array(P)[idx[keep]]
+    out[keep, 3] = 255
+    # 湿痕那截：缝里长苔，偶尔挂一缕水草
+    if wet_y is not None:
+        for yy, xx in zip(*np.nonzero(keep & joint & wet)):
+            if rng.random() < 0.35:
+                out[yy, xx, :3] = bm.MOSS[0]
+        for xx in range(w):
+            if rng.random() < 0.025:
+                ytop = wl[xx] + 1 - y0
+                for d in range(int(rng.integers(3, 10))):
+                    if 0 <= ytop + d < h and keep[ytop + d, xx]:
+                        out[ytop + d, xx, :3] = bm.MOSS[1] if d < 2 else bm.MOSS[0]
+    return keep
+
+
+def pier_puddle(cv, xa, xb, rng):
+    """墩脚泡在泥里的一汪积水：一条连续的湿亮水线贴着墩脚，下面几行是墩脚的倒影（翻过来、压暗、偏蓝，被水波横着错开一两格），
+    往两边越来越窄、越来越淡。"""
+    g = SB_G
+    wv = smooth1d(64, rng, 9, 1.0)
+    for d in range(1, 7):
+        half = (xb - xa) / 2 + 6 - d * 1.2
+        cx = (xa + xb) / 2
+        for x in range(int(cx - half), int(cx + half) + 1):
+            if d == 1:
+                cv.put(x, g + 1, blue(0.32, 0.03, 244) if x > cx - half + 2 else blue(0.24, 0.03, 248))
+                continue
+            sx = x + int(round(wv[(x + d * 3) % 64]))
+            src = cv.a[g - d - 4, sx] if 0 <= sx < SB_W else None           # 翻的是贴地暗带上面那几行（不然倒影一片黑）
+            if src is None or not src[3]:
+                c = blue(0.12, 0.03, 252)
+            else:
+                c = tuple(int(v) for v in (src[:3].astype(float) * 0.62 + np.array(blue(0.14, 0.03, 250)) * 0.38))
+            if abs(x - cx) > half - 2 and (x + d) % 2:
+                continue                                                  # 两头渐渐收掉
+            under = cv.a[g + d, x]
+            if under[3]:                                                  # 10-31：倒影是一层薄水，透出下面受光的泥面（不然墩脚一片黑，地面像一根细线）
+                c = tuple(int(v) for v in (np.array(c, float) * 0.55 + under[:3].astype(float) * 0.45))
+            cv.put(x, g + d, c)
 
 
 def deck_slab(cv, x0, x1, rng):
     """桥面：一长条厚石板，一段段长短不一（18~44 像素）。顶面受月光、正面中间暗、下沿挑出一道影；
     接缝处顶角磕圆；顶上一层苔（一团一团，不均匀）；下沿偶尔挂几缕苔、几道水渍。"""
+    P = bm.expand_pal(SPAL)                                             # 10-30：接缝、底面不再用最暗那档（像描了黑边）
+    prof = [6.4, 5.0, 3.9, 3.7, 3.6, 3.2, 2.6, 1.7]                      # 顶面受光 → 正面 → 挑出去的底面（暗，不黑）
     x = x0
-    k = 0
     while x < x1:
         ln = int(rng.integers(18, 45))
         xe = min(x1, x + ln)
-        tone = rng.choice([-0.4, 0, 0, 0.35])
+        tone = rng.choice([-0.5, 0, 0, 0.4])
         for xx in range(x, xe):
             y0 = DECK - 1 + int(round(0.6 * np.sin(xx / 11.0)))
             u = (xx - x) / max(1, xe - x)
             for d in range(8):
-                lv = (4.1 if d == 0 else 3.2 if d == 1 else 2.2 if d < 5 else 1.6 if d < 7 else 0.2) + tone
-                lv += 0.5 * (u > 0.8) * (d < 2) - 0.6 * (u < 0.08) * (0 < d < 7)
-                cv.put(xx, y0 + d, SPAL[int(np.clip(round(lv), 0, 5))])
-            if xx == x:                                                 # 接缝
-                for d in range(1, 7):
-                    cv.put(xx, y0 + d, SPAL[0])
-                cv.put(xx, y0, SPAL[2])
+                lv = prof[d] + tone + 0.4 * (RA.vnoise(1, 1, 1, 1, rng)[0, 0] - 0.5) * (1 < d < 6)
+                lv += 0.6 * (u > 0.85) * (d < 3) - 0.5 * (u < 0.1) * (0 < d < 7)
+                if xx == x and 0 < d < 7:
+                    lv -= 1.6                                           # 接缝：只暗一档半
+                if xx == x and d == 0:
+                    lv -= 1.2                                           # 接缝处顶角磕圆
+                if xx in (x0, x1 - 1) and d in (0, 7):
+                    continue                                            # 整条桥面两头的角磨掉
+                cv.put(xx, y0 + d, P[int(np.clip(round(lv), 0, 7))])
         x = xe
-        k += 1
     mz = blobs(1, x1 - x0 + 1, rng, 1, 5)[0]
     for xx in range(x0, x1):
         y0 = DECK - 1 + int(round(0.6 * np.sin(xx / 11.0)))
@@ -1538,8 +2112,9 @@ def ornament_row(cv, x0, x1, base, rng):
         if rng.random() < 0.3:                                         # 有的长了苔
             lvm[ys.max() - 1:, :] -= 1.0
         lv_to(cv, m, lvm, SPAL, x - cxl, base - 13)
-        cv.put(x - 2, base + 1, SPAL[0])
-        cv.put(x - 1, base + 1, SPAL[0])
+        for dx_ in range(-2, 3):                                        # 脚下一块小方座（落在桥面上，左暗右亮）
+            cv.put(x + dx_, base, SPAL[2] if dx_ < 0 else SPAL[3])
+        cv.put(x + 2, base, SPAL[4])
 
 
 def house_in_spandrel(cv, cx, i, rng, spand):
@@ -1662,17 +2237,26 @@ def low_house(cv, cx, rng):
     marker southbridge_ornament 在这里：晨在这儿抬头看桥面那排小石像（「从下面看，是别人家的屋顶」）。"""
     r = np.random.default_rng(77)
     a1 = BRIDGE[1]
-    x0, w = a1 - 16, 62
+    x0, w0 = a1 - 16, 62
+    w = w0 + 22
     top, base = 98, SB_G + 1
     h = base - top + 1
     dome_h = 54
     m = np.zeros((h, w), bool)
-    m[:dome_h] = bm.blob_mask(w, dome_h, r, p=2.8, lump=0.07)            # 上面一个宽的圆顶
+    m[:dome_h, :w0] = bm.blob_mask(w0, dome_h, r, p=2.4, lump=0.07)      # 上面一个圆顶
     xs_ = np.nonzero(m[dome_h - 1])[0]
     jit = smooth1d(h, r, 30, 1.2)
-    for y in range(dome_h, h):                                            # 两边竖直落到地面（微微往外撇、边上风化起伏）
+    lump = smooth1d(h, np.random.default_rng(78), 38, 2.6)
+    # 10-31 作者：「右边是一条从上到下笔直的竖边」——原来圆顶下面两边竖直落地。现在右边是巨石的一面鼓出来的弧：
+    # 圆顶往下一路往外撇，越到地面越宽（像一块坐在泥里的大圆石），边上两三处风化的鼓包和凹进去的地方。
+    for y in range(dome_h, h):
         u = (y - dome_h) / (h - dome_h)
-        m[y, max(0, int(xs_[0] - 2 * u + jit[y] * 0.6)):min(w, int(xs_[-1] + 1 + 2 * u + jit[-y] * 0.6))] = True
+        right = xs_[-1] + 1 + 20 * (1 - np.cos(u * np.pi / 2)) ** 1.15 + lump[y] + 2 * np.sin(u * np.pi)
+        m[y, max(0, int(xs_[0] - 2 * u + jit[y] * 0.6)):min(w, int(right))] = True
+    for y in range(dome_h - 8, dome_h):                                   # 圆顶和下面鼓出来的那段顺着接上
+        xe = np.nonzero(m[y])[0]
+        if len(xe):
+            m[y, xe[0]:min(w, int(xe[-1] + 1 + (y - dome_h + 8) * 0.12))] = True
     cv.paste(bm.stone_shade(m, r, SPAL, facet_w=14.0, joints=0.3, ledges=0.5), x0, top)
     for xx in range(w):
         ys = np.nonzero(m[:, xx])[0]
@@ -1696,8 +2280,9 @@ def low_house(cv, cx, rng):
         cv.put(x, top + 61, SPAL[1])
     carve2(cv, x0 + 40, top + 22, 6, 6, "round", False, False, pal=SPAL)   # 不亮的小圆窗
     for x in range(x0 - 2, x0 + w + 3):                                    # 接地：一圈暗、湿泥
-        cv.put(x, base + 1, MUD[1] if (x * 3) % 4 else MUD[2])
-        cv.put(x, base + 2, MUD[0])
+        if m[h - 1, min(w - 1, max(0, x - x0))] or x < x0 + w0:
+            cv.put(x, base + 1, MUD[1] if (x * 3) % 4 else MUD[2])
+            cv.put(x, base + 2, MUD[0])
 
 
 def fallen_float_lamp(cv, x, g):
@@ -1730,15 +2315,25 @@ LINTEL = (D0 + 1356, D0 + 1428, 92)           # 石门框：两根石柱 + 一�
 def stone_post(cv, x0, top, base, w, rng):
     """一根石柱（几段鼓石摞起来）：左暗右亮，右沿一道冷亮边；鼓石之间的缝高低不一、角磕掉；
     面上 2~3 色的小色团；柱脚一段暗（和地面交接的影）、长一点苔。"""
+    # 10-31：「不能是一刀切的直线」——原来整根柱子两边笔直。现在每段鼓石宽窄、左右错开各不一样，
+    # 鼓石上下两头的角磨圆（缝那里两边各缺一格），柱脚往外放一格。
     h = base - top + 1
     m = np.zeros((h, w + 2), bool)
-    for y in range(h):
-        sh = 1 if (y // 9) % 3 == 1 else 0
-        m[y, sh:sh + w] = True
+    joints = sorted(set(int(v) for v in rng.integers(8, h - 6, size=max(1, h // 22))))
+    bounds = [0] + [j for j in joints] + [h]
+    for a_, b_ in zip(bounds[:-1], bounds[1:]):
+        sh = int(rng.choice([0, 1, 1, 2]))
+        ww = w - int(rng.choice([0, 0, 1]))
+        for y in range(a_, b_):
+            l_, r_ = sh, min(w + 2, sh + ww)
+            if y - a_ < 1 or b_ - 1 - y < 1:                            # 鼓石两头磨圆
+                l_, r_ = l_ + 1, r_ - 1
+            if y >= h - 4:                                              # 柱脚放一格
+                l_, r_ = max(0, l_ - 1), min(w + 2, r_ + 1)
+            m[y, l_:r_] = True
     nz = blobs(h, w + 2, rng, 2.0, 2.0)
     yy, xx = np.mgrid[0:h, 0:w + 2]
     lv = 2.0 + 2.0 * (xx / (w + 1)) + (nz - 0.5) * 1.0
-    joints = sorted(set(int(v) for v in rng.integers(8, h - 6, size=max(1, h // 22))))
     for j in joints:
         lv[j, :] = 0.2
         lv[j + 1, :] += 0.8                                            # 缝下面那段石头的顶边受光
@@ -1773,14 +2368,23 @@ def dock_shed(cv, rng):
             if rng.random() < 0.18:
                 for d in range(1, int(rng.integers(2, 9))):
                     cv.put(bx0 + xx, DOCK_Y - bh + 1 + ys[0] + d, bm.MOSS[0])
+    for bx, bw_, bh_ in ((bx0 + bw - 8, 13, 8), (bx0 + bw + 3, 7, 4)):       # 巨石右脚：几块崩下来的石头靠在脚边（脚不是竖着切到台面上）
+        mm = bm.blob_mask(bw_, bh_, rng)
+        cv.paste(bm.stone_shade(mm, rng, RPAL, facet_w=7.0, ledges=0.3), bx, DOCK_Y - bh_ + 1)
     carve2(cv, D0 + 1222, DOCK_Y - 47, 22, 48, "arch", True, True, pal=SPAL)       # 货棚门洞：里面深处还点着一盏，光贴着地往外渐弱
-    carve2(cv, D0 + 1226, DOCK_Y - 82, 7, 9, "arch", True, False, pal=SPAL)        # 门上一扇小窗，还透一点灯
+    carve2(cv, D0 + 1318, DOCK_Y - 70, 7, 9, "arch", True, False, pal=SPAL)        # 门上一扇小窗，还透一点灯（凿在石头里面，不在边上）
     x0, x1, ty = LINTEL                                                # 石门框
     for k, px in enumerate((x0, x1 - 6)):
         stone_post(cv, px, ty + 6, DOCK_Y, 7, np.random.default_rng(90 + k))
-    lm = bm.blob_mask(x1 - x0 + 8, 9, rng, p=4.0, lump=0.04)
+    lm = bm.blob_mask(x1 - x0 + 8, 9, rng, p=3.0, lump=0.14)                 # 横梁：顶面风化得高低不平、两头圆钝
+    for cx_ in (int(rng.integers(14, 26)), int(rng.integers(44, 60))):     # 梁顶磕掉两块
+        for d in range(int(rng.integers(3, 6))):
+            for k in range(1 + (d in (1, 2))):
+                lm[k, cx_ + d] = False
     cv.paste(bm.stone_shade(lm, rng, SPAL, facet_w=8.0, ledges=0.3), x0 - 4, ty)
-    cv.rect(x0 - 3, ty + 8, x1 + 3, ty + 8, SPAL[0])
+    for x in range(x0 - 3, x1 + 4):                                    # 梁的底面：暗，但深浅跟着石头走，不是一条黑线
+        if cv.a[ty + 8, x, 3]:
+            cv.put(x, ty + 8, SPAL[1] if (x * 5 + 3) % 7 < 4 else SPAL[2])
     for px in PLATE_XS:
         cv.rect(px - 1, ty + 9, px, ty + 10, IRON[4])
     cv.rect(x1 + 1, ty + 9, x1 + 2, ty + 12, IRON[3])

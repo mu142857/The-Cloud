@@ -104,6 +104,7 @@ CAB_X0F, CAB_X1F = 210, 252                   # 索引柜柜体
 CABD_X0, CABD_X1, CABD_Y0, CABD_Y1 = 212, 250, 110, 192   # 柜门（= obj_cabinet 关着时的门）
 CAB_OBJ_X0, CAB_OBJ_X1 = 206, 256             # obj_cabinet 的框（开着时两扇门板贴在两边）
 WIN_X0, WIN_X1, WIN_Y0, WIN_Y1 = 238, 288, 30, 82   # 窗台的大窗洞（来客册晾干那两帧摊在窗台上 y 74–82）
+VIEW = np.zeros((H, W), bool)         # 窗玻璃：back 在这里镂空，引擎透过去画河岸的远景层（home_view.png，见 room_stage.gd）
 PL_X, PL_Y = 262, 152                         # obj_player 的左上角
 INK_THREAD = Wm(.36, .08, 28)                 # 条子之间拉的红线
 
@@ -319,6 +320,7 @@ LAMPS = [
     (125, 272, 4, 16, 0.35),     # 厨房：炉膛里一点余火
     (48, 220, 6, 38, 0.75),      # 门厅：门楣上方托架挂的小灯
     (276, 44, 30, 90, 0.8, (20, F2B + 3)),   # 窗台：大窗进来的月光（冷，只照窗台这一层）
+    (263, 74, 14, 30, 0.3),      # 窗台：屋里一点暖光，照到窗框、窗棂朝屋里那一面
 ]
 
 
@@ -874,35 +876,12 @@ def furnish_attic(p: hp.Props):
 
 
 def furnish_win(p: hp.Props):
-    """窗台：大窗（石壁上凿的深窗洞：左内壁接月光、顶上内壁在影子里；木窗框十字棂；外面是月夜、对岸的石头小镇两点灯、
-    河面一道银）、宽石窗台、左边一幅扎起来的布帘、一根晾绳（几张纸、一只袜子）；右边一架窄格子（影像盒、贝壳、来客册）。"""
+    """窗台：大窗（石壁上凿的深窗洞：左内壁接月光、顶上内壁在影子里；木窗框十字棂；玻璃是透的——back 在 VIEW 镂空，
+    引擎透过去画河岸真的天、月亮、远景，跟着视差动（10-31 作者：「你这窗口是实心的啊」）；玻璃上只留两道斜的反光）、
+    宽石窗台、左边一幅扎起来的布帘、一根晾绳（几张纸、一只袜子）；右边一架窄格子（影像盒、贝壳、来客册）。"""
     wx0, wx1, wy0, wy1 = WIN_X0, WIN_X1, WIN_Y0, WIN_Y1
     w, h = wx1 - wx0 + 1, wy1 - wy0 + 1
     m = bm.opening_mask(w, h, "arch")
-    rng = np.random.default_rng(7881)
-    horizon = wy0 + int(h * 0.66)
-    roofs = {}                                                            # 对岸的石头小镇：高高矮矮的屋顶（一段段平顶 / 尖顶）
-    xx = wx0
-    while xx <= wx1:
-        seg = int(rng.integers(3, 8))
-        hh = int(rng.integers(2, 7))
-        peak = rng.random() < 0.35
-        for k in range(seg):
-            roofs[xx + k] = hh + (min(k, seg - 1 - k) if peak else 0)
-        xx += seg
-    streak = {}                                                           # 河面：几道断断续续的银线（长短不一），月亮底下一列碎光
-    for yy in range(horizon + 1, wy1 + 1):
-        if rng.random() < 0.55:
-            a = wx0 + int(rng.integers(3, w - 6))
-            for k in range(int(rng.integers(2, 9))):
-                streak[(a + k, yy)] = True
-    mxc = wx1 - 13
-    for yy in range(horizon + 1, wy1 + 1):
-        ln = 2 + (yy - horizon) // 4 + int(rng.integers(0, 2))
-        a = mxc - ln // 2 + int(rng.integers(-1, 2))
-        if (yy - horizon) % 3 != 2:
-            for k in range(ln):
-                streak[(a + k, yy)] = True
     for yy in range(h):
         xs = np.nonzero(m[yy])[0]
         if len(xs) == 0:
@@ -918,30 +897,18 @@ def furnish_win(p: hp.Props):
             elif xr - xx < 1:
                 p.fx(X_, Y_, B(.07, .02, 262), z=0.5, cast=False)
             else:
-                Y = Y_
-                if Y < horizon - roofs.get(X_, 0):
-                    k = (Y - wy0) / max(1, horizon - wy0)
-                    c = B(.08 + .1 * k + (.05 if k > 0.86 else 0), .04, 262 - 14 * k)
-                    if rng.random() < 0.006:
-                        c = B(.6, .02, 230)                                 # 星星（很少）
-                    d = math.hypot(X_ - mxc, (Y - (wy0 + 15)) * 1.1)
-                    if d < 3.2:
-                        c = B(.74, .03, 220)                                # 月亮
-                    elif d < 6:
-                        c = B(.32, .04, 234)                                # 月晕
-                    elif d < 8.5:
-                        c = B(.24, .04, 240)
-                elif Y < horizon:
-                    c = B(.055, .025, 264)                                  # 屋顶的剪影
-                else:
-                    k = (Y - horizon) / max(1, wy1 - horizon)
-                    c = B(.15 - .05 * k, .04, 258)
-                    if streak.get((X_, Y)):
-                        c = B(.38, .03, 236) if abs(X_ - mxc) < 4 else B(.28, .03, 240)
-                p.fx(X_, Y_, c, z=0.5, cast=False)
-    for (lx, ly) in ((wx0 + 14, horizon - 2), (wx0 + 33, horizon - 3)):
-        p.fx(lx, ly, Wm(.56, .09, 72), z=0.6, cast=False)                   # 对岸两点灯
-        p.fx(lx, ly + 3, Wm(.38, .06, 64), z=0.6, cast=False)
+                VIEW[Y_, X_] = True                                         # 玻璃：透过去是真的夜空（引擎画河岸的远景层）
+    # 木窗框：顺着拱形贴一圈 2 像素（外圈暗、内圈朝玻璃那条边亮一档，屋里的暖光照得到），玻璃往里收
+    glass = VIEW[wy0:wy1 + 1, wx0:wx1 + 1].copy()
+    inner = ~dilate(~glass, 2)
+    mid1 = ~dilate(~glass, 1)
+    for yy, xx in zip(*np.nonzero(glass & ~inner)):
+        X_, Y_ = wx0 + xx, wy0 + yy
+        VIEW[Y_, X_] = False
+        if mid1[yy, xx]:
+            p.px(X_, Y_, "wood", 0.36, hp.nrm(0, 0, 1), z=1.2)            # 内沿
+        else:
+            p.px(X_, Y_, "wood", 0.22, FRONT, z=1.1)
     # 窗框 + 十字棂（木，月光从外面来：框的左内沿亮）
     mx, my = (wx0 + wx1) // 2, wy0 + int(h * 0.5)
     for yy in range(h):
@@ -951,10 +918,11 @@ def furnish_win(p: hp.Props):
     for xx in range(3, w - 1):
         p.px(wx0 + xx, my, "wood", 0.34, hp.TOP, z=1)
         p.px(wx0 + xx, my + 1, "wood", 0.2, hp.BOT, z=1)
-    for k in range(6):                                                    # 玻璃上两道斜的反光
-        p.fx(wx0 + 6 + k, wy0 + 18 - k, B(.34, .02, 228), z=0.8, cast=False)
+    for k in range(6):                                                    # 玻璃上两道斜的反光（实的像素，透过去的天上一眼看得出是玻璃）
+        p.fx(wx0 + 6 + k, wy0 + 18 - k, B(.4, .03, 226), z=0.8, cast=False)
         if k < 4:
-            p.fx(mx + 6 + k, my + 12 - k, B(.3, .02, 228), z=0.8, cast=False)
+            p.fx(wx0 + 8 + k, wy0 + 18 - k, B(.3, .025, 230), z=0.8, cast=False)
+            p.fx(mx + 6 + k, my + 12 - k, B(.34, .025, 228), z=0.8, cast=False)
     # 石窗台
     sy = wy1 + 1
     p.hline(wx0 - 3, wx1 + 3, sy, "stone", 0.5, hp.TOP, z=3)
@@ -1261,6 +1229,7 @@ def build():
     floor_water(back, 232, 406, allm)
     top_things(back, km)
     clefts(back, km, dilate(allm | nook, 2))
+    back.a[VIEW & ~pm] = 0                                  # 窗玻璃镂空（窗棂、帘子、反光这些东西留着）
 
     front = build_front(rock, allm, nook)
     clefts(front, front.a[..., 3] > 0, np.zeros((H, W), bool))
@@ -1286,7 +1255,7 @@ def build_light(allm):
     for y in range(WIN_Y0, F2B + 1):
         t = (y - WIN_Y0) / (F2B - WIN_Y0)
         for x in range(WIN_X0 - int(22 * t), WIN_X1 + 6 - int(22 * t)):
-            if allm[y, x] and img[y, x, 3] == 0:
+            if allm[y, x] and img[y, x, 3] == 0 and not VIEW[y, x]:
                 img[y, x] = (150, 176, 220, int(16 * (1 - 0.5 * t)))
     return img
 
@@ -1529,6 +1498,7 @@ def room_json(objs):
                     "tools/river_home_rooms_art.py 生成，别手改。地面以下泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
         "kind": "house", "host": "river_bank", "x": HOME_X, "size": [W, H],
         "back": "home_back.png", "front": "home_front.png", "light": "home_light.png",
+        "view": "home_view.png",
         "floor": F0, "walk": [24, 406], "door": DOOR_X,
         "levels": [
             {"id": "l0", "floor": L0_FLOOR, "walk": [24, 406], "note": "门厅 → 厨房 → 上两级餐桌 → 储物 → 楼梯井 1"},
@@ -1569,6 +1539,9 @@ def main():
     Image.fromarray(back, "RGBA").save(OUT / "home_back.png")
     Image.fromarray(front, "RGBA").save(OUT / "home_front.png")
     Image.fromarray(light, "RGBA").save(OUT / "home_light.png")
+    view = np.zeros((H, W, 4), np.uint8)
+    view[VIEW & (back[..., 3] == 0)] = (255, 255, 255, 255)
+    Image.fromarray(view, "RGBA").save(OUT / "home_view.png")
     for prop, (img, frames, x, y, states, note) in objs.items():
         a = np.concatenate(frames, axis=1)
         check_alpha(a, img)

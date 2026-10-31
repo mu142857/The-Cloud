@@ -7,7 +7,7 @@ extends Node2D
 ##                    斗篷下摆拖在后面的那条尾巴偶尔被风带起一两根「布丝」，往后飘一点就没了。
 ##   forest：一两只萤火虫慢慢飞过来，绕着她转几圈（转到身后就被斗篷挡住），再飞走。
 ##   river / city：天冷，嘴边每隔 3~4 秒呵出一小团白气，往前上方散开。城市的肩上溅雨在 chen_fx.gd，不变。
-##   underwater：嘴边隔一阵冒一串小气泡（用场景里晨的气泡节点 chen.step_bubbles 的 emit()）。
+##   underwater：嘴边的气泡归 underwater_bubbles.gd 的「呼吸」管（站着、走着都呼）；老的气泡节点没有呼吸才由这里吐。
 ##   cloud：脚边几缕淡紫的云丝慢慢从她前面、后面绕过去。
 ## 调：下面各段常量；颜色（除了 halo）都在这里。开销：同时最多 MAX 颗 + 2 只萤火虫。
 ## 截图对比：命令行 -- --idle_fx=0 整个关掉。
@@ -208,7 +208,8 @@ func _spawn(kind: String, delta: float) -> void:
 			if _bubble_t <= 0.0 and String(chen.spr.animation) != "idle_eye":
 				_bubble_t = _rng.randf_range(BUBBLE_EVERY.x, BUBBLE_EVERY.y)
 				var b: Node2D = chen.step_bubbles as Node2D
-				if b != null and b.has_method("emit"):
+				# 有呼吸的气泡节点（underwater_bubbles.gd 的 breathing）就由它按呼吸节奏吐，这里不再另吐一串
+				if b != null and b.has_method("emit") and b.get("breathing") == null:
 					var m := _head() + Vector2(MOUTH.x * f, MOUTH.y)
 					b.emit(b.to_local(m), _rng.randi_range(2, 4), 0.5)
 		"cloud":

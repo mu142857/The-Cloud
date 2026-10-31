@@ -1519,7 +1519,7 @@ func _bubbles(on: bool, sg: Node2D) -> void:
 		level.add_child(_bub)
 		_bub.set("_follow", chen)
 	if _bub != null:
-		_bub.visible = on
+		_bub.set("breathing", on)         # 出水：不再呼，已经冒出去的自己浮完（到原来那间的水面就没了）
 		if on:
 			_bub.set("surface_y", sg.origin.y + 12.0)
 	chen.step_bubbles = _bub if on else null

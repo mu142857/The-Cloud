@@ -244,8 +244,7 @@
   "river_bank_bakery": 1870,
   "river_bank_postman": 2129,
   "river_bank_to_market": 2240,
-  "river_bank_to_south": 2308,
-  "river_bank_arrive": 2276,
+  "river_bank_arrive": 2258,
   "river_bank_drift_start": 820,
   "river_bank_salvage_lid": 823,
   "river_bank_salvage_tin": 839,
@@ -436,7 +435,7 @@
  },
  "walk": [
   150,
-  2310
+  2274
  ],
  "walk_when": [
   {
@@ -472,12 +471,6 @@
    "at": "market_entry",
    "kind": "pan_up",
    "x": 2240
-  },
-  {
-   "edge": "right",
-   "to": "southbridge",
-   "at": "southbridge_entry",
-   "kind": "walk_fade"
   }
  ],
  "ambient": [

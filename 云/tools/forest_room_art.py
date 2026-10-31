@@ -11,7 +11,8 @@
 
 输出（art/forest_story/）：
 - treehouse_back.png  大树干 + 屋内剖面（后墙、窗、炉子、桌、架子、工作台、管道之外的固定东西），一直显示；
-- treehouse_front.png 前墙（拱门、很暗的圆窗、补丁和铁皮、挂着的小零件；树洞剩下的地方是长回来的树皮），
+  后窗的玻璃是空的（10-31），透过去是引擎里屋后真的森林视差层（glass_back）；
+- treehouse_front.png 前墙（拱门、圆窗（玻璃是空的，看得见屋里）、补丁和铁皮、挂着的小零件；树洞剩下的地方是长回来的树皮），
   盖在屋内上面，进屋淡出、出屋淡入；
   两张同尺寸，锚点 = 底边中点踩在地面上；
 - room_light.png      窗里斜进来的一道雾光 + 几粒灰（半透明，单独一层，盖在家具上、人下面）；
@@ -426,6 +427,52 @@ def window(c: Canvas):
     c.rect(x0 + 1, y1 - 3, x0 + 2, y1, col(0.30, 0.02, 160))               # 窗台上一只空瓶
 
 
+def win_glass():
+    """后窗的玻璃（窗框以内、去掉十字窗棂和窗台上的空瓶）。"""
+    x0, y0, x1, y1 = WIN_RECT
+    mx, my = (x0 + x1) // 2, (y0 + y1) // 2
+    m = mrect(x0, y0, x1, y1)
+    m[:, mx] = False
+    m[my, :] = False
+    m &= ~mrect(x0 + 1, y1 - 3, x0 + 2, y1)
+    return m
+
+
+def glass_back(img):
+    """10-31 作者：「这也是一个实心窗户」。玻璃挖空，透过去是屋后真的森林（引擎里树屋后面就是森林的视差层，
+    主层在窗后那块是空的），走动时跟着视差动。window() 照旧画一遍（色板和别处不变），在 limit_colors 之后再挖。
+    玻璃上留两道淡反光；窗框朝屋里的内沿、靠炉子那半边吃一点暖光（光柱是窗外进来的青绿，暖的只在框上一线）。"""
+    x0, y0, x1, y1 = WIN_RECT
+    mx, my = (x0 + x1) // 2, (y0 + y1) // 2
+    g = win_glass()
+    img[g] = 0
+    for (x, y), L in zip([(x0 + 2, y0 + 5), (x0 + 3, y0 + 4), (x0 + 4, y0 + 3), (x0 + 5, y0 + 2),
+                          (mx + 2, y0 + 4), (mx + 3, y0 + 3)], (0.68, 0.74, 0.74, 0.68, 0.66, 0.70)):
+        img[y, x, :3] = col(L, 0.02, 160)
+        img[y, x, 3] = 255
+    warm = col(0.215, 0.022, 70)
+    img[my + 1:y1 + 1, x0 - 1, :3] = warm                  # 左边窗框内沿的下半截（朝炉子那边）
+    img[y1 - 4:y1 + 1, mx, :3] = col(0.20, 0.022, 60)     # 竖窗棂最下面几格
+    img[my, x0:x0 + 4, :3] = col(0.20, 0.022, 60)         # 横窗棂靠左那一小截
+
+
+def port_glass():
+    """前墙圆窗的玻璃（铁圈以内、去掉中间那根横条）。"""
+    pcx, pcy, pr = PORT
+    yy, xx = np.mgrid[0:H, 0:W]
+    return (((xx - pcx) ** 2 + (yy - pcy) ** 2) <= pr ** 2) & (yy != pcy)
+
+
+def glass_front(img):
+    """前墙圆窗原来里面画的是一块暗 + 一点暖：挖空，从屋外直接看见屋里真的东西（屋里本来就暗）。
+    左上留两格冷的反光。"""
+    pcx, pcy, pr = PORT
+    img[port_glass()] = 0
+    for x, y in ((pcx - 3, pcy - 2), (pcx - 2, pcy - 3)):
+        img[y, x, :3] = col(0.36, 0.01, 210)
+        img[y, x, 3] = 255
+
+
 def door_inside(c: Canvas):
     """门在前墙上（剖面里看不见门板）：屋里这边只有门口的地垫、墙上的挂钩和一件旧外套、一把伞。"""
     c.rect(X(4), FL - 2, X(30), FL - 1, col(0.17, 0.02, 30))
@@ -621,7 +668,7 @@ def front(cav, lip, bark_raw):
     """前墙（只在屋外看得见）：
     - 树洞的四角和屋顶以上用树皮盖回去（和 back 的树皮是同一张，接得上），屋顶贴着树干是一道长苔的暗檐；
     - 下半截竖板（宽窄、深浅不一），上半截横钉的搭接板；一道横梁上挂着几个小零件；
-    - 左边一扇拱门（铁合页、把手），门边一块小牌；中间偏右一只很暗的圆窗（铁圈，里面一点点暖）；
+    - 左边一扇拱门（铁合页、把手），门边一块小牌；中间偏右一只圆窗（铁圈，玻璃挖空看见屋里，见 glass_front）；
     - 补丁：两块铁皮（一块瓦楞的）、斜钉的木板、一块颜色浅的新板、锈。暗、冷，不温馨。"""
     img = np.zeros((H, W, 4), np.uint8)
     cover = cut_mask()
@@ -1664,11 +1711,13 @@ def build():
     cav, lip = interior(back)
     back = despeckle(back, max_dL=0.06)[0]
     back = limit_colors(back, 200)
+    glass_back(back)
     fr = front(cav, lip, bark_raw)
     fr = despeckle(fr, max_dL=0.06)[0]
     fr = limit_colors(fr, 140)
-    # 前墙必须盖满屋内 + 切口（back 上那一块），一个像素都不漏
-    hole = cut_mask() & (fr[..., 3] == 0)
+    glass_front(fr)
+    # 前墙必须盖满屋内 + 切口（back 上那一块），一个像素都不漏（圆窗的玻璃除外）
+    hole = cut_mask() & (fr[..., 3] == 0) & ~port_glass()
     assert not hole.any(), f"front 漏了 {int(hole.sum())} 个像素"
     # 前墙盖在树皮上的那部分和 back 的树皮颜色一样（只差 limit_colors 的合并），接缝看不出来
     Canvas(1, 1, back).save(OUT / "treehouse_back.png")
