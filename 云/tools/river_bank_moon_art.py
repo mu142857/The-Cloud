@@ -2351,7 +2351,8 @@ def build_home():
     old = json.loads((HOME_DIR / "room.json").read_text())
     save_png(back, HOME_DIR / "home_back.png")
     save_png(front, HOME_DIR / "home_front.png")
-    Image.fromarray(light, "RGBA").save(HOME_DIR / "home_light.png")
+    if not locked(HOME_DIR / "home_light.png"):
+        Image.fromarray(light, "RGBA").save(HOME_DIR / "home_light.png")
     od = {}
     for prop, img, frames, x, y, states, note in objs:
         save_png(np.concatenate(frames, axis=1), HOME_DIR / f"{img}.png")
@@ -2403,7 +2404,24 @@ def check_alpha(a, name):
     assert ((al == 0) | (al == 255)).all(), f"{name}: 有半透明像素"
 
 
+def hand_edited():
+    """art/手改清单.json 里登记的作者手改图（相对 art/ 上一级的路径）：这些文件一张都不许覆盖。"""
+    p = ROOT / "art" / "手改清单.json"
+    return set(json.loads(p.read_text(encoding="utf-8")).get("files", {})) if p.exists() else set()
+
+
+def locked(path):
+    rel = Path(path).resolve().relative_to(ROOT).as_posix()
+    if rel in hand_edited():
+        print("跳过（作者手改，见 art/手改清单.json）:", rel)
+        return True
+    return False
+
+
 def save_png(a, path):
+    """写图都走这里：手改清单里的文件跳过。"""
+    if locked(path):
+        return
     check_alpha(a, path.name)
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(a, "RGBA").save(path)

@@ -3,6 +3,8 @@
  "files": {
   "art/river_city/southbridge/main.png": "10-31 作者手改：去掉六个拱脚的直角台阶。tools/river_warehouse_bridge_art.py 不许再生成南桥",
   "art/river_city/market/main.png": "10-31 作者手改：修补摊（立柱、雨棚、长凳）。tools/river_town_moon_art.py 不许再生成市集 main.png",
-  "art/river_city/market/market_tools.png": "10-31 作者手改：修补摊挂的工具"
+  "art/river_city/market/market_tools.png": "10-31 作者手改：修补摊挂的工具",
+  "art/river_home/home_front.png": "10-31 作者手改：去掉外墙第 222 行的点线。tools/river_home_rooms_art.py 不许再生成 home_front.png",
+  "art/river_city/river_bank/main.png": "10-31 作者手改：接上垂枝树干的错位、树冠和树干、石台下的吊绳、栏杆。tools/river_bank_moon_art.py 不许再生成河岸 main.png"
  }
 }

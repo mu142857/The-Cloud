@@ -37,6 +37,38 @@ from oscarkit.palette import from_lch  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "art" / "river_city" / "warehouse"
+
+
+def hand_edited():
+    """art/手改清单.json 里登记的作者手改图（相对 art/ 上一级的路径）：这些文件一张都不许覆盖。"""
+    p = ROOT / "art" / "手改清单.json"
+    return set(json.loads(p.read_text()).get("files", {})) if p.exists() else set()
+
+
+def locked(path) -> bool:
+    try:
+        rel = Path(path).resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return False
+    if rel in hand_edited():
+        print("跳过（作者手改，见 art/手改清单.json）:", rel)
+        return True
+    return False
+
+
+def put(im, path):
+    """写图都走这里：手改清单里的文件跳过。im 可以是 PIL 图、numpy 数组或 Canvas。"""
+    if locked(path):
+        return
+    if isinstance(im, np.ndarray):
+        im = Image.fromarray(im)
+    im.save(path)
+
+
+def drop(path):
+    """删旧图也查手改清单。"""
+    if path.exists() and not locked(path):
+        path.unlink()
 UW = ROOT / "art" / "underwater"
 
 W, H = 1360, 270
@@ -1965,26 +1997,27 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     st = Struct()
     set_env(st)
-    build_main(st).save(OUT / "main.png")
-    front_layer(st).save(OUT / "front.png")
-    Image.fromarray(kelp_front()).save(OUT / "kelpfront.png")
-    bed_weeds(st).save(OUT / "bedweeds.png")
-    tall_weeds(st).save(OUT / "weeds.png")
-    shafts_layer(st).save(OUT / "shafts.png")
-    bed_light(st).save(OUT / "bedlight.png")
+    put(build_main(st), OUT / "main.png")
+    put(front_layer(st), OUT / "front.png")
+    put(kelp_front(), OUT / "kelpfront.png")
+    put(bed_weeds(st), OUT / "bedweeds.png")
+    put(tall_weeds(st), OUT / "weeds.png")
+    put(shafts_layer(st), OUT / "shafts.png")
+    put(bed_light(st), OUT / "bedlight.png")
     objs = {"exit": make_exit_light(), "knot1": make_knot(HOOKS[2]), "knot2": make_knot(HOOKS[3]),
             "broken": make_broken_box(), "cabset": make_cabinet_set(), "door": make_inner_door(),
             "sluice": make_sluice()}
     names = {"exit": "warehouse_exit_light", "knot1": "warehouse_knot_1", "knot2": "warehouse_knot_2",
              "broken": "warehouse_broken_box", "door": "warehouse_inner_door", "sluice": "warehouse_sluice_door"}
     for k, n in names.items():
-        Image.fromarray(objs[k].sheet()).save(OUT / f"{n}.png")
+        put(objs[k].sheet(), OUT / f"{n}.png")
     cab, fur, flo = objs["cabset"]
-    Image.fromarray(cab.sheet()).save(OUT / "warehouse_tall_cabinet.png")
-    Image.fromarray(fur.sheet()).save(OUT / "warehouse_furniture.png")
-    Image.fromarray(flo.sheet()).save(OUT / "warehouse_float.png")
+    put(cab.sheet(), OUT / "warehouse_tall_cabinet.png")
+    put(fur.sheet(), OUT / "warehouse_furniture.png")
+    put(flo.sheet(), OUT / "warehouse_float.png")
     room = room_json(objs)
-    (OUT / "room.json").write_text(json.dumps(room, ensure_ascii=False, indent=1))
+    if not locked(OUT / "room.json"):
+        (OUT / "room.json").write_text(json.dumps(room, ensure_ascii=False, indent=1))
     print("warehouse ok", OUT)
 
 

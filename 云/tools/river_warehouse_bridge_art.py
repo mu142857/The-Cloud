@@ -46,6 +46,38 @@ import river_underwater_art as RU  # noqa: E402  不规则石块的切法（voro
 
 ROOT = TOOLS.parent
 OUT = ROOT / "art" / "river_city"
+
+
+def hand_edited():
+    """art/手改清单.json 里登记的作者手改图（相对 art/ 上一级的路径）：这些文件一张都不许覆盖。"""
+    p = ROOT / "art" / "手改清单.json"
+    return set(json.loads(p.read_text()).get("files", {})) if p.exists() else set()
+
+
+def locked(path) -> bool:
+    try:
+        rel = Path(path).resolve().relative_to(ROOT.resolve()).as_posix()
+    except ValueError:
+        return False
+    if rel in hand_edited():
+        print("跳过（作者手改，见 art/手改清单.json）:", rel)
+        return True
+    return False
+
+
+def put(im, path):
+    """写图都走这里：手改清单里的文件跳过。im 可以是 PIL 图、numpy 数组或 Canvas。"""
+    if locked(path):
+        return
+    if isinstance(im, np.ndarray):
+        im = Image.fromarray(im)
+    im.save(path)
+
+
+def drop(path):
+    """删旧图也查手改清单。"""
+    if path.exists() and not locked(path):
+        path.unlink()
 H = 270
 BAYER = np.array([[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]]) / 16
 
@@ -1017,13 +1049,14 @@ def write_room(folder, cfg, objs):
     folder.mkdir(parents=True, exist_ok=True)
     ob = {}
     for oid, (x, y, frames, ex) in objs.items():
-        Image.fromarray(strip(frames)).save(folder / f"{oid}.png")
+        put(strip(frames), folder / f"{oid}.png")
         h, w = frames[0].shape[:2]
         d = {"x": int(x), "y": int(y), "w": int(w), "h": int(h), "frames": len(frames)}
         d.update(ex)
         ob[oid] = d
     cfg["objects"] = ob
-    (folder / "room.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=1) + "\n")
+    if not locked(folder / "room.json"):
+        (folder / "room.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=1) + "\n")
 
 
 def build_warehouse(prev=None):
@@ -1031,15 +1064,13 @@ def build_warehouse(prev=None):
     folder.mkdir(parents=True, exist_ok=True)
     main, _ = wh_main()
     wh_props(main)
-    main.save(folder / "main.png")
-    wh_shafts().save(folder / "shafts.png")
-    wh_front().save(folder / "front.png")
+    put(main, folder / "main.png")
+    put(wh_shafts(), folder / "shafts.png")
+    put(wh_front(), folder / "front.png")
     for old in ("back.png", "back.png.import"):                    # 旧版的后墙层不用了
-        if (folder / old).exists():
-            (folder / old).unlink()
+        drop(folder / old)
     for old in ("warehouse_cabinet.png", "warehouse_cabinet.png.import"):   # 设备柜画在主层上（旧版留下的没用的图）
-        if (folder / old).exists():
-            (folder / old).unlink()
+        drop(folder / old)
     objs = wh_objects()
     layers = wh_layers()
     cfg = {
@@ -2825,15 +2856,14 @@ def build_southbridge(prev=None):
     folder = OUT / "southbridge"
     folder.mkdir(parents=True, exist_ok=True)
     main, holes = sb_main()
-    main.save(folder / "main.png")
-    sb_mid().save(folder / "mid.png")
-    Image.fromarray(bm.far_ripples_img()).save(folder / "far_ripples.png")
-    Image.fromarray(bm.moonpath_img(bm.SHORE_WL, SB_G + 2)).save(folder / "moonpath.png")
-    sb_front().save(folder / "front.png")
+    put(main, folder / "main.png")
+    put(sb_mid(), folder / "mid.png")
+    put(bm.far_ripples_img(), folder / "far_ripples.png")
+    put(bm.moonpath_img(bm.SHORE_WL, SB_G + 2), folder / "moonpath.png")
+    put(sb_front(), folder / "front.png")
     for old in ("shafts", "water", "ripples"):                       # 旧版的层（城市的光柱、前景水）不用了
         for ext in (".png", ".png.import"):
-            if (folder / (old + ext)).exists():
-                (folder / (old + ext)).unlink()
+            drop(folder / (old + ext))
     objs = sb_objects(main)
     layers = sb_layers()
     la = layer_arrays(layers, folder)
@@ -2841,7 +2871,7 @@ def build_southbridge(prev=None):
     base = comp_room(la, layers, VIEW_CAM, False)
     base = over(base, obj_overlay(objs, {}, VIEW_CAM))
     vf = footage(base, np.random.default_rng(1))
-    Image.fromarray(vf).save(folder / "viewfinder.png")
+    put(vf, folder / "viewfinder.png")
     cfg = {
         "_note": "tools/river_warehouse_bridge_art.py 生成，别手改。约定见 docs/river_rooms_contract.md。远景层是原来的蓝色月夜河岸（art/river）。",
         "size": [SB_W, H],

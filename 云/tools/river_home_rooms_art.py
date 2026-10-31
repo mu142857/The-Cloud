@@ -1528,6 +1528,12 @@ def check_alpha(a, name):
     assert bad == 0, f"{name}: 半透明像素 {bad}"
 
 
+def hand_edited():
+    """art/手改清单.json 里登记的作者手改图（相对 art/ 上一级的路径）：这些文件一张都不许覆盖。"""
+    p = ROOT / "art" / "手改清单.json"
+    return set(json.loads(p.read_text()).get("files", {})) if p.exists() else set()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", default="")
@@ -1536,17 +1542,25 @@ def main():
     check_alpha(back, "back")
     check_alpha(front, "front")
     OUT.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(back, "RGBA").save(OUT / "home_back.png")
-    Image.fromarray(front, "RGBA").save(OUT / "home_front.png")
-    Image.fromarray(light, "RGBA").save(OUT / "home_light.png")
+    locked = hand_edited()
+
+    def save(im, name):
+        rel = (OUT / name).relative_to(ROOT).as_posix()
+        if rel in locked:
+            print("跳过（作者手改，见 art/手改清单.json）:", rel)
+            return
+        im.save(OUT / name)
+    save(Image.fromarray(back, "RGBA"), "home_back.png")
+    save(Image.fromarray(front, "RGBA"), "home_front.png")
+    save(Image.fromarray(light, "RGBA"), "home_light.png")
     view = np.zeros((H, W, 4), np.uint8)
     view[VIEW & (back[..., 3] == 0)] = (255, 255, 255, 255)
-    Image.fromarray(view, "RGBA").save(OUT / "home_view.png")
+    save(Image.fromarray(view, "RGBA"), "home_view.png")
     for prop, (img, frames, x, y, states, note) in objs.items():
         a = np.concatenate(frames, axis=1)
         check_alpha(a, img)
-        Image.fromarray(a, "RGBA").save(OUT / f"{img}.png")
-    Image.new("RGBA", (1, 1), (0, 0, 0, 0)).save(OUT / "obj_empty.png")
+        save(Image.fromarray(a, "RGBA"), f"{img}.png")
+    save(Image.new("RGBA", (1, 1), (0, 0, 0, 0)), "obj_empty.png")
     meta = room_json(objs)
     (OUT / "room.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print("ok river_home", W, H)
