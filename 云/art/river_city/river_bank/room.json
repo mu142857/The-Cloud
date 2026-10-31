@@ -271,15 +271,10 @@
    "y": 148,
    "w": 76,
    "h": 58,
-   "frames": 3,
-   "ms": 200,
+   "frames": 1,
    "states": {
-    "default": 2,
-    "tail": [
-     0,
-     1
-    ],
-    "tail_still": 2
+    "default": 0,
+    "tail_still": 0
    }
   },
   "river_bank_box": {

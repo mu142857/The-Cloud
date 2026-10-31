@@ -2511,7 +2511,10 @@ func _update_camera(delta: float) -> void:
 	elif is_nan(_cam_override.x):
 		# 平时镜头高度固定（多房间章节：房间的中线）；从别处回来时慢慢落回去
 		var cy: float = story.world_cam_y() if story != null and story.world != null else 135.0
-		cam.position.y = cy if absf(cam.position.y - cy) < 0.5 else lerpf(cam.position.y, cy, 1.0 - exp(-3.0 * delta))
+		var base := cam.position.y - _cam_bar_dy
+		base = cy if absf(base - cy) < 0.5 else lerpf(base, cy, 1.0 - exp(-3.0 * delta))
+		_cam_bar_dy = _bar_cam_dy(base)
+		cam.position.y = base + _cam_bar_dy
 	if _shake > 0.0:
 		_shake -= delta
 		var a := _shake_amp * clampf(_shake / 0.8, 0.0, 1.0)
@@ -2591,6 +2594,19 @@ func _update_room_mask(cc: Vector2) -> void:
 
 ## 镜头不声不响地停一下（远处有东西走过的时候）
 var _cam_hold := 0.0
+var _cam_bar_dy := 0.0                     # 剧情黑边放下来时镜头往下挪的那一点（_bar_cam_dy）
+
+
+## 剧情黑边放下来的时候（10-31 作者：旧街挂钩那里镜头把晨和妮芙压在画面最底边）：地面低的地方（旧街右半段地面在 236）
+## 脚贴着下面那条黑边。镜头跟着黑边往下挪，最多一条黑边高（BAR_H），让脚落回 BAR_FEET_Y 上下；挪出房间的那一截
+## 正好被下面的黑边盖住。挪多少跟着黑边放下 / 收起的进度走，收起来的同时回原位，房间外面一直露不出来。
+const BAR_FEET_Y := 212.0
+func _bar_cam_dy(cy: float) -> float:
+	if _bars.size() < 2 or not _bars[1].visible or story == null or story.chen == null:
+		return 0.0
+	var k := clampf((270.0 - _bars[1].position.y) / BAR_H, 0.0, 1.0)
+	var feet: float = story.chen.position.y - (cy - 135.0)
+	return floorf(k * clampf(feet - BAR_FEET_Y, 0.0, float(BAR_H)))
 var _cam_override := Vector2(NAN, NAN)    # 剧本让镜头去别处（树冠缺口）：镜头就在这，不跟晨
 
 

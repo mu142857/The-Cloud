@@ -33,6 +33,7 @@ var tap := true                # 停在桥边时邮包碰栏杆出声
 var tap_db := -17.0
 var scene := ""                # 这个 scene 开播时它要是不在，叫一趟过来
 var seed := 1
+var hide := [-1.0e9, 1.0e9]   # 层里 x 小于 hide[0] / 大于 hide[1] 的地方本来就被景物挡着（under 时）：叫来的那趟从这里起，不用从镜头边上起
 var under := ""              # 画在哪一层的后面（层 id，比如 main）：石柱、桥绳挡在它前面；空 = 用 room 里给的 z
 
 var _rng := RandomNumberGenerator.new()
@@ -200,6 +201,7 @@ func start_pass(summoned := false) -> void:
 	_d = 0.0 if _dir > 0 else _len
 	if summoned:
 		var edge := _cam_left() * scroll + (-_fw * 0.5 - 4.0 if _dir > 0 else 480.0 + _fw * 0.5 + 4.0)
+		edge = maxf(edge, float(hide[0])) if _dir > 0 else minf(edge, float(hide[1]))
 		var best := _d
 		var bd := INF
 		var step := 4.0
@@ -237,6 +239,8 @@ func _watch_scene() -> void:
 	var now: bool = r != null and bool(r.get("busy")) and str(r.get("_cur_scene")) == scene
 	if now and not _scene_was and not _on:
 		start_pass(true)
+		if str(r.get("auto")) != "":
+			print("RAY_SUMMON %s d=%.0f dir=%d" % [scene, _d, _dir])     # 自动玩的日志里查得到 hotspot 叫来了它
 	_scene_was = now
 
 

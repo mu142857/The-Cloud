@@ -885,6 +885,92 @@ func update(delta: float, cam_center: Vector2) -> void:
 	_update_walkers(delta)
 	if _rope != null:
 		_rope.queue_redraw()
+	if not is_house:
+		_update_front(delta)
+
+
+# ======================================================================= 前景层不挡人
+## front 层（在人前面的近景）的不透明像素盖住晨或正在说话的人 → 这一层平滑淡到 FRONT_DIM（× 层自己的 alpha）；
+## 走开 FRONT_HOLD 秒以后再淡回来。和森林的 _update_front 一个意思，只是每层各管各的、平时也管（不只剧情里）。
+## 按人在这层图上的位置取样（tile 层按图宽取模；sway shader 的摆动不算）。往前看 FRONT_LEAD 秒：
+## 视差快的近景（kelpfront scroll 1.4）相对人滑得快，等压到身上才淡就来不及了，所以取样框顺着「层相对人滑动的方向」
+## 拉长到它 FRONT_LEAD 秒后会扫到的地方；站着不动时框只有人那么宽，旁边的叶子不会无故变淡。
+const FRONT_DIM := 0.15
+const FRONT_FADE := 0.35                # 淡出 / 淡回各用几秒（smoothstep，缓入缓出）
+const FRONT_HOLD := 0.4
+const FRONT_HITS := 5                   # 取样点里至少几处被盖住才算挡（细叶子斜着划过身子也能到）
+const FRONT_HALF := 10                  # 人自己左右各多宽
+const FRONT_LEAD := 0.8                 # 往前看几秒（比 FRONT_FADE 长一点，叶子到身上时已经淡完）
+
+
+func _update_front(delta: float) -> void:
+	var people: Array = []
+	if world != null:
+		if world.chen != null:
+			people.append(world.chen)
+		var lv = world.level
+		var st = lv.get("story") if lv != null else null
+		if st != null and str(st.get("speaking")) != "":
+			var n = st.npc(str(st.speaking))
+			if n != null and n != world.chen:
+				people.append(n)
+	for L in _layers:
+		if not (L["cfg"] as Dictionary).get("front", false):
+			continue
+		var s: Sprite2D = L["node"]
+		var hit := false
+		for n in people:
+			if is_instance_valid(n) and (n as Node2D).is_visible_in_tree() and _front_covers(L, n, delta):
+				hit = true
+				break
+		var clear: float = 0.0 if hit else float(L.get("clear", 0.0)) + delta
+		L["clear"] = clear
+		var u: float = move_toward(float(L.get("u", 0.0)), 1.0 if clear < FRONT_HOLD else 0.0, delta / FRONT_FADE)
+		L["u"] = u
+		s.modulate.a = float(L["cfg"].get("alpha", 1.0)) * lerpf(1.0, FRONT_DIM, smoothstep(0.0, 1.0, u))
+
+
+func _front_covers(L: Dictionary, n: Node2D, delta: float) -> bool:
+	if not L.has("img"):
+		var im: Image = (L["node"] as Sprite2D).texture.get_image()
+		if im != null and im.is_compressed():
+			im.decompress()
+		L["img"] = im
+	var im: Image = L["img"]
+	if im == null:
+		return false
+	var s: Sprite2D = L["node"]
+	var inv := s.get_global_transform().affine_inverse()
+	var w := im.get_width()
+	var h := im.get_height()
+	# 人在这层图上的 x 每秒变多少（平滑过；瞬移的那一帧不算）
+	var key := n.get_instance_id()
+	var rx: float = (inv * n.global_position).x
+	var rxs: Dictionary = L.get_or_add("rx", {})
+	var vs: Dictionary = L.get_or_add("v", {})
+	var v := float(vs.get(key, 0.0))
+	if rxs.has(key) and delta > 0.0:
+		var d: float = rx - float(rxs[key])
+		if absf(d) < 8.0:
+			v = lerpf(v, d / delta, 0.25)
+	rxs[key] = rx
+	vs[key] = v
+	var lead := clampf(v * FRONT_LEAD, -60.0, 60.0)
+	var hits := 0
+	for dx in range(int(minf(lead, 0.0)) - FRONT_HALF, int(maxf(lead, 0.0)) + FRONT_HALF + 1, 2):
+		for dy in range(3, 46, 3):
+			var p: Vector2 = inv * (n.global_position + Vector2(0, -dy)) + Vector2(dx, 0)
+			var px := int(floorf(p.x))
+			var py := int(floorf(p.y))
+			if L["tile"]:
+				px = posmod(px, w)
+			if px < 0 or px >= w or py < 0 or py >= h:
+				continue
+			if im.get_pixel(px, py).a > 0.5:
+				hits += 1
+				if hits >= FRONT_HITS:
+					return true
+	return false
 
 
 # ======================================================================= 背景走过的小人

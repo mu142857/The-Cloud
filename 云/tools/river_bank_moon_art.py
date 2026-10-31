@@ -1710,7 +1710,8 @@ def crates_frames():
     """岸边一排箱子（原文 74），按月夜河岸的画法重画（第三版：作者嫌原来的亮木箱突兀）：
     泡过水的旧木箱，和码头石头一个调子——暗蓝灰，只有上沿、右沿一条月光；一块旧油布搭在后面那只上，一根绳捆着；
     妮芙的标签是几张很小的旧纸片（字是一道细线，不画点，免得像眼睛）。
-    帧和尺寸跟旧的一样（76×58，0/1 = 箱子后面露出妮芙的尾巴在动，2 = 没有尾巴）。尾巴归美术组画，这里还是一块占位。"""
+    尺寸跟旧的一样（76×58，上面空 14 行），只有一帧。10-31：以前 0/1 两帧是箱子后面一条平涂的蓝色占位尾巴，
+    没设状态时引擎把几帧轮着播，F8 自由探索里妮芙不在、箱子后面却立着那条尾巴——删掉了。妮芙（连尾巴）是剧本 show 出来的人物。"""
     W_, H_ = 76, 44
     wood = [B(.07, .018, 262), B(.095, .02, 258), B(.12, .022, 254), B(.155, .024, 250), B(.2, .026, 246),
             B(.26, .028, 242)]
@@ -1745,22 +1746,9 @@ def crates_frames():
             box.px(x, y, tarp[k])
     rope_line(box, 2, 24, 26, 26, 1, B(.24, .03, 70))
     rope_line(box, 48, 22, 74, 21, 1, B(.24, .03, 70))
-    frames = []
-    tail = rca.C(0.62, 0.11, 262)           # 妮芙尾巴的占位（美术组的图来了换掉）
-    tail_hi = rca.C(0.74, 0.08, 255)
-    for k in range(3):
-        cv = Cv(W_, H_ + 14)
-        cv.paste(box.a, 0, 14)
-        if k == 2:
-            frames.append(cv.a)
-            continue
-        lean = (-2, 2)[k]
-        pts = [(40, 40), (44, 40), (45 + lean, 22), (50 + lean * 2, 12), (44 + lean, 14), (38 + lean * 2, 12), (41 + lean, 22)]
-        cv.poly(pts, tail)
-        cv.line([(42 + lean, 24), (43 + lean, 38)], tail_hi)
-        cv.paste(box.a[24:44, 26:48], 26, 38)
-        frames.append(cv.a)
-    return frames
+    cv = Cv(W_, H_ + 14)
+    cv.paste(box.a, 0, 14)
+    return [cv.a]
 
 
 def float_crate_frames():
@@ -1792,7 +1780,7 @@ def float_crate_frames():
                     cv.a[y, x, :3] = mixc(tuple(int(v) for v in cv.a[y, x, :3]), B(.08, .03, 238), 0.55)
     for x in range(1, W_ - 1):                         # 水线
         if _hash01(x, wl, 13) > 0.3:
-            cv.px(x, wl, SILVER[1] if x % 4 else SILVER[2])
+            cv.px(x, wl, SILVER[2] if _hash01(x // 2, wl, 14) > 0.75 else SILVER[1])   # 亮的几格随机（以前每 4 格一个）
     return [cv.a]
 
 
@@ -1803,8 +1791,8 @@ def objects():
     out.append(("river_bank_plane", pf, 40, WL + 2 - 96 + 6, {"states": {"default": 0, "beached": 1, "straps_drying": 2,
                                                                           "fixed": 3}}))
     cf = crates_frames()
-    out.append(("river_bank_crates", cf, CRATES, G - cf[0].shape[0], {"ms": 200, "states": {"default": 2, "tail": [0, 1],
-                                                                                           "tail_still": 2}}))
+    out.append(("river_bank_crates", cf, CRATES, G - cf[0].shape[0], {"states": {"default": 0, "tail_still": 0}}))
+    # （tail_still 留着名字：剧本 start_river 还有一步 prop river_bank_crates tail_still，现在就是这唯一一帧）
     bf = [night(f.a, 0.5) for f in rca.box_frames()]       # 金属盒：暗一点，别成水上一块亮方块
     out.append(("river_bank_box", bf, STEPS_X + 68, WL - 12, {"states": {"default": 0, "sunk_shallow": 1}}))
     out.append(("river_bank_crate_float", float_crate_frames(), 18, WL - 11, {"states": {"default": 0}}))
@@ -2542,7 +2530,7 @@ def build_bank():
 def preview_bank(room, out: Path, house=None):
     out.mkdir(parents=True, exist_ok=True)
     fl = {f"river_bank_salvage_{k}": "float" for k in rca.SALVAGE}
-    shots = [(0, {}, 196, 1), (330, {}, 560, 1), (740, {"river_bank_crates": "tail"}, 880, 1), (880, fl, 1076, 1),
+    shots = [(0, {}, 196, 1), (330, {}, 560, 1), (740, {}, 880, 1), (880, fl, 1076, 1),
              (1330, {}, 1408, 1), (1330, {}, 1500, 0), (1740, {}, 1900, 1), (1840, {}, 2200, 1)]
     tiles = [Image.fromarray(render(room, BANK_DIR, c, st, cx, house=house, house_front=hf)) for c, st, cx, hf in shots]
     sheet = Image.new("RGB", (SW * 2 + 4, (SH + 4) * 4), (20, 20, 20))
