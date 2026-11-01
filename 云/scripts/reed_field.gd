@@ -36,6 +36,15 @@ extends Node2D
 ## - 草上的小飞虫 / 光点（motes：锚点）：每个绕着自己的锚点慢慢飘（几道慢正弦叠起来），亮暗慢慢换（两档颜色），一像素。只画镜头里的。
 ## - 水面涟漪（ripples：水里的点）：隔 RIPPLE_EVERY 秒在镜头里的某个点泛一圈扁椭圆（一像素的连续细线、四邻接），慢慢变大、变淡、没了；
 ##   晨在水里走的时候，脚下也隔 RIPPLE_STEP 秒泛一圈。
+##
+## 湿地里别的活物（第十版，作者：「惊鸟非常好，但是除此之外太单调，湿地都是一片生机」）—— fauna.png + fauna.json，数量克制，惊鸟一点不动
+## - 白鹭（egrets：[[岛层 x, 脚的 y, 朝向], …]）：站在岛层开阔水的边上，大多站着不动；隔 EGRET_IDLE 秒做一件事：
+##   低头啄水（半低 → 低下去停一会儿 → 半低 → 站直）、抬一下脚（偶尔顺势挪一步，离原地不超过 EGRET_ROAM）、转个身。
+## - 野鸭（ducks：[[x0, x1, 贴水的 y, 几只], …]）：在两片洲之间的水上慢慢划来划去，到头停一下、掉头；
+##   身后拖一道小波纹（两道一像素的横线，一短一长、往后错开，很扁的人字）；隔 DUCK_DIVE_EVERY 秒扎个猛子（屁股朝天一会儿）。
+## - 远处的鸟群（flock）：隔 FLOCK_EVERY 秒，一队 5–8 只排成松散的人字，从画面一边慢慢飞到另一边（跟远处的洲一个视差），扇几下滑一下。
+## 白鹭、野鸭的帧里自带贴水的亮线和水里的倒影。都是 100ms 一帧；视差和 room_stage 的 tile 层一个算法（像素对齐岛层）。
+## 画在 fauna_z 给的 z 上：room.json 把层的 z 隔一个空一个，[岛层后面一格, 远处洲后面一格] 留给这里。
 
 const ANG_RANGE := 80
 ## 每排：视差、晨推的半径（像素）、最多弯几度、风的大小（倍）、z（绝对；晨是 0，main 层大约 −92）
@@ -110,6 +119,15 @@ const PERCH_SPREAD := 40.0          # 歇在这处左右多宽里的穗顶上
 const FRAME_MS := 100.0
 const KICK := 90.0                  # 起飞蹬芦苇一下（度 / 秒）
 
+# ---- 白鹭、野鸭、远处的鸟群
+const EGRET_IDLE := Vector2(3.0, 8.0)        # 站着不动多久再做下一件事（秒）
+const EGRET_ROAM := 3.0                      # 挪步离原地最多几像素
+const DUCK_V := Vector2(1.6, 2.8)            # 划多快（像素 / 秒，岛层坐标）
+const DUCK_DIVE_EVERY := Vector2(7.0, 16.0)
+const FLOCK_FIRST := Vector2(6.0, 18.0)      # 进房间后第一队多久来
+const FLOCK_EVERY := Vector2(35.0, 70.0)     # 上一队飞走以后多久来下一队
+const WAKE_C := [Color("#f6fbf4"), Color("#dcefee")]
+
 var data := "res://art/reed_field/reeds.json"
 var birds := "res://art/reed_field/birds.json"
 var spots: Array = []               # [[x, 几只], …]（room.json 的 params）
@@ -117,6 +135,8 @@ var water: Array = []               # [[x0, x1], …] 路泡在水里的段（ro
 var seeds: Array = []               # [[层 x, 层 y, scroll, 半径], …] 巨大蒲公英的球（room.json 的 params）
 var ripples: Array = []             # [[x, y], …] 水面会泛涟漪的点（房间坐标）
 var motes: Array = []               # [[x, y], …] 小飞虫的锚点（房间坐标）
+var fauna := ""                     # fauna.json（白鹭、野鸭、远处鸟群）
+var fauna_z: Array = [-70, -90]     # [岛层的白鹭野鸭, 远处鸟群]
 
 var _tex: Texture2D
 var _btex: Texture2D
@@ -151,6 +171,16 @@ var _ring_cache := {}
 var _life_node: Node2D
 var _seed_node: Node2D
 var _rip_node: Node2D
+var _ftex: Texture2D
+var _ff := {}                       # 帧名 → [Rect2, 锚点（脚 / 贴水那一格）]
+var _isle_sc := 0.62
+var _egrets: Array = []
+var _ducks: Array = []
+var _flock: Array = []              # 一队里每只：{dx, dy, ph, size}
+var _flock_st := {"on": false, "t": 10.0, "lx": 0.0, "y": 50.0, "dir": 1.0}
+var _flock_cfg := {"scroll": 0.1, "y": [30, 74], "speed": 7.0}
+var _isle_node: Node2D
+var _flock_node: Node2D
 
 const REFL_SHADER := """
 shader_type canvas_item;
@@ -242,6 +272,11 @@ func _ready() -> void:
 		if sp is Array and sp.size() >= 1:
 			var n := int(sp[1]) if sp.size() > 1 else 5
 			_spots.append({"x": float(sp[0]), "state": "sit", "t": 0.0, "birds": [], "n": clampi(n, 3, 7)})
+	if fauna != "" and _load_fauna():
+		_isle_node = _make_painter("IsleFauna", int(fauna_z[0]), _paint_isle_fauna)
+		_flock_node = _make_painter("Flock", int(fauna_z[1]), _paint_flock)
+		_isle_node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_flock_node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_ok = true
 
 
@@ -350,6 +385,10 @@ func _process(delta: float) -> void:
 	_bird_node.queue_redraw()
 	_update_reflection(org)
 	_step_life(dt)
+	if _isle_node != null:
+		_step_fauna(dt)
+		_isle_node.queue_redraw()
+		_flock_node.queue_redraw()
 	_shade.visible = SHADE_ON and _have_chen
 	if _shade.visible:
 		_shade.global_position = (_chen_node.global_position + Vector2(0, SHADE_DY)).round()
@@ -837,3 +876,173 @@ func _paint_ripples(p: Node2D) -> void:
 		var cy := roundf(float(rp["y"]))
 		for q in _ring(rx, ry):
 			p.draw_rect(Rect2(cx + q.x, cy + q.y, 1, 1), c)
+
+
+# ======================================================================= 白鹭、野鸭、远处的鸟群
+func _load_fauna() -> bool:
+	if not FileAccess.file_exists(fauna):
+		return false
+	var d = JSON.parse_string(FileAccess.get_file_as_string(fauna))
+	if not d is Dictionary:
+		return false
+	_ftex = _load_tex(fauna.get_base_dir().path_join("fauna.png"))
+	if _ftex == null:
+		return false
+	for k in d["frames"]:
+		var f: Array = d["frames"][k]
+		_ff[str(k)] = [Rect2(f[0], f[1], f[2], f[3]), Vector2(f[4], f[5])]
+	_isle_sc = float(d.get("isle_scroll", 0.62))
+	for e in d.get("egrets", []):
+		_egrets.append({"x": float(e[0]), "home": float(e[0]), "y": float(e[1]), "face": int(e[2]), "fr": "stand",
+			"t": _rng.randf_range(0.5, EGRET_IDLE.y), "seq": []})
+	for g in d.get("ducks", []):
+		var dir := 1.0 if _rng.randf() < 0.5 else -1.0
+		var x := lerpf(float(g[0]), float(g[1]), _rng.randf_range(0.2, 0.8))
+		var v := _rng.randf_range(DUCK_V.x, DUCK_V.y)
+		for k in int(g[3]):                     # 一小群：挨着、同一个方向，各自快慢差一点
+			_ducks.append({"x0": float(g[0]), "x1": float(g[1]), "y": float(g[2]), "x": x - dir * 8.0 * k, "dir": dir,
+				"v": v * _rng.randf_range(0.92, 1.05), "pause": 0.0, "dive": _rng.randf_range(DUCK_DIVE_EVERY.x, DUCK_DIVE_EVERY.y),
+				"diving": 0.0, "ph": _rng.randf() * 10.0})
+	if d.get("flock") is Dictionary:
+		_flock_cfg = d["flock"]
+	_flock_st["t"] = _rng.randf_range(FLOCK_FIRST.x, FLOCK_FIRST.y)
+	return true
+
+
+func _step_fauna(dt: float) -> void:
+	for e in _egrets:
+		e["t"] = float(e["t"]) - dt
+		if float(e["t"]) > 0.0:
+			continue
+		var seq: Array = e["seq"]
+		if seq.is_empty():
+			var idle := snappedf(_rng.randf_range(EGRET_IDLE.x, EGRET_IDLE.y), 0.1)
+			var r := _rng.randf()
+			if r < 0.55:                                 # 啄水
+				seq.append_array([["half", 0.2], ["down", snappedf(_rng.randf_range(0.5, 1.2), 0.1)], ["half", 0.2], ["stand", idle]])
+			elif r < 0.85:                               # 抬脚（一半的时候顺势挪一步）
+				seq.append_array([["lift", snappedf(_rng.randf_range(0.3, 0.6), 0.1)], ["stand", idle, _rng.randf() < 0.5]])
+			else:                                        # 转身
+				e["face"] = -int(e["face"])
+				seq.append(["stand", idle])
+		var it: Array = seq.pop_front()
+		e["fr"] = it[0]
+		e["t"] = float(it[1])
+		if it.size() > 2 and it[2]:
+			var nx := float(e["x"]) + float(e["face"])
+			if absf(nx - float(e["home"])) <= EGRET_ROAM:
+				e["x"] = nx
+	for d in _ducks:
+		d["ph"] = float(d["ph"]) + dt
+		if float(d["diving"]) > 0.0:
+			d["diving"] = float(d["diving"]) - dt
+			continue
+		if float(d["pause"]) > 0.0:
+			d["pause"] = float(d["pause"]) - dt
+			if float(d["pause"]) <= 0.0:
+				d["dir"] = -float(d["dir"])
+			continue
+		d["dive"] = float(d["dive"]) - dt
+		if float(d["dive"]) <= 0.0:
+			d["dive"] = _rng.randf_range(DUCK_DIVE_EVERY.x, DUCK_DIVE_EVERY.y)
+			d["diving"] = snappedf(_rng.randf_range(1.0, 2.0), 0.1)
+			continue
+		d["x"] = float(d["x"]) + float(d["dir"]) * float(d["v"]) * dt
+		if (float(d["dir"]) > 0.0 and float(d["x"]) >= float(d["x1"])) or (float(d["dir"]) < 0.0 and float(d["x"]) <= float(d["x0"])):
+			d["x"] = clampf(float(d["x"]), float(d["x0"]), float(d["x1"]))
+			d["pause"] = _rng.randf_range(0.8, 2.0)
+	# 鸟群：一次只有一队
+	var sc := float(_flock_cfg.get("scroll", 0.1))
+	if not bool(_flock_st["on"]):
+		_flock_st["t"] = float(_flock_st["t"]) - dt
+		if float(_flock_st["t"]) <= 0.0:
+			_spawn_flock(sc)
+		return
+	_flock_st["lx"] = float(_flock_st["lx"]) + float(_flock_st["dir"]) * float(_flock_cfg.get("speed", 7.0)) * dt
+	var lead := float(_flock_st["lx"]) - _cl * sc
+	var tail := lead - float(_flock_st["dir"]) * 40.0
+	if (float(_flock_st["dir"]) > 0.0 and tail > 500.0) or (float(_flock_st["dir"]) < 0.0 and tail < -20.0):
+		_flock_st["on"] = false
+		_flock_st["t"] = _rng.randf_range(FLOCK_EVERY.x, FLOCK_EVERY.y)
+
+
+func _spawn_flock(sc: float) -> void:
+	var dir := 1.0 if _rng.randf() < 0.5 else -1.0
+	var ys: Array = _flock_cfg.get("y", [30, 74])
+	_flock_st["on"] = true
+	_flock_st["dir"] = dir
+	_flock_st["lx"] = (-12.0 if dir > 0.0 else 492.0) + _cl * sc
+	_flock_st["y"] = _rng.randf_range(float(ys[0]), float(ys[1]))
+	_flock.clear()
+	var n := _rng.randi_range(5, 8)
+	for k in n:
+		var rank := floori((k + 1) / 2.0)
+		var side := 1.0 if k % 2 == 1 else -1.0
+		_flock.append({"dx": -dir * rank * _rng.randf_range(5.0, 7.0), "dy": side * rank * _rng.randf_range(2.5, 3.5) + _rng.randf_range(-0.6, 0.6),
+			"ph": _rng.randf() * 10.0, "size": 2 if _rng.randf() < 0.6 else 3})
+
+
+## 岛层的层坐标 → 屏幕 x（和 room_stage 的 tile 层同一个算法，像素对齐）
+func _isle_sx(lx: float) -> float:
+	return fposmod(roundf(-_cl * _isle_sc) + roundf(lx) + 40.0, 960.0) - 40.0
+
+
+## 画一帧：pos 是锚点（白鹭的脚、野鸭贴水的那一格、鸟的身子中间），房间坐标
+func _blit_f(p: Node2D, name: String, pos: Vector2, face: int) -> void:
+	if not _ff.has(name):
+		return
+	var r: Rect2 = _ff[name][0]
+	var a: Vector2 = _ff[name][1]
+	var y := roundf(pos.y) - a.y
+	if face < 0:
+		var x := roundf(pos.x) - (r.size.x - 1.0 - a.x)
+		p.draw_set_transform(Vector2(x + r.size.x, y), 0.0, Vector2(-1, 1))
+		p.draw_texture_rect_region(_ftex, Rect2(Vector2.ZERO, r.size), r)
+		p.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		p.draw_texture_rect_region(_ftex, Rect2(Vector2(roundf(pos.x) - a.x, y), r.size), r)
+
+
+func _paint_isle_fauna(p: Node2D) -> void:
+	for e in _egrets:
+		var sx := _isle_sx(float(e["x"]))
+		if sx < 500.0:
+			_blit_f(p, "egret_" + str(e["fr"]), Vector2(_cl + sx, float(e["y"])), int(e["face"]))
+	for d in _ducks:
+		var sx := _isle_sx(float(d["x"]))
+		if sx >= 500.0:
+			continue
+		var dir := int(signf(float(d["dir"])))
+		if float(d["diving"]) > 0.0:
+			_blit_f(p, "duck_dabble", Vector2(_cl + sx, float(d["y"])), dir)
+			continue
+		var n := int(float(d["ph"]) * 1000.0 / FRAME_MS)
+		_blit_f(p, "duck_swim0" if floori(n / 4.0) % 2 == 0 else "duck_swim1", Vector2(_cl + sx, float(d["y"])), dir)
+		if float(d["pause"]) > 0.0:
+			continue
+		# 身后的小波纹：贴水那一行一道短的、下一行往后错两格一道长的，长短跟着划水一下一下变（100ms 一帧）
+		var tail := _cl + sx - dir * 3.0
+		var y := float(d["y"]) + 1.0
+		var l1 := 3 + floori(n / 2.0) % 2
+		var l2 := 4 + (floori(n / 2.0) + 1) % 2
+		for t in l1:
+			p.draw_rect(Rect2(tail - dir * t, y, 1, 1), WAKE_C[0])
+		for t in l2:
+			p.draw_rect(Rect2(tail - dir * (2 + t), y + 1.0, 1, 1), WAKE_C[1])
+
+
+func _paint_flock(p: Node2D) -> void:
+	if not bool(_flock_st["on"]):
+		return
+	var sc := float(_flock_cfg.get("scroll", 0.1))
+	var cyc := ["up", "mid", "down", "mid"]
+	for b in _flock:
+		var sx := roundf(float(_flock_st["lx"]) + float(b["dx"]) - _cl * sc)
+		if sx < -10.0 or sx > 490.0:
+			continue
+		var y := float(_flock_st["y"]) + float(b["dy"]) + sin(_t * 0.9 + float(b["ph"])) * 0.8
+		var n := int((_t + float(b["ph"])) * 1000.0 / FRAME_MS)
+		var nm: String = cyc[n % 4]
+		if floori(n / 4.0) % 3 == 2:
+			nm = "mid"                                   # 扇几下滑一下
+		_blit_f(p, "flock%d_%s" % [int(b["size"]), nm], Vector2(_cl + sx, y), 1)

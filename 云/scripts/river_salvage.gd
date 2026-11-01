@@ -18,9 +18,12 @@ extends RefCounted
 ##   items 的 sink：漂到第几段就沉（-1 = 不沉）；speed：每手漂几段；start：一开始在第几段；stages = 从上游到浅滩一共几段（到 stages 就停在浅滩）。
 ## 进度（story.mech_load）：{items: {id: {at, st}}, box: bool, phase: river / shallows / done}；st = float / sunk / shallow / got。
 ## 物件状态（给会话 C）：漂流物 float（带 V 形水纹）/ sunk（沉在看得见的浅水里）/ shallow（停在浅滩）/ taken（钩上来了，藏起来）。
+##   10-31 作者「点不到、不知道要干嘛」：会沉的离下沉点还剩两段 = sink1、一段 = sink2（吃水更深，_vis）；同一段的几样并排不叠（_slot_x）；
+##   互动点跟着物件现在的位置（hotspots.gd 的 hot_follow），远远就有淡箭头（beacon）；站着不动 12 秒妮芙看过去冒一句（_hint）。
 
 const KIT := preload("res://scripts/river_explore_order.gd")
 const ID := "river_salvage"
+const SLOT := 22.0             # 同一段上的几样东西并排摆开的间距（物件 18 宽 + 4），不叠成一样
 
 
 # ======================================================================= 规则（纯函数）
@@ -199,11 +202,28 @@ func _ask() -> String:
 	var dd := defs(step)
 	var ids: Array = floating(s) if s["phase"] == "river" else at_shallows(s)
 	for id in ids:
-		opts.append({"tok": id, "at": id, "label": dd[id].get("label", id), "correct": id == ok})
+		opts.append({"tok": id, "at": id, "label": dd[id].get("label", id), "correct": id == ok, "beacon": true})
 	if s["phase"] == "shallows" and not s["box"]:
 		var b: Dictionary = step.get("box", {})
-		opts.append({"tok": "box", "at": str(b.get("id", "river_bank_box")), "label": b.get("label", "box"), "correct": ok == "box"})
-	return await KIT.choose(self, story, opts)
+		opts.append({"tok": "box", "at": str(b.get("id", "river_bank_box")), "label": b.get("label", "box"), "correct": ok == "box", "beacon": true})
+	return await KIT.choose(self, story, opts, _hint.bind(ok))
+
+
+## 站着不动一会儿（KIT.HINT_SEC）：妮芙转过去看着该先捞的那样，冒一句（头顶小气泡，不等）：
+## 它会沉 = lines.hint_sink，别的 = lines.hint
+func _hint(ok: String) -> void:
+	var tid := ok if ok != "box" else str((step.get("box", {}) as Dictionary).get("id", "river_bank_box"))
+	var d: Dictionary = defs(step).get(ok, {})
+	var key := "hint_sink" if s["phase"] == "river" and int(d.get("sink", -1)) >= 0 and not d.get("key", false) else "hint"
+	var st2: Array = [{"do": "face", "who": "niff", "to": _hit_x(tid)}]
+	st2.append_array((step.get("lines", {}) as Dictionary).get(key, []))
+	story.run_steps(st2)
+
+
+## 这样东西现在在哪（世界 x）：漂过的按物件现在的位置，不按 room.json 里同名 marker 的老位置
+func _hit_x(id: String) -> float:
+	var r: Rect2 = world.prop_rect(id) if world.has_method("prop_rect") else Rect2()
+	return round(r.get_center().x) if r.size.x > 0.0 else KIT.mx(world, id)
 
 
 ## 第几段在房间里的 x（上游 from → 浅滩 to）
@@ -218,9 +238,9 @@ func _x(stage: int) -> float:
 func _place_all(sec: float) -> void:
 	for id in s["items"]:
 		var e: Dictionary = s["items"][id]
-		world.set_prop(id, _state_of(str(e["st"])))
+		world.set_prop(id, _vis(id))
 		if str(e["st"]) != "got":
-			await _move(id, int(e["at"]), sec, false)
+			await _move(id, sec, false)
 	if s["box"]:
 		world.set_prop(str((step.get("box", {}) as Dictionary).get("id", "river_bank_box")), "taken")
 
@@ -229,11 +249,37 @@ static func _state_of(st: String) -> String:
 	return "taken" if st == "got" else st
 
 
-func _move(id: String, stage: int, sec: float, wait: bool) -> void:
+## 物件该显示的状态：会沉的、离下沉点只剩一两段的，吃水深一点（sink1）/ 再深一点（sink2）——一眼看出哪样重、快沉了（先捞它）
+func _vis(id: String) -> String:
+	var e: Dictionary = s["items"][id]
+	var d: Dictionary = defs(step).get(id, {})
+	var sink := int(d.get("sink", -1))
+	if str(e["st"]) == "float" and sink >= 0 and not d.get("key", false):
+		var left := sink - int(e["at"])
+		if left <= 1:
+			return "sink2"
+		if left <= 2:
+			return "sink1"
+	return _state_of(str(e["st"]))
+
+
+## 同一段上还在的几样东西（没钩走的）按剧本里的顺序并排，中心是 _x(段)
+func _slot_x(id: String) -> float:
+	var at := int(s["items"][id]["at"])
+	var same: Array = []
+	for oid in s["items"]:
+		if str(s["items"][oid]["st"]) != "got" and int(s["items"][oid]["at"]) == at:
+			same.append(oid)
+	return _x(at) + (float(same.find(id)) - float(same.size() - 1) / 2.0) * SLOT
+
+
+## 挪到它现在该在的位置（段 + 并排的位置）；sec = 0 瞬间到位
+func _move(id: String, sec: float, wait: bool) -> void:
 	var sg := KIT.stage_of(world, id)
 	if sg == null or sg.object(id) == null:
 		return
-	var p := Vector2(_x(stage) - float(sg.object(id).texture.get_width() / maxi(1, sg.object(id).hframes)) / 2.0, sg.object(id).position.y)
+	sg.object(id).set_meta("hot_follow", true)      # hotspots.gd：互动点跟着它走
+	var p := Vector2(round(_slot_x(id) - float(sg.object(id).texture.get_width() / maxi(1, sg.object(id).hframes)) / 2.0), sg.object(id).position.y)
 	if sec <= 0.0 or story.ff:
 		sg.move_object(id, p, 0.0)
 	elif wait:
@@ -244,7 +290,7 @@ func _move(id: String, stage: int, sec: float, wait: bool) -> void:
 
 func _hook(id: String, dr: Array) -> void:
 	var tid := id if id != "box" else str((step.get("box", {}) as Dictionary).get("id", "river_bank_box"))
-	await KIT.go_to(self, story, tid)
+	await KIT.go_to(self, story, _hit_x(tid))
 	await KIT.steps(story, [{"do": "anim", "who": "chen", "name": "hook"}, {"do": "sfx", "name": "hook_splash"}])
 	world.set_prop(tid, "taken")
 	# 别的东西趁这一下往下漂：水纹往前、水声跟着走（左右声道），漂过木桩咚一声
@@ -257,10 +303,16 @@ func _hook(id: String, dr: Array) -> void:
 		if not is_nan(post) and x0 < post and x1 >= post:
 			steps.append({"do": "sfx", "name": "knock_post", "pan": _pan(post)})
 		await KIT.steps(story, steps)
-		_move(str(m["id"]), int(m["to"]), 1.2, false)
-		world.set_prop(str(m["id"]), _state_of(str(m["st"])))
+		_move(str(m["id"]), 1.2, false)
+		world.set_prop(str(m["id"]), _vis(str(m["id"])))
 		if str(m["st"]) == "sunk":
 			sank = true
+	var moved := {}
+	for m in dr:
+		moved[str(m["id"])] = true
+	for oid in s["items"]:
+		if not moved.has(oid) and str(s["items"][oid]["st"]) != "got":
+			_move(oid, 1.2, false)             # 沉着的 / 停在浅滩的：有新的漂过来同一段，往旁边让一格
 	if not dr.is_empty():
 		await KIT.steps(story, [{"do": "wait", "sec": 1.2}])
 	if sank:
@@ -289,7 +341,7 @@ func ff(r: Node, st: Dictionary) -> void:
 		act(st, t, best(st, t))
 	r.mech_save(ID, t)
 	for id in t["items"]:
-		r.world.set_prop(id, _state_of(str(t["items"][id]["st"])))
+		r.world.set_prop(id, _state_of(str(t["items"][id]["st"])))      # 跳节拍：照对的顺序捞完，剩下的都是沉了 / 钩走的
 	r.world.set_prop(str((st.get("box", {}) as Dictionary).get("id", "river_bank_box")), "taken")
 
 

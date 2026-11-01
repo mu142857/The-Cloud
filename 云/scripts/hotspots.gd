@@ -218,6 +218,8 @@ func locate(h: Dictionary) -> Dictionary:
 		if orr.size.x <= 0:
 			return {"ok": false}
 		var sn: Sprite2D = world.stage(world.stage_of_prop(str(at))).object(str(at))
+		if sn != null and sn.has_meta("hot_follow"):
+			x = round(orr.get_center().x)    # 漂走的东西（river_salvage）：够不够得着按它现在在哪算，不按 room.json 里同名 marker 的老位置
 		return {"ok": true, "x": x, "top": orr.position.y - 4.0, "rect": orr.grow(3), "spr": sn}
 	var room := str(h.get("room", "forest"))
 	var gy: float = round(world.ground_at(x, room)) + 1.0
@@ -417,7 +419,7 @@ func update(delta: float, chen: Node2D, cam_left: Vector2, mouse_world = null) -
 		var id := str(h["id"])
 		var is_near: bool = not near.is_empty() and str(near["h"]["id"]) == id
 		var is_hover: bool = not hovered.is_empty() and str(hovered["h"]["id"]) == id
-		var beacon: bool = not is_enter(h) and not StoryState.used.has(id) and runner.is_progress_hotspot(h)
+		var beacon: bool = not is_enter(h) and not StoryState.used.has(id) and (runner.is_progress_hotspot(h) or bool(h.get("beacon", false)))
 		if not is_near and not is_hover and not beacon:
 			continue
 		seen[id] = true

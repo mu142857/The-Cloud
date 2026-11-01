@@ -161,7 +161,7 @@
 		{"id": "plane_fix", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_bell"], "not": ["river_plane_fixed"], "once": false, "scene": "plane_fix"},
 		{"id": "plane_parts", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_need_head"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_parts"},
 		{"id": "plane_drying", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_landed"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_drying"},
-		{"id": "meet_niff", "at": "river_bank_crates", "room": "river_bank", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_ashore"], "not": ["river_salvaged"], "once": true, "scene": "bank_meet", "trigger": "enter", "range": 56, "cutscene": true},
+		{"id": "meet_niff", "at": "river_bank_crates", "room": "river_bank", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_ashore"], "not": ["river_salvaged"], "once": true, "scene": "bank_meet", "trigger": "enter", "range": 74, "cutscene": true, "_note": "10-31 range 56 → 74：晨跑过来触发后还要往前滑 15 像素，56 的话停在离妮芙 41（鲸鱼壳要 57），她转正浮起来时压到晨"},
 		{"id": "ting_footage", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_footage_broken"], "not": ["river_need_head"], "once": false, "scene": "ting_footage"},
 		{"id": "ting_chat_4", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_plane_fixed"], "not": [], "once": false, "scene": "ting_chat_4"},
 		{"id": "ting_chat_3", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_back_home"], "not": [], "once": false, "scene": "ting_chat_3"},
@@ -306,7 +306,8 @@
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"say": "niff", "zh": "哦……那你掉得挺准的。", "en": "Oh... nice aim."},
 			{"say": "niff", "zh": "我刚才也掉了一箱。一起捞吧？", "en": "I just dropped a crate too. Help me fish it out?"},
-			{"do": "walk", "who": "chen", "to": "river_bank_steps"},
+			{"do": "walk", "who": "niff", "to": 1150, "wait": false, "_note": "10-31 作者「我往前这个鱼就会往后，走得很远」：晨去台阶 / 去捞东西时从妮芙身上走过去，鲸鱼壳悬浮让路就被晨一路推着往下游退。她先自己飘到台阶下游那边，捞东西时再去浅滩下游（lines.start）等着，晨的路上没有她"},
+			{"do": "walk", "who": "chen", "to": "river_bank_steps", "pace": "walk", "_note": "走路的速度（55）比妮芙飘（70）慢：跟在她后面，追不上她、不催她"},
 			{"do": "prop", "id": "river_bank_shallow", "state": "floating"},
 			{"say": "niff", "zh": "那只杯子，快漂走啦。先拿它。", "en": "That cup's floating off. Get it first.", "added": true},
 			{"do": "anim", "who": "chen", "name": "reach"},
@@ -327,7 +328,17 @@
 				"spec": "【小游戏：顺着水流打捞收藏品和修船材料。水声与碰撞声提示物品方向，漂浮轨迹提供同步视觉信息。不同物品具有不同浮力，玩家需要判断打捞顺序；错过的关键物品会停在下游浅滩，玩家可以在那里继续打捞。】",
 				"lines": {
 					"start": [
-						{"say": "niff", "zh": "箱子里的东西，还在往下漂呢。", "en": "The things from my crate are still drifting down.", "added": true}
+						{"do": "face", "who": "chen", "to": "river_bank_drift_start", "_note": "10-31 作者「不知道要干嘛」：晨先回头看上游（镜头跟着往左，漂着的东西进画面），妮芙说清楚怎么捞、捞哪个，再飘去浅滩下游接着"},
+						{"say": "niff", "zh": "箱子里的东西，还在往下漂呢。", "en": "The things from my crate are still drifting down.", "added": true},
+						{"say": "niff", "zh": "你拿钩子够它们，我去下游接着。", "en": "Hook them with your pole. I'll catch them downstream.", "added": true},
+						{"do": "walk", "who": "niff", "to": 1330, "wait": false},
+						{"say": "niff", "zh": "这回先捞会沉的。", "en": "This time, get the sinking ones first.", "added": true}
+					],
+					"hint_sink": [
+						{"say": "niff", "bark": true, "zh": "吃水深的那个，快沉啦。", "en": "That one's riding low. It's about to sink.", "added": true}
+					],
+					"hint": [
+						{"say": "niff", "bark": true, "zh": "那边还有一个呢。", "en": "There's one more over there.", "added": true}
 					],
 					"sank_1": [
 						{"do": "anim", "who": "niff", "name": "crouch"},
@@ -355,6 +366,7 @@
 				}},
 			{"do": "give", "item": "pipe_joint"},
 			{"say": "chen", "zh": "这个能用在飞机上。", "en": "I can use this on the ship.", "added": true},
+			{"do": "walk", "who": "chen", "to": 1130, "pace": "walk", "_note": "10-31 拿着接头往飞机那边走回几步（上游）。也给阿汀留出地方：他要从晨和妮芙（下游 1330）中间的水里上来（晨右边至少 85、妮芙左边至少 108，一共 193），原来晨停在浅滩 1250、妮芙在 1305，中间站不下，引擎把阿汀放到晨左边，晨去舱门的路被他挡住、一步没走"},
 			{"do": "flag", "set": "river_salvaged"},
 			{"do": "goto", "scene": "bank_cup"}
 		],
@@ -370,7 +382,11 @@
 			{"say": "niff", "zh": "听着像我要开始收钱了。", "en": "It sounds like I'm about to charge you."},
 			{"say": "chen", "zh": "我叫——", "en": "I'm...", "added": true},
 			{"do": "sfx", "name": "rope_throw"},
+			{"do": "pose", "who": "ting", "dy": 64, "sec": 0, "_note": "10-31 作者「阿汀为什么是突然出现的」：原来只是原地淡入。改成先沉在水下 64 像素（水面那层半透明，挡在他前面），哗啦一声，再顺着正弦曲线慢慢浮上岸"},
 			{"do": "show", "who": "ting", "at": "river_bank_shallow", "fade": 0.4, "_note": "10-31 人和人不叠：阿汀从晨和妮芙中间的浅水里上来（原来在码头桩 872，晨去舱门得从他身上穿过去）。晨先走到舱门，阿汀再跟过去站在 river_bank_ting，妮芙等他站定再过去站在他右边，三个人一路谁也不穿过谁"},
+			{"do": "sfx", "name": "splash"},
+			{"do": "pose", "who": "ting", "dy": 0, "sec": 1.6},
+			{"do": "sfx", "name": "drip"},
 			{"do": "face", "who": "chen", "to": "ting"},
 			{"say": "ting", "zh": "先把机翼绑住。", "en": "Tie down the wing first.", "added": true},
 			{"do": "walk", "who": "chen", "to": "river_bank_hatch"},
@@ -799,8 +815,7 @@
 			{"say": "chen", "zh": "所以离开厨房也没关系。", "en": "So it's fine to leave the kitchen.", "added": true}
 		],
 		"home_out": [
-			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"]},
-			{"do": "show", "who": "ting", "at": "river_bank_post"}
+			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post"}, "_note": "10-31 作者「阿汀为什么是突然出现的」：阿汀在换地方的同时就站在码头桩，原来是淡入以后才 show"}
 		],
 		"home_in": [
 			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "with": ["niff"]},
@@ -898,8 +913,7 @@
 			{"say": "keeper", "zh": "每回都还了。", "en": "And returns it every time.", "added": true}
 		],
 		"market_back": [
-			{"do": "fade_to", "room": "river_bank", "at": "river_bank_to_market", "with": ["niff"]},
-			{"do": "show", "who": "ting", "at": "river_bank_post"}
+			{"do": "fade_to", "room": "river_bank", "at": "river_bank_to_market", "with": ["niff"], "place": {"ting": "river_bank_post"}}
 		],
 		"bank_to_market": [
 			{"do": "fade_to", "room": "market", "at": "market_entry", "with": ["niff"]},
@@ -1176,9 +1190,11 @@
 			{"do": "anim", "who": "chen", "name": "look_close"}
 		],
 		"home_coat": [
-			{"do": "fade_to", "room": "river_home", "at": "river_home_chen", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "river_home_niff"},
-			{"do": "show", "who": "ting", "at": "river_home_door"},
+			{"do": "fade_to", "room": "river_home", "at": "river_home_chen", "with": ["niff"], "place": {"niff": "river_home_niff"}},
+			{"do": "sfx", "name": "door_touch", "_note": "10-31 作者「阿汀为什么是突然出现的」：跟在后面进门——先听见门响，人从门里淡出来、往里走两步站到门边（晨在 154，他个子大，离晨至少 85）"},
+			{"do": "wait", "sec": 0.3},
+			{"do": "show", "who": "ting", "at": "river_home_labels", "fade": 0.5, "_note": "river_home_labels = 屋里门左边那一格（l0 x 28），门里面"},
+			{"do": "walk", "who": "ting", "to": "river_home_door"},
 			{"do": "take", "item": "breather"},
 			{"do": "anim", "who": "chen", "name": "show_item"},
 			{"do": "show_item", "item": "sluice_record"},
@@ -1262,7 +1278,9 @@
 			{"say": "niff", "zh": "再捞一堆，今晚我就没地方睡了。", "en": "Fish out another pile and I'll have nowhere to sleep tonight."},
 			{"do": "prop", "id": "niff_photo", "state": "flattened"},
 			{"do": "wait", "sec": 1.5},
-			{"do": "hide", "who": "ting"},
+			{"do": "walk", "who": "ting", "to": "river_home_labels", "_note": "10-31 阿汀走：走到门口、门响、淡出去（不原地消失）"},
+			{"do": "sfx", "name": "door_touch"},
+			{"do": "hide", "who": "ting", "fade": 0.5},
 			{"do": "sfx", "name": "bell_soft"},
 			{"do": "anim", "who": "niff", "name": "search_notebook"},
 			{"do": "wait", "sec": 1.0},
@@ -1423,6 +1441,9 @@
 		"guestbook": [
 			{"do": "walk", "who": "chen", "to": "river_home_window"},
 			{"do": "walk", "who": "niff", "to": "river_home_window"},
+			{"do": "sfx", "name": "door_touch", "_note": "10-31 作者「阿汀为什么是突然出现的」：原来妮芙念完一大段，阿汀直接出现在阁楼上。改成一开始楼下门响，他从门口进来，自己沿石阶慢慢走上二层（不等），停在去阁楼的楼梯口仰头说话（阁楼只有 220 宽，晨、妮芙站在窗边以后再站一个大个子的阿汀就叠上了）；轮到他说话时还没到就等他走到"},
+			{"do": "show", "who": "ting", "at": "river_home_door", "fade": 0.5},
+			{"do": "walk", "who": "ting", "to": "river_home_up2", "wait": false, "speed": 60},
 			{"do": "prop", "id": "guestbook", "state": "dry"},
 			{"do": "anim", "who": "niff", "name": "flip"},
 			{"say": "niff", "zh": "能翻开啦。最后几页……", "en": "It opens now. The last few pages...", "added": true},
@@ -1434,11 +1455,12 @@
 			{"say": "niff", "zh": "给弥洛的信，投进了北岸的旧邮箱。", "en": "Her letter to Milo went in the old mailbox on the north bank.", "added": true},
 			{"say": "niff", "zh": "里面还放了一张纸，", "en": "There was a slip of paper inside, too,", "added": true},
 			{"say": "niff", "zh": "写着新住址和通讯号码。", "en": "with her new address and contact number.", "added": true},
-			{"do": "show", "who": "ting", "at": "river_home_l2"},
+			{"do": "walk", "who": "ting", "to": "river_home_up2"},
 			{"do": "face", "who": "ting", "to": "niff"},
 			{"say": "ting", "zh": "北岸那只旧邮箱？", "en": "The old mailbox on the north bank?", "added": true},
 			{"say": "ting", "zh": "后一次涨水，冲走了。", "en": "The next flood washed it away.", "added": true},
 			{"say": "ting", "zh": "里面的信，没来得及取。", "en": "Nobody got the letters out in time.", "added": true},
+			{"do": "walk", "who": "ting", "to": "river_home_door", "wait": false, "_note": "10-31 说完就下楼回门口（不等）；guestbook_cup 末尾走到门口、门响、淡出去"},
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "journal", "zh": "来客册：她离开的日期，补给船的船名。抄下来了。", "en": "Guestbook: the date she left, the supply ship's name. Copied them down.", "added": true},
 			{"do": "anim", "who": "chen", "name": "pen_stop"},
@@ -1482,7 +1504,10 @@
 			{"do": "anim", "who": "chen", "name": "check_phone"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "prop", "id": "river_home_table", "state": "cup_stays"},
-			{"do": "hide", "who": "ting"},
+			{"do": "walk", "who": "ting", "to": "river_home_door"},
+			{"do": "walk", "who": "ting", "to": "river_home_labels"},
+			{"do": "sfx", "name": "door_touch"},
+			{"do": "hide", "who": "ting", "fade": 0.5},
 			{"do": "flag", "set": "river_cup_traced"}
 		],
 		"south_go": [
@@ -1667,8 +1692,7 @@
 			{"do": "give", "item": "copper_bell"},
 			{"do": "journal", "zh": "妮芙送的铜铃。标签背面画了一架小飞机，机翼歪得和我那架差不多。", "en": "A copper bell from Niff. On the back of the label, a little ship, its wings as crooked as mine.", "added": true},
 			{"do": "flag", "set": "river_bell"},
-			{"do": "fade_to", "room": "river_bank", "at": "river_bank_arrive", "with": ["niff"]},
-			{"do": "show", "who": "ting", "at": "river_bank_post"}
+			{"do": "fade_to", "room": "river_bank", "at": "river_bank_arrive", "with": ["niff"], "place": {"ting": "river_bank_post"}}
 		],
 		"plane_fix": [
 			{"do": "walk", "who": "chen", "to": "river_bank_plane"},
@@ -1777,9 +1801,7 @@
 			{"do": "anim", "who": "niff", "name": "nod"},
 			{"say": "niff", "zh": "嗯，就是这一家。", "en": "Mm. That's the one."},
 			{"do": "flag", "set": "river_farewell"},
-			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"]},
-			{"do": "show", "who": "ting", "at": "river_bank_post"},
-			{"do": "show", "who": "niff", "at": "river_bank_niff"}
+			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post", "niff": "river_bank_niff"}}
 		],
 		"depart": [
 			{"do": "walk", "who": "chen", "to": "river_bank_plane"},

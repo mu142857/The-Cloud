@@ -19,7 +19,8 @@
    "id": "sky",
    "img": "sky.png",
    "scroll": 0.0,
-   "y": 0
+   "y": 0,
+   "z": -100
   },
   {
    "id": "streaks",
@@ -27,48 +28,54 @@
    "scroll": 0.03,
    "y": 10,
    "tile": true,
-   "drift": -1.0
+   "drift": -1.0,
+   "z": -98
   },
   {
    "id": "mtn_far",
    "img": "mtn_far.png",
    "scroll": 0.008,
    "y": 22,
-   "tile": true
+   "tile": true,
+   "z": -96
   },
   {
    "id": "mtn_mid",
    "img": "mtn_mid.png",
    "scroll": 0.025,
    "y": 58,
-   "tile": true
+   "tile": true,
+   "z": -94
   },
   {
    "id": "hills",
    "img": "hills.png",
    "scroll": 0.07,
    "y": 100,
-   "tile": true
+   "tile": true,
+   "z": -92
   },
   {
    "id": "far",
    "img": "far.png",
    "scroll": 0.14,
-   "y": 140,
-   "tile": true
+   "y": 128,
+   "tile": true,
+   "z": -90
   },
   {
    "id": "mid",
    "img": "mid.png",
    "scroll": 0.35,
-   "y": 148,
-   "tile": true
+   "y": 134,
+   "tile": true,
+   "z": -88
   },
   {
    "id": "mid_glints",
    "img": "mid_glints.png",
    "scroll": 0.35,
-   "y": 148,
+   "y": 134,
    "tile": true,
    "shader": "water",
    "shader_params": {
@@ -77,14 +84,15 @@
     "wobble": 1.0,
     "flicker": 0.0,
     "show": 0.55
-   }
+   },
+   "z": -86
   },
   {
    "id": "giant_dandelion_far_a",
    "img": "giant_dandelion_far_a.png",
    "scroll": 0.35,
    "x": 240,
-   "y": 98,
+   "y": 79,
    "shader": "sway",
    "shader_params": {
     "amp": 1.0,
@@ -92,14 +100,15 @@
     "wavelength": 4000.0,
     "power": 1.8,
     "bend": 0.012
-   }
+   },
+   "z": -84
   },
   {
    "id": "giant_dandelion_far_b",
    "img": "giant_dandelion_far_b.png",
    "scroll": 0.4,
    "x": 811,
-   "y": 82,
+   "y": 70,
    "shader": "sway",
    "shader_params": {
     "amp": 1.0,
@@ -107,14 +116,23 @@
     "wavelength": 4000.0,
     "power": 1.8,
     "bend": 0.012
-   }
+   },
+   "z": -82
+  },
+  {
+   "id": "isles",
+   "img": "isles.png",
+   "scroll": 0.62,
+   "y": 146,
+   "tile": true,
+   "z": -80
   },
   {
    "id": "giant_dandelion_mid",
    "img": "giant_dandelion_mid.png",
    "scroll": 0.6,
    "x": 512,
-   "y": 31,
+   "y": 26,
    "shader": "sway",
    "shader_params": {
     "amp": 1.0,
@@ -122,14 +140,15 @@
     "wavelength": 4000.0,
     "power": 1.8,
     "bend": 0.012
-   }
+   },
+   "z": -78
   },
   {
    "id": "giant_dandelion_near_a",
    "img": "giant_dandelion_near_a.png",
    "scroll": 0.8,
    "x": 28,
-   "y": 2,
+   "y": 1,
    "shader": "sway",
    "shader_params": {
     "amp": 2.0,
@@ -137,14 +156,15 @@
     "wavelength": 4000.0,
     "power": 1.8,
     "bend": 0.012
-   }
+   },
+   "z": -76
   },
   {
    "id": "giant_dandelion_near_b",
    "img": "giant_dandelion_near_b.png",
    "scroll": 0.8,
    "x": 1463,
-   "y": -29,
+   "y": -22,
    "shader": "sway",
    "shader_params": {
     "amp": 2.0,
@@ -152,20 +172,15 @@
     "wavelength": 4000.0,
     "power": 1.8,
     "bend": 0.012
-   }
-  },
-  {
-   "id": "isles",
-   "img": "isles.png",
-   "scroll": 0.62,
-   "y": 160,
-   "tile": true
+   },
+   "z": -74
   },
   {
    "id": "main",
    "img": "main.png",
    "scroll": 1.0,
-   "y": 0
+   "y": 0,
+   "z": -72
   },
   {
    "id": "glints",
@@ -179,7 +194,8 @@
     "wobble": 1.0,
     "flicker": 0.0,
     "show": 0.6
-   }
+   },
+   "z": -70
   },
   {
    "id": "ankle",
@@ -290,31 +306,31 @@
     "seeds": [
      [
       275,
-      119,
+      100,
       0.35,
       13.8
      ],
      [
       843,
-      106,
+      94,
       0.4,
       16.6
      ],
      [
       575,
-      67,
+      62,
       0.6,
       28.5
      ],
      [
       95,
-      49,
+      48,
       0.8,
       39.1
      ],
      [
       1560,
-      25,
+      32,
       0.8,
       46.0
      ]
@@ -882,6 +898,11 @@
       718,
       192
      ]
+    ],
+    "fauna": "res://art/reed_field/fauna.json",
+    "fauna_z": [
+     -79,
+     -91
     ]
    }
   }

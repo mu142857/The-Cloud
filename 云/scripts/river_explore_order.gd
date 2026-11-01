@@ -152,6 +152,8 @@ static func choose(m: Object, story: Node, opts: Array, hint := Callable()) -> S
 		var sp := {"id": str(o["tok"]), "at": o.get("at", 0), "label": o.get("label", {"zh": str(o["tok"])})}
 		if o.has("accepts"):
 			sp["accepts"] = o["accepts"]
+		if o.get("beacon", false):
+			sp["beacon"] = true
 		spots.append(sp)
 	var ticket := {"open": true}
 	if hint.is_valid():

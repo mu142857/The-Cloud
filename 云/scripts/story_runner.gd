@@ -800,6 +800,10 @@ func _walk(st: Dictionary) -> void:
 	if n == null:
 		_warn_once("walk：不认识 " + who)
 		return
+	var cl_t := 0.0
+	while n != chen and n.has_meta("lv_climbing") and not ff and cl_t < 20.0:
+		await get_tree().process_frame        # 前面 wait:false 的 walk 还在上 / 下石阶：先等这段走完（两段一起跑会抢着走）
+		cl_t += get_process_delta_time()
 	var tlv := _lv_target(st.get("to", 0), n)
 	x = _no_pass_chen(n, x, tlv)
 	x = _clear_x(n, x, world.room if n == chen else _room_of(n), tlv, n.position.x, n == chen)    # 人和人不叠（晨走过去时跟着的人自己让）
@@ -3093,6 +3097,11 @@ func _update_follow(delta: float) -> void:
 			continue
 		if not (n.get("cur") is Dictionary and float((n.get("cur") as Dictionary).get("hover", 0.0)) > 0.0):
 			continue
+		# 正在 pose（10-31 河岸：妮芙斜着扎在箱子后面、转正浮起来还没落回去）：不让路。不然晨走近时 follow_to 让她转身朝晨，
+		# 斜着的图一翻就成了头朝上的怪姿势，转正以后 walk 又翻回去；她自己飘出来时离晨已经够远
+		var pspr: Node2D = n.spr
+		if pspr.rotation != 0.0 or pspr.position != Vector2.ZERO:
+			continue
 		var hsg := _lv_stage()
 		if hsg != null and _lv_of(n, hsg) != hsg.chen_lv:
 			if hsg.chen_stair >= 0:
@@ -3423,6 +3432,10 @@ func _body_state(n: Node2D) -> String:
 func _settle_start() -> void:
 	if not chen.visible:
 		return
+	var st_t := 0.0
+	while chen._vel > 0.0 and st_t < 0.5:      # 走进 trigger:"enter" 的点触发的：晨还在往前滑，等停稳再看压没压到人（不然算出来的空地滑过头）
+		await get_tree().process_frame
+		st_t += get_process_delta_time()
 	var sg := _lv_stage()
 	var lv := int(sg.chen_lv) if sg != null else -1
 	var x := _clear_x(chen, chen.position.x, world.room, lv, NAN, true)
@@ -3643,6 +3656,8 @@ func wait_interact(spots: Array) -> Dictionary:
 			"label": sp.get("label", {"zh": sid}), "scene": ""}
 		if sp.has("range"):
 			h["range"] = sp["range"]
+		if sp.get("beacon", false):
+			h["beacon"] = true                # 远远就有一个淡淡的小箭头（河岸打捞：漂着的东西在哪一眼看得到）
 		var acc := {}
 		for it in sp.get("accepts", []):
 			acc[str(it)] = "__mech:" + sid
