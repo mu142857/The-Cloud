@@ -4,9 +4,11 @@
 		"chen": {"zh": "晨", "en": "Chen"},
 		"deer": {"zh": "鹿", "en": "Deer"},
 		"miluo": {"zh": "弥洛", "en": "Milo"},
-		"voice": {"zh": "屋里的声音", "en": "A voice inside"}
+		"voice": {"zh": "屋里的声音", "en": "A voice inside"},
+		"toucan": {"zh": "大嘴鸟", "en": "Toucan"}
 	},
 	"markers": {
+		"glade_toucan": 2234,
 		"wall_left": -1120,
 		"scrap": -1020,
 		"wreck": -840,
@@ -143,7 +145,13 @@
 		{"need": ["fuel_full"], "not": ["deer_met"], "lines": [{"zh": "燃料够了。", "en": "That's enough fuel.", "added": true}, {"zh": "……回飞机试试。", "en": "...Let's try the ship.", "added": true}]},
 		{"need": ["crashed"], "not": ["fuel_full"], "lines": [{"zh": "燃料还不够。", "en": "Not enough fuel yet.", "added": true}, {"zh": "附近应该还有能烧的东西。", "en": "There should be more to burn around here.", "added": true}, {"zh": "左边好像有什么在反光。", "en": "Something's glinting off to the left.", "added": true}]}
 	],
+	"residents": [
+		{"who": "toucan", "at": "glade_toucan", "room": "forest", "face": -1, "_note": "10-31 大嘴鸟（美术组的图）：林间空地尽头、信号箱右边倒木前，可去可不去"}
+	],
+	"barter": {"toucan": {"_note": "10-31 以物易物（scripts/barter.gd），作者按 docs/以物易物交换表.md 定稿。flag：barter_toucan_<id>；终章、飞行一看这些 flag。", "trades": [{"id": "feather", "want": "mat_scrap", "get": "toucan_feather", "scene": "toucan_take_scrap"}, {"id": "whistle", "want": "music_box", "get": "bird_whistle", "scene": "toucan_hear_musicbox", "need": ["musicbox_fixed"], "keep": true}, {"id": "rain", "want": "blue_stone", "get": "rain_glass", "scene": "toucan_take_stone"}], "react": {"elephant_drawing": "toucan_react_drawing"}, "wrong": "toucan_wrong", "none": "toucan_none", "done": "toucan_done"}},
 	"hotspots": [
+		{"id": "toucan_again", "at": "glade_toucan", "room": "forest", "label": {"zh": "大嘴鸟", "en": "Toucan"}, "need": ["met_toucan"], "not": [], "once": false, "scene": "toucan_again"},
+		{"id": "toucan_hello", "at": "glade_toucan", "room": "forest", "label": {"zh": "大嘴鸟", "en": "Toucan"}, "need": ["bridge_built"], "not": ["met_toucan"], "once": false, "scene": "toucan_hello"},
 		{"id": "wreck_launch", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": "Ship"}, "need": ["ready_to_launch"], "not": [], "once": false, "scene": "launch_go", "range": 120},
 		{"id": "wreck_launch_fail", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": "Ship"}, "need": ["fuel_full"], "not": ["deer_met"], "once": false, "scene": "launch_fail"},
 		{"id": "wreck_broken", "at": "wreck", "room": "forest", "label": {"zh": "飞机", "en": "Ship"}, "need": ["deer_met"], "not": ["ready_to_launch"], "once": false, "scene": "wreck_broken"},
@@ -233,6 +241,52 @@
 		{"id": "pipes_a", "at": "room_pipes", "room": "treehouse", "label": {"zh": "管道", "en": "Pipes"}, "need": ["met_miluo"], "not": ["tools_started"], "once": false, "scene": "pipes_a"}
 	],
 	"scenes": {
+		"toucan_hello": [
+			{"do": "face", "who": "chen", "to": "glade_toucan"},
+			{"say": "toucan", "zh": "哎哎，别走那么快！这块空地好久没来过会走路的了。", "en": "Hey, hey, not so fast! Nothing that walks has come through this clearing in ages.", "added": true},
+			{"say": "toucan", "zh": "我嘛，在这儿收东西。亮的、圆的、会响的，什么都收。", "en": "Me? I collect things here. Shiny ones, round ones, ones that jingle. I take them all.", "added": true},
+			{"say": "chen", "zh": "……收来做什么？", "en": "...What for?", "added": true},
+			{"say": "toucan", "zh": "摆着看呀。东西放久了，就会想起自己是从哪儿来的。", "en": "To look at, of course. Leave a thing long enough and it remembers where it came from.", "added": true},
+			{"say": "toucan", "zh": "你身上叮叮当当的。拿出来看看？我也有好东西换给你。", "en": "You're jingling all over. Let's have a look? I've got good stuff to trade, too.", "added": true},
+			{"do": "flag", "set": "met_toucan"},
+			{"do": "barter", "npc": "toucan"}
+		],
+		"toucan_again": [
+			{"do": "face", "who": "chen", "to": "glade_toucan"},
+			{"say": "toucan", "zh": "又是你！今天带亮的来了没有？", "en": "You again! Brought anything shiny today?", "added": true},
+			{"do": "barter", "npc": "toucan"}
+		],
+		"toucan_wrong": [
+			{"say": "toucan", "zh": "嗯……这个不够亮。你自己留着吧。", "en": "Hmm... not shiny enough. You hang on to it.", "added": true}
+		],
+		"toucan_none": [
+			{"say": "toucan", "zh": "不换也行。我又不走，这截树桩也不走。", "en": "No trade? Fine. I'm not going anywhere. Neither is this stump.", "added": true}
+		],
+		"toucan_react_drawing": [
+			{"say": "toucan", "zh": "这张不行。你拿着它的样子，一看就是不能换的。", "en": "Not that one. The way you're holding it, I can tell it's not for trading.", "added": true}
+		],
+		"toucan_take_scrap": [
+			{"do": "show_item", "item": "mat_scrap"},
+			{"say": "toucan", "zh": "这个！边上还烫着，亮得像刚掉下来的星星。", "en": "This one! The edge is still warm. Shiny as a star that just fell.", "added": true},
+			{"say": "toucan", "zh": "拿我最好的一根尾羽换。别嫌弃，它比你那块铁轻多了。", "en": "I'll trade you my best tail feather. Don't turn your nose up, it's a lot lighter than your bit of iron.", "added": true}
+		],
+		"toucan_hear_musicbox": [
+			{"do": "show_item", "item": "music_box"},
+			{"say": "toucan", "zh": "打开打开……", "en": "Open it, open it...", "added": true},
+			{"do": "sfx", "name": "musicbox_full"},
+			{"do": "wait", "sec": 2.5},
+			{"say": "toucan", "zh": "……原来转音的地方要等一下。", "en": "...So you wait a little where the tune turns.", "added": true},
+			{"say": "toucan", "zh": "我学会了。拿着，空心枝子削的，吹出来就是刚才那一句。", "en": "Got it. Here, I whittled it from a hollow twig. Blow it and you'll hear that same phrase.", "added": true}
+		],
+		"toucan_take_stone": [
+			{"do": "show_item", "item": "blue_stone"},
+			{"say": "toucan", "zh": "蓝的！你知道它只有湿的时候才亮吧？", "en": "Blue! You know it only shines when it's wet, right?", "added": true},
+			{"say": "chen", "zh": "……知道。", "en": "...I know.", "added": true},
+			{"say": "toucan", "zh": "那换这个。河里冲圆的玻璃，干着也亮。你就不用一直弄湿它了。", "en": "Then take this instead. Glass the river wore round. Shines even when dry. You won't have to keep wetting it.", "added": true}
+		],
+		"toucan_done": [
+			{"say": "toucan", "zh": "我的好东西都在你那儿啦。路过就回来给我看看。", "en": "All my good stuff's with you now. Come show me when you pass by.", "added": true}
+		],
 		"noop": [
 			{"do": "wait", "sec": 0}
 		],

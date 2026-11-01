@@ -1,0 +1,429 @@
+{
+ "_comment": "结局三 · 云层上的风帆小镇。tools/cloud_town_art.py 生成，别手改。天和云是作者 art/cloud/ 的原图（照 scenes/cloud_test.tscn 的视差和漂移），小镇（远塔、塔、地面）在 art/cloud_town/。风车、帆、水车、喷泉的动画由 scripts/cloud_town.gd 挂到层上播（100ms 一帧）。从左到右：木停机台（飞船）→ 石头路（倒了的篮子）→ 湿石台广场（喷泉、水车、大风车、长椅）→ 花圃和龙头 → 晨住的塔（town_room）。",
+ "size": [
+  1760,
+  270
+ ],
+ "origin": [
+  0,
+  1620
+ ],
+ "env": "cloud",
+ "bg": [
+  "#1d1530",
+  "#4a3550"
+ ],
+ "layers": [
+  {
+   "id": "sky",
+   "img": "res://art/cloud/sky.png",
+   "scroll": 0.0,
+   "y": 0
+  },
+  {
+   "id": "high",
+   "img": "res://art/cloud/high.png",
+   "scroll": 0.02,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "streaks",
+   "img": "res://art/cloud/streaks.png",
+   "scroll": 0.02,
+   "y": 0,
+   "tile": true,
+   "drift": -1.5
+  },
+  {
+   "id": "spires",
+   "img": "res://art/cloud/spires.png",
+   "scroll": 0.04,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "far",
+   "img": "res://art/cloud/far.png",
+   "scroll": 0.08,
+   "y": 0,
+   "tile": true,
+   "drift": -0.8
+  },
+  {
+   "id": "midfar",
+   "img": "res://art/cloud/midfar.png",
+   "scroll": 0.18,
+   "y": 0,
+   "tile": true,
+   "drift": -1.6
+  },
+  {
+   "id": "mid",
+   "img": "res://art/cloud/mid.png",
+   "scroll": 0.36,
+   "y": 0,
+   "tile": true,
+   "drift": -2.6
+  },
+  {
+   "id": "wash",
+   "img": "res://art/cloud/wash.png",
+   "scroll": 0.0,
+   "y": 0
+  },
+  {
+   "id": "near",
+   "img": "res://art/cloud/near.png",
+   "scroll": 0.6,
+   "y": 0,
+   "tile": true,
+   "drift": -4.0
+  },
+  {
+   "id": "main",
+   "img": "res://art/cloud/main.png",
+   "scroll": 1.0,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "front",
+   "img": "res://art/cloud/front.png",
+   "scroll": 1.4,
+   "y": 0,
+   "tile": true
+  },
+  {
+   "id": "town_far",
+   "img": "res://art/cloud_town/town_far.png",
+   "scroll": 0.72,
+   "y": 0
+  },
+  {
+   "id": "town_back",
+   "img": "res://art/cloud_town/town_back.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "town_main",
+   "img": "res://art/cloud_town/town_main.png",
+   "scroll": 1.0,
+   "y": 0
+  },
+  {
+   "id": "front",
+   "img": "res://art/cloud/front.png",
+   "scroll": 1.4,
+   "y": 0,
+   "tile": true,
+   "front": true
+  }
+ ],
+ "ground": 228,
+ "walk": [
+  16,
+  1744
+ ],
+ "markers": {
+  "town_landing": 262,
+  "town_helper": 304,
+  "town_basket": 598,
+  "town_plaza_side": 862,
+  "town_fountain": 982,
+  "town_back_side": 1052,
+  "town_crowd": 1116,
+  "town_bench": 1181,
+  "town_far_side": 1250,
+  "town_bed": 1348,
+  "town_lodging": 1508
+ },
+ "objects": {
+  "town_ship": {
+   "img": "res://art/cloud_town/ship_parked.png",
+   "x": 92,
+   "y": 163
+  },
+  "town_bed": {
+   "img": "res://art/cloud_town/town_bed.png",
+   "x": 1318,
+   "y": 203,
+   "w": 60,
+   "h": 26,
+   "frames": 2,
+   "states": {
+    "empty": 0,
+    "planted": 1
+   },
+   "default": "empty"
+  },
+  "town_toolbag": {
+   "img": "res://art/cloud_town/empty.png",
+   "x": 0,
+   "y": 0,
+   "w": 1,
+   "h": 1,
+   "states": {
+    "on_seat": 0
+   },
+   "_note": "纯剧情状态（工具包放在驾驶座上），画面上没有东西"
+  }
+ },
+ "ambient": [],
+ "scripts": [
+  {
+   "script": "res://scripts/cloud_town.gd",
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "params": {
+    "anims": [
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_0.png",
+      "x": 166,
+      "y": 156,
+      "w": 16,
+      "frames": 8,
+      "off": 3
+     },
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_1.png",
+      "x": 238,
+      "y": 153,
+      "w": 16,
+      "frames": 8,
+      "off": 3
+     },
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_2.png",
+      "x": 380,
+      "y": 163,
+      "w": 16,
+      "frames": 8,
+      "off": 5
+     },
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_3.png",
+      "x": 571,
+      "y": 147,
+      "w": 16,
+      "frames": 8,
+      "off": 3
+     },
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_4.png",
+      "x": 996,
+      "y": 166,
+      "w": 16,
+      "frames": 8,
+      "off": 3
+     },
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_5.png",
+      "x": 1120,
+      "y": 167,
+      "w": 16,
+      "frames": 8,
+      "off": 2
+     },
+     {
+      "layer": "town_far",
+      "img": "res://art/cloud_town/anim/far_rotor_6.png",
+      "x": 1206,
+      "y": 138,
+      "w": 16,
+      "frames": 8,
+      "off": 2
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rotor_0.png",
+      "x": 8,
+      "y": 127,
+      "w": 25,
+      "frames": 8,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/jib_1.png",
+      "x": 59,
+      "y": 34,
+      "w": 20,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rotor_4.png",
+      "x": 369,
+      "y": 132,
+      "w": 23,
+      "frames": 8,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/jib_6.png",
+      "x": 467,
+      "y": 21,
+      "w": 21,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rotor_7.png",
+      "x": 507,
+      "y": 142,
+      "w": 27,
+      "frames": 8,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/jib_10.png",
+      "x": 735,
+      "y": 46,
+      "w": 20,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rotor_13.png",
+      "x": 1193,
+      "y": 144,
+      "w": 27,
+      "frames": 8,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/jib_14.png",
+      "x": 1251,
+      "y": 29,
+      "w": 21,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/jib_16.png",
+      "x": 1409,
+      "y": 53,
+      "w": 19,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rotor_17.png",
+      "x": 1656,
+      "y": 121,
+      "w": 25,
+      "frames": 8,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/jib_18.png",
+      "x": 1705,
+      "y": 26,
+      "w": 20,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/mill_rotor.png",
+      "x": 1042,
+      "y": 72,
+      "w": 85,
+      "frames": 16,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rope_0_1.png",
+      "x": 17,
+      "y": 74,
+      "w": 51,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rope_5_6.png",
+      "x": 411,
+      "y": 64,
+      "w": 65,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rope_10_11.png",
+      "x": 733,
+      "y": 68,
+      "w": 64,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rope_12_14.png",
+      "x": 1159,
+      "y": 74,
+      "w": 100,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_back",
+      "img": "res://art/cloud_town/anim/rope_17_18.png",
+      "x": 1665,
+      "y": 68,
+      "w": 49,
+      "frames": 20,
+      "off": 0
+     },
+     {
+      "layer": "town_main",
+      "img": "res://art/cloud_town/anim/windsock.png",
+      "x": 339,
+      "y": 128,
+      "w": 33,
+      "frames": 12,
+      "off": 0
+     },
+     {
+      "layer": "town_main",
+      "img": "res://art/cloud_town/anim/fountain_water.png",
+      "x": 942,
+      "y": 170,
+      "w": 81,
+      "frames": 8,
+      "off": 0
+     },
+     {
+      "layer": "town_main",
+      "img": "res://art/cloud_town/anim/waterwheel.png",
+      "x": 872,
+      "y": 176,
+      "w": 48,
+      "frames": 12,
+      "off": 0
+     }
+    ]
+   }
+  }
+ ]
+}

@@ -429,7 +429,9 @@
 		"east_meadow": "东边缓坡（结局二）",
 		"town": "小镇广场（结局三）",
 		"town_room": "小镇住处",
-		"home_train": "回家的列车"
+		"home_train": "回家的列车",
+		"city": "母星城市（尾声）",
+		"reed_field": "芦苇地（结局一 / 二）"
 	},
 	"states": {
 		"HEADPHONES": "戴耳机提示",

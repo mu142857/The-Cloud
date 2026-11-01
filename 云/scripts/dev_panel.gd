@@ -9,6 +9,8 @@ extends CanvasLayer
 ##             挂在门口所在房间下面半行，细线连着门口。方块至少放得下名字，挤了往右推，太宽缩比例，再不行折行。
 ##           晨在的房间亮黄，方块上小点 = 晨的大概位置。点方块：本章、剧情没在播 = 晨到那个房间里离点的位置最近的 marker
 ##           （剧情接着跑）；剧情在播 / 别的章 = 重新载入，进那一章的自由探索，站在那个房间（_free_room）。
+##           每章只画这一章第一次出现的房间：前面章节已经有的（终章尾声回到的森林路口、树屋、妮芙家，河流篇最后的驾驶舱）
+##           不画进地图，放在地图下面一排「回访：」小按钮，点了一样进这一章里的那个房间；这一章的起点房间（终章的驾驶舱）照常画。
 ##           下面：「从头玩」这一章（= 以前节拍页的章节开头，能跨章）；河流篇还有「按烧了蓝色石头 / 通勤卡进」。
 ##           以后游戏里要加传送石碑（所有场景互相传送），见 docs/forest_chapter.md「开发者模式（F8）」
 ##   2 状态  正在播的 scene 和第几步、晨的 x、在哪、背包；所有 flag 列成按钮，亮的是已设。
@@ -82,7 +84,7 @@ var _map_box: Control            # 方块放在这里（自己画门口的连线
 var _map_top: Control            # 盖在方块上面：画晨的位置
 var _map_foot: VBoxContainer     # 地图下面的说明和按钮
 var _map_blocks: Array = []      # [{b, room, x, y, w, inside, host, door}]
-var _map_cache := {}             # 章 → {rooms, g}（_map_geo）
+var _map_cache := {}             # 章 → {rooms, g, revisit}（_map_geo）
 var _map_click := Vector2.ZERO   # 最后一次点在哪（_input 记的：点方块的哪儿，就去离那儿最近的点）
 var _free_dyn: VBoxContainer     # 探索页下面那一行小按钮（在探索里才有）
 var _free_sig := "-"
@@ -354,6 +356,33 @@ func _map_show(ch: String) -> void:
 	_map_box.queue_redraw()
 	_map_top.queue_redraw()
 	_map_foot_build(ch)
+	var rv: Array = _map_geo(ch)["revisit"]
+	if rv.is_empty():
+		return
+	# 回访的旧房间：不在地图上，地图下面一排小按钮，点了一样（进的是这一章里的那个房间）
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", MAP_GAP)
+	row.add_theme_constant_override("v_separation", MAP_GAP)
+	row.custom_minimum_size = Vector2(MAP_W - 16.0, 0)
+	var t := Label.new()
+	t.text = "回访："
+	t.add_theme_font_size_override("font_size", MAP_FS)
+	t.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	row.add_child(t)
+	for room in rv:
+		var b := _btn(_map_label(room), _map_go.bind(ch, str(room)), "%s  %s（前面的章节已经有，这一章回来）" % [_nm("rooms", room), room])
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
+		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.add_theme_font_size_override("font_size", MAP_FS)
+		var bg := Color(0.13, 0.13, 0.11, 0.92)
+		var edge := Color(0.45, 0.45, 0.38)
+		b.add_theme_stylebox_override("normal", UITheme.box(bg, edge, 1, Vector4(4, 0, 4, 0)))
+		b.add_theme_stylebox_override("hover", UITheme.box(bg.lightened(0.2), edge.lightened(0.3), 1, Vector4(4, 0, 4, 0)))
+		b.custom_minimum_size = Vector2(0, MAP_BOX_H)
+		row.add_child(b)
+		_map_blocks.append({"b": b, "room": str(room), "revisit": true, "inside": false})
+	_map_foot.add_child(row)
+	_map_foot.move_child(row, 0)
 
 
 ## 地图下面：怎么用；从头玩这一章；河流篇按哪个 SEED 进
@@ -400,8 +429,10 @@ func _mk_x(v) -> float:
 ##        / in：室内，挂在 host 下面，door = 门口在 host 里的 x。小屋（room.json kind: house）= 它的 host / x；
 ##              别的没坐标的 = 剧本里 host 的哪个 hotspot fade_to 到它，door = 那个 hotspot 的 marker。
 ##              两个都没坐标的互相通（小镇 ↔ 小镇住处）：剧本 rooms 里写在前面的算外面，不绕成圈
-##        / loose：哪都挂不上，排在第一行最后
+##              还挂不上的 = 剧本 rooms 里它前面最近的有位置的房间（near：左边对齐，不画连线，比如终章的小镇在芦苇地下面）
+##        / loose：哪都挂不上（前面没有有位置的房间，比如驾驶舱），排在第一行最后
 ## 剧本没写 rooms（森林）= 章节的 room（没写 = forest）加上 hotspot 用到的房间。
+## 前面章节已经有的房间（终章尾声回到的森林、树屋、妮芙家……）不进 rooms / g，放 revisit：地图下面一排「回访」按钮。
 ## Python 预览（tools/dev_map_preview.py）是同一套，改了这里那边也改
 func _map_geo(ch: String) -> Dictionary:
 	if _map_cache.has(ch):
@@ -410,14 +441,20 @@ func _map_geo(ch: String) -> Dictionary:
 	var d = JSON.parse_string(FileAccess.get_file_as_string(str(info.get("story", ""))))
 	if not d is Dictionary:
 		d = {}
+	# 前面的章节（CHAPTERS 里排在前面的）已经有的房间 = 回访，不画进这一章的地图；这一章的起点房间（终章的驾驶舱）除外
+	var seen := {}
+	for c in level.CHAPTER_GD.CHAPTERS:
+		if str(c) == ch:
+			break
+		for r in _map_rooms(str(c), _map_story(str(c))):
+			seen[r] = true
 	var rooms: Array = []
-	for r in d.get("rooms", []):
-		rooms.append(str(r))
-	if rooms.is_empty():
-		rooms.append(str(info.get("room", "forest")))
-		for h in d.get("hotspots", []):
-			if h is Dictionary and not rooms.has(str(h.get("room", "forest"))):
-				rooms.append(str(h.get("room", "forest")))
+	var revisit: Array = []
+	for r in _map_rooms(ch, d):
+		if seen.has(r) and r != str(info.get("room", "forest")):
+			revisit.append(r)
+		else:
+			rooms.append(r)
 	var smk: Dictionary = d["markers"] if d.get("markers") is Dictionary else {}
 	var fmk: Dictionary = story.world.DEFAULT_MARKERS
 	var g := {}
@@ -447,11 +484,35 @@ func _map_geo(ch: String) -> Dictionary:
 					and (g[src]["kind"] != "pend" or rooms.find(src) < rooms.find(dst)) and not _map_under(g, src, dst):
 				g[dst] = {"kind": "in", "host": src, "door": _map_door(src, h.get("at"), smk, fmk, g), "w": g[dst]["w"]}
 			break
-	for r in g:
-		if g[r]["kind"] == "pend":
-			g[r]["kind"] = "loose"
-	_map_cache[ch] = {"rooms": rooms, "g": g}
+	# 还没位置的：挂在剧本 rooms 里它前面最近的、有位置的房间下面（终章的小镇 = 芦苇地那颗星上），不画连线；前面没有 = loose
+	for r in rooms:
+		if g[r]["kind"] != "pend":
+			continue
+		g[r]["kind"] = "loose"
+		for i in range(rooms.find(r) - 1, -1, -1):
+			if g[rooms[i]]["kind"] in ["out", "in"]:
+				g[r] = {"kind": "in", "host": str(rooms[i]), "door": 0.0, "near": true, "w": g[r]["w"]}
+				break
+	_map_cache[ch] = {"rooms": rooms, "g": g, "revisit": revisit}
 	return _map_cache[ch]
+
+
+func _map_story(ch: String) -> Dictionary:
+	var d = JSON.parse_string(FileAccess.get_file_as_string(str(level.CHAPTER_GD.CHAPTERS.get(ch, {}).get("story", ""))))
+	return d if d is Dictionary else {}
+
+
+## 剧本里的 rooms；没写（森林）= 章节的 room（没写 = forest）加上 hotspot 用到的房间
+func _map_rooms(ch: String, d: Dictionary) -> Array:
+	var rooms: Array = []
+	for r in d.get("rooms", []):
+		rooms.append(str(r))
+	if rooms.is_empty():
+		rooms.append(str(level.CHAPTER_GD.CHAPTERS.get(ch, {}).get("room", "forest")))
+		for h in d.get("hotspots", []):
+			if h is Dictionary and not rooms.has(str(h.get("room", "forest"))):
+				rooms.append(str(h.get("room", "forest")))
+	return rooms
 
 
 ## r 是不是挂在 top 底下（顺着 host 往上找）
@@ -499,7 +560,8 @@ func _map_layout(ch: String) -> Dictionary:
 			if q["kind"] != "in":
 				lv[r] = float(q.get("y", 0.0)) / 270.0
 			elif lv.has(q["host"]):
-				lv[r] = float(lv[q["host"]]) + 0.5
+				var hl := float(lv[q["host"]])
+				lv[r] = hl + (floorf(hl) + 1.0 - hl) / 2.0     # 下面半行；屋里的屋里 = 再下面四分之一行（不撞到下一行室外）
 	var lo := INF
 	var hi := -INF
 	for r in rooms:
@@ -536,6 +598,9 @@ func _map_layout(ch: String) -> Dictionary:
 					var hw := maxf(float(g[q["host"]]["w"]), 1.0)
 					door = float(hb[0]) + float(hb[1]) * clampf(float(q["door"]) / hw, 0.0, 1.0)
 					bx = door - bw / 2.0
+					if q.get("near", false):
+						bx = float(hb[0])                  # 不是门：左边对齐，不画连线
+						door = NAN
 				row.append([bx, bw, r, door])
 			row.sort_custom(func(a, b): return a[0] < b[0] or (a[0] == b[0] and rooms.find(a[2]) < rooms.find(b[2])))
 			var end := -MAP_GAP
@@ -599,7 +664,7 @@ func _draw_map_chen() -> void:
 		return
 	var room := str(story.world.room)
 	for d in _map_blocks:
-		if d["room"] != room:
+		if d["room"] != room or d.has("revisit"):
 			continue
 		var x := float(d["x"]) + 2.0 + _chen_frac(room) * (float(d["w"]) - 5.0)
 		_map_top.draw_rect(Rect2(roundf(x), float(d["y"]) + MAP_BOX_H - 5.0, 3, 3), UITheme.ACCENT)
@@ -660,7 +725,7 @@ func _map_go(ch: String, room: String) -> void:
 	if ch == level.chapter and not story.busy:
 		var frac := 0.5
 		for d in _map_blocks:
-			if d["room"] == room:
+			if d["room"] == room and not d.has("revisit"):     # 回访的小按钮 = 房间中间
 				var b: Button = d["b"]
 				frac = clampf((_map_click.x - b.global_position.x) / maxf(b.size.x, 1.0), 0.0, 1.0)
 		var m := _map_marker(room, frac)
@@ -946,9 +1011,9 @@ func _test_map() -> void:
 		var got := {}
 		for d in _map_blocks:
 			got[d["room"]] = true
-			if float(d["x"]) + float(d["w"]) > MAP_W - 16.0 + 0.5:
+			if not d.has("revisit") and float(d["x"]) + float(d["w"]) > MAP_W - 16.0 + 0.5:
 				bad.append("%s:%s 出界" % [ch, d["room"]])
-		for r in _map_geo(str(ch))["rooms"]:
+		for r in _map_geo(str(ch))["rooms"] + _map_geo(str(ch))["revisit"]:
 			if not got.has(r):
 				bad.append("%s:%s 没有" % [ch, r])
 	_map_show(str(level.chapter))

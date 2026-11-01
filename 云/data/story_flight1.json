@@ -854,6 +854,11 @@
 				"added": true
 			},
 			{
+				"do": "if",
+				"flag": "barter_toucan_rain",
+				"then": "flight1_fuel_choice_glass"
+			},
+			{
 				"do": "keepsake_choice",
 				"id": "flight1_choice",
 				"items": [
@@ -1223,6 +1228,11 @@
 			}
 		],
 		"flight1_log_stone": [
+			{
+				"do": "if",
+				"flag": "burned_rain_glass",
+				"then": "flight1_log_glass"
+			},
 			{
 				"do": "journal",
 				"zh": "烧掉了蓝色石头。换成了燃料。",
@@ -1675,6 +1685,209 @@
 			{
 				"do": "goto",
 				"scene": "flight1_drawing"
+			}
+		],
+		"flight1_fuel_choice_glass": [
+			{
+				"do": "keepsake_choice",
+				"id": "flight1_choice",
+				"items": [
+					"rain_glass",
+					"commute_card"
+				],
+				"route": true,
+				"scenes": {
+					"rain_glass": "burn_rain_glass",
+					"commute_card": "burn_commute_card"
+				},
+				"look": {
+					"rain_glass": [
+						{
+							"say": "chen",
+							"zh": "河里冲圆的。干着也亮。",
+							"en": "The river wore it round. It shines even dry.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "大嘴鸟说，这样就不用一直弄湿它了。",
+							"en": "The toucan said I wouldn't have to keep it wet anymore.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "……石头留在森林里了。",
+							"en": "...The stone stayed in the forest.",
+							"added": true
+						}
+					],
+					"commute_card": [
+						{
+							"say": "chen",
+							"zh": "几百次，都是同一个站。",
+							"en": "Hundreds of times. Always the same station.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "为了等下午的太阳，坐过了站。",
+							"en": "Missed my stop once, waiting for the afternoon sun.",
+							"added": true
+						},
+						{
+							"say": "chen",
+							"zh": "最后一天没有刷。",
+							"en": "Didn't tap it on the last day.",
+							"added": true
+						}
+					]
+				},
+				"put_back": [
+					{
+						"say": "chen",
+						"zh": "……再看看。",
+						"en": "...Let me think.",
+						"added": true
+					}
+				],
+				"route_look": [
+					{
+						"say": "chen",
+						"zh": "就差这一截。",
+						"en": "Just this last stretch.",
+						"added": true
+					}
+				]
+			}
+		],
+		"burn_rain_glass": [
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "show_item",
+				"item": "rain_glass"
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "hold_item"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "glow"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "turn_item"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_console",
+				"state": "dim"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "wait",
+				"sec": 2.0
+			},
+			{
+				"do": "take",
+				"item": "rain_glass"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_console",
+				"state": "dim"
+			},
+			{
+				"do": "sfx",
+				"name": "drop_in"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_converter",
+				"state": "closed"
+			},
+			{
+				"do": "sfx",
+				"name": "converter_burn"
+			},
+			{
+				"do": "fuel",
+				"burn": "rain_glass"
+			},
+			{
+				"narr": {
+					"zh": "航程增加",
+					"en": "Range extended"
+				},
+				"added": true
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_nav"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"say": "chen",
+				"zh": "……干着也亮。",
+				"en": "...Shines even dry.",
+				"added": true,
+				"_todo": "待剧情姐补：烧雨玻璃的那一句（蓝色石头那一版是「原来你还真能发光。」）"
+			},
+			{
+				"do": "flag",
+				"set": "burned_rain_glass"
+			},
+			{
+				"do": "flag",
+				"set": "burned_blue_stone"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_burned"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_after_burn"
+			}
+		],
+		"flight1_log_glass": [
+			{
+				"do": "journal",
+				"zh": "烧掉了雨玻璃。换成了燃料。",
+				"en": "Burned the Rain Glass. It became fuel.",
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_log_done"
 			}
 		]
 	}

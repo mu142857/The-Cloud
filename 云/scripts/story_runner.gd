@@ -84,10 +84,12 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"fade_to", "anim", "prop", "guide", "goto", "pick", "end_chapter", "if", "ambient", "show_item",
 	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match", "fuel", "camera",
 	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup",   # 后六个：多房间章节（docs/river_rooms_contract.md）
-	"pose"]   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
+	"pose",   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
+	"barter"]   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
+const COCKPIT_NAV := "res://scripts/cockpit_nav.gd"   # pick 带 "ui": "nav" / "action"：驾驶舱里的行动选择 + 二次确认（终章）
 const HOOKS := {
 	"crash": ["crash_wake", "wake", "crash", "intro", "opening"],
 	"wood": ["wood_found", "wood", "wood_pickup", "pickup_wood", "glowing_wood"],
@@ -95,7 +97,8 @@ const HOOKS := {
 }
 const ENGINE_FLAGS := ["crashed", "got_wood", "fuel_full"]
 const NAME_COLORS := {"chen": Color("#c48fb4"), "deer": Color("#c9a882"), "miluo": Color("#d6c486"), "voice": Color("#8fa69a"),
-	"niff": Color("#8ec9d6"), "ting": Color("#b8a58c"), "keeper": Color("#a89c8a"), "tape": Color("#8fa0a8")}
+	"niff": Color("#8ec9d6"), "ting": Color("#b8a58c"), "keeper": Color("#a89c8a"), "tape": Color("#8fa0a8"),
+	"toucan": Color("#e8b04a"), "rat_chef": Color("#d6a882")}   # 以物易物的大嘴鸟（嘴的橙黄）、料理鼠妈（毛色）
 const NPC_GD := preload("res://scripts/npc_generic.gd")         # 通用角色（妮芙、阿汀、摊主…；art/characters/<id>/<id>.json）
 const CLOSEUP_GD := preload("res://scripts/closeup_ui.gd")      # 特写面板
 const MECH_PREFIX := "mech."                                    # 小游戏进度存在 StoryState.props["mech.<id>"]
@@ -118,6 +121,7 @@ const DIALOGUE_GD := preload("res://scripts/story_dialogue.gd")
 const PHONE_GD := preload("res://scripts/phone_ui.gd")
 const BARK_GD := preload("res://scripts/story_bark.gd")      # say 带 bark：晨头顶的小气泡（不锁人）
 const QUICK_GD := preload("res://scripts/story_quick.gd")    # give 数组、走过去就捡（hotspot pickup）
+const BARTER_GD := preload("res://scripts/barter.gd")         # 以物易物（大嘴鸟、料理鼠妈…）
 
 var level: Node2D
 var path := ""
@@ -131,6 +135,7 @@ var dlg: Control
 var phone: Control                   # 通讯器界面（phone_ui.gd）
 var bark: Control                    # 头顶小气泡（story_bark.gd）
 var quick: RefCounted                # story_quick.gd
+var barter: RefCounted               # barter.gd
 var cockpit_ui: Control              # 正在等玩家的驾驶舱步骤（避碎石 / 选纪念品；软锁检测用）
 var missing_anims := {}              # 剧本要、晨还没有的动作（MISSING_ANIM，给奥斯卡画）
 const CHEN_ALIAS := "res://data/chen_anim_alias.json"
@@ -262,6 +267,7 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	ui_root.add_child(bark)
 	ui_root.move_child(bark, dlg.get_index())
 	quick = QUICK_GD.new(self)
+	barter = BARTER_GD.new(self)
 	closeup_ui = CLOSEUP_GD.new()
 	closeup_ui.name = "Closeup"
 	closeup_ui.story = self
@@ -272,6 +278,10 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	_place(miluo, world.mx("room_miluo"), "treehouse")
 	miluo.visible = true
 	_npc_room[deer.name] = "forest"
+	var tm := Inventory.item("travel_map")
+	if not tm.is_empty() and not tm.has("desc_from_tag"):
+		tm["desc_from_tag"] = "on_travel_map"     # 日记烧掉以后写在航图背面的（_journal_holder）；航图是第一章的物品（items.json）
+	_place_residents(world.room)            # 剧本顶层 residents（森林空地尽头的大嘴鸟）
 
 
 ## 管道那个点选里「对的」那段（细白汽冒在它上面）
@@ -637,7 +647,8 @@ func _step(st: Dictionary) -> String:
 			if not ff:
 				if not st.has("sfx"):
 					_sfx({"name": "pen_strike", "db": -4.0})
-				dlg.toast(Inventory.icon("journal"), I18n.t("journal_struck"))
+				var jh := _journal_holder()
+				dlg.toast(Inventory.icon(jh), I18n.t("journal_struck" if jh == "journal" else "paper_struck"))
 		"count":
 			var c := 0
 			for f in st.get("flags", []):
@@ -654,6 +665,9 @@ func _step(st: Dictionary) -> String:
 		"debris_steer", "keepsake_choice", "cockpit_dash":
 			var cs2: String = await _cockpit_step(d, st)     # 驾驶舱的两个小玩法（cockpit_debris.gd / cockpit_keepsake.gd）
 			return cs2
+		"barter":
+			var bs: String = await barter.run(st)
+			return bs
 		_:
 			_warn_once("不认识的步骤：" + JSON.stringify(st))
 	return ""
@@ -1265,9 +1279,16 @@ func _journal(st: Dictionary) -> void:
 	var e := {"zh": str(st.get("zh", "")), "en": str(st.get("en", ""))}
 	if st.has("tag"):
 		e["tag"] = str(st["tag"])
+	var holder := _journal_holder()
+	if holder != "journal":
+		e["tag"] = "on_" + holder
 	StoryState.add_journal(e)
 	if not ff and not st.has("sfx"):
 		_sfx({"name": "pen_write", "db": -6.0})
+	if holder != "journal":
+		if not ff:
+			dlg.toast(Inventory.icon(holder), I18n.t("paper_added") % txt(Inventory.item(holder).get("name", holder)))
+		return
 	if not Inventory.has("journal"):
 		if not Inventory.defined("journal"):
 			Inventory.register_fallback({"id": "journal", "name": {"zh": "日记", "en": "Journal"}, "rarity": "common",
@@ -1276,6 +1297,19 @@ func _journal(st: Dictionary) -> void:
 		level.on_inventory_changed()
 	if not ff:
 		dlg.toast(Inventory.icon("journal"), I18n.t("journal_added"))
+
+
+## 日记首页规则（终章，docs/第三章计划.md 第十节）：日记烧掉以后（burned_journal、背包里没有日记）不再凭空把日记变回来，
+## 记的东西写在借来的纸上（结局里 give borrowed_paper），没有纸就写在航图背面（结局四「写在航图背面吧」）。
+## 这些条目带 tag on_<那件>，背包里那件的描述后面接着列出来（desc_from_tag）。日记首页（journal_first_page）永远不写：
+## 「我一定要找到大象，因为」后面一直空着，只能看。
+func _journal_holder() -> String:
+	if Inventory.has("journal") or not StoryState.has("burned_journal"):
+		return "journal"
+	for id in ["borrowed_paper", "travel_map"]:
+		if Inventory.has(id):
+			return id
+	return "journal"
 
 
 func _sfx(st: Dictionary) -> void:
@@ -1537,13 +1571,16 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 
 
 ## room.json 的 "residents"：住在这个房间里、一直待在那儿的人（10-31 楼梯间柜台后面的水母）。
+## 剧本顶层也可以写 "residents"（多一个 "room"，默认 forest）：给不是 room_stage 的地方用（森林空地尽头的大嘴鸟）；setup 末尾放一次。
 ## [{"who": 角色, "at": marker, "z": 前后（−2 = 压到物件后面）, "face": 1 / −1}]。进这个房间时她还不在这儿，就放好、显示出来——
 ## 不用剧本 show，所以跳节拍、F8 传送、自由探索进来都一样在；之后人留在这个房间，晨不在时照常藏着（sync_npc_vis）。
 func _place_residents(room: String) -> void:
 	var sg: Node2D = world.stage(room)
-	if sg == null:
-		return
-	for rd in sg.cfg.get("residents", []):
+	var list: Array = sg.cfg.get("residents", []).duplicate() if sg != null else []
+	for rd2 in data.get("residents", []):
+		if rd2 is Dictionary and str(rd2.get("room", "forest")) == room:
+			list.append(rd2)
+	for rd in list:
 		if not rd is Dictionary or str(rd.get("who", "")) == "":
 			continue
 		var who := str(rd["who"])
@@ -1588,6 +1625,18 @@ func _pick(st: Dictionary) -> String:
 	var opts: Array = st.get("options", [])
 	if opts.is_empty():
 		return ""
+	if str(st.get("ui", "")) in ["nav", "action"] and world.cockpit != null and world.room == "cockpit":
+		var ai := _auto_pick(st) if auto != "" or ff else -1
+		if ff:
+			return str(opts[clampi(ai, 0, opts.size() - 1)].get("scene", ""))
+		var nv: Control = (load(COCKPIT_NAV) as GDScript).new()
+		nv.name = "cockpit_nav"
+		dlg.add_child(nv)
+		cockpit_ui = nv
+		var ni: int = await nv.play(self, st, ai)
+		cockpit_ui = null
+		nv.queue_free()
+		return str(opts[clampi(ni, 0, opts.size() - 1)].get("scene", ""))
 	var ui: Array = []
 	for o in opts:
 		var pid := str(o.get("id", ""))
@@ -1679,7 +1728,12 @@ func _end_chapter() -> void:
 		if auto != "":
 			print_stats("STORY_DONE")
 		return
-	dlg.end_card(I18n.t("to_be_continued"), I18n.t("to_be_continued_sub"), level.get_node("Top"))
+	# 最后一章（chapter_flow 的 last_card）：「全剧终」，3 秒以后按任意键回标题（level_forest 的结束卡输入）；别的：「未完待续」
+	var last: bool = (load("res://scripts/chapter_flow.gd") as GDScript).info(str(level.chapter)).get("last_card", false)
+	dlg.end_card(I18n.t("the_end" if last else "to_be_continued"), I18n.t("the_end_sub" if last else "to_be_continued_sub"),
+		level.get_node("Top"), I18n.t("end_any_key") if last else "")
+	if last:
+		barter.show_achievements(level.get_node("Top"))     # 成就：只列拿到的（以物易物，data/achievements.json）
 	if auto != "":
 		await _wait(2.5)
 		if shots_dir != "":
@@ -2489,6 +2543,8 @@ func validate() -> Array[String]:
 			if st is Dictionary and str(st.get("do", "")) == "mechanic":
 				for f5 in st.get("sets", []):
 					set_flags[str(f5)] = true
+	for f6 in barter.flags():
+		set_flags[str(f6)] = true
 	for k in HOOKS:
 		var h := hook(k)
 		if h == "":
@@ -2688,6 +2744,8 @@ func validate() -> Array[String]:
 						out.append("scene %s：goto 的 scene %s 不存在" % [id, s])
 				"mechanic", "todo_mechanic", "form", "follow", "water", "closeup":
 					out.append_array(_validate_room_step(str(id), kind, st, refs))
+				"barter":
+					out.append_array(barter.validate(str(id), st, refs))
 				"pick":
 					for o in st.get("options", []):
 						var s := str(o.get("scene", ""))
@@ -3144,11 +3202,14 @@ func _keeps_clear(n: Node2D) -> bool:
 	return c is Dictionary and bool((c as Dictionary).get("keep_clear", false))
 
 
-## 算不算一个占地方的人：晨、通用角色（背景小人不算）
+## 算不算一个占地方的人：晨、通用角色（背景小人不算；json 写了 "pass": true 的也不算——摊子后面的料理鼠妈，晨从摊前走过去）
 func _is_body(n: Node2D) -> bool:
 	if n == chen:
 		return true
-	return n != null and npcs.values().has(n) and bool(n.get("shadow"))
+	if n == null or not npcs.values().has(n) or not bool(n.get("shadow")):
+		return false
+	var c = n.get("cur")
+	return not (c is Dictionary and bool((c as Dictionary).get("pass", false)))
 
 
 ## 锚点到身子最远一边多远

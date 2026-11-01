@@ -1,0 +1,16 @@
+{
+	"_note": "终章母星尾声把作者的城市当房间用（docs/第三章计划.md 第十一节）。这个文件是接房间系统的数据，城市的图、scenes/city_test.tscn、city_test.gd 都没改：画面全靠 scripts/city_room.gd 把 city_test.tscn 的图层搬进来。origin 的 x 必须是 0（远景层的横向视差按世界 x 算），y 放在芦苇地（1080）下面，F8 地图上不叠；cam_y / ground 和 city_test 一样，别改。layers 里那张 sky 只是让 room_stage 不画占位楼。晨从右头进城，往左走到车站：逆着她那一排人流（CrowdMid 往右）。",
+	"size": [1440, 270],
+	"origin": [0, 1350],
+	"env": "city",
+	"cam_y": 175,
+	"ground": 228,
+	"walk": [40, 1400],
+	"bg": ["#1d2024", "#30343a"],
+	"layers": [{"id": "sky", "img": "sky.png", "scroll": 0.0, "y": 40}],
+	"markers": {"city_station": 80, "city_arrive": 1290, "city_start": 1370},
+	"objects": {},
+	"portals": [],
+	"ambient": [{"name": "rain_loop", "db": -14}],
+	"scripts": [{"script": "res://scripts/city_room.gd", "x": 0, "y": 0, "z": 0}]
+}

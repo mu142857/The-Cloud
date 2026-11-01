@@ -28,21 +28,34 @@ extends Node2D
 ## 晨身后压暗（「亮主角暗背景」：整张图很亮，晨周围压一点）
 ## - 以晨的身体中间为圆心，几圈很淡的正片叠底（SHADE_RINGS，最里面 ×0.955），z −2：只压晨身后的东西，不压晨、不压脚踝那层。
 ##   一圈圈是整像素的横条拼的（硬边）。觉得看得出圈就把 SHADE_RINGS 调淡或者 SHADE_ON = false。
+##
+## 一片生机（第五版：湿地草地）
+## - 蒲公英的绒毛（seeds：[[层 x, 层 y, scroll, 半径], …]，每株巨大蒲公英一个）：隔 SEED_EVERY 秒从球的右上边上被风吹走一颗，
+##   往右上慢慢飘（匀速 + 两道很慢的正弦，平滑），飘 SEED_LIFE 秒或者出了画面就没了。小降落伞两帧（100ms 一帧，[0,0,1,1] 一轮），
+##   跟着那株蒲公英的视差走。镜头附近的蒲公英才吹。
+## - 草上的小飞虫 / 光点（motes：锚点）：每个绕着自己的锚点慢慢飘（几道慢正弦叠起来），亮暗慢慢换（两档颜色），一像素。只画镜头里的。
+## - 水面涟漪（ripples：水里的点）：隔 RIPPLE_EVERY 秒在镜头里的某个点泛一圈扁椭圆（一像素的连续细线、四邻接），慢慢变大、变淡、没了；
+##   晨在水里走的时候，脚下也隔 RIPPLE_STEP 秒泛一圈。
 
 const ANG_RANGE := 80
 ## 每排：视差、晨推的半径（像素）、最多弯几度、风的大小（倍）、z（绝对；晨是 0，main 层大约 −92）
+## 第六版：草丛为主（g0 小洲上、g1 路后面、g2 路前面、gf 前景 scroll 1.3），芦苇零星几簇（r0 / r1 / r2）。
+## 草丛的帧也是 31 个角度（画图脚本里 ±40° 以外按 ±40° 画，草不会倒平），一样按弹簧阻尼挑帧：被晨压下去、再软软地弹回来。
 const ROWS := {
 	"r0": {"scroll": 1.0, "radius": 12.0, "bend": 26.0, "wind": 1.25, "z": -40},
+	"g0": {"scroll": 1.0, "radius": 12.0, "bend": 18.0, "wind": 0.45, "z": -38},
 	"r1": {"scroll": 1.0, "radius": 17.0, "bend": 64.0, "wind": 1.0, "z": -30},
+	"g1": {"scroll": 1.0, "radius": 24.0, "bend": 38.0, "wind": 0.45, "z": -28},
 	"r2": {"scroll": 1.0, "radius": 16.0, "bend": 70.0, "wind": 0.7, "z": 5},
-	"f": {"scroll": 1.25, "radius": 26.0, "bend": 54.0, "wind": 0.8, "z": 110},
+	"g2": {"scroll": 1.0, "radius": 22.0, "bend": 38.0, "wind": 0.4, "z": 6},
+	"gf": {"scroll": 1.3, "radius": 34.0, "bend": 30.0, "wind": 0.35, "z": 115},
 }
 const BIRD_Z := -29                 # 在 r1 前面（歇在穗顶上的不会被穗盖住）、晨后面
 
 # ---- 倒影
 const REFL_Z := -3
 const REFL_ALPHA := 0.42
-const REFL_TINT := Color(0.77, 0.89, 0.96)  # 水色
+const REFL_TINT := Color(0.69, 0.86, 0.80)  # 水色（第五版：带一点青绿，和水一样）
 const REFL_TINT_AMT := 0.45
 const REFL_WOBBLE := 1.5            # 离脚最远的那一行最多晃几像素
 const REFL_EDGE := 14.0             # 水段两头淡进淡出多宽
@@ -51,6 +64,21 @@ const REFL_EDGE := 14.0             # 水段两头淡进淡出多宽
 const SHADE_ON := true
 const SHADE_Z := -2
 const SHADE_DY := -24               # 圆心在脚底往上多少（身体中间）
+# ---- 绒毛、飞虫、涟漪
+const LIFE_Z := -24                 # 飞虫：晨后面、芦苇根的草团前面
+const SEED_Z := -50                 # 绒毛：远处的天上
+const RIPPLE_Z := -4                # 涟漪：水面上、倒影前面、晨后面
+const SEED_EVERY := Vector2(2.5, 6.0)
+const SEED_LIFE := Vector2(12.0, 18.0)
+const SEED_V := Vector2(10.0, 3.2)  # 往右、往上飘多快（像素 / 秒，那株蒲公英那一层的坐标）
+const SEED_C := Color("#fffef6")
+const SEED_STEM_C := Color("#fde67a")
+const MOTE_C := [Color("#fffbe6"), Color("#fde88f")]
+const RIPPLE_EVERY := Vector2(1.2, 3.0)
+const RIPPLE_LIFE := 1.6
+const RIPPLE_R := 9.0               # 最大半宽（像素）
+const RIPPLE_STEP := 0.5            # 晨在水里走：脚下隔几秒一圈
+const RIPPLE_C := [Color("#fffef6"), Color("#d6eee2")]
 const SHADE_RINGS := [[Vector2(44, 54), 0.99], [Vector2(35, 45), 0.98], [Vector2(27, 36), 0.97], [Vector2(20, 28), 0.962],
 	[Vector2(13, 21), 0.955]]       # [半径, 这一圈以内一共乘多少]（从外到里）
 
@@ -86,6 +114,9 @@ var data := "res://art/reed_field/reeds.json"
 var birds := "res://art/reed_field/birds.json"
 var spots: Array = []               # [[x, 几只], …]（room.json 的 params）
 var water: Array = []               # [[x0, x1], …] 路泡在水里的段（room.json 的 params）
+var seeds: Array = []               # [[层 x, 层 y, scroll, 半径], …] 巨大蒲公英的球（room.json 的 params）
+var ripples: Array = []             # [[x, y], …] 水面会泛涟漪的点（房间坐标）
+var motes: Array = []               # [[x, y], …] 小飞虫的锚点（房间坐标）
 
 var _tex: Texture2D
 var _btex: Texture2D
@@ -110,6 +141,16 @@ var _refl: Sprite2D
 var _refl_mat: ShaderMaterial
 var _shade: Node2D
 var _chen_node: Node2D
+var _seed_state: Array = []         # 每株：下一颗什么时候吹
+var _seed_list: Array = []          # 飘着的：{e, x0, y0, t, life, ph}
+var _mote_ph: Array = []
+var _rip_list: Array = []           # {x, y, t}
+var _rip_wait := 1.0
+var _step_rip := 0.0
+var _ring_cache := {}
+var _life_node: Node2D
+var _seed_node: Node2D
+var _rip_node: Node2D
 
 const REFL_SHADER := """
 shader_type canvas_item;
@@ -189,6 +230,14 @@ func _ready() -> void:
 	(_shade as Painter).fn = _paint_shade
 	_shade.visible = false
 	add_child(_shade)
+	_life_node = _make_painter("Motes", LIFE_Z, _paint_motes)
+	_seed_node = _make_painter("Seeds", SEED_Z, _paint_seeds)
+	_rip_node = _make_painter("Ripples", RIPPLE_Z, _paint_ripples)
+	for _e in seeds:
+		_seed_state.append(_rng.randf_range(0.5, SEED_EVERY.y))
+	for m in motes:
+		_mote_ph.append([_rng.randf() * TAU, _rng.randf() * TAU, _rng.randf() * TAU, _rng.randf() * TAU,
+			_rng.randf_range(0.25, 0.5), _rng.randf_range(0.5, 0.9), _rng.randf_range(0.3, 0.6), _rng.randf_range(0.6, 1.4)])
 	for sp in spots:
 		if sp is Array and sp.size() >= 1:
 			var n := int(sp[1]) if sp.size() > 1 else 5
@@ -239,7 +288,7 @@ func _load() -> bool:
 			xs.append(float(e[0]))
 			ys.append(float(e[1]))
 			ph.append(float(e[3]))
-			rest.append(float(_vars[str(e[2])]["rest"]))
+			rest.append(float(_vars[str(e[2])]["rest"]) + (float(e[4]) if e.size() > 4 else 0.0))   # 每根自己的斜度
 			vs.append(_vars[str(e[2])])
 		var th := PackedFloat32Array()
 		th.resize(xs.size())
@@ -300,6 +349,7 @@ func _process(delta: float) -> void:
 	_step_birds(dt)
 	_bird_node.queue_redraw()
 	_update_reflection(org)
+	_step_life(dt)
 	_shade.visible = SHADE_ON and _have_chen
 	if _shade.visible:
 		_shade.global_position = (_chen_node.global_position + Vector2(0, SHADE_DY)).round()
@@ -487,7 +537,7 @@ func _step_birds(dt: float) -> void:
 ## 挑这处附近 n 根穗顶（r0、r1，彼此隔开一点），每只鸟歇一根
 func _perch_targets(sp: Dictionary, n: int) -> Array:
 	var cands: Array = []
-	for r in ["r0", "r1"]:
+	for r in ["r0", "r1", "g1"]:                    # 第七版：草丛顶上也能歇
 		var xs: PackedFloat32Array = _rows[r]["x"]
 		for i in range(xs.bsearch(float(sp["x"]) - PERCH_SPREAD), xs.size()):
 			if xs[i] > float(sp["x"]) + PERCH_SPREAD:
@@ -653,3 +703,137 @@ func _blit_bird(p: Node2D, fr: int, pos: Vector2, face: int, foot: bool) -> void
 		p.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	else:
 		p.draw_texture_rect_region(_btex, Rect2(tl, Vector2(cw, ch)), src)
+
+
+# ======================================================================= 绒毛、飞虫、涟漪
+func _make_painter(nm: String, z: int, fn: Callable) -> Node2D:
+	var p := Painter.new()
+	p.name = nm
+	p.z_as_relative = false
+	p.z_index = z
+	p.fn = fn
+	add_child(p)
+	return p
+
+
+func _step_life(dt: float) -> void:
+	# 绒毛：镜头附近的蒲公英隔一会儿吹走一颗
+	for i in seeds.size():
+		var e: Array = seeds[i]
+		var sx := float(e[0]) - _cl * float(e[2])
+		_seed_state[i] = float(_seed_state[i]) - dt
+		if float(_seed_state[i]) <= 0.0:
+			_seed_state[i] = _rng.randf_range(SEED_EVERY.x, SEED_EVERY.y)
+			if sx > -60.0 and sx < 540.0:
+				var r := float(e[3])
+				var a := _rng.randf_range(-1.2, -0.2)            # 球的右上边
+				_seed_list.append({"e": i, "x0": float(e[0]) + cos(a) * r * 0.9, "y0": float(e[1]) + sin(a) * r * 0.9, "t": 0.0,
+					"life": _rng.randf_range(SEED_LIFE.x, SEED_LIFE.y), "ph": _rng.randf() * TAU, "v": _rng.randf_range(0.7, 1.3)})
+	for k in range(_seed_list.size() - 1, -1, -1):
+		var sd: Dictionary = _seed_list[k]
+		sd["t"] = float(sd["t"]) + dt
+		var p := _seed_pos(sd)
+		var e2: Array = seeds[int(sd["e"])]
+		var scr := p.x - _cl * float(e2[2])
+		if float(sd["t"]) > float(sd["life"]) or scr > 520.0 or p.y < -12.0:
+			_seed_list.remove_at(k)
+	_seed_node.queue_redraw()
+	# 涟漪：隔一会儿在镜头里的某个水面点泛一圈；晨在水里走时脚下也泛
+	_rip_wait -= dt
+	if _rip_wait <= 0.0 and not ripples.is_empty():
+		_rip_wait = _rng.randf_range(RIPPLE_EVERY.x, RIPPLE_EVERY.y)
+		for _tries in 6:
+			var pt: Array = ripples[_rng.randi() % ripples.size()]
+			if float(pt[0]) - _cl > 10.0 and float(pt[0]) - _cl < 470.0:
+				_rip_list.append({"x": float(pt[0]), "y": float(pt[1]), "t": 0.0})
+				break
+	if _have_chen and _water_amt(_cx) > 0.5 and absf(_vx) > 8.0:
+		_step_rip -= dt
+		if _step_rip <= 0.0:
+			_step_rip = RIPPLE_STEP
+			var org2: Vector2 = get_parent().get("origin")
+			_rip_list.append({"x": roundf(_cx), "y": roundf(_chen_node.position.y - org2.y) + 2.0, "t": 0.0})
+	for k in range(_rip_list.size() - 1, -1, -1):
+		_rip_list[k]["t"] = float(_rip_list[k]["t"]) + dt
+		if float(_rip_list[k]["t"]) >= RIPPLE_LIFE:
+			_rip_list.remove_at(k)
+	_rip_node.queue_redraw()
+	_life_node.queue_redraw()
+
+
+## 绒毛现在在哪（那株蒲公英那一层的坐标）：往右上匀速飘 + 两道很慢的正弦
+func _seed_pos(sd: Dictionary) -> Vector2:
+	var t := float(sd["t"])
+	var ph := float(sd["ph"])
+	var v := float(sd["v"])
+	return Vector2(float(sd["x0"]) + SEED_V.x * v * t + 6.0 * sin(t * 0.8 + ph),
+		float(sd["y0"]) - SEED_V.y * v * t + 3.0 * sin(t * 1.3 + ph * 1.7))
+
+
+func _paint_seeds(p: Node2D) -> void:
+	for sd in _seed_list:
+		var e: Array = seeds[int(sd["e"])]
+		var q := _seed_pos(sd)
+		var x := roundf(q.x + _cl * (1.0 - float(e[2])))
+		var y := roundf(q.y)
+		var fr: int = [0, 0, 1, 1][int(float(sd["t"]) * 1000.0 / FRAME_MS) % 4]
+		if fr == 0:                                 # 平的小伞 + 下面的种子
+			p.draw_rect(Rect2(x - 1, y, 3, 1), SEED_C)
+			p.draw_rect(Rect2(x, y + 1, 1, 1), SEED_STEM_C)
+		else:                                       # 伞顶鼓起来一格
+			p.draw_rect(Rect2(x, y - 1, 1, 1), SEED_C)
+			p.draw_rect(Rect2(x - 1, y, 3, 1), SEED_C)
+			p.draw_rect(Rect2(x, y + 1, 1, 1), SEED_STEM_C)
+
+
+func _paint_motes(p: Node2D) -> void:
+	for i in motes.size():
+		var m: Array = motes[i]
+		var mx := float(m[0])
+		if mx - _cl < -30.0 or mx - _cl > 510.0:
+			continue
+		var ph: Array = _mote_ph[i]
+		var x := mx + 9.0 * sin(_t * float(ph[4]) + float(ph[0])) + 4.0 * sin(_t * float(ph[5]) + float(ph[1]))
+		var y := float(m[1]) + 5.0 * sin(_t * float(ph[6]) + float(ph[2]))
+		var b := sin(_t * float(ph[7]) + float(ph[3]))
+		if b < -0.55:
+			continue                                # 暗下去的时候藏一会儿
+		p.draw_rect(Rect2(roundf(x), roundf(y), 1, 1), MOTE_C[0] if b > 0.2 else MOTE_C[1])
+
+
+## 扁椭圆的一圈（一像素、四邻接，没有缺口），按半宽缓存
+func _ring(rx: int, ry: int) -> PackedVector2Array:
+	var key := Vector2i(rx, ry)
+	if _ring_cache.has(key):
+		return _ring_cache[key]
+	var out := PackedVector2Array()
+	var seen := {}
+	var prev := Vector2i(rx, 0)
+	var n := maxi(24, rx * 10)
+	for i in n + 1:
+		var a := TAU * i / n
+		var q := Vector2i(roundi(cos(a) * rx), roundi(sin(a) * ry))
+		if q.x != prev.x and q.y != prev.y:
+			var mid := Vector2i(prev.x, q.y)          # 斜着错一格：补一格，让上下两格有边贴着
+			if not seen.has(mid):
+				seen[mid] = true
+				out.append(Vector2(mid))
+		if not seen.has(q):
+			seen[q] = true
+			out.append(Vector2(q))
+		prev = q
+	_ring_cache[key] = out
+	return out
+
+
+func _paint_ripples(p: Node2D) -> void:
+	for rp in _rip_list:
+		var u := float(rp["t"]) / RIPPLE_LIFE
+		var e := 1.0 - pow(1.0 - u, 2.0)
+		var rx := maxi(1, roundi(1.0 + (RIPPLE_R - 1.0) * e))
+		var ry := maxi(1, roundi(rx * 0.32))
+		var c: Color = RIPPLE_C[0] if u < 0.55 else RIPPLE_C[1]
+		var cx := roundf(float(rp["x"]))
+		var cy := roundf(float(rp["y"]))
+		for q in _ring(rx, ry):
+			p.draw_rect(Rect2(cx + q.x, cy + q.y, 1, 1), c)

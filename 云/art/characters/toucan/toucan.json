@@ -1,0 +1,34 @@
+{
+ "_comment": "美术组的大嘴鸟（tools/barter_npcs_art.py 按格取样还原，不改图）。住在森林林间空地尽头（story_forest.json 的 residents），以物易物（data/barter.json）。图里朝左、蹲在自带的树桩上：anchor = 树桩底边中间。只有一帧：bob_top = 这一行以上（头和身子）平滑地往下点 bob 像素再回来（只动位置、取整到像素，脚和树桩不动，不改图）。tint false = 美术组的图原色。shadow_w = 影子按树桩宽。",
+ "frame": [
+  27,
+  29
+ ],
+ "sheet": "toucan.png",
+ "anchor": [
+  13,
+  27
+ ],
+ "faces": "left",
+ "ms": 100,
+ "tint": false,
+ "bob": 1,
+ "bob_s": 3.4,
+ "bob_top": 18,
+ "head": 25,
+ "speed": 0,
+ "shadow_w": 24,
+ "color": "#ffb72a",
+ "anims": {
+  "idle": {
+   "frames": [
+    0
+   ],
+   "loop": true
+  }
+ },
+ "alias": {
+  "talk": "idle",
+  "walk": "idle"
+ }
+}

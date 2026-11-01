@@ -20,7 +20,7 @@ extends Control
 ##   燃料够了（≥ 需要的量）就自己合上，返回 then（"" = 接着往下播）；不够就回到托板接着挑（不能不放就走：燃料柜这一段是必经的）。
 ##   「先放回去」：有 keep_scenes 的（音乐盒）播那一段（收回背包），没有就播 put_back。一进来燃料就够了 = 什么都不弹，直接返回。
 ##   航线卡：实线长短 = 现在燃料 / 需要（差的那截是虚线），两头的地名用 route_from / route_to。
-##   跳节拍（ff）：按托板顺序一件件放，直到够；自动玩：一直「拿第一件、放进去」直到够（full 先看一件放回去、看一眼航线）。
+##   跳节拍（ff）：目标是 burned_<id> 就先放那件，再按托板顺序一件件放，直到够；自动玩：一直「拿第一件、放进去」直到够（full 先看一件放回去、看一眼航线）。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：var scene = await play(runner, st)。
 
 signal done(id: String)
@@ -114,6 +114,9 @@ func _play_multi(r: Node) -> String:
 	var key := str(st.get("id", "keepsake_choice"))
 	if not _enough():
 		if r.ff:
+			var want := str(r._ff_target).trim_prefix("burned_")       # 跳节拍到 burned_<id>：先烧那件
+			if items.has(want):
+				await _burn(want)
 			while not _enough() and not items.is_empty():
 				await _burn(items[0])
 		else:

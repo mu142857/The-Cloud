@@ -83,8 +83,16 @@ def chapter_rooms(ch, d):
 
 
 def geo(ch, d):
-    """每个房间：{out: True, x, y, w} 或 {out: False, host, door(房间里的 x), w}"""
-    rooms = chapter_rooms(ch, d)
+    """每个房间：{out: True, x, y, w} 或 {out: False, host, door(房间里的 x), w}。
+    前面章节已经有的房间（起点房间除外）不画，放进 revisit（地图下面的「回访」按钮）"""
+    seen = set()
+    for c in CHAPTERS:
+        if c == ch:
+            break
+        seen.update(chapter_rooms(c, json.load(open(os.path.join(ROOT, CHAPTERS[c]), encoding="utf-8"))))
+    allr = chapter_rooms(ch, d)
+    revisit = [r for r in allr if r in seen and r != CH_ROOM.get(ch, "forest")]
+    rooms = [r for r in allr if r not in revisit]
     smk = d.get("markers", {}) if isinstance(d.get("markers"), dict) else {}
     g = {}
     for r in rooms:
@@ -113,10 +121,15 @@ def geo(ch, d):
                         (g[src_r]["out"] is not None or rooms.index(src_r) < rooms.index(dst)) and not _under(g, src_r, dst):
                     g[dst] = {"out": False, "host": src_r, "door": door_x(src_r, h.get("at"), smk, g), "w": g[dst]["w"]}
                 break
-    for r in g:
-        if g[r]["out"] is None:
-            g[r] = {"out": True, "x": 0.0, "y": 0.0, "w": g[r]["w"], "loose": True}
-    return rooms, g
+    for r in rooms:
+        if g[r]["out"] is not None:
+            continue
+        g[r] = {"out": True, "x": 0.0, "y": 0.0, "w": g[r]["w"], "loose": True}
+        for p in reversed(rooms[:rooms.index(r)]):
+            if not g[p].get("loose") and g[p]["out"] is not None:
+                g[r] = {"out": False, "host": p, "door": 0.0, "near": True, "w": g[r]["w"]}
+                break
+    return rooms, g, revisit
 
 
 def _under(g, r, top):
@@ -160,7 +173,7 @@ def layout(rooms, g):
             if q["out"]:
                 lv[r] = q["y"] / 270.0
             elif q["host"] in lv:
-                lv[r] = lv[q["host"]] + 0.5
+                lv[r] = lv[q["host"]] + (int(lv[q["host"]] // 1) + 1 - lv[q["host"]]) / 2
     outs = [r for r in rooms if g[r]["out"] and not g[r].get("loose")]
     lo = min([g[r]["x"] for r in outs] or [0.0])
     hi = max([g[r]["x"] + g[r]["w"] for r in outs] or [1.0])
@@ -186,6 +199,8 @@ def layout(rooms, g):
                     door = hb[0] + hb[1] * min(max(q["door"] / max(g[q["host"]]["w"], 1.0), 0.0), 1.0)
                     bx = door - bw / 2
                     hb_door = door
+                    if q.get("near"):
+                        bx, hb_door = hb[0], None
                 row.append([bx, bw, r, hb_door if not q["out"] else None])
             row.sort(key=lambda a: (a[0], rooms.index(a[2])))
             end = -GAP
@@ -220,8 +235,21 @@ def layout(rooms, g):
 BG = (5, 13, 10)
 for ch, p in CHAPTERS.items():
     d = json.load(open(os.path.join(ROOT, p), encoding="utf-8"))
-    rooms, g = geo(ch, d)
+    rooms, g, revisit = geo(ch, d)
     boxes, h = layout(rooms, g)
+    # 回访：地图下面一排小按钮（HFlowContainer，排不下折行）
+    rv, x, y = [], 0, h + 4
+    if revisit:
+        lw = text_w("回访：")
+        rv.append(("", x, y, lw))
+        x = lw + GAP
+        for r in revisit:
+            bw = text_w(label(r)) + 8
+            if x + bw > MAP_W:
+                x, y = 0, y + BOX_H + GAP
+            rv.append((r, x, y, bw))
+            x += bw + GAP
+        h = y + BOX_H
     W, H = MAP_W + 16, h + 40
     im = Image.new("RGB", (W, H), BG)
     dr = ImageDraw.Draw(im)
@@ -235,7 +263,7 @@ for ch, p in CHAPTERS.items():
     oy = 28
     by = {b["room"]: b for b in boxes}
     for b in boxes:
-        if b["inside"] and b["host"] in by:
+        if b["inside"] and b["host"] in by and b["door"] is not None:
             hb = by[b["host"]]
             x = 8 + min(max(b["door"], hb["x"] + 1), hb["x"] + hb["w"] - 1)
             dr.line([x, oy + hb["y"] + BOX_H, x, oy + b["y"]], fill=(110, 140, 125))
@@ -248,7 +276,15 @@ for ch, p in CHAPTERS.items():
         dr.rectangle([x0, y0, x0 + b["w"] - 1, y0 + BOX_H - 1], fill=fill, outline=edge)
         t = label(b["room"])
         dr.text((x0 + (b["w"] - text_w(t)) // 2, y0 + 3), t, font=font, fill=(223, 232, 226))
+    for r, x, y, bw in rv:
+        if not r:
+            dr.text((8 + x, oy + y + 3), "回访：", font=font, fill=(130, 150, 140))
+            continue
+        cur = (ch == HERE[0] and r == HERE[1])
+        dr.rectangle([8 + x, oy + y, 8 + x + bw - 1, oy + y + BOX_H - 1], fill=(140, 120, 60) if cur else (33, 33, 28),
+                     outline=(230, 200, 110) if cur else (115, 115, 97))
+        dr.text((8 + x + 4, oy + y + 3), label(r), font=font, fill=(223, 232, 226))
     im = im.resize((W * SCALE, H * SCALE), Image.NEAREST)
     fn = os.path.join(OUT, "地图_%s_%s.png" % (ch, CH_NAME[ch]))
     im.save(fn)
-    print(fn, [(b["room"], b["x"], b["y"], b["w"]) for b in boxes])
+    print(fn, [(b["room"], b["x"], b["y"], b["w"]) for b in boxes], "回访", revisit)

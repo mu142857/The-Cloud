@@ -7,6 +7,8 @@ extends Node2D
 ## 找动作：anims[名字] → alias[名字] → GENERIC_ALIAS → idle（resolve 返回 "" 时由 story_runner 打 MISSING_ANIM）。
 ## forms：多套形态（妮芙 land / swim），每套里写的键覆盖顶层；没有图的那套 = 占位色块。
 ## hover / bob / bob_s（可选）：整只离地 hover 像素悬浮、上下浮 bob 像素（平滑正弦，bob_s 秒一圈，取整到像素，不改帧）。
+## bob_top（可选，帧里的一行）：只有这一行以上往下点 bob 像素再回来，这行和下面不动（大嘴鸟蹲在自带的树桩上：头和身子轻轻起伏，
+## 脚和树桩不动）。上半截画在下半截后面，往下压的那一行被脚挡住，不露缝、不改图。shadow_w（可选）：影子宽（默认 12）。
 ## 缺图 / 没有 json：画 color 的竖条色块 + 名字（森林规矩：缺图不卡）。
 ## 跟随（story_runner 的 follow）：follow_to(x) 每帧给目标，弹簧追（先缓起再缓停），停下转向晨；走路动画帧速不变。
 
@@ -29,6 +31,7 @@ var facing := 1
 var shadow := true
 var ground_fn: Callable                # func(x) -> 地面世界 y（走路时贴地；没有就 y 不变）
 var spr: Sprite2D
+var _top: Sprite2D                     # bob_top 的上半截（没有 bob_top = null）
 var _shadow: Sprite2D
 var _label: Label
 var _ph := false                       # 这套形态是占位色块
@@ -326,6 +329,42 @@ func _show_frame() -> void:
 	spr.offset = Vector2(-ax, -an.y - 1.0 + bob)
 	_shadow.visible = shadow and form != "swim"
 	_shadow.scale.x = 2.0 if cur.get("hover", 0.0) > 0.0 else 1.0      # 悬浮的鲸壳比人宽，影子拉宽一倍
+	if cur.has("shadow_w"):
+		_shadow.scale.x = float(cur["shadow_w"]) / 12.0
+	_split_top(fr, ax, an.y)
+
+
+## bob_top：同一帧切成上下两截（region），上半截往下点 0..bob 像素
+func _split_top(fr: Vector2, ax: float, ay: float) -> void:
+	var cut := int(cur.get("bob_top", 0))
+	if cut <= 0 or cut >= int(fr.y):
+		spr.region_enabled = false
+		if _top != null:
+			_top.visible = false
+		return
+	if _top == null:
+		_top = Sprite2D.new()
+		_top.centered = false
+		_top.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		add_child(_top)
+		move_child(_top, spr.get_index())      # 画在下半截后面
+	var f := spr.frame
+	var cell: Vector2 = Vector2(f % spr.hframes, floori(float(f) / float(spr.hframes))) * fr
+	var dip := roundf(float(cur.get("bob", 0.0)) * (0.5 - 0.5 * cos(TAU * _t / maxf(float(cur.get("bob_s", 2.4)), 0.1))))
+	var y0 := -ay - 1.0 - float(cur.get("hover", 0.0))
+	spr.hframes = 1
+	spr.vframes = 1
+	spr.frame = 0
+	spr.region_enabled = true
+	spr.region_rect = Rect2(cell + Vector2(0, cut), Vector2(fr.x, fr.y - cut))
+	spr.offset = Vector2(-ax, y0 + cut)
+	_top.texture = spr.texture
+	_top.modulate = spr.modulate
+	_top.flip_h = spr.flip_h
+	_top.region_enabled = true
+	_top.region_rect = Rect2(cell, Vector2(fr.x, cut))
+	_top.offset = Vector2(-ax, y0 + dip)
+	_top.visible = true
 
 
 static func _v2(v) -> Vector2:

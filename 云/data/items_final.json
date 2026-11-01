@@ -36,7 +36,8 @@
 				"zh": "日记烧掉以后，向居民借来的几张纸。今天的事先记在这上面。",
 				"added": true
 			},
-			"added": true
+			"added": true,
+			"desc_from_tag": "on_borrowed_paper"
 		}
 	]
 }

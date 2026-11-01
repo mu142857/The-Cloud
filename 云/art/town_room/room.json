@@ -1,0 +1,39 @@
+{
+ "_comment": "结局三 · 晨在云层小镇暂住的屋子（剖面小屋，在 town 里；前墙进屋淡出）。tools/cloud_town_art.py 生成，别手改。一座风车塔：下截是住的那层（左边门、中间书桌，窗在桌子上面透出外面的天和云、右边床），淡蓝裙檐上一截细塔 + 尖顶，小风车是动的。",
+ "kind": "house",
+ "host": "town",
+ "x": 1546,
+ "size": [
+  144,
+  226
+ ],
+ "back": "res://art/cloud_town/lodge_back.png",
+ "front": "res://art/cloud_town/lodge_front.png",
+ "light": "res://art/cloud_town/lodge_light.png",
+ "view": "res://art/cloud_town/lodge_view.png",
+ "floor": 225,
+ "walk": [
+  33,
+  111
+ ],
+ "door": 34,
+ "markers": {
+  "townroom_desk": 48,
+  "townroom_door": 34
+ },
+ "objects": {
+  "townroom_rotor": {
+   "img": "res://art/cloud_town/anim/lodge_rotor.png",
+   "x": 58,
+   "y": 57,
+   "frames": 8,
+   "states": {
+    "spin": [
+     0,
+     7
+    ]
+   },
+   "default": "spin"
+  }
+ }
+}

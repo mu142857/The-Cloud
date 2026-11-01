@@ -3154,8 +3154,35 @@ func on_room_changed(snap := true) -> void:
 		_snap_camera()
 		story.world.fog_k = story.world.fog_at(cam.position.x)
 	if chapter != "forest":
+		_sync_forest_layers()
 		return                                       # 驾驶舱里没有雨
 	_fade_db(_rain, -16.0 if story.world.in_room() else -9.0, 0.6)
+
+
+## 别的章节里回到森林（终章尾声：森林路口 → 树屋，docs/第三章计划.md 第十节）：_start_chapter 藏起来的森林图层再显示出来，
+## 离开森林（去房间 / 驾驶舱）再藏起来，鹿和弥洛也一起藏（她们留在森林里）。不开雨（尾声是后来回访）；
+## 飞船、外星同伴、发光木头、蛇都不出来（船早就飞走了）。都是在黑屏里换的（fade_to），看不到切换那一下。
+const FOREST_LAYERS := ["Sky", "Ridge", "Far", "ForestShadows", "Deep", "MidFar", "Mid", "Main", "PuffsBack", "PuffsFront", "Front",
+	"StoryProps", "StoryFogProps", "TreehouseFront"]
+var _forest_on := false
+
+
+func _sync_forest_layers() -> void:
+	var on: bool = story.world.room in ["forest", "treehouse"]
+	if on == _forest_on:
+		return
+	_forest_on = on
+	for n in FOREST_LAYERS:
+		var node := get_node_or_null(n)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = on
+		elif node != null and node.has_method("set_visible"):
+			node.call("set_visible", on)
+	shafts.visible = on
+	if not on:
+		story.deer.visible = false
+		story.miluo.visible = false
+	print("FOREST_LAYERS %s room=%s" % ["on" if on else "off", story.world.room])
 
 
 func _snap_camera() -> void:

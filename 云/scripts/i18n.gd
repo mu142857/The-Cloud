@@ -62,10 +62,17 @@ const STR := {
 	"to_be_continued": ["To be continued", "未完待续"],
 	"to_be_continued_sub": ["未完待续", "To be continued"],
 	"just_look": ["Just look", "只是看看"],
+	"barter_none": ["Never mind", "算了"],                     # 以物易物的道具选择条最后一格（barter.gd）
+	"achievements_title": ["Achievements", "成就"],              # 「全剧终」卡下面的成就列表（barter.gd show_achievements）
 	"use": ["Use", "使用"],
 	"use_nothing": ["I don't think this helps here.", "这个好像用不上。"],
 	"use_here_nothing": ["Nothing around here to use it on.", "这附近用不上。"],
 	"journal_struck": ["Crossed out a line in the journal", "划掉了日记里的一句"],
+	"paper_added": ["Written on: %s", "记在了%s上"],             # 终章日记烧掉以后（story_runner._journal_holder）
+	"paper_struck": ["Crossed out a line", "划掉了一句"],
+	"the_end": ["The End", "全剧终"],
+	"the_end_sub": ["全剧终", "The End"],
+	"end_any_key": ["Press any key to return to the title", "按任意键回到标题"],
 	"cat_keepsake": ["[Keepsake]", "【纪念品】"],
 	"cat_quest": ["[Quest]", "【任务】"],
 	"keepsake_burn": ["Would burn for about %d", "烧掉可得：约 %d"],

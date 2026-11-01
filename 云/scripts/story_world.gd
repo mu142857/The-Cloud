@@ -290,6 +290,8 @@ func resolve(at) -> Dictionary:
 		return {"ok": true, "x": s.to_float(), "room": room}
 	if cockpit != null and cockpit.has_marker(s):
 		return {"ok": true, "x": cockpit.mx(s), "room": "cockpit"}
+	if _script_markers.get(s) is String and str(_script_markers[s]) != s:
+		return resolve(_script_markers[s])        # 剧本 markers 里写成另一个 marker 的名字 = 别名（终章尾声：treehouse_door → room_door）
 	if _marker_room.has(s):
 		return {"ok": true, "x": float(markers[s]), "room": str(_marker_room[s])}
 	for r in stages:
@@ -309,6 +311,8 @@ func resolve(at) -> Dictionary:
 
 
 func has_marker(s: String) -> bool:
+	if _script_markers.get(s) is String and str(_script_markers[s]) != s:
+		return has_marker(str(_script_markers[s]))
 	if _marker_room.has(s) or not stage_of_prop(s).is_empty():
 		return true
 	return markers.has(s) or _cfg.has(s) or _cfg.has(s.trim_prefix("room_")) or extra_rects.has(s) or (cockpit != null and cockpit.has_marker(s))
@@ -347,6 +351,8 @@ func walk_ground(x: float) -> float:
 func set_room(r: String, instant := false) -> void:
 	var was := room
 	room = r
+	if was == "cockpit" and r != "cockpit" and cockpit != null:
+		cockpit.set_visible_all(false)        # 出了驾驶舱（终章降落到结局的房间）：驾驶舱和船外背景（CanvasLayer）藏起来
 	if not stages.is_empty():
 		_set_stage_room(r, was, instant)
 		if stages.has(r):

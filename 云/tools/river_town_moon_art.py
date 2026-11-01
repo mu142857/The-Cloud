@@ -2318,11 +2318,13 @@ def market_json(old):
         "market_breather_stall": {"x": 489, "y": 171, "w": 30, "h": 22, "frames": 2,
                                   "states": {"default": 0, "tank_on_counter": 1}},
         "market_sign_down": {"x": SIGN_X, "y": SIGN_Y, "w": SIGN_W, "h": SIGN_H, "frames": 1, "states": {"default": 0}},
+        # 10-31 料理鼠妈的小摊（tools/barter_npcs_art.py --stall 画，这里只登记位置）；鼠妈本人在 residents 里
+        "market_rat_stall": {"x": 1051, "y": 152, "w": 84, "h": 48, "frames": 3, "ms": 220, "states": {"default": [0, 2]}},
     }
     j["walk"] = old.get("walk", [10, 1380])
     # 10-31 作者：戴帽子提篮子的路人（vendor）先不出场，美术姐画了新的再加回来：
     # {"npc": "vendor", "path": [[160, 199], [250, 199]], "speed": 8, "pause": [4, 10], "z": -20, "loop": "pingpong"}
-    for k in ("portals", "ambient", "walk_when", "origin", "water", "scripts"):
+    for k in ("portals", "ambient", "walk_when", "origin", "water", "scripts", "residents"):
         if k in old:
             j[k] = old[k]
     return j

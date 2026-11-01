@@ -89,7 +89,8 @@
   "market_tool_stall": 330,
   "market_bridge": 830,
   "market_to_oldstreet": 1424,
-  "market_from_stairwell": 1398
+  "market_from_stairwell": 1398,
+  "market_rat_chef": 1095
  },
  "objects": {
   "market_baskets": {
@@ -141,6 +142,20 @@
    "states": {
     "default": 0
    }
+  },
+  "market_rat_stall": {
+   "x": 1051,
+   "y": 152,
+   "w": 84,
+   "h": 48,
+   "frames": 3,
+   "ms": 220,
+   "states": {
+    "default": [
+     0,
+     2
+    ]
+   }
   }
  },
  "walk": [
@@ -176,5 +191,12 @@
  "origin": [
   880,
   -270
+ ],
+ "residents": [
+  {
+   "who": "rat_chef",
+   "at": "market_rat_chef",
+   "face": 1
+  }
  ]
 }

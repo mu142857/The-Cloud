@@ -1,0 +1,13 @@
+{
+	"_comment": "成就（10-31 作者：先只记 flag，「全剧终」卡下面列出拿到的几个，不做单独界面）。scripts/barter.gd 的 show_achievements 读这份。all = 这些 flag 都有；any = 有其中一个。flag 是以物易物设的（docs/以物易物交换表.md）。名字是补写的。",
+	"achievements": [
+		{"id": "barter_any", "zh": "以物易物", "en": "Fair Trade", "all": ["barter_any"], "added": true},
+		{"id": "shiny", "zh": "亮晶晶", "en": "Shiny", "all": ["barter_toucan_feather"], "added": true},
+		{"id": "the_turn", "zh": "转音", "en": "The Turn", "all": ["barter_toucan_whistle"], "added": true},
+		{"id": "feather_trip", "zh": "羽毛的旅行", "en": "A Feather's Journey", "all": ["barter_toucan_feather", "barter_rat_chef_recipe"], "added": true},
+		{"id": "eat_first", "zh": "吃饱了再走", "en": "Eat Before You Go", "any": ["barter_rat_chef_soup", "barter_rat_chef_fire"], "added": true},
+		{"id": "two_planets", "zh": "两颗星的朋友", "en": "Friends on Two Planets", "all": ["barter_toucan", "barter_rat_chef"], "added": true},
+		{"id": "collector", "zh": "收藏家", "en": "Collector", "all": ["barter_toucan_feather", "barter_toucan_whistle", "barter_toucan_rain",
+			"barter_rat_chef_soup", "barter_rat_chef_recipe", "barter_rat_chef_fire"], "added": true}
+	]
+}

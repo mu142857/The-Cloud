@@ -6,7 +6,7 @@ extends RefCounted
 ##   river    河流篇「妮芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
 ##            end_chapter：驾驶舱里写完日记，「第二章 完」卡，接 final。
 ##   final    终章「还剩下什么 · 四个结局 · 尾声」（data/story_final.json，入口 start_final，从驾驶舱开始；多房间，计划见 docs/第三章计划.md）。
-##            end_chapter（母星尾声最后）：现在没有下一章，出「未完待续」卡（全剧终卡以后做）。
+##            end_chapter（母星尾声最后）：没有下一章，last_card = 出「全剧终」卡，3 秒以后按任意键回标题（新游戏）。
 ## 带过去的东西：StoryState.to_dict()（flags、日记、物件状态、用过的点、背包）存进 Engine 的 meta CARRY_META，
 ##   新章节 _ready 里 from_dict 恢复；这份一直留着（F8「重开本章」/ 跳节拍从同一个起点重来），回标题时清掉。
 ## 直接进 flight1（--chapter=flight1、F8「跳到飞行一」）又没有带过来的状态：用 SEED（森林自动玩到起飞时的 flags 和背包）。
@@ -18,19 +18,24 @@ const CARRY_META := "the_cloud_carry"
 const RIVER_SEED_META := "the_cloud_river_seed"        # F8：直接进河流篇时用哪个 SEED（"" = 烧了蓝色石头 / "card" = 烧了通勤卡）
 const PICK_META := "the_cloud_chapter_pick"            # F8 跳节拍换了章：CHAPTER_META 比命令行 --chapter= 优先（不然带着 --chapter 跑就跳不过去）
 
+## 以物易物设的 flag（scripts/barter.gd，docs/以物易物交换表.md）：森林的大嘴鸟、河流的鼠妈；后面章节的 if 看这些
+const BARTER_FOREST := ["barter_any", "barter_toucan", "barter_toucan_feather", "barter_toucan_whistle", "barter_toucan_rain"]
+const BARTER_RIVER := ["barter_rat_chef", "barter_rat_chef_soup", "barter_rat_chef_recipe", "barter_rat_chef_fire"]
+
 const CHAPTERS := {
 	"forest": {"story": "res://data/story_forest.json", "next": "flight1"},
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
-		"items_extra": ["res://data/items_later.json"],
+		"carry_flags": BARTER_FOREST, "items_extra": ["res://data/items_later.json"],
 		"end_card": {"zh": "第一章　完", "en": "End of Chapter One"}},
 	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "final",
-		"carry_flags": ["burned_blue_stone", "burned_commute_card"], "hud_fuel": false,
+		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass"] + BARTER_FOREST, "hud_fuel": false,
 		"items_extra": ["res://data/items_later.json"],
 		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two"}},
 	# carry_flags：飞行一烧了哪件（燃料柜空的那格）；森林的 returned_all / returned_any / saw_rock（尾声鹿、弥洛的分支）
 	"final": {"story": "res://data/story_final.json", "start": "start_final", "room": "cockpit", "next": "",
-		"carry_flags": ["burned_blue_stone", "burned_commute_card", "returned_all", "returned_any", "saw_rock", "musicbox_fixed"],
-		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"]},
+		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "returned_all", "returned_any", "saw_rock", "musicbox_fixed"]
+			+ BARTER_FOREST + BARTER_RIVER,
+		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},
 }
 
 ## 森林自动玩（--story_auto）到 launched 时的样子（10-29）；剧本改了以后这里不一定完全一样，只是直接进 flight1 时的起点

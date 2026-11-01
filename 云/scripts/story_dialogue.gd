@@ -776,7 +776,8 @@ func handle_input(event: InputEvent) -> bool:
 
 
 # ======================================================================= 结束卡
-func end_card(main_text: String, sub_text: String, parent: Node) -> void:
+## hint：过 3.5 秒在下面淡出一行小字（全剧终：「按任意键回到标题」，和 level_forest 结束卡 3 秒后才收按键对上）
+func end_card(main_text: String, sub_text: String, parent: Node, hint := "") -> void:
 	_end = Control.new()
 	_end.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_end.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -798,6 +799,19 @@ func end_card(main_text: String, sub_text: String, parent: Node) -> void:
 	s.size = Vector2(480, 16)
 	s.position = Vector2(0, 150)
 	_end.add_child(s)
+	if hint != "":
+		var h := Label.new()
+		h.text = hint
+		h.add_theme_font_size_override("font_size", 14)
+		h.add_theme_color_override("font_color", Color("#4f6359"))
+		h.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		h.size = Vector2(480, 16)
+		h.position = Vector2(0, 236)
+		h.modulate.a = 0.0
+		_end.add_child(h)
+		var ht := create_tween()
+		ht.tween_interval(3.5)
+		ht.tween_property(h, "modulate:a", 1.0, 1.5).set_trans(Tween.TRANS_SINE)
 	parent.add_child(_end)
 	create_tween().tween_property(_end, "modulate:a", 1.0, 2.0).set_trans(Tween.TRANS_SINE)
 

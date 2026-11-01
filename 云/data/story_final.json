@@ -1,5 +1,5 @@
 {
-	"_comment": "最终航行「还剩下什么」+ 四个结局 + 人物短尾声（剧情姐合订稿 in1030/yun1.txt 第 153–240 行）。入口 start_final。通讯器：休息空隙妮芙·河岸来消息（final_msg_nifu_1/2）；结局一 phone_draft「我找到大象了。」（发送设 sent_found）；结局一~三和母星尾声 phone_open friend。燃料界面（todo_mechanic final_flight）选中一件纪念品时播 look_<id>，确认转化后播 burn_<id>（设 burned_<id>）。结局由两次 pick 决定（final_action：下降 / 漂行=结局四；final_nav：旧货场=一、东侧低鸣=二、居民区=三），设 final_ending_1..4；结局里的动作和尾声按 burned_* / final_seed_planted / 森林 returned_all、returned_any、saw_rock 分支。if / goto 是跳转（不返回）。markers 坐标都是占位 0。带 added 的是补写。",
+	"_comment": "最终航行「还剩下什么」+ 四个结局 + 人物短尾声（剧情姐合订稿 in1030/yun1.txt 第 153–240 行）。入口 start_final。通讯器：休息空隙妮芙·河岸来消息（final_msg_nifu_1/2）；结局一 phone_draft「我找到大象了。」（发送设 sent_found）；结局一~三和母星尾声 phone_open friend。燃料界面（todo_mechanic final_flight）选中一件纪念品时播 look_<id>，确认转化后播 burn_<id>（设 burned_<id>）。结局由两次 pick 决定（final_action：下降 / 漂行=结局四；final_nav：旧货场=一、东侧低鸣=二、居民区=三），设 final_ending_1..4；结局里的动作和尾声按 burned_* / final_seed_planted / 森林 returned_all、returned_any、saw_rock 分支。if / goto 是跳转（不返回）。带 added 的是补写。终章引擎（10-31）：结局一、二都在芦苇地 reed_field（yard_* 在西半边、east_* 在东半边，写的是房间 x，美术定了再挪）；尾声森林的 forest_* 是森林的世界 x（树屋那一段），treehouse_* / forest_treehouse 写成第一章 marker 的名字（别名）；rooms 里的 river_bank 只为妮芙家这间小屋有地方放（小屋的 host）。两次 pick 带 ui（cockpit_nav.gd：二次确认、导航屏三个点）。",
 	"speakers": {
 		"chen": {"zh": "晨", "en": "Chen"},
 		"elephant": {"zh": "大象", "en": "Elephant"},
@@ -21,19 +21,19 @@
 		"cockpit_seat": 0,
 		"cockpit_tools": 0,
 		"cockpit_window": 0,
-		"east_bed": 0,
-		"east_crowd": 0,
-		"east_far": 0,
-		"east_landing": 0,
-		"east_resident": 0,
-		"east_slope": 0,
-		"east_tree": 0,
-		"east_water": 0,
-		"east_water_cup": 0,
-		"east_wing": 0,
-		"forest_crossroad": 0,
-		"forest_deer": 0,
-		"forest_treehouse": 0,
+		"east_bed": 1480,
+		"east_crowd": 1400,
+		"east_far": 1250,
+		"east_landing": 1860,
+		"east_resident": 1440,
+		"east_slope": 1760,
+		"east_tree": 1520,
+		"east_water": 1640,
+		"east_water_cup": 1600,
+		"east_wing": 1885,
+		"forest_crossroad": 2950,
+		"forest_deer": 3010,
+		"forest_treehouse": "treehouse",
 		"river_home_door": 0,
 		"river_home_niff": 0,
 		"river_home_table": 0,
@@ -52,19 +52,19 @@
 		"townroom_door": 0,
 		"train_door": 0,
 		"train_seat": 0,
-		"treehouse_door": 0,
-		"treehouse_miluo": 0,
-		"yard_elephant": 0,
-		"yard_grass": 0,
-		"yard_hill": 0,
-		"yard_landing": 0,
-		"yard_passerby": 0,
-		"yard_prints": 0,
-		"yard_sign": 0,
-		"yard_soil": 0,
-		"yard_water": 0
+		"treehouse_door": "room_door",
+		"treehouse_miluo": "room_miluo",
+		"yard_elephant": 700,
+		"yard_grass": 360,
+		"yard_hill": 1060,
+		"yard_landing": 120,
+		"yard_passerby": 980,
+		"yard_prints": 470,
+		"yard_sign": 240,
+		"yard_soil": 900,
+		"yard_water": 610
 	},
-	"rooms": ["cockpit", "yard", "east_meadow", "town", "town_room", "forest", "treehouse", "river_home", "home_train"],
+	"rooms": ["cockpit", "reed_field", "town", "town_room", "forest", "treehouse", "river_bank", "river_home", "city", "home_train"],
 	"objectives": [
 		{"need": ["final_epi_niff"], "not": ["final_done"], "zh": "回家", "en": "Go home", "show_fuel": false, "added": true},
 		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "zh": "去河流城市看妮芙", "en": "Visit Niff in the river city", "show_fuel": false, "added": true},
@@ -104,21 +104,21 @@
 		{"id": "ck_cabinet", "at": "cockpit_cabinet", "room": "cockpit", "label": {"zh": "燃料柜", "en": "Fuel locker"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_cabinet"},
 		{"id": "ck_tools", "at": "cockpit_tools", "room": "cockpit", "label": {"zh": "工具", "en": "Tools"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_tools"},
 		{"id": "ck_drawing", "at": "cockpit_drawing", "room": "cockpit", "label": {"zh": "最初的画", "en": "The first drawing"}, "need": ["final_fuel_done"], "not": ["final_descend", "final_ending_4"], "once": false, "scene": "ck_drawing"},
-		{"id": "yard_sign", "at": "yard_sign", "room": "yard", "label": {"zh": "指示牌", "en": "Sign"}, "need": ["final_e1_landed"], "not": [], "once": false, "scene": "yard_sign"},
-		{"id": "yard_grass", "at": "yard_grass", "room": "yard", "label": {"zh": "被压倒的草", "en": "Flattened grass"}, "need": ["final_e1_landed"], "not": ["final_e1_grass"], "once": false, "scene": "yard_grass", "trigger": "enter", "range": 30},
-		{"id": "yard_prints", "at": "yard_prints", "room": "yard", "label": {"zh": "脚印", "en": "Footprints"}, "need": ["final_e1_landed"], "not": ["final_e1_prints"], "once": false, "scene": "e1_prints", "trigger": "enter", "range": 24},
-		{"id": "yard_water", "at": "yard_water", "room": "yard", "label": {"zh": "浅水边", "en": "Shallows"}, "need": ["final_e1_prints"], "not": ["final_e1_met"], "once": false, "scene": "e1_meet", "trigger": "enter", "range": 30},
-		{"id": "yard_elephant", "at": "yard_elephant", "room": "yard", "label": {"zh": "大象", "en": "Elephant"}, "need": ["final_e1_met"], "not": ["final_e1_seed_done"], "once": false, "scene": "e1_elephant_chat"},
-		{"id": "yard_passerby_ask", "at": "yard_passerby", "room": "yard", "label": {"zh": "路过的人", "en": "Passerby"}, "need": ["final_e1_seed_todo"], "not": ["final_e1_soil"], "once": false, "scene": "e1_plant_ask"},
-		{"id": "yard_passerby", "at": "yard_passerby", "room": "yard", "label": {"zh": "路过的人", "en": "Passerby"}, "need": ["final_e1_met"], "not": [], "once": false, "scene": "e1_passerby_chat"},
-		{"id": "yard_soil", "at": "yard_soil", "room": "yard", "label": {"zh": "湿土", "en": "Damp soil"}, "need": ["final_e1_soil"], "not": ["final_seed_planted"], "once": false, "scene": "e1_plant"},
-		{"id": "yard_plane", "at": "yard_landing", "room": "yard", "label": {"zh": "飞机", "en": "Ship"}, "need": ["final_e1_seed_done"], "not": ["final_epilogue"], "once": false, "scene": "e1_evening"},
-		{"id": "east_slope", "at": "east_slope", "room": "east_meadow", "label": {"zh": "缓坡下", "en": "Foot of the slope"}, "need": ["final_e2_landed"], "not": ["final_e2_seen"], "once": false, "scene": "e2_see", "trigger": "enter", "range": 30},
-		{"id": "east_elephant", "at": "east_water", "room": "east_meadow", "label": {"zh": "大象", "en": "Elephant"}, "need": ["final_e2_dusk"], "not": ["final_e2_night"], "once": false, "scene": "e2_elephant_chat"},
-		{"id": "east_cup", "at": "east_water_cup", "room": "east_meadow", "label": {"zh": "水", "en": "Water"}, "need": ["final_e2_dusk"], "not": [], "once": false, "scene": "e2_cup"},
-		{"id": "east_plane_record", "at": "east_landing", "room": "east_meadow", "label": {"zh": "飞机", "en": "Ship"}, "need": ["final_e2_dusk"], "not": ["final_e2_recorded"], "once": false, "scene": "e2_record"},
-		{"id": "east_bed", "at": "east_bed", "room": "east_meadow", "label": {"zh": "花圃", "en": "Flower bed"}, "need": ["final_e2_seed_todo"], "not": ["final_seed_planted"], "once": false, "scene": "e2_plant"},
-		{"id": "east_plane_rest", "at": "east_landing", "room": "east_meadow", "label": {"zh": "回飞机休息", "en": "Rest in the ship"}, "need": ["final_e2_seed_done"], "not": ["final_e2_night"], "once": false, "scene": "e2_night_go"},
+		{"id": "yard_sign", "at": "yard_sign", "room": "reed_field", "label": {"zh": "指示牌", "en": "Sign"}, "need": ["final_e1_landed"], "not": [], "once": false, "scene": "yard_sign"},
+		{"id": "yard_grass", "at": "yard_grass", "room": "reed_field", "label": {"zh": "被压倒的草", "en": "Flattened grass"}, "need": ["final_e1_landed"], "not": ["final_e1_grass"], "once": false, "scene": "yard_grass", "trigger": "enter", "range": 30},
+		{"id": "yard_prints", "at": "yard_prints", "room": "reed_field", "label": {"zh": "脚印", "en": "Footprints"}, "need": ["final_e1_landed"], "not": ["final_e1_prints"], "once": false, "scene": "e1_prints", "trigger": "enter", "range": 24},
+		{"id": "yard_water", "at": "yard_water", "room": "reed_field", "label": {"zh": "浅水边", "en": "Shallows"}, "need": ["final_e1_prints"], "not": ["final_e1_met"], "once": false, "scene": "e1_meet", "trigger": "enter", "range": 30},
+		{"id": "yard_elephant", "at": "yard_elephant", "room": "reed_field", "label": {"zh": "大象", "en": "Elephant"}, "need": ["final_e1_met"], "not": ["final_e1_seed_done"], "once": false, "scene": "e1_elephant_chat"},
+		{"id": "yard_passerby_ask", "at": "yard_passerby", "room": "reed_field", "label": {"zh": "路过的人", "en": "Passerby"}, "need": ["final_e1_seed_todo"], "not": ["final_e1_soil"], "once": false, "scene": "e1_plant_ask"},
+		{"id": "yard_passerby", "at": "yard_passerby", "room": "reed_field", "label": {"zh": "路过的人", "en": "Passerby"}, "need": ["final_e1_met"], "not": [], "once": false, "scene": "e1_passerby_chat"},
+		{"id": "yard_soil", "at": "yard_soil", "room": "reed_field", "label": {"zh": "湿土", "en": "Damp soil"}, "need": ["final_e1_soil"], "not": ["final_seed_planted"], "once": false, "scene": "e1_plant"},
+		{"id": "yard_plane", "at": "yard_landing", "room": "reed_field", "label": {"zh": "飞机", "en": "Ship"}, "need": ["final_e1_seed_done"], "not": ["final_epilogue"], "once": false, "scene": "e1_evening"},
+		{"id": "east_slope", "at": "east_slope", "room": "reed_field", "label": {"zh": "缓坡下", "en": "Foot of the slope"}, "need": ["final_e2_landed"], "not": ["final_e2_seen"], "once": false, "scene": "e2_see", "trigger": "enter", "range": 30},
+		{"id": "east_elephant", "at": "east_water", "room": "reed_field", "label": {"zh": "大象", "en": "Elephant"}, "need": ["final_e2_dusk"], "not": ["final_e2_night"], "once": false, "scene": "e2_elephant_chat"},
+		{"id": "east_cup", "at": "east_water_cup", "room": "reed_field", "label": {"zh": "水", "en": "Water"}, "need": ["final_e2_dusk"], "not": [], "once": false, "scene": "e2_cup"},
+		{"id": "east_plane_record", "at": "east_landing", "room": "reed_field", "label": {"zh": "飞机", "en": "Ship"}, "need": ["final_e2_dusk"], "not": ["final_e2_recorded"], "once": false, "scene": "e2_record"},
+		{"id": "east_bed", "at": "east_bed", "room": "reed_field", "label": {"zh": "花圃", "en": "Flower bed"}, "need": ["final_e2_seed_todo"], "not": ["final_seed_planted"], "once": false, "scene": "e2_plant"},
+		{"id": "east_plane_rest", "at": "east_landing", "room": "reed_field", "label": {"zh": "回飞机休息", "en": "Rest in the ship"}, "need": ["final_e2_seed_done"], "not": ["final_e2_night"], "once": false, "scene": "e2_night_go"},
 		{"id": "town_basket", "at": "town_basket", "room": "town", "label": {"zh": "空篮子", "en": "Empty basket"}, "need": ["final_e3_landed"], "not": [], "once": false, "scene": "town_basket"},
 		{"id": "town_fountain", "at": "town_fountain", "room": "town", "label": {"zh": "喷泉", "en": "Fountain"}, "need": ["final_e3_landed"], "not": ["final_e3_day1"], "once": false, "scene": "e3_plaza", "trigger": "enter", "range": 40},
 		{"id": "town_crowd", "at": "town_crowd", "room": "town", "label": {"zh": "周围的人", "en": "People nearby"}, "need": ["final_e3_day1"], "not": ["final_e3_day3"], "once": false, "scene": "e3_crowd_chat"},
@@ -136,13 +136,15 @@
 		{"id": "treehouse_miluo", "at": "treehouse_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["final_epi_miluo"], "not": [], "once": false, "scene": "epi_miluo_chat"},
 		{"id": "treehouse_out", "at": "treehouse_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_miluo"], "not": ["final_epi_niff"], "once": false, "scene": "epi_niff"},
 		{"id": "river_home_niff", "at": "river_home_niff", "room": "river_home", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["final_epi_niff"], "not": [], "once": false, "scene": "epi_niff_chat"},
-		{"id": "river_home_out", "at": "river_home_door", "room": "river_home", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_niff"], "not": ["final_done"], "once": false, "scene": "epi_home"}
+		{"id": "river_home_out", "at": "river_home_door", "room": "river_home", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_niff"], "not": ["final_epi_city"], "once": false, "scene": "epi_city"},
+		{"id": "city_station", "at": "city_station", "room": "city", "label": {"zh": "车站", "en": "Station"}, "need": ["final_epi_city"], "not": ["final_epi_train"], "once": false, "scene": "epi_home", "trigger": "enter", "range": 30, "cutscene": true, "added": true}
 	],
 	"scenes": {
 		"start_final": [
 			{"do": "fade_to", "room": "cockpit", "at": "cockpit_seat"},
 			{"do": "flag", "set": "final_started"},
 			{"do": "fuel", "have": 200, "need": 200},
+			{"do": "if", "flag": "barter_rat_chef_soup", "then": "final_soup_fuel"},
 			{"do": "sfx", "name": "engine_steady"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "sfx", "name": "hull_rattle", "pan": 0.6},
@@ -175,7 +177,7 @@
 		],
 		"final_niff_msg": [
 			{"do": "wait", "sec": 1.5},
-			{"do": "phone_msg", "id": "final_msg_nifu_1", "from": "nifu", "zh": "晨，你吃饭了吗？我刚翻到本子，上面还写着你肚子饿呢。\n啊，后面写了，吃过面包啦，那现在呢？", "en": "Chen, have you eaten? I just found my notebook, and it says you're hungry.\nAh, the next line says you had bread. So what about now?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}},
+			{"do": "if", "flag": "barter_rat_chef_soup", "then": "final_niff_msg_soup", "else": "final_niff_msg_plain"},
 			{"do": "anim", "who": "chen", "name": "fold_bag"},
 			{"do": "phone_open", "contact": "friend"},
 			{"do": "anim", "who": "chen", "name": "finger_still"},
@@ -226,6 +228,7 @@
 			{"do": "if", "flag": "burned_blue_stone", "then": "cab_burned_stone", "else": "cab_burned_card"}
 		],
 		"cab_burned_stone": [
+			{"do": "if", "flag": "burned_rain_glass", "then": "cab_burned_glass"},
 			{"do": "journal", "zh": "已经烧掉的：蓝色石头。", "en": "Already burned: Blue Stone.", "added": true},
 			{"do": "goto", "scene": "cab_think"}
 		],
@@ -285,8 +288,7 @@
 			{"narr": {"zh": "燃料不足。纸质物品可用。", "en": "Fuel low. Paper items usable."}, "added": true},
 			{"do": "show_item", "item": "journal"},
 			{"say": "chen", "zh": "……日记也算纸。", "en": "...The journal counts as paper.", "added": true},
-			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）"},
-			{"do": "todo_mechanic", "id": "final_journal_rule", "spec": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
+			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）", "spec_journal_rule": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
 			{"do": "flag", "set": "final_fuel_done"},
 			{"do": "goto", "scene": "final_approach"}
 		],
@@ -580,12 +582,11 @@
 			{"do": "goto", "scene": "final_action"}
 		],
 		"final_action": [
-			{"do": "todo_mechanic", "id": "final_action", "spec": "【行动选择：继续投入物品，进入下降航道；或关闭主推进器，进入安全漂行轨道。此处为实际行动选择，不同于此前会汇合的普通对话选项。进入安全漂行轨道触发结局四。确认下降后，进入下方的最终导航选择。】"},
-			{"do": "pick", "options": [{"id": "descend", "label": {"zh": "继续投入物品，进入下降航道", "en": "Burn more, enter the descent lane"}, "scene": "final_descend", "added": true}, {"id": "drift", "label": {"zh": "关闭主推进器，进入安全漂行轨道", "en": "Cut the main thruster, enter a safe drift orbit"}, "scene": "ending4", "added": true}]}
+			{"do": "pick", "id": "final_action", "ui": "action", "spec": "【行动选择：继续投入物品，进入下降航道；或关闭主推进器，进入安全漂行轨道。此处为实际行动选择，不同于此前会汇合的普通对话选项。进入安全漂行轨道触发结局四。确认下降后，进入下方的最终导航选择。】", "options": [{"id": "descend", "label": {"zh": "继续投入物品，进入下降航道", "en": "Burn more, enter the descent lane"}, "scene": "final_descend", "added": true, "confirm": {"zh": "进入下降航道，还要继续投入物品。确定吗？", "en": "Enter the descent lane? More items will have to go in.", "added": true}}, {"id": "drift", "label": {"zh": "关闭主推进器，进入安全漂行轨道", "en": "Cut the main thruster, enter a safe drift orbit"}, "scene": "ending4", "added": true, "confirm": {"zh": "关闭主推进器，进入安全漂行轨道。确定吗？", "en": "Cut the main thruster and enter a safe drift orbit?", "added": true}}]}
 		],
 		"final_descend": [
 			{"do": "flag", "set": "final_descend"},
-			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
+			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
 			{"do": "sfx", "name": "cloud_part"},
 			{"narr": {"zh": "地面信号恢复。", "en": "Ground signal restored."}, "added": true},
 			{"do": "wait", "sec": 1.0},
@@ -606,8 +607,7 @@
 			{"do": "anim", "who": "chen", "name": "check"},
 			{"do": "wait", "sec": 1.0},
 			{"say": "chen", "zh": "好。这次看清楚再下去。", "en": "Okay. This time I look properly before I go down."},
-			{"do": "todo_mechanic", "id": "final_nav", "spec": "【最终导航选择：前往西侧旧货场，触发结局一；朝东侧低鸣的位置降落，触发结局二；接受城市引导，前往居民区，触发结局三。选择后显示确认提示。普通对话选项不参与结局判定，保留的物品只影响结局中的具体动作与人物尾声。】"},
-			{"do": "pick", "options": [{"id": "west", "label": {"zh": "前往西侧旧货场", "en": "Head west to the old freight yard"}, "scene": "ending1", "added": true}, {"id": "east", "label": {"zh": "朝东侧低鸣的位置降落", "en": "Land toward the low rumble in the east"}, "scene": "ending2", "added": true}, {"id": "town", "label": {"zh": "接受城市引导，前往居民区", "en": "Follow city guidance to the residential area"}, "scene": "ending3", "added": true}]}
+			{"do": "pick", "id": "final_nav", "ui": "nav", "title": {"zh": "最终导航", "en": "Final approach", "added": true}, "nav_state": "landing_zone", "spec": "【最终导航选择：前往西侧旧货场，触发结局一；朝东侧低鸣的位置降落，触发结局二；接受城市引导，前往居民区，触发结局三。选择后显示确认提示。普通对话选项不参与结局判定，保留的物品只影响结局中的具体动作与人物尾声。】", "options": [{"id": "west", "label": {"zh": "前往西侧旧货场", "en": "Head west to the old freight yard"}, "scene": "ending1", "added": true, "pt": [30, 68], "signal": "faded", "confirm": {"zh": "降落点：西侧旧货场。确定吗？", "en": "Landing site: the old freight yard, west. Confirm?", "added": true}}, {"id": "east", "label": {"zh": "朝东侧低鸣的位置降落", "en": "Land toward the low rumble in the east"}, "scene": "ending2", "added": true, "pt": [182, 69], "signal": "weak", "confirm": {"zh": "降落点：东侧低鸣处。声源无法确定。确定吗？", "en": "Landing site: the low rumble, east. Source unknown. Confirm?", "added": true}}, {"id": "town", "label": {"zh": "接受城市引导，前往居民区", "en": "Follow city guidance to the residential area"}, "scene": "ending3", "added": true, "pt": [112, 67], "signal": "broadcast", "confirm": {"zh": "降落点：居民区，跟着城市引导下去。确定吗？", "en": "Landing site: the residential area, following city guidance. Confirm?", "added": true}}]}
 		],
 		"ck_bell": [
 			{"do": "sfx", "name": "bell_soft"},
@@ -635,7 +635,7 @@
 		],
 		"ending1": [
 			{"do": "flag", "set": "final_ending_1"},
-			{"do": "fade_to", "room": "yard", "at": "yard_landing"},
+			{"do": "fade_to", "room": "reed_field", "at": "yard_landing"},
 			{"do": "sfx", "name": "rough_landing"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "sfx", "name": "valve_close"},
@@ -835,6 +835,7 @@
 			{"do": "anim", "who": "chen", "name": "repair"},
 			{"say": "chen", "zh": "这段我会。", "en": "This part I know.", "added": true},
 			{"do": "sfx", "name": "tighten"},
+			{"do": "if", "flag": "barter_toucan_whistle", "then": "e1_whistle"},
 			{"do": "goto", "scene": "e1_paper"}
 		],
 		"e1_paper": [
@@ -872,7 +873,7 @@
 		],
 		"ending2": [
 			{"do": "flag", "set": "final_ending_2"},
-			{"do": "fade_to", "room": "east_meadow", "at": "east_landing"},
+			{"do": "fade_to", "room": "reed_field", "at": "east_landing"},
 			{"do": "sfx", "name": "rough_landing"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "chen", "name": "check"},
@@ -1036,6 +1037,7 @@
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "chen", "name": "sit_up"},
 			{"do": "face", "who": "chen", "to": "east_water"},
+			{"do": "if", "flag": "barter_rat_chef_fire", "then": "e2_rice_ball"},
 			{"do": "wait", "sec": 2.0},
 			{"do": "prop", "id": "east_toolbag", "state": "ready"},
 			{"do": "anim", "who": "chen", "name": "lie"},
@@ -1299,6 +1301,7 @@
 			{"say": "chen", "zh": "能买到咸面包吗？", "en": "Can I get savory bread there?", "added": true},
 			{"say": "townsfolk", "zh": "给你留块脆边。", "en": "I'll save you a crusty end.", "added": true},
 			{"do": "journal", "zh": "明天：早饭。脆边。", "en": "Tomorrow: breakfast. Crusty end.", "added": true},
+			{"do": "if", "flag": "barter_toucan_whistle", "then": "e3_whistle"},
 			{"do": "goto", "scene": "epilogue"}
 		],
 		"e3_crowd_chat": [
@@ -1454,8 +1457,7 @@
 			{"do": "goto", "scene": "epilogue"}
 		],
 		"epilogue": [
-			{"do": "flag", "set": "final_epilogue"},
-			{"do": "todo_mechanic", "id": "final_epilogue", "spec": "【以下为四个结局后的条件尾声，呈现晨后来回访时的片段，不表示飞机在结局后立即修好。大象的结局改变晨带回的描述，物品状态改变相关动作和局部对白。】"},
+			{"do": "flag", "set": "final_epilogue", "spec": "【以下为四个结局后的条件尾声，呈现晨后来回访时的片段，不表示飞机在结局后立即修好。大象的结局改变晨带回的描述，物品状态改变相关动作和局部对白。】"},
 			{"do": "fade_to", "room": "forest", "at": "forest_crossroad"},
 			{"do": "show", "who": "deer", "at": "forest_deer"},
 			{"do": "face", "who": "deer", "to": "chen"},
@@ -1695,19 +1697,26 @@
 			{"say": "chen", "zh": "……我不太爱甜的。", "en": "...I'm not big on sweet things.", "added": true},
 			{"do": "anim", "who": "niff", "name": "laugh"},
 			{"say": "niff", "zh": "啊，拿错啦。这个才是你的。", "en": "Ah, wrong one. This one's yours."},
-			{"do": "flag", "set": "final_epi_niff"}
+			{"do": "flag", "set": "final_epi_niff"},
+			{"do": "if", "flag": "barter_rat_chef_fire", "then": "epi_niff_stove"}
 		],
 		"epi_niff_chat": [
 			{"say": "niff", "zh": "这页写着：晨，回来过。", "en": "This page says: Chen came back.", "added": true},
 			{"say": "niff", "zh": "嘿嘿，这次没写成湿湿的人。", "en": "Hehe. Didn't write \"the soggy one\" this time.", "added": true}
 		],
+		"epi_city": [
+			{"do": "flag", "set": "final_epi_city"},
+			{"do": "fade_to", "room": "city", "at": "city_start", "arrive": "city_arrive"}
+		],
 		"epi_home": [
+			{"do": "flag", "set": "final_epi_train"},
 			{"do": "fade_to", "room": "home_train", "at": "train_door"},
 			{"do": "ambient", "name": "train_run", "at": "train_door", "on": true},
 			{"do": "prop", "id": "train_window", "state": "afternoon_sun"},
 			{"do": "wait", "sec": 2.0},
 			{"do": "face", "who": "chen", "to": "train_seat"},
 			{"do": "wait", "sec": 2.0},
+			{"do": "if", "flag": "barter_rat_chef_recipe", "then": "epi_home_recipe"},
 			{"do": "if", "flag": "burned_seat_chart", "then": "epi_home_phone", "else": "epi_home_chart"}
 		],
 		"epi_home_chart": [
@@ -1749,6 +1758,105 @@
 			{"do": "wait", "sec": 3.0},
 			{"do": "flag", "set": "final_done"},
 			{"do": "end_chapter"}
+		],
+		"final_soup_fuel": [
+			{"do": "fuel", "sub": 50},
+			{"say": "chen", "zh": "……表上少了一截。", "en": "...The gauge is a notch short.", "added": true},
+			{"say": "chen", "zh": "那袋浮木，换成汤了。", "en": "That bag of driftwood turned into soup.", "added": true}
+		],
+		"final_niff_msg_plain": [
+			{"do": "phone_msg", "id": "final_msg_nifu_1", "from": "nifu", "zh": "晨，你吃饭了吗？我刚翻到本子，上面还写着你肚子饿呢。\n啊，后面写了，吃过面包啦，那现在呢？", "en": "Chen, have you eaten? I just found my notebook, and it says you're hungry.\nAh, the next line says you had bread. So what about now?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}}
+		],
+		"final_niff_msg_soup": [
+			{"do": "phone_msg", "id": "final_msg_nifu_1_soup", "from": "nifu", "zh": "晨，你吃饭了吗？我刚翻到本子，上面还写着你肚子饿呢。\n啊，后面写了，吃过面包啦，那现在呢？", "en": "Chen, have you eaten? I just found my notebook, and it says you're hungry.\nAh, the next line says you had bread. So what about now?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}}
+		],
+		"look_toucan_feather": [
+			{"do": "show_item", "item": "toucan_feather"},
+			{"say": "chen", "zh": "大嘴鸟最好的一根。", "en": "The toucan's best one.", "added": true},
+			{"say": "chen", "zh": "它说比铁轻。……是轻。", "en": "It said this was lighter than iron. ...It is.", "added": true}
+		],
+		"burn_toucan_feather": [
+			{"do": "take", "item": "toucan_feather"},
+			{"do": "flag", "set": "burned_toucan_feather"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……烧起来是橙色的。", "en": "...It burns orange.", "added": true}
+		],
+		"look_recipe_card": [
+			{"do": "show_item", "item": "recipe_card"},
+			{"say": "chen", "zh": "「火别太大，等它自己滚。」", "en": "\"Don't rush the fire. Let it come to a boil on its own.\"", "added": true},
+			{"say": "chen", "zh": "鼠妈让我替她收着的。", "en": "Mama Rat asked me to keep it for her.", "added": true}
+		],
+		"burn_recipe_card": [
+			{"do": "take", "item": "recipe_card"},
+			{"do": "flag", "set": "burned_recipe_card"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……做法我记得。大概。", "en": "...I remember how it goes. Mostly.", "added": true}
+		],
+		"look_bird_whistle": [
+			{"do": "show_item", "item": "bird_whistle"},
+			{"do": "sfx", "name": "bird_whistle"},
+			{"say": "chen", "zh": "转音那里，它还是会等一下。", "en": "Where the tune turns, it still waits a moment.", "added": true}
+		],
+		"burn_bird_whistle": [
+			{"do": "take", "item": "bird_whistle"},
+			{"do": "flag", "set": "burned_bird_whistle"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……那一句，以后我自己哼。", "en": "...I'll hum that phrase myself from now on.", "added": true}
+		],
+		"look_rain_glass": [
+			{"do": "show_item", "item": "rain_glass"},
+			{"say": "chen", "zh": "干着也亮。", "en": "It shines even dry.", "added": true},
+			{"say": "chen", "zh": "石头在大嘴鸟那儿。它应该也还好。", "en": "The stone's with the toucan. It's probably doing fine too.", "added": true}
+		],
+		"burn_final_rain_glass": [
+			{"do": "take", "item": "rain_glass"},
+			{"do": "flag", "set": "burned_rain_glass"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……也亮了一下。", "en": "...It shone too, for a moment.", "added": true}
+		],
+		"cab_burned_glass": [
+			{"do": "journal", "zh": "已经烧掉的：雨玻璃。", "en": "Already burned: Rain Glass.", "added": true},
+			{"do": "goto", "scene": "cab_think"}
+		],
+		"e1_whistle": [
+			{"do": "if", "flag": "burned_bird_whistle", "else": "e1_whistle_play"},
+			{"do": "goto", "scene": "e1_paper"}
+		],
+		"e1_whistle_play": [
+			{"do": "show_item", "item": "bird_whistle"},
+			{"do": "sfx", "name": "bird_whistle"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……转音那里，还是慢半拍。", "en": "...Where the tune turns, still half a beat late.", "added": true}
+		],
+		"e3_whistle": [
+			{"do": "if", "flag": "burned_bird_whistle", "else": "e3_whistle_play"},
+			{"do": "goto", "scene": "epilogue"}
+		],
+		"e3_whistle_play": [
+			{"do": "show_item", "item": "bird_whistle"},
+			{"do": "sfx", "name": "bird_whistle"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "townsfolk", "zh": "好听。最后那里怎么停了一下？", "en": "That's nice. Why does it stop for a second near the end?", "added": true},
+			{"say": "chen", "zh": "……那里本来就要等一下。", "en": "...You're supposed to wait a moment there.", "added": true}
+		],
+		"e2_rice_ball": [
+			{"do": "show_item", "item": "rice_ball"},
+			{"do": "anim", "who": "chen", "name": "eat"},
+			{"do": "wait", "sec": 1.5},
+			{"say": "chen", "zh": "……一个今天吃。", "en": "...One's for today.", "added": true}
+		],
+		"epi_niff_stove": [
+			{"say": "niff", "zh": "对了，高处市集那口灶，听说一直没熄过。", "en": "Oh, right. They say that stove up at the high market has never gone out.", "added": true},
+			{"say": "chen", "zh": "……嗯。", "en": "...Mm.", "added": true}
+		],
+		"epi_home_recipe": [
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……照鼠妈的菜谱煮过一锅。", "en": "...I made a pot from Mama Rat's recipe once.", "added": true},
+			{"say": "chen", "zh": "没煮好。火太大了。", "en": "It didn't turn out. The fire was too high.", "added": true}
 		]
 	}
 }

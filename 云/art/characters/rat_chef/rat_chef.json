@@ -1,0 +1,36 @@
+{
+ "_comment": "美术组的料理鼠妈（tools/barter_npcs_art.py 按格取样还原，不改图，6 帧 200ms 原样）。在高处市集自己的小摊后面（market/room.json 的 residents + 物件 market_rat_stall），以物易物（data/barter.json）。正面站着、举着汤勺挥手，不翻转（residents 的 face 写 1）。anchor = 两只脚中间的底边。tint false = 美术组的图原色。pass = 不占路（晨从摊前走过去，story_runner._is_body）。",
+ "frame": [
+  31,
+  40
+ ],
+ "sheet": "rat_chef.png",
+ "anchor": [
+  15,
+  38
+ ],
+ "faces": "right",
+ "ms": 200,
+ "tint": false,
+ "head": 38,
+ "speed": 0,
+ "pass": true,
+ "color": "#c8a07a",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "loop": true
+  }
+ },
+ "alias": {
+  "talk": "idle",
+  "walk": "idle"
+ }
+}
