@@ -22,18 +22,18 @@
   "townroom_door": 34
  },
  "objects": {
-  "townroom_rotor": {
-   "img": "res://art/cloud_town/anim/lodge_rotor.png",
-   "x": 58,
-   "y": 57,
-   "frames": 8,
+  "townroom_flag": {
+   "img": "res://art/cloud_town/anim/lodge_flag.png",
+   "x": 72,
+   "y": 14,
+   "frames": 12,
    "states": {
-    "spin": [
+    "wave": [
      0,
-     7
+     11
     ]
    },
-   "default": "spin"
+   "default": "wave"
   }
  }
 }

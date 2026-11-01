@@ -1252,6 +1252,144 @@ def draw_giants():
 GIANT_ROOTS: list = []
 
 
+# ---------------------------------------------------------------- 第十三版：只加东西，颜色一律沿用第十一版
+# 作者：「我的方案本是叫你多加一些石头，树木……一团一团的树，大一点，可能跟主角同一层，但是大到直接顶到屏幕顶上」。
+# 大树（bigtrees 层，scroll 1.0，紧贴在 main 后面）。
+# 第十四版：作者：「这个芦苇地的树木感觉好奇怪……你就不能做一个大树吗？我记得小奥斯卡里我亲自画的树不少啊」——
+# 第十三版那种一串圆球（棉花糖）撤掉，直接用作者亲手画的「森林阔叶木」（art/reed_field/src/broadleaf_jiamu.png，
+# 原件 Phage/Aseprite Assets/Part Jiamu1/Old/森林阔叶木_副本.png，203×178）：粗主干、树洞、分叉的枝从叶团缝里露出来、
+# 一层层不规则的叶团、垂下来的枝条。像素一格不改、不缩放，只按亮度把颜色换成第十一版那套淡色（BIGTREE_LEAF / BIGTREE_BARK，
+# 叶子暗处是淡青、亮处是淡黄绿，树皮是浅浅的暖灰），整棵的平均亮度和 main 一样或者略亮。
+# 要冲出屏幕上沿：把原图的树冠左右翻过来、往上挪 BIGTREE_LIFT 行垫在原图后面（作者自己的叶团往上续一层），
+# 只留它高出原图树冠上沿的那部分（逐列看原图最上面那一格），所以续上去的叶团下沿就是原图树冠的上沿，没有横着切的一刀。
+# 原图整个盖在它前面。根（原图最下面一行）放在 BIGTREE_ROOT 行，藏在 main 那一溜草带后面。
+BIGTREE_SRC = ROOT / "art" / "reed_field" / "src" / "broadleaf_jiamu.png"
+BIGTREE_LEAF = [(55, "#94cfb8"), (70, "#b8d98a"), (88, "#cbe39c"), (106, "#dcecb2"), (999, "#ecf4d2")]   # 原色亮度 ≤ 几 → 换成这个
+BIGTREE_BARK = [(12, "#9cbdb3"), (26, "#c2cdbd"), (42, "#d6d6c0"), (60, "#e6e2cb"), (999, "#f2eedb")]
+BIGTREES = [(600, 1), (1580, -1)]                                  # 树干中心的房间 x、朝向（−1 = 左右翻过来）
+BIGTREE_ROOT = 214
+BIGTREE_LIFT = 62
+BIGTREE_TRUNK_X = (84, 126)                                        # 原图主干（连树洞）所在的列
+
+
+def bigtree_sprite():
+    src = np.array(Image.open(BIGTREE_SRC).convert("RGBA"))
+    h, w = src.shape[:2]
+    out = blank(w, h + BIGTREE_LIFT)
+    m = src[..., 3] > 0
+    top_orig = np.where(m.any(axis=0), np.argmax(m, axis=0), -1) + BIGTREE_LIFT     # 原图每一列最上面那一格（在 out 里的行）
+    flip = src[:, ::-1]
+    fm = flip[..., 3] > 0
+    for x in range(w):
+        if top_orig[x] < BIGTREE_LIFT:
+            continue                                                 # 原图这一列是空的：续的叶团也不放（不会悬在外面）
+        ys = np.nonzero(fm[:, x])[0]
+        ys = ys[ys < top_orig[x]]
+        sx = w - 1 - x                                               # 翻过来之前在原图里是哪一列
+        if BIGTREE_TRUNK_X[0] <= sx <= BIGTREE_TRUNK_X[1]:
+            ys = [y for y in ys if flip[y, x, 1] > flip[y, x, 0]]    # 主干那几列只要叶子（不要第二个树干、第二个树洞）
+        out[ys, x] = flip[ys, x]
+    out[BIGTREE_LIFT:][m] = src[m]
+    a = out[..., 3] > 0
+    for c in np.unique(out[a][:, :3], axis=0):
+        r, g, b = (int(v) for v in c)
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        ramp = BIGTREE_BARK if r > g else BIGTREE_LEAF              # 树皮偏红棕，叶子偏绿
+        nc = next(hx for lim, hx in ramp if lum <= lim)
+        sel = a & (out[..., 0] == r) & (out[..., 1] == g) & (out[..., 2] == b)
+        out[sel, :3] = hexc(nc)[:3]
+    rows = np.nonzero(a.any(axis=1))[0]
+    bot = rows.max()
+    trunk_x = int(round(np.nonzero(a[bot - 6:bot + 1].any(axis=0))[0].mean()))
+    return out, trunk_x, bot
+
+
+def draw_bigtrees():
+    img = blank(W, BIGTREE_ROOT + 2)
+    spr, tx, bot = bigtree_sprite()
+    for (x0, face) in BIGTREES:
+        s = spr if face > 0 else spr[:, ::-1]
+        sx = tx if face > 0 else spr.shape[1] - 1 - tx
+        X0, Y0 = int(x0 - sx), BIGTREE_ROOT - bot
+        for y in range(s.shape[0]):
+            Y = Y0 + y
+            if not (0 <= Y < img.shape[0]):
+                continue
+            row = s[y]
+            m = row[:, 3] > 0
+            xs = np.nonzero(m)[0] + X0
+            ok = (xs >= 0) & (xs < W)
+            img[Y, xs[ok]] = row[m][ok]
+    return img
+
+
+# 石头：水边、草里、浅水里几块圆圆的石头（左上受光的奶白、身子淡灰黄、背光偏冷的淡青灰——都是第十一版画面里已有的明度），
+# 在水里的：贴水一道暗边（接触阴影）+ 水里压扁一半的倒影；在草里的：底下一道淡淡的影子，会动的草丛在它前面。
+ROCK_TONES = ["#f6f3e2", "#e4e2cd", "#cddbd5", "#b9d1cb"]
+ROCK_WET = "#9fc4b8"
+
+
+def draw_rocks(main, rng):
+    pool = {tuple(hexc(c)) for c in POOL + POOL_SAND + [POOL_EDGE] + SURF + GLINT}
+    tones = [hexc(c) for c in ROCK_TONES]
+    mask = np.zeros(main.shape[:2], bool)
+    spots = []
+    for (n, y0, y1, rx0, rx1) in ((9, 238, 262, 4, 9), (6, 216, 220, 5, 11), (6, 200, 212, 6, 13)):
+        tries = 0
+        while sum(1 for s in spots if y0 <= s[1] <= y1) < n and tries < 400:
+            tries += 1
+            x = rng.uniform(20, W - 20)
+            if any(abs(x - s[0]) < 110 for s in spots if y0 <= s[1] <= y1) or any(abs(x - m) < 40 for m in room_json_markers()):
+                continue
+            spots.append((x, rng.uniform(y0, y1), rng.uniform(rx0, rx1)))
+    for (cx, base, rx) in spots:
+        base = int(round(base))
+        ry = rx * rng.uniform(0.55, 0.8)
+        wet = tuple(main[min(H - 1, base + 1), int(cx)]) in pool
+        moss = (not wet) or rng.random() < 0.35
+        for y in range(int(base - ry - 1), base + 1):
+            for x in range(int(cx - rx - 1), int(cx + rx + 2)):
+                dx, dy = (x + 0.5 - cx) / rx, (y + 0.5 - base) / ry
+                if abs(dx) ** 2.4 + abs(dy) ** 2.4 > 1 or not (0 <= x < W):
+                    continue
+                nz = math.sqrt(max(0.0, 1 - min(1.0, dx * dx + dy * dy)))
+                lit = -0.55 * dx - 0.7 * dy + 0.45 * nz
+                c = tones[0] if lit > 0.62 else tones[1] if lit > 0.3 else tones[2] if lit > 0.02 else tones[3]
+                if moss and dy < -0.62 and lit > 0.15:
+                    c = hexc(GREEN[3])                 # 顶上一点青苔
+                main[y, x] = c
+                mask[y, x] = True
+        cols = [x for x in range(int(cx - rx - 1), int(cx + rx + 2)) if 0 <= x < W and mask[base, x]]
+        if not cols:
+            continue
+        if wet:
+            for x in cols:                                   # 贴水的暗边 + 倒影（压扁一半）
+                main[base + 1, x] = mix(hexc(ROCK_WET), main[base + 1, x], 0.25)
+                for d in range(0, int(ry)):
+                    sy, ty = base - d, base + 2 + d // 2
+                    if ty < H and mask[sy, x] and tuple(main[ty, x]) in pool:
+                        main[ty, x] = mix(tones[2], main[ty, x], 0.55)    # 倒影一个色（混进那一行的水色），不碎
+        else:
+            for x in range(cols[0] - 1, cols[-1] + 2):       # 草里：底下一道淡影
+                if 0 <= x < W and not mask[base + 1, x]:
+                    main[base + 1, x] = mix(main[base + 1, x], hexc(GREEN[1]), 0.45)
+    for (cx, base, rx) in spots:                             # 只在每块石头周围清理（别的地方和第十一版逐像素一样）
+        y0, y1 = max(0, int(base - rx - 4)), min(H, int(base + rx + 6))
+        x0, x1 = max(0, int(cx - rx - 5)), min(W, int(cx + rx + 6))
+        Y0, Y1, X0, X1 = max(0, y0 - 4), min(H, y1 + 4), max(0, x0 - 4), min(W, x1 + 4)
+        win = main[Y0:Y1, X0:X1].copy()                       # 多带一圈邻居一起清，只把里面那块贴回去（边上的格子看得见真的邻居）
+        for _ in range(2):
+            corner_fix(win)
+            speck_fix(win)
+        corner_fix(win)
+        main[y0:y1, x0:x1] = win[y0 - Y0:y1 - Y0, x0 - X0:x1 - X0]
+    ROCK_SPOTS[:] = [(round(x), round(y), round(r, 1)) for x, y, r in spots]
+    return mask
+
+
+ROCK_SPOTS: list = []
+
+
 # ---------------------------------------------------------------- 会动的芦苇：每种在每个角度下画一帧
 def reed_variants():
     """每排几种：L 总长（含穗）、P 穗长、PW 穗宽、nod 平时穗往右垂多少度、strands 穗下沿垂下来的几缕穗丝、
@@ -1494,6 +1632,184 @@ def build_birds():
     return img, meta
 
 
+# ================================================================ 第十一版：超前景、雾
+# 作者（11-01）：「这个场景已经很不错了」，再加：超前景（镜头最前面离得很近、虚的大植物）和几层薄雾（把远近隔开、有空气感）。
+# 超前景（fg.png，reed_field.gd 自己挂一个 Sprite2D：scroll 1.6、z 116，在 gf 前面）：
+#   几丛很近的大芦苇叶 / 草叶从画面下沿探进来（根在画面外），一两团没对上焦的蒲公英绒球贴着下沿。颜色偏冷、压暗、淡，形状只有身子、
+#   背光一侧、受光一道边三档，没有细节（虚）。数量克制：整条路上 6 处，一屏里通常一两处。
+#   高的那几丛（顶高过 y 200）在晨停下来说话的地方（markers）不会在屏幕中间（FG_CLEAR 以外）；盖住晨或者正在说话的人时，
+#   reed_field.gd 把它淡到 FG_DIM（和 room_stage 的 front 层一个意思）。随风轻摆，100ms 一帧。
+FG_SCROLL = 1.6
+FG_Y = 120
+FG_W = int(math.ceil((W - 480) * FG_SCROLL)) + 480 + 8
+FG_H = H - FG_Y
+FG_TONES = ["#88b4a7", "#9ec5b8", "#b9d8cc"]      # 背光、身子、受光边
+FLUFF_TONES = ["#d7e8e4", "#e6f1ed", "#f2f8f4"]
+FG_CLEAR = (130, 350)                             # markers 那几个镜头位置，高的超前景不进屏幕的这一段
+
+
+def fg_blade(img, tone_idx, x0, top, lean, wid, curve):
+    """一片很近的芦苇叶：根在画面下沿外，往上长到 top 附近再往 lean 那边弯过去、叶尖垂下来一点（像一条软带子，不是直的尖刺）；
+    左半身子、右半背光，左边一道受光边（上半截才有）"""
+    h, w = img.shape[:2]
+    droop = abs(lean) * (0.25 + curve * 0.6)
+    p0 = (x0, h + 10)
+    p1 = (x0 + lean * 0.05, top - 6)
+    p2 = (x0 + lean * 0.75, top - 10)
+    p3 = (x0 + lean, top + droop)
+    n = int((p0[1] - top) * 2 + abs(lean) * 2) + 10
+    tones = [hexc(c) for c in FG_TONES]
+    for i in range(n + 1):
+        t = i / n
+        a, b, c_, d = (1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t * t, t ** 3
+        cx = a * p0[0] + b * p1[0] + c_ * p2[0] + d * p3[0]
+        cy = a * p0[1] + b * p1[1] + c_ * p2[1] + d * p3[1]
+        tx = 3 * (1 - t) ** 2 * (p1[0] - p0[0]) + 6 * (1 - t) * t * (p2[0] - p1[0]) + 3 * t * t * (p3[0] - p2[0])
+        ty = 3 * (1 - t) ** 2 * (p1[1] - p0[1]) + 6 * (1 - t) * t * (p2[1] - p1[1]) + 3 * t * t * (p3[1] - p2[1])
+        r = max(0.6, wid / 2 * (1 - t) ** 0.9)
+        for yy in range(int(cy - r - 1), int(cy + r + 2)):
+            for xx in range(int(cx - r - 1), int(cx + r + 2)):
+                if not (0 <= yy < h and 0 <= xx < w):
+                    continue
+                dx, dy = xx + 0.5 - cx, yy + 0.5 - cy
+                if dx * dx + dy * dy > r * r:
+                    continue
+                side = tx * dy - ty * dx                 # < 0：中线左边
+                if side > 0:
+                    c = tones[max(0, tone_idx - 1)]
+                elif t > 0.35 and dx * dx + dy * dy > (r - 1.1) ** 2 and r > 1.6:
+                    c = tones[min(2, tone_idx + 1)]
+                else:
+                    c = tones[tone_idx]
+                img[yy, xx] = c
+
+
+def fg_fluff(img, cx, r, rng):
+    """没对上焦的蒲公英绒球，一大半在画面下沿外：外圈、里圈、左上一块亮，三档；边上轻轻起伏"""
+    h, w = img.shape[:2]
+    cy = h + r * 0.35
+    bumps = knots(360, 9, rng, 0.05, period=360)
+    tones = [hexc(c) for c in FLUFF_TONES]
+    for yy in range(max(0, int(cy - r * 1.1)), h):
+        for xx in range(int(cx - r * 1.1), int(cx + r * 1.1)):
+            if not (0 <= xx < w):
+                continue
+            dx, dy = xx + 0.5 - cx, yy + 0.5 - cy
+            d = math.hypot(dx, dy)
+            a = int(math.degrees(math.atan2(dy, dx))) % 360
+            rr = r * (1 + bumps[a])
+            if d > rr:
+                continue
+            lit = (-dx * 0.6 - dy * 0.8) / rr
+            img[yy, xx] = tones[2] if (d < rr * 0.62 and lit > 0.25) else tones[1] if d < rr * 0.8 else tones[0]
+
+
+def draw_fg():
+    """超前景整条（不 tile）：屏幕 x = 图 x − 镜头 × FG_SCROLL。几丛叶 + 一两团绒球，高的避开 markers 的镜头"""
+    rng = np.random.default_rng(1111)
+    img = blank(FG_W, FG_H)
+    marks = [m for m in room_json_markers()]
+    cams = [min(max(m - 240, 0), W - 480) for m in marks]
+
+    def clear_at(a, b):
+        return all(b - c * FG_SCROLL < FG_CLEAR[0] or a - c * FG_SCROLL > FG_CLEAR[1] for c in cams)
+    # (种类, 大约在哪（图 x）, 多高)。tall：顶到 y 172–196；low：顶在 y 226 以下（晨脚底那行以下，不挡人）
+    plan = [("low", 150), ("tall", 560), ("fluff", 980), ("low", 1380), ("tall", 1900), ("low", 2350), ("fluff", 2640)]
+    placed = []
+    for kind, x in plan:
+        x += rng.uniform(-40, 40)
+        span = 70 if kind == "tall" else 50
+        if kind == "tall":
+            for _ in range(40):
+                if clear_at(x - span / 2, x + span / 2):
+                    break
+                x += 23
+        placed.append((kind, x))
+        if kind == "fluff":
+            fg_fluff(img, x, rng.uniform(30, 40), rng)
+            continue
+        nb = int(rng.integers(3, 5)) if kind == "tall" else int(rng.integers(2, 4))
+        for k in range(nb):                          # 后面的先画（深一档），前面的后画
+            top = (rng.uniform(172, 196) if kind == "tall" else rng.uniform(226, 244)) - FG_Y + (k * 6 if kind == "tall" else 0)
+            lean = rng.choice([-1, 1]) * rng.uniform(24, 56)
+            fg_blade(img, 0 if k == 0 and nb > 2 else 1, x + rng.uniform(-span / 2, span / 2), top, lean,
+                     rng.uniform(16, 24) if kind == "tall" else rng.uniform(13, 18), rng.uniform(0.1, 0.5))
+    corner_fix(img)
+    speck_fix(img)
+    corner_fix(img)
+    alpha_fix(img)
+    de_alt(img, passes=2)
+    corner_fix(img)
+    edge_diag_fill(img)
+    speck_fix(img)
+    corner_fix(img)
+    FG_PLACED[:] = placed
+    return img
+
+
+FG_PLACED: list = []
+
+
+def room_json_markers():
+    return [60, SPOTS[0], SPOTS[1], (TOWN[0] + TOWN[1]) // 2, SPOTS[2], 1860]
+
+
+# 雾：几条贴着水面、夹在草洲之间的薄雾（各自一层，层的 alpha 让它半透明），越远越宽越淡，和远山脚下的雾一个颜色。
+# 每一缕两头尖、上沿软软起伏；里面按离中线多远分三档颜色（外圈、中间、芯），叠在半透明里就是一层层柔和的过渡，没有抖点、没有硬方块。
+# mist_low：近景前面偶尔慢慢飘过的一缕低雾（tile 1920 只有两缕，drift 很慢，z 25 在晨和脚踝的水面前面、gf 后面）。
+MIST_TONES = ["#e6f1ee", "#eef5f0", "#f6faf3"]
+MISTS = [
+    # id, 插在哪一层前面（room.json 的层顺序）, scroll, 屏幕 y, 高, alpha, 几缕, 长, 厚, tile 宽, drift, z
+    ("mist_hills", "far", 0.1, 124, 22, 0.42, 7, (160, 340), (5, 9), 960, 0.0, None),
+    ("mist_far", "mid", 0.24, 136, 22, 0.36, 7, (120, 280), (4, 8), 960, 0.0, None),
+    ("mist_mid", "isles", 0.48, 150, 22, 0.3, 6, (110, 240), (4, 7), 960, 0.0, None),
+    ("mist_low", "ankle", 1.15, 192, 46, 0.24, 2, (170, 260), (8, 14), 1920, 1.2, 25),
+]
+
+
+def draw_mist(spec):
+    mid, _after, _sc, _y, h, _a, n, (lmin, lmax), (tmin, tmax), w, _drift, _z = spec
+    rng = np.random.default_rng(sum(map(ord, mid)))
+    img = blank(w, h)
+    tones = [hexc(c) for c in MIST_TONES]
+    x = rng.uniform(0, w / n)
+    for _ in range(n):
+        L = rng.uniform(lmin, lmax)
+        th = rng.uniform(tmin, tmax)
+        yc = rng.uniform(th * 0.6 + 1, h - th * 0.5 - 2)
+        wave = knots(int(L) + 2, 40, rng, 1.2)
+        topn = knots(int(L) + 2, 11, rng, 0.9)
+        for i in range(int(L)):
+            u = i / L
+            e = math.sin(math.pi * u) ** 0.8
+            t = th * e * (0.8 + 0.2 * math.sin(u * 7 + yc))
+            if t < 0.6:
+                continue
+            c0 = yc + wave[i]
+            top = c0 - t * 0.6 + topn[i] * e
+            bot = c0 + t * 0.4
+            for y in range(int(round(top)), int(round(bot)) + 1):
+                if 0 <= y < h:
+                    d = abs(y - c0) / max(t * 0.5, 0.5)
+                    img[y, int(x + i) % w] = tones[2] if d < 0.35 else tones[1] if d < 0.75 else tones[0]
+        x += L + rng.uniform(20, w / n)
+    for _ in range(2):                                 # 两缕之间只隔一行的地方补上（不然后面的清理会把那一行补成一格一格的）
+        a = img[..., 3] > 0
+        gap = ~a[1:-1] & a[:-2] & a[2:]
+        ys, xs = np.nonzero(gap)
+        img[ys + 1, xs] = img[ys, xs]
+    corner_fix(img)
+    speck_fix(img)
+    corner_fix(img)
+    alpha_fix(img)
+    de_alt(img, passes=2)
+    corner_fix(img)
+    edge_diag_fill(img)
+    speck_fix(img)
+    corner_fix(img)
+    return img
+
+
 # ================================================================ 第十版：湿地里更多活的东西（作者：「惊鸟非常好，但是除此之外太单调，湿地都是一片生机」）
 # 数量克制（第七版被批过「太过于杂乱」）：岛层水上两三只白鹭、两小群野鸭，远处天上偶尔一队鸟慢慢飞过。惊鸟一点不动。
 # 都是几个像素概括的剪影（和惊鸟一个画法：一个字母一种颜色），白鹭和野鸭的帧里自带贴水的一道亮线和水里的倒影。
@@ -1519,6 +1835,84 @@ DUCK_FR = {
 FAUNA_Y = {"egret": 172, "duck": 167}           # 白鹭脚 / 野鸭贴水那一行的屏幕 y（岛层的水上）
 FLOCK = {"scroll": 0.1, "y": [30, 74], "speed": 7.0}
 FAUNA_Z: dict = {}
+
+
+# 第十一版：晨在浅水里每落一脚溅一簇水花（reed_field.gd 盯着晨的动画：run 的图集帧 18、21 和 run_stop 的 24 是脚着地那帧，
+# 看 art/characters/chen/chen_oscar.png：这三帧后脚踩到最低那行 58）。
+# 第十二版（作者：「你是涟漪而不是水花」——上一版水珠只有一两个像素、颜色和水差不多）：六帧，100ms 一帧，美术朝右（水往身后、左边甩）：
+#   0 落脚：脚两边各翻起一圈水冠（5 像素高）；1 水冠冲到最高（7 像素），四颗水珠离开；2–4 水珠走抛物线，水冠塌回去；
+#   5 水珠落回水面，各漾开一个小点。亮面是接近白的高光 H，身子 M，背光一侧和水冠根上是比水深一档的青蓝 D——淡色背景上靠明暗分得出来。
+#   大水珠 2×2（H M / M D），小水珠 1×2（H / D），没有孤立的单点。锚点 = 水面那一行、脚的正下方。涟漪还在（reed_field.gd 另画，在水花下面）。
+SPLASH_C = {"H": "#fbfefb", "M": "#c4e8ee", "D": "#5b9cae"}
+SPLASH_W, SPLASH_H = 23, 15
+SPLASH_ANCHOR = (12, 14)
+SPLASH_CROWN = [5, 7, 4, 2, 0, 0]                  # 每帧水冠多高（0 = 没了）
+# 每颗水珠：大小、第 1–5 帧在哪（x 偏移，离水面多高；h ≤ 0 = 落回水面那一下，画一个小点）
+SPLASH_DROPS = [
+    ("big", [(-4, 7), (-6, 10), (-8, 10), (-9, 7), (-10, 0)]),
+    ("small", [(-5, 4), (-7, 6), (-9, 5), (-11, 2), None]),
+    ("small", [(-2, 8), (-3, 11), (-4, 12), (-5, 9), (-6, 3)]),
+    ("small", [(4, 5), (5, 7), (6, 6), (7, 2), (8, 0)]),
+]
+SPLASH_FRAMES = 6
+
+
+def splash_frames():
+    ax, ay = SPLASH_ANCHOR
+    out = []
+    for f in range(SPLASH_FRAMES):
+        g = [["."] * SPLASH_W for _ in range(SPLASH_H)]
+
+        def put(dx, hh, c):
+            x, y = ax + dx, ay - hh
+            if 0 <= x < SPLASH_W and 0 <= y < SPLASH_H:
+                g[y][x] = c
+        h = SPLASH_CROWN[f]
+        for side in (-1, 1):
+            if h <= 0:
+                if f == 4:                          # 水冠塌回去：根上剩一小截暗边
+                    for x in (3, 4):
+                        put(side * x, 0, "D")
+                continue
+            for y in range(0, h + 1):
+                xs = [2, 3, 4, 5] if y == 0 else [2, 3, 4] if y <= max(1, h // 3) else [3, 4] if y < h else [4]
+                for x in xs:
+                    if y == 0:
+                        c = "D"
+                    elif y == h:
+                        c = "H"
+                    elif x == xs[-1]:
+                        c = "D"                      # 外侧背光
+                    elif y >= h - 2:
+                        c = "H"
+                    else:
+                        c = "M"
+                    put(side * x, y, c)
+        if f >= 1:
+            for size, path in SPLASH_DROPS:
+                q = path[f - 1]
+                if q is None:
+                    continue
+                dx, hh = q
+                if hh <= 0:                         # 落回水面：一个小点（中间深、两边浅）
+                    put(dx - 1, 0, "M")
+                    put(dx, 0, "D")
+                    put(dx + 1, 0, "M")
+                elif size == "big":
+                    put(dx, hh, "H")
+                    put(dx + 1, hh, "M")
+                    put(dx, hh - 1, "M")
+                    put(dx + 1, hh - 1, "D")
+                else:
+                    put(dx, hh, "H")
+                    put(dx, hh - 1, "D")
+        im = blank(SPLASH_W, SPLASH_H)
+        for y in range(SPLASH_H):
+            for x in range(SPLASH_W):
+                if g[y][x] in SPLASH_C:
+                    im[y, x] = hexc(SPLASH_C[g[y][x]])
+        out.append(im)
+    return out
 
 
 def fauna_frame(rows, foot_row, water_y, haze, ripple_w):
@@ -1558,6 +1952,8 @@ def build_fauna():
         frames["egret_" + k] = fauna_frame(rows, len(rows) - 1, FAUNA_Y["egret"], 0.0, 5)
     for k, rows in DUCK_FR.items():
         frames["duck_" + k] = fauna_frame(rows, len(rows) - 1, FAUNA_Y["duck"], 0.12, 5)
+    for i, im in enumerate(splash_frames()):
+        frames[f"splash_{i}"] = (im, (SPLASH_ANCHOR[0], SPLASH_ANCHOR[1]))
     sky = hexc("#cbe8f4")
     for s, names in ((2, ("up", "mid", "down")), (3, ("up", "mid", "down"))):
         for fr, nm in zip(BIRD_FR[s], names):
@@ -2433,6 +2829,7 @@ def room_json():
         *[L for L in GIANT_LAYERS if "z" not in L and L["scroll"] < 0.5],
         {"id": "isles", "img": "isles.png", "scroll": 0.62, "y": ISL_Y, "tile": True},
         *[L for L in GIANT_LAYERS if "z" not in L and L["scroll"] >= 0.5],
+        {"id": "bigtrees", "img": "bigtrees.png", "scroll": 1.0, "y": 0},
         {"id": "main", "img": "main.png", "scroll": 1.0, "y": 0},
         {"id": "glints", "img": "glints.png", "scroll": 1.0, "y": 0, "shader": "water",
          "shader_params": {"palette_mode": False, "speed": 0.8, "wobble": 1.0, "flicker": 0.0, "show": 0.6}},
@@ -2441,6 +2838,13 @@ def room_json():
     ]
     # 第十版：层的 z 写明，隔一个空一个（−100、−98、…），空出来的给 reed_field.gd 的远处鸟群（hills 前面）和岛层的白鹭、野鸭（isles 前面）
     layers = [dict(L) for L in layers]
+    for (mid, before, sc, y, _h, a, _n, _l, _t, _w, drift, z) in MISTS:      # 第十一版的雾
+        L = {"id": mid, "img": mid + ".png", "scroll": sc, "y": y, "tile": True, "alpha": a}
+        if drift:
+            L["drift"] = drift
+        if z is not None:
+            L["z"] = z
+        layers.insert(next(i for i, q in enumerate(layers) if q["id"] == before), L)
     for i, L in enumerate(layers):
         L.setdefault("z", -100 + 2 * i)
     zid = {L["id"]: L["z"] for L in layers}
@@ -2468,7 +2872,8 @@ def room_json():
                                 "spots": [[SPOTS[0], 6], [SPOTS[1], 5], [SPOTS[2], 6]],
                                 "water": [list(w) for w in WATERS], "seeds": SEED_EMITTERS,
                                 "ripples": RIPPLE_PTS, "motes": MOTE_PTS, "fauna": "res://art/reed_field/fauna.json",
-                                "fauna_z": [FAUNA_Z.get("isle", -70), FAUNA_Z.get("flock", -90)]}}],
+                                "fauna_z": [FAUNA_Z.get("isle", -70), FAUNA_Z.get("flock", -90)],
+                                "fg": {"img": "res://art/reed_field/fg.png", "y": FG_Y, "scroll": FG_SCROLL, "z": 116}}}],
     }
 
 
@@ -2476,7 +2881,7 @@ def room_json():
 SHADE_RINGS = [((44, 54), 0.99), ((35, 45), 0.98), ((27, 36), 0.97), ((20, 28), 0.962), ((13, 21), 0.955)]   # 晨身后压暗（和 reed_field.gd 一样）
 
 
-def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, birds=None, bmeta=None, chen_frame=18, skip=None):
+def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, birds=None, bmeta=None, chen_frame=18, skip=None, splash=None):
     j = room_json()
     out = np.zeros((H, 480, 4), np.uint8)
     out[...] = hexc(j["bg"][0])
@@ -2567,6 +2972,14 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
         items.append((z, 0, lambda r=rname: reeds(r, ROW_SCROLL.get(r, 1.0))))
     items += [(-29, 0, do_birds), (-3, 0, do_refl), (-2, 0, do_shade), (0, 0, do_chen)]
 
+    def do_splash():                              # 预览：落脚那一下的水花（第 splash 帧），锚点 = 水面那一行、脚的正下方
+        if splash is None or chen_x is None or not fauna_global:
+            return
+        fa, fm = fauna_global
+        fx, fy, fw, fh, ax, ay = fm["frames"]["splash_%d" % splash]
+        blit(fa[fy:fy + fh, fx:fx + fw], round(chen_x - cl) - 2 - ax, ground(chen_x) - 3 - ay)
+    items.append((22, 0, do_splash))
+
     def do_isle_fauna():                          # 预览：白鹭一只站、一只啄水；野鸭带一道波纹
         if not fauna_global:
             return
@@ -2604,6 +3017,11 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
             fx, fy, fw, fh, ax, ay = fm["frames"]["flock%d_%s" % (2 if k < 3 else 3, ("up", "mid", "down")[k % 3])]
             blit(fa[fy:fy + fh, fx:fx + fw], x - ax, y - ay)
     items += [(FAUNA_Z.get("isle", -70), 1, do_isle_fauna), (FAUNA_Z.get("flock", -90), 1, do_flock)]
+
+    def do_fg():
+        if "fg" in layers_img:
+            blit(layers_img["fg"], round(-cl * FG_SCROLL), FG_Y)
+    items.append((116, 0, do_fg))
     for _z, _i, fn in sorted(items, key=lambda t: (t[0], t[1])):
         fn()
     return out
@@ -2635,6 +3053,9 @@ def main():
     imgs["mid"] = draw_mid10()
     imgs["mid_glints"] = draw_glints_band(960, MID_H, MID_Y, imgs["mid"], 61, 50)
     imgs["isles"] = draw_isles10()
+    for m in MISTS:
+        imgs[m[0]] = draw_mist(m)
+    imgs["fg"] = draw_fg()
     imgs["main"], gy, wtop, ws, isles, rip, motes = draw_main6()
     RIPPLE_PTS[:] = rip
     MOTE_PTS[:] = motes
@@ -2649,7 +3070,10 @@ def main():
             WATERS.append((a, x - 1))
         x += 1
     print("  路泡在水里的段：", WATERS)
+    rock_mask = draw_rocks(imgs["main"], np.random.default_rng(1331))
     imgs["glints"] = draw_glints_main(gy, ws, wtop)
+    imgs["glints"][rock_mask] = 0                           # 亮纹不压在石头上
+    imgs["bigtrees"] = draw_bigtrees()
     imgs["ankle"] = draw_ankle(imgs["main"], gy, ws)
     imgs["ankle_water"] = draw_ankle_water(gy, ws)
     print("画：巨大作物……")
@@ -2667,11 +3091,20 @@ def main():
 
     print("自查：")
     bad = 0
-    for k in ("sky", "streaks", *[r["id"] for r in RANGES], "far", "mid", "isles", "main", "ankle", "ankle_water", *[g[0] for g in GIANTS]):
+    for k in ("sky", "streaks", *[r["id"] for r in RANGES], "far", "mid", "isles", "main", "ankle", "ankle_water", *[g[0] for g in GIANTS],
+              *[m[0] for m in MISTS], "fg"):
         bad += scan(k, imgs[k], alpha_only=False)
         bad += dashes(k, imgs[k])
     for k in ("glints", "mid_glints"):
         bad += dashes(k, imgs[k])
+    # 大树是作者亲手画的原图（只换了颜色），它自己的对角 / 单点是作者的笔法，不算问题、也不去改；只确认换色前后形状一格没变
+    src = np.array(Image.open(BIGTREE_SRC).convert("RGBA"))
+    spr, _tx, _bot = bigtree_sprite()
+    sm = src[..., 3] > 0
+    below_top = np.arange(src.shape[0])[:, None] >= np.where(sm.any(axis=0), np.argmax(sm, axis=0), src.shape[0])[None, :]
+    lower = spr[BIGTREE_LIFT:]
+    same = bool((lower[sm][:, 3] == src[sm][:, 3]).all() and not (lower[..., 3][below_top & ~sm] > 0).any())
+    print("  bigtrees：作者原图（不缩放、不改像素，只换色），原图那一块的轮廓和原件一样：", same)
     nr = 0
     for vn, v in meta["variants"].items():          # 逐帧扫（整张图集里帧和帧之间的分隔列会被当成缺口）
         for (fx, fy, fw, fh, *_r) in v["frames"]:
@@ -2704,7 +3137,7 @@ def main():
     # 第一版的图，这一版不用了
     for old in ("wisps.png", "clouds.png", "lake.png", "sunpath.png", "giant_wheat_far.png", "giant_wheat_near.png",
                 "giant_wheat_front.png", "giant_dandelion_far.png", "giant_dandelion_near.png", "cover_r0.png", "cover_r1.png",
-                "cover_f.png", "hills0.png", "hills1.png", "hills2.png"):
+                "cover_f.png", "hills0.png", "hills1.png", "hills2.png", "tall.png"):
         q = OUT / old
         if q.exists() and q.relative_to(ROOT).as_posix() not in locked:
             q.unlink()
@@ -2775,6 +3208,26 @@ def main():
             s2 = compose(imgs, atlas, meta, place, min(max(cxr - 240, 0), W - 480), chen_x=cxr)
             Image.fromarray(s2).resize((480 * 2, H * 2), Image.NEAREST).save(pv / f"{name}_2x.png")
         Image.fromarray(atlas).resize((atlas.shape[1] * 3, atlas.shape[0] * 3), Image.NEAREST).save(pv / "reeds_3x.png")
+        # 第十一版：带晨的一屏 2 倍（落脚溅起水花那一下）、水花 8 倍逐帧（晨的脚 + 水面，从左到右 0–4 帧）、超前景和雾的局部
+        s1 = compose(imgs, atlas, meta, place, 0, chen_x=240, splash=1)
+        Image.fromarray(s1).resize((960, H * 2), Image.NEAREST).save(pv / "chen_splash_2x.png")
+        cells = []
+        for f in range(SPLASH_FRAMES):
+            s2 = compose(imgs, atlas, meta, place, 0, chen_x=240, splash=f)
+            g = ground(240)
+            cells.append(s2[g - 24:g + 6, 216:258])
+            cells.append(np.full((30, 1, 4), 255, np.uint8))
+        strip = np.concatenate(cells[:-1], axis=1)
+        Image.fromarray(strip).resize((strip.shape[1] * 8, strip.shape[0] * 8), Image.NEAREST).save(pv / "splash_frames_8x.png")
+        tall = [x for k, x in FG_PLACED if k == "tall"]
+        if tall:
+            cl = int(min(max((tall[0] - 330) / FG_SCROLL, 0), W - 480))
+            s3 = compose(imgs, atlas, meta, place, cl, chen_x=cl + 240)
+            Image.fromarray(s3).resize((960, H * 2), Image.NEAREST).save(pv / "foreground_2x.png")
+        s4 = compose(imgs, atlas, meta, place, 160, chen_x=400)
+        crop = s4[112:186, 0:480]
+        Image.fromarray(crop).resize((crop.shape[1] * 3, crop.shape[0] * 3), Image.NEAREST).save(pv / "mist_3x.png")
+        print("  超前景放在：", [(k, round(x)) for k, x in FG_PLACED])
         print("预览:", pv)
 
 

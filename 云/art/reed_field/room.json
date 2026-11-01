@@ -56,12 +56,30 @@
    "z": -92
   },
   {
+   "id": "mist_hills",
+   "img": "mist_hills.png",
+   "scroll": 0.1,
+   "y": 124,
+   "tile": true,
+   "alpha": 0.42,
+   "z": -90
+  },
+  {
    "id": "far",
    "img": "far.png",
    "scroll": 0.14,
    "y": 128,
    "tile": true,
-   "z": -90
+   "z": -88
+  },
+  {
+   "id": "mist_far",
+   "img": "mist_far.png",
+   "scroll": 0.24,
+   "y": 136,
+   "tile": true,
+   "alpha": 0.36,
+   "z": -86
   },
   {
    "id": "mid",
@@ -69,7 +87,7 @@
    "scroll": 0.35,
    "y": 134,
    "tile": true,
-   "z": -88
+   "z": -84
   },
   {
    "id": "mid_glints",
@@ -85,7 +103,7 @@
     "flicker": 0.0,
     "show": 0.55
    },
-   "z": -86
+   "z": -82
   },
   {
    "id": "giant_dandelion_far_a",
@@ -101,7 +119,7 @@
     "power": 1.8,
     "bend": 0.012
    },
-   "z": -84
+   "z": -80
   },
   {
    "id": "giant_dandelion_far_b",
@@ -117,7 +135,16 @@
     "power": 1.8,
     "bend": 0.012
    },
-   "z": -82
+   "z": -78
+  },
+  {
+   "id": "mist_mid",
+   "img": "mist_mid.png",
+   "scroll": 0.48,
+   "y": 150,
+   "tile": true,
+   "alpha": 0.3,
+   "z": -76
   },
   {
    "id": "isles",
@@ -125,7 +152,7 @@
    "scroll": 0.62,
    "y": 146,
    "tile": true,
-   "z": -80
+   "z": -74
   },
   {
    "id": "giant_dandelion_mid",
@@ -141,7 +168,7 @@
     "power": 1.8,
     "bend": 0.012
    },
-   "z": -78
+   "z": -72
   },
   {
    "id": "giant_dandelion_near_a",
@@ -157,7 +184,7 @@
     "power": 1.8,
     "bend": 0.012
    },
-   "z": -76
+   "z": -70
   },
   {
    "id": "giant_dandelion_near_b",
@@ -173,14 +200,21 @@
     "power": 1.8,
     "bend": 0.012
    },
-   "z": -74
+   "z": -68
+  },
+  {
+   "id": "bigtrees",
+   "img": "bigtrees.png",
+   "scroll": 1.0,
+   "y": 0,
+   "z": -66
   },
   {
    "id": "main",
    "img": "main.png",
    "scroll": 1.0,
    "y": 0,
-   "z": -72
+   "z": -64
   },
   {
    "id": "glints",
@@ -195,7 +229,17 @@
     "flicker": 0.0,
     "show": 0.6
    },
-   "z": -70
+   "z": -62
+  },
+  {
+   "id": "mist_low",
+   "img": "mist_low.png",
+   "scroll": 1.15,
+   "y": 192,
+   "tile": true,
+   "alpha": 0.24,
+   "drift": 1.2,
+   "z": 25
   },
   {
    "id": "ankle",
@@ -901,9 +945,15 @@
     ],
     "fauna": "res://art/reed_field/fauna.json",
     "fauna_z": [
-     -79,
+     -73,
      -91
-    ]
+    ],
+    "fg": {
+     "img": "res://art/reed_field/fg.png",
+     "y": 120,
+     "scroll": 1.6,
+     "z": 116
+    }
    }
   }
  ]

@@ -35,7 +35,7 @@ extends Node2D
 ##   跟着那株蒲公英的视差走。镜头附近的蒲公英才吹。
 ## - 草上的小飞虫 / 光点（motes：锚点）：每个绕着自己的锚点慢慢飘（几道慢正弦叠起来），亮暗慢慢换（两档颜色），一像素。只画镜头里的。
 ## - 水面涟漪（ripples：水里的点）：隔 RIPPLE_EVERY 秒在镜头里的某个点泛一圈扁椭圆（一像素的连续细线、四邻接），慢慢变大、变淡、没了；
-##   晨在水里走的时候，脚下也隔 RIPPLE_STEP 秒泛一圈。
+##   晨在水里每落一脚，脚下泛一圈小的（第十一版：跟着落脚帧，不再按时间隔几秒一圈）。
 ##
 ## 湿地里别的活物（第十版，作者：「惊鸟非常好，但是除此之外太单调，湿地都是一片生机」）—— fauna.png + fauna.json，数量克制，惊鸟一点不动
 ## - 白鹭（egrets：[[岛层 x, 脚的 y, 朝向], …]）：站在岛层开阔水的边上，大多站着不动；隔 EGRET_IDLE 秒做一件事：
@@ -45,6 +45,16 @@ extends Node2D
 ## - 远处的鸟群（flock）：隔 FLOCK_EVERY 秒，一队 5–8 只排成松散的人字，从画面一边慢慢飞到另一边（跟远处的洲一个视差），扇几下滑一下。
 ## 白鹭、野鸭的帧里自带贴水的亮线和水里的倒影。都是 100ms 一帧；视差和 room_stage 的 tile 层一个算法（像素对齐岛层）。
 ## 画在 fauna_z 给的 z 上：room.json 把层的 z 隔一个空一个，[岛层后面一格, 远处洲后面一格] 留给这里。
+##
+## 第十一版（作者：「这个场景已经很不错了」，再加水花、超前景）
+## - 落脚溅水花：每帧看晨的动画（AnimatedSprite2D 现在是图集第几帧）。run 的 18、21 和 run_stop 的 24 是脚着地那帧
+##   （chen.gd 的 STEP_FRAMES 同一个意思：这几帧后脚踩到最低那行），换到这一帧的那一下，脚边播一遍水花（fauna.png 的 splash_0–4，
+##   100ms 一帧，朝着晨走的方向翻转：水往身后甩）+ 脚下泛一圈小涟漪（STEP_RIPPLE_R）。只在水段里（_water_amt）溅，草上不溅。
+##   快走（Shift）只是走得快，动画还是 100ms 一帧，所以水花还是一步一簇，跟着落脚帧。晨的图一点没动，水花是这里画的。
+##   z 22：在脚踝的水面（ankle_water，z 21）前面，水珠从水面上跳出来。
+## - 超前景（fg：{img, y, scroll, z}）：一张 fg.png 的 Sprite2D，scroll 1.6（比晨这一层快），z 116（gf 前面）。
+##   随风轻摆（和水底的 sway 一个摆法，但时间按 100ms 一格走，一格一格地摆）；盖住晨或者正在说话的人时淡到 FG_DIM，
+##   走开 FG_HOLD 秒以后淡回来（和 room_stage 的 front 层一个意思）。
 
 const ANG_RANGE := 80
 ## 每排：视差、晨推的半径（像素）、最多弯几度、风的大小（倍）、z（绝对；晨是 0，main 层大约 −92）
@@ -86,7 +96,15 @@ const MOTE_C := [Color("#fffbe6"), Color("#fde88f")]
 const RIPPLE_EVERY := Vector2(1.2, 3.0)
 const RIPPLE_LIFE := 1.6
 const RIPPLE_R := 9.0               # 最大半宽（像素）
-const RIPPLE_STEP := 0.5            # 晨在水里走：脚下隔几秒一圈
+const STEP_RIPPLE_R := 6.0          # 落脚那一圈涟漪最大半宽
+const STEP_FRAMES := {"run": [18, 21], "run_stop": [24]}    # 脚着地的图集帧（看 art/characters/chen/chen_oscar.png）
+const STEP_FOOT_DX := -2.0          # 着地那只脚在晨脚底锚点前后几像素（× 朝向；chen.gd 的 STEP_FOOT_X − foot.x）
+const SPLASH_Z := 22
+const SPLASH_FRAMES := 6
+const SURFACE_DY := -3.0            # 水面在晨脚底上面几行（ankle_water 的水面线）
+const FG_DIM := 0.2
+const FG_FADE := 0.35
+const FG_HOLD := 1.0
 const RIPPLE_C := [Color("#fffef6"), Color("#d6eee2")]
 const SHADE_RINGS := [[Vector2(44, 54), 0.99], [Vector2(35, 45), 0.98], [Vector2(27, 36), 0.97], [Vector2(20, 28), 0.962],
 	[Vector2(13, 21), 0.955]]       # [半径, 这一圈以内一共乘多少]（从外到里）
@@ -166,7 +184,14 @@ var _seed_list: Array = []          # 飘着的：{e, x0, y0, t, life, ph}
 var _mote_ph: Array = []
 var _rip_list: Array = []           # {x, y, t}
 var _rip_wait := 1.0
-var _step_rip := 0.0
+var _last_step_key := ""
+var _splashes: Array = []           # {x, y, face, t}
+var _splash_node: Node2D
+var fg: Dictionary = {}             # 超前景 {img, y, scroll, z}（room.json 的 params）
+var _fg: Sprite2D
+var _fg_img: Image
+var _fg_u := 0.0                    # 0 = 正常，1 = 淡下去
+var _fg_clear := 99.0
 var _ring_cache := {}
 var _life_node: Node2D
 var _seed_node: Node2D
@@ -272,6 +297,9 @@ func _ready() -> void:
 		if sp is Array and sp.size() >= 1:
 			var n := int(sp[1]) if sp.size() > 1 else 5
 			_spots.append({"x": float(sp[0]), "state": "sit", "t": 0.0, "birds": [], "n": clampi(n, 3, 7)})
+	_splash_node = _make_painter("Splash", SPLASH_Z, _paint_splash)
+	_splash_node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_make_fg()
 	if fauna != "" and _load_fauna():
 		_isle_node = _make_painter("IsleFauna", int(fauna_z[0]), _paint_isle_fauna)
 		_flock_node = _make_painter("Flock", int(fauna_z[1]), _paint_flock)
@@ -385,6 +413,7 @@ func _process(delta: float) -> void:
 	_bird_node.queue_redraw()
 	_update_reflection(org)
 	_step_life(dt)
+	_update_fg(dt)
 	if _isle_node != null:
 		_step_fauna(dt)
 		_isle_node.queue_redraw()
@@ -786,12 +815,7 @@ func _step_life(dt: float) -> void:
 			if float(pt[0]) - _cl > 10.0 and float(pt[0]) - _cl < 470.0:
 				_rip_list.append({"x": float(pt[0]), "y": float(pt[1]), "t": 0.0})
 				break
-	if _have_chen and _water_amt(_cx) > 0.5 and absf(_vx) > 8.0:
-		_step_rip -= dt
-		if _step_rip <= 0.0:
-			_step_rip = RIPPLE_STEP
-			var org2: Vector2 = get_parent().get("origin")
-			_rip_list.append({"x": roundf(_cx), "y": roundf(_chen_node.position.y - org2.y) + 2.0, "t": 0.0})
+	_step_splash(dt)
 	for k in range(_rip_list.size() - 1, -1, -1):
 		_rip_list[k]["t"] = float(_rip_list[k]["t"]) + dt
 		if float(_rip_list[k]["t"]) >= RIPPLE_LIFE:
@@ -869,7 +893,7 @@ func _paint_ripples(p: Node2D) -> void:
 	for rp in _rip_list:
 		var u := float(rp["t"]) / RIPPLE_LIFE
 		var e := 1.0 - pow(1.0 - u, 2.0)
-		var rx := maxi(1, roundi(1.0 + (RIPPLE_R - 1.0) * e))
+		var rx := maxi(1, roundi(1.0 + (float(rp.get("r", RIPPLE_R)) - 1.0) * e))
 		var ry := maxi(1, roundi(rx * 0.32))
 		var c: Color = RIPPLE_C[0] if u < 0.55 else RIPPLE_C[1]
 		var cx := roundf(float(rp["x"]))
@@ -1046,3 +1070,137 @@ func _paint_flock(p: Node2D) -> void:
 		if floori(n / 4.0) % 3 == 2:
 			nm = "mid"                                   # 扇几下滑一下
 		_blit_f(p, "flock%d_%s" % [int(b["size"]), nm], Vector2(_cl + sx, y), 1)
+
+
+# ======================================================================= 落脚溅水花（第十一版）
+func _step_splash(dt: float) -> void:
+	for k in range(_splashes.size() - 1, -1, -1):
+		_splashes[k]["t"] = float(_splashes[k]["t"]) + dt
+		if float(_splashes[k]["t"]) * 1000.0 >= SPLASH_FRAMES * FRAME_MS:
+			_splashes.remove_at(k)
+	_splash_node.queue_redraw()
+	if not _have_chen or _chen_node == null:
+		_last_step_key = ""
+		return
+	var spr := _chen_node.get("spr") as AnimatedSprite2D
+	if spr == null or spr.sprite_frames == null:
+		return
+	var anim := String(spr.animation)
+	var key := "%s:%d" % [anim, spr.frame]
+	if key == _last_step_key:
+		return
+	_last_step_key = key                         # 换到新的一帧才算一次（同一帧停着不会一直溅）
+	if not STEP_FRAMES.has(anim):
+		return
+	var tex := spr.sprite_frames.get_frame_texture(spr.animation, spr.frame) as AtlasTexture
+	if tex == null or tex.region.size.x <= 0.0:
+		return
+	if not int(tex.region.position.x / tex.region.size.x) in STEP_FRAMES[anim]:
+		return
+	var face := int(_chen_node.get("facing"))
+	if face == 0:
+		face = 1
+	var org: Vector2 = get_parent().get("origin")
+	var fx := roundf(_chen_node.position.x - org.x + STEP_FOOT_DX * face)
+	if _water_amt(fx) < 0.5:
+		return                                   # 草上不溅
+	var gy := roundf(_chen_node.position.y - org.y)
+	_splashes.append({"x": fx, "y": gy + SURFACE_DY, "face": face, "t": 0.0})
+	_rip_list.append({"x": fx, "y": gy + 2.0, "t": 0.0, "r": STEP_RIPPLE_R})
+
+
+func _paint_splash(p: Node2D) -> void:
+	if _ftex == null:
+		return
+	for sp in _splashes:
+		var f := clampi(int(float(sp["t"]) * 1000.0 / FRAME_MS), 0, SPLASH_FRAMES - 1)
+		_blit_f(p, "splash_%d" % f, Vector2(float(sp["x"]), float(sp["y"])), int(sp["face"]))
+
+
+# ======================================================================= 超前景（第十一版）
+const FG_SHADER := """
+shader_type canvas_item;
+render_mode unshaded;
+// 和 underwater_sway 一个摆法（贴图最下面一行是根，越高错得越多，整像素），只是时间按 100ms 一格走
+uniform float amp = 2.0;
+uniform float speed = 0.6;
+uniform float wavelength = 240.0;
+uniform float power = 1.6;
+uniform float bend = 0.02;
+uniform float alpha = 1.0;
+void fragment() {
+	vec2 size = vec2(textureSize(TEXTURE, 0));
+	vec2 px = floor(UV * size);
+	float h = (size.y - 1.0 - px.y) / size.y;
+	float t = floor(TIME * 10.0) / 10.0;
+	float ph = t * speed - px.x / wavelength * 6.2831853;
+	float s = 0.75 * sin(ph + px.y * bend) + 0.25 * sin(1.9 * ph + px.y * bend * 2.7 + 1.3);
+	float off = round(amp * pow(h, power) * s);
+	vec4 c = texture(TEXTURE, (vec2(px.x - off, px.y) + 0.5) / size);
+	if (c.a < 0.5) {
+		discard;
+	}
+	COLOR = vec4(c.rgb, alpha);
+}
+"""
+
+
+func _make_fg() -> void:
+	if fg.is_empty():
+		return
+	var tex := _load_tex(str(fg.get("img", "")))
+	if tex == null:
+		return
+	_fg = Sprite2D.new()
+	_fg.name = "ForeFront"
+	_fg.centered = false
+	_fg.texture = tex
+	_fg.z_as_relative = false
+	_fg.z_index = int(fg.get("z", 116))
+	_fg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var sh := Shader.new()
+	sh.code = FG_SHADER
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	_fg.material = m
+	_fg.position.y = float(fg.get("y", 120))
+	add_child(_fg)
+	_fg_img = tex.get_image()
+	if _fg_img != null and _fg_img.is_compressed():
+		_fg_img.decompress()
+
+
+func _update_fg(dt: float) -> void:
+	if _fg == null:
+		return
+	_fg.position.x = roundf(_cl * (1.0 - float(fg.get("scroll", 1.6))))      # 和 room_stage 不 tile 的层一个算法
+	# 盖住晨、或者正在说话的人（对话框跟着他头顶）→ 淡下去；走开一会儿再淡回来
+	var people: Array = []
+	var world = get_parent().get("world") if get_parent() != null else null
+	if _have_chen and _chen_node != null:
+		people.append(_chen_node)
+	if world != null and world.get("level") != null:
+		var st = world.level.get("story")
+		if st != null and str(st.get("speaking")) != "" and st.has_method("npc"):
+			var n = st.npc(str(st.speaking))
+			if n != null and n is Node2D and n != _chen_node:
+				people.append(n)
+	var hit := false
+	if _fg_img != null:
+		var w := _fg_img.get_width()
+		var h := _fg_img.get_height()
+		for n in people:
+			var hits := 0
+			for dx in range(-10, 11, 3):
+				for dy in range(4, 64, 4):
+					var q := _fg.to_local((n as Node2D).global_position + Vector2(dx, -dy))
+					var px := int(floorf(q.x))
+					var py := int(floorf(q.y))
+					if px >= 0 and px < w and py >= 0 and py < h and _fg_img.get_pixel(px, py).a > 0.5:
+						hits += 1
+			if hits >= 3:
+				hit = true
+				break
+	_fg_clear = 0.0 if hit else _fg_clear + dt
+	_fg_u = move_toward(_fg_u, 1.0 if _fg_clear < FG_HOLD else 0.0, dt / FG_FADE)
+	(_fg.material as ShaderMaterial).set_shader_parameter("alpha", lerpf(1.0, FG_DIM, smoothstep(0.0, 1.0, _fg_u)))

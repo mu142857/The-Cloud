@@ -218,6 +218,9 @@ def despeckle(L: Layer, passes=3):
         P = np.pad(a, ((1, 1), (1, 1), (0, 0)), mode="edge")
         for y, x in zip(ys, xs):
             cand = [k[y, x + 1], k[y + 2, x + 1], k[y + 1, x], k[y + 1, x + 2]]
+            if a[y, x, 3] > 0:
+                op = [c for c in cand if (c & 0xff) > 0]
+                cand = op or cand                                # 同上：轮廓上的点不换成透明
             vals, cnt = np.unique(cand, return_counts=True)
             best = vals[np.argmax(cnt)]
             for (yy, xx) in ((y, x + 1), (y + 2, x + 1), (y + 1, x), (y + 1, x + 2)):
@@ -782,13 +785,12 @@ def deck_cloud(w, x0, x1, top, seed, lift=0.13, r=(10, 18)):
 
 
 def chen_ref(x, foot=228):
-    """草图里放一帧晨（只为看比例和看不看得清；正式图不画晨）"""
-    im = np.asarray(Image.open(ROOT / "art/characters/chen/chen.png").convert("RGBA"))[:, 0:40]
-    L = Layer(40, im.shape[0])
+    """预览里放一帧晨（奥斯卡画的 chen_oscar.png，待机第 7 帧；帧 68×60，脚底在帧里 (28, 56)）：只为看比例和看不看得清，
+    正式图不画晨。游戏里晨还吃 env cloud 的暖色和左边的亮边，这里是原色。"""
+    im = np.asarray(Image.open(ROOT / "art/characters/chen/chen_oscar.png").convert("RGBA"))[:, 7 * 68:8 * 68]
+    L = Layer(68, im.shape[0])
     L.a[:] = im
-    return L, x - 20, foot - im.shape[0] + 1
-
-
+    return L, x - 28, foot - 56
 
 
 def lip_cloud(w, x0, x1, top, seed, r=(5, 9)):
@@ -804,6 +806,524 @@ def lip_cloud(w, x0, x1, top, seed, r=(5, 9)):
         x += rr * rng.uniform(1.1, 1.6)
     pal = CA.cloud_pal(0.10, 0.42, 7, C_lo=0.045, C_hi=0.08, h_lo=286, h_hi=348)
     return render_field(F, w, pal, body=4, rim=(1.5, 3.0), crease=2.0, run_bands=(4, 9, 16))
+
+
+# ======================================================================= 材质（11-01 作者：「建筑缺乏质感」→ 风车 + 欧洲尖顶城堡）
+#   每栋房子先算一张「明暗档」图 idx（光一律从左边低处来：左亮右暗，屋檐下、塔脚暗），
+#   再往 idx 上叠材质：石砌（一层层错开的石块，灰缝暗一档，个别石块整块亮 / 暗一档）、瓦片（一层层，每层上沿压一道影子）、
+#   木框架（深色木梁）；亮着的窗把周围一圈墙照暖（换一套暖色，不是半透明）。最后按 idx 查色。
+#   11-01 作者看了第二版：「城堡过于抢眼，砖块黑色缝隙是最大的败笔」→ 不画灰缝网格；整套建筑色阶压暗、降饱和，
+#   最亮的墙面也比晨的白头发暗一大截（晨要一直是画面里对比最高的），亮的只留窗里的暖光。
+BWALL = lch_ramp(0.25, 0.60, 0.022, 0.032, 292, 338, 7)     # 房子的石墙（喷泉、长椅那些还用原来的 WALL）
+BRIM = "#%02x%02x%02x" % CA.from_lch(0.64, 0.04, 20)        # 朝余晖那条边：只比墙亮一点
+TERRA = lch_ramp(0.26, 0.58, 0.04, 0.06, 12, 52, 7)         # 陶瓦：暗端玫瑰褐 → 亮端灰杏
+SLATE = lch_ramp(0.24, 0.56, 0.025, 0.04, 278, 255, 7)      # 石板瓦：暗端靛灰 → 亮端灰蓝
+TIMBER = lch_ramp(0.17, 0.38, 0.02, 0.035, 340, 380, 5)     # 半木结构的木梁、门框：深玫瑰褐
+PLASTER = lch_ramp(0.30, 0.64, 0.02, 0.03, 330, 380, 7)     # 灰泥墙：比石头暖一点
+DOOR = lch_ramp(0.28, 0.52, 0.035, 0.045, 280, 252, 4)      # 门、百叶：灰蓝
+
+
+def _mix_hex(a, b, t):
+    a, b = hexc(a).astype(float), hexc(b).astype(float)
+    return "#%02x%02x%02x" % tuple(int(round(v)) for v in a * (1 - t) + b * t)
+
+
+WALL_W = [_mix_hex(c, LAMP[1], 0.26) for c in BWALL]         # 灯照着的石墙
+PLASTER_W = [_mix_hex(c, LAMP[1], 0.24) for c in PLASTER]
+ROOF_PAL = {"slate": SLATE, "terra": TERRA}
+
+
+def _xy(L):
+    return np.floor(L.xx).astype(int), np.floor(L.yy).astype(int)
+
+
+def masonry(L: Layer, m, idx, seed, y0, course=4, blen=(4, 8), var=0.10, edges=None):
+    """石头的暗示（不画灰缝、不成网格）：墙面是按受光分面的平涂，只撒零星几块石头 —— 每块是一个比底色亮一档或暗一档的
+    小方块（course−1 行高、blen 长，没有描边），按「层」排，同一层的石块之间至少隔开一块的长度、上下两层不重叠。
+    var = 大概多少面积有石块；edges = 再多撒石块的地方（墙角、门窗边上露出来的石头），在那里密度翻三倍。"""
+    if not m.any():
+        return idx
+    rng = np.random.default_rng(seed)
+    X, Y = _xy(L)
+    cy = (Y - y0) // course
+    ry = (Y - y0) % course
+    out = idx.copy()
+    x0, x1 = X[m].min(), X[m].max()
+    prev = []
+    for c in np.unique(cy[m]):
+        row = m & (cy == c) & (ry < course - 1)
+        if not row.any():
+            continue
+        cur = []
+        x = x0 + int(rng.integers(0, blen[1]))
+        while x <= x1:
+            bl = int(rng.integers(blen[0], blen[1] + 1))
+            blk = row & (X >= x) & (X < x + bl)
+            p = var
+            if edges is not None and (blk & edges).any():
+                p = var * 3
+            free = not any(a_ < x + bl + 1 and x < b_ + 1 for (a_, b_) in prev)
+            if free and blk.sum() >= bl * (course - 1) * 0.7 and rng.random() < p:
+                out[blk] = idx[blk] + (1 if rng.random() < 0.45 else -1)
+                cur.append((x, x + bl))
+                x += bl + int(rng.integers(bl, 2 * bl + 1))
+            else:
+                x += bl
+        prev = cur
+    return out
+
+
+def tiles(L: Layer, m, idx, seed, y0, course=3, tlen=(3, 5), var=0.12):
+    """瓦顶：不画每层瓦下面的深线，只撒少量亮一档 / 暗一档的瓦片（和石头一样的画法，小一号）"""
+    return masonry(L, m, idx, seed, y0, course=course, blen=(tlen[0] + 1, tlen[1] + 2), var=var)
+
+
+def paint(L: Layer, m, idx, pal, warm=None, glow=None):
+    idx = np.clip(idx, 0, len(pal) - 1)
+    for k in range(len(pal)):
+        sel = m & (idx == k)
+        if glow is not None and warm is not None:
+            L.put(sel & ~glow, pal[k])
+            L.put(sel & glow, warm[k])
+        else:
+            L.put(sel, pal[k])
+
+
+def glow_of(L: Layer, wins, m):
+    """亮着的窗把周围一圈墙照暖：窗框外 3 像素的一个圆角框（边不贴着窗框走，不和窗框挤出一条一格一格的竖线）"""
+    g = np.zeros(m.shape, bool)
+    for (x, y, w, h, lit) in wins:
+        if lit:
+            dx = np.abs(L.xx - (x + w / 2.0)) - (w / 2.0 + 1)
+            dy = np.abs(L.yy - (y + h / 2.0 + 1)) - (h / 2.0 + 1)
+            g |= (dx < 3) & (dy < 3) & ~((dx > 1) & (dy > 1) & (np.hypot(dx - 1, dy - 1) > 2.0))   # 离窗框 3 像素的圆角框
+    return g & m
+
+
+def cyl_idx(L: Layer, cx, half, top, base, lift=0):
+    """圆柱的明暗档：左边亮、往右一档档暗，塔脚那截再暗"""
+    u = (L.xx - cx) / np.maximum(half, 0.5)
+    idx = 5 - band(u, (-0.62, -0.1, 0.42, 0.78)) + lift
+    v = (L.yy - top) / max(base - top, 1)
+    return idx - (v > 0.8)
+
+
+def flat_cyl_idx(L: Layer, cx, half, hi=4):
+    """明暗档少的圆柱（晨住的那座：离镜头最近、体量最大，要收着）：只分三面 hi / hi−1 / hi−2"""
+    u = (L.xx - cx) / np.maximum(half, 0.5)
+    return hi - band(u, (-0.4, 0.5))
+
+
+def stone_edges(L: Layer, m, cx, half, wins=(), door=None):
+    """墙角（塔身左右边上 3 像素）和门窗四周 3 像素：这些地方多露几块石头"""
+    e = m & ((half - np.abs(L.xx - cx)) < 3)
+    for (x, y, w, h, lit) in wins:
+        e |= m & (L.xx >= x - 3) & (L.xx < x + w + 3) & (L.yy >= y - 3) & (L.yy < y + h + 4)
+    if door is not None:
+        x, base, w, h = door
+        e |= m & (L.xx >= x - 4) & (L.xx < x + w + 4) & (L.yy >= base - h - 4)
+    return e
+
+
+def rim_light(L: Layer, m, col, upto=None, skip=None):
+    """朝余晖的左边一道亮边（边按整个 m 找；skip = 不描的地方，比如被窗照暖的那块）"""
+    e = m & ~np.roll(m, 1, axis=1)
+    if upto is not None:
+        e &= L.yy < upto
+    if skip is not None:
+        e &= ~skip
+    L.put(e, col)
+
+
+def deep_window(L: Layer, x, y, w, h, lit=True, shutters=False, sill=True, frame_pal=None, cross=True):
+    """有厚度的窗：浅色石头窗套（左上亮、右下暗）、窗洞里左边一列是窗套的影子、玻璃（亮着 = 暖黄上亮下暗 + 十字窗棂；
+    没亮 = 映着天的暗玻璃）、下面一条突出的窗台，窗台在墙上投一行影子。shutters = 两边打开的淡蓝木百叶。"""
+    fp = frame_pal or BWALL
+    w, h = int(w), int(h)
+    r = w / 2.0
+    m = (L.xx >= x) & (L.xx < x + w) & (L.yy >= y + r) & (L.yy < y + h)
+    m |= ellipse(L, x + r, y + r, r, r) & (L.yy < y + r + 0.5)
+    ring = (np.roll(m, 1, 0) | np.roll(m, -1, 1) | np.roll(m, 1, 1) | np.roll(m, -1, 0)) & ~m
+    ring |= (np.roll(ring, 1, 1) & (L.xx >= x + w + 1) & (L.xx < x + w + 2))     # 右边（背光那边）的窗套两像素宽
+    ring &= L.yy < y + h
+    L.put(ring, fp[5])
+    L.put(ring & (L.xx >= x + w), fp[3])
+    if shutters:
+        sw = max(2, w // 2)
+        for (sx, side) in ((x - 1 - sw, -1), (x + w + 1, 1)):
+            sm = (L.xx >= sx) & (L.xx < sx + sw) & (L.yy >= y + 1) & (L.yy < y + h)
+            L.put(sm, DOOR[2] if side < 0 else DOOR[1])
+            L.put(sm & (L.yy < y + 2), DOOR[3])
+            L.put(sm & (np.abs(L.yy - (y + h / 2.0)) < 0.6), DOOR[0])
+    if lit:
+        L.put(m, LAMP[2])
+        L.put(m & (L.yy < y + r + 1), LAMP[3])
+        L.put(m & (L.yy >= y + h - 2), LAMP[1])
+        L.put(m & (L.xx < x + 1), LAMP[1])
+        if cross and w >= 5 and h >= 8:
+            L.put(m & (np.abs(L.xx - (x + w / 2.0)) < 0.5), TIMBER[1])
+            L.put(m & (np.abs(L.yy - (y + r + (h - r) * 0.35)) < 0.5), TIMBER[1])
+    else:
+        L.put(m, BWALL[1])
+        L.put(m & (L.yy < y + r + 1), SLATE[2])
+        L.put(m & (L.xx < x + 1), BWALL[0])
+        if w >= 4:
+            L.px(x + w - 2, y + r, SLATE[3])
+            L.px(x + w - 2, y + r + 1, SLATE[3])
+    if sill:
+        L.rect(x - 1, y + h, x + w + 1, y + h + 1, fp[6])
+        L.rect(x - 1, y + h + 1, x + w + 1, y + h + 2, fp[2])
+    return m
+
+
+def stone_door(L: Layer, x, base, w, h, lit=False, step=True, pal=None):
+    """拱门：一圈石块砌的门套（拱顶的石块一块块分开）、淡蓝木门板（竖的板缝、两道铁箍、门环），亮着的门开一条缝漏暖光；
+    门口一级石台阶"""
+    pal = pal or BWALL
+    r = w / 2.0
+    cx = x + r
+    m = (L.xx >= x) & (L.xx < x + w) & (L.yy >= base - h + r) & (L.yy < base)
+    m |= ellipse(L, cx, base - h + r, r, r) & (L.yy < base - h + r + 0.5)
+    outer = (L.xx >= x - 2) & (L.xx < x + w + 2) & (L.yy >= base - h + r) & (L.yy < base)
+    outer |= ellipse(L, cx, base - h + r, r + 2, r + 2) & (L.yy < base - h + r + 0.5)
+    ring = outer & ~m
+    ang = np.degrees(np.arctan2(L.yy - (base - h + r), L.xx - cx))
+    seg = np.floor((ang + 180) / 30)
+    tone = np.where((seg % 2 == 0) | (L.yy >= base - h + r), 5, 4) - (L.xx > cx + 0.5)   # 拱上一块块分开，门边两条是整的
+    paint(L, ring, tone, pal)
+    L.put(ring & (L.yy < base - h + r) & (np.abs(L.xx - cx) < 1.0) & (L.yy < base - h + 1.5), pal[6])   # 拱心石
+    L.put(m, DOOR[2])
+    L.put(m & (L.xx < x + 1.5), DOOR[1])                         # 门洞里左边是门套的影子
+    for sx in np.arange(x + 3, x + w - 1, 3):                    # 板缝（停在台阶上面两行）
+        L.put(m & (np.abs(L.xx - sx - 0.5) < 0.5) & (L.yy > base - h + 2) & (L.yy < base - 4), DOOR[1])
+    for by in (base - h * 0.62, base - h * 0.28):
+        L.put(m & (np.abs(L.yy - by) < 0.6), TIMBER[0])
+    L.rect(cx + 1, base - h * 0.45, cx + 3, base - h * 0.45 + 2, WHEAT[4])
+    if lit:
+        gap = m & (L.xx >= x + w - 3) & (L.xx < x + w - 1) & (L.yy > base - h + r)
+        L.put(gap, LAMP[2])
+        L.put(gap & (L.xx >= x + w - 2), LAMP[3])
+    if step:
+        L.rect(x - 3, base - 2, x + w + 3, base, STONE[3])
+        L.rect(x - 3, base - 2, x + w + 3, base - 1, STONE[4])
+        L.rect(x + w + 2, base - 2, x + w + 3, base, STONE[1])
+    return m
+
+
+def cone_roof(L: Layer, cx, eave_y, half, cap_h, pal, seed, flare=2.5, expo=1.7, flat=False):
+    """圆锥尖顶（瓦）：两边微微内凹收到一个尖，檐口比墙宽 flare、有两行厚（上面亮的檐边，下面一行暗的檐底）。
+    返回 (尖 x, 尖 y, mask)。"""
+    rw = half + flare
+    pts = []
+    n = 18
+    for i in range(n + 1):
+        t = i / n
+        pts.append((cx - rw * (1 - t) ** expo, eave_y + 2 - (cap_h + 2) * t))
+    for i in range(n, -1, -1):
+        t = i / n
+        pts.append((cx + rw * (1 - t) ** expo + 0.01, eave_y + 2 - (cap_h + 2) * t))
+    m = poly_mask(L, pts)
+    u = (L.xx - cx) / rw
+    idx = (4 - band(u, (-0.35, 0.45))) if flat else (5 - band(u, (-0.5, -0.05, 0.42, 0.75)))
+    idx = tiles(L, m, idx, seed, eave_y + 1, course=3)
+    paint(L, m, idx, pal)
+    rim_light(L, m, pal[5] if flat else pal[6])
+    fas = m & (L.yy >= eave_y)
+    L.put(fas, pal[1])
+    L.put(fas & (L.yy < eave_y + 1), pal[4])
+    L.put(fas & (L.yy < eave_y + 1) & (u < -0.4), pal[5])
+    return cx, eave_y - cap_h, m
+
+
+def flagpole(L: Layer, x, tip_y, length):
+    """尖上竖一根细旗杆，顶上一颗麦黄的小球（旗子是动画）"""
+    L.rect(x, tip_y - length, x + 1, tip_y + 2, TIMBER[2])
+    L.rect(x - 1, tip_y - length - 2, x + 2, tip_y - length, WHEAT[4])
+    L.px(x - 1, tip_y - length - 2, WHEAT[5])
+    return x, tip_y - length
+
+
+def plinth(L: Layer, cx, base, half, h=9, seed=0, pal=None):
+    """塔脚的石基：比塔身宽 2 像素、上沿斜着收进去的一圈大石块，往下一直埋进云里（base 以下再多画 6 行，给云盖住）"""
+    pal = pal or BWALL
+    yt = base - h
+    hh = half + 2 - 2 * np.clip((yt + 3 - L.yy) / 3.0, 0, 1)
+    m = (np.abs(L.xx - cx) < hh) & (L.yy >= yt) & (L.yy < base + 6)
+    idx = cyl_idx(L, cx, hh, yt, base + 6) - 1
+    idx = masonry(L, m, idx, seed, yt, course=5, blen=(6, 11), var=0.3)
+    paint(L, m, idx, pal)
+    L.put(m & (L.yy < yt + 1), pal[5])
+    L.put(m & (L.yy < yt + 1) & (L.xx > cx + half * 0.4), pal[3])
+    rim_light(L, m, pal[6], upto=base)
+    return m
+
+
+def stains(L: Layer, m, idx, wins, seed):
+    """窗台下面淌下来的水渍（窗台下一两条暗一档的竖道）"""
+    rng = np.random.default_rng(seed)
+    out = idx.copy()
+    X, Y = _xy(L)
+    for (x, y, w, h, lit) in wins:
+        for k in range(int(rng.integers(1, 3))):
+            sx = int(x + rng.integers(0, max(w, 1)))
+            ln = int(rng.integers(3, 7))
+            s = m & (X == sx) & (Y >= y + h + 2) & (Y < y + h + 2 + ln)
+            out[s] -= 1
+    return out
+
+
+def moss(L: Layer, m, base, seed, n=3):
+    """塔脚背光那边几小团青苔"""
+    rng = np.random.default_rng(seed)
+    X, Y = _xy(L)
+    xs = X[m & (Y == base - 2)]
+    if len(xs) == 0:
+        return
+    for _ in range(n):
+        x = int(rng.integers(int(np.percentile(xs, 45)), xs.max() + 1))
+        y = base - int(rng.integers(3, 8))
+        blob = m & (np.abs(L.xx - x - 0.5) <= rng.uniform(1.6, 2.6)) & (np.abs(L.yy - y - 0.5) <= 1.5)
+        L.put(blob, LEAF[1])
+        L.put(blob & (L.yy < y), LEAF[2])
+
+
+# ----------------------------------------------------------------------- 建筑
+def stone_tower(L: Layer, cx, base, w, h, cap_h, roof="slate", wins=(), door=None, taper=2, seed=0, crenel=False,
+                plain=False):
+    """石砌圆塔：塔脚一圈石基，塔身一层层的石块，屋檐下一道影子，有厚度的窗和拱门；
+    roof 尖顶（slate 石板 / terra 陶瓦）；crenel = 顶上一圈带雉堞的护墙（下面一排托石），尖顶从护墙后面长出来（城堡塔）。
+    wins = [(从塔顶往下 dy, 宽, 高, 亮不亮), …]；door = (宽, 高, 亮不亮)。plain = 远处的：不画石缝（太小，画了是噪点）。"""
+    top = base - h
+    t = np.clip((base - L.yy) / h, 0, 1)
+    half = w / 2.0 - taper * t
+    m = (np.abs(L.xx - cx) < half) & (L.yy >= top) & (L.yy < base)
+    wl = []
+    for (dy, ww, wh, lit) in wins:
+        wl.append((int(round(cx - ww / 2.0)), top + dy, ww, wh, lit))
+    idx = cyl_idx(L, cx, half, top, base)
+    if not plain:
+        dr = None if door is None else (int(round(cx - door[0] / 2.0)), base, door[0], door[1])
+        idx = masonry(L, m, idx, seed, top, course=4, blen=(4, 7), edges=stone_edges(L, m, cx, half, wl, dr))
+        idx = stains(L, m, idx, wl, seed + 1)
+    eave = 4 if not crenel else 3
+    idx = idx - 2 * (L.yy < top + eave) - 1 * ((L.yy >= top + eave) & (L.yy < top + eave + 2))
+    glow = glow_of(L, wl, m)
+    paint(L, m, idx, BWALL, WALL_W, glow)
+    rim_light(L, m, BRIM, upto=base - 10, skip=glow)
+    if not plain:
+        moss(L, m, base, seed + 5)
+    for (x, y, ww, wh, lit) in wl:
+        deep_window(L, x, y, ww, wh, lit, shutters=(lit and ww >= 6 and not plain), cross=not plain)
+    if door is not None:
+        dw, dh, lit = door
+        stone_door(L, int(round(cx - dw / 2.0)), base, dw, dh, lit)
+    ht = w / 2.0 - taper
+    if crenel:
+        hp = ht + 2
+        X, Y = _xy(L)
+        # 托石（一排小牛腿，伸出塔身）
+        cb = (np.abs(L.xx - cx) < hp) & (L.yy >= top - 1) & (L.yy < top + 2)
+        cb &= ~((np.abs(L.xx - cx) >= ht) & (np.mod(X - int(cx - hp), 4) >= 2))
+        cb &= ~((np.abs(L.xx - cx) >= ht) & (L.yy >= top + 1) & (np.abs(L.xx - cx) >= ht + 1))
+        paint(L, cb, cyl_idx(L, cx, hp, top - 10, base) - 2, BWALL)
+        # 护墙 + 雉堞
+        pw = (np.abs(L.xx - cx) < hp) & (L.yy >= top - 8) & (L.yy < top - 1)
+        notch = (L.yy < top - 5) & (np.mod(X - int(cx - hp) - 2, 5) >= 3)
+        pw &= ~notch
+        pidx = cyl_idx(L, cx, hp, top - 10, base)
+        pidx = masonry(L, pw, pidx, seed + 7, top - 8, course=3, blen=(3, 6), var=0.15) if not plain else pidx
+        paint(L, pw, pidx, BWALL)
+        L.put(pw & ~np.roll(pw, 1, axis=0), BWALL[6])
+        L.put(pw & ~np.roll(pw, 1, axis=0) & (L.xx > cx + hp * 0.4), BWALL[4])
+        rim_light(L, pw, BRIM)
+        P = Layer(L.w, L.h, L.ox, L.oy)
+        tx, ty, rm = cone_roof(P, cx, top - 5, ht, cap_h, ROOF_PAL[roof], seed + 3, flare=1.0)
+        under = P.a[..., 3] > 0
+        keep = L.a[..., 3] > 0
+        L.a[under & ~(keep & (L.yy >= top - 8))] = P.a[under & ~(keep & (L.yy >= top - 8))]
+    else:
+        tx, ty, rm = cone_roof(L, cx, top, ht, cap_h, ROOF_PAL[roof], seed + 3)
+    if crenel:
+        return {"cx": cx, "top": top - 5, "base": base, "tip": (tx, ty), "rw": ht + 1.0, "cap_h": cap_h, "w": w}
+    return {"cx": cx, "top": top, "base": base, "tip": (tx, ty), "rw": ht + 2.5, "cap_h": cap_h, "w": w}
+
+
+def timber_house(L: Layer, cx, base, w, floors=2, roof_h=22, roof="terra", seed=0, lit=(True, False, True), plain=False,
+                 door_lit=False):
+    """半木结构的窄房子（山墙朝外）：底层石砌带拱门，上面每层灰泥墙 + 深色木框架（立柱、横梁、斜撑），每层往外挑出 1 像素
+    （下面一排梁头的影子），窗带淡蓝百叶；山墙也是木框架，尖上开一扇小圆窗；两条坡上露出三行厚的瓦边（屋顶的厚度）。"""
+    rng = np.random.default_rng(seed)
+    g_h = 16
+    f_h = 15
+    x0 = int(round(cx - w / 2.0))
+    X, Y = _xy(L)
+    # 底层：石砌
+    m0 = (L.xx >= x0) & (L.xx < x0 + w) & (L.yy >= base - g_h) & (L.yy < base)
+    idx = 4 - (L.xx >= x0 + w - 3) - (L.yy >= base - 4)
+    idx = masonry(L, m0, idx, seed, base - g_h, course=4, blen=(4, 8)) if not plain else idx
+    paint(L, m0, idx, BWALL)
+    rim_light(L, m0, BRIM)
+    top = base - g_h
+    xa, xb = x0, x0 + w
+    wins = []
+    for f in range(floors):
+        xa, xb = xa - 1, xb + 1
+        yb, ya = top, top - f_h
+        mf = (L.xx >= xa) & (L.xx < xb) & (L.yy >= ya) & (L.yy < yb)
+        win = []
+        nw = 2 if (xb - xa) >= 26 else 1
+        for k in range(nw):
+            wx = int(xa + (xb - xa) * (k + 1) / (nw + 1) - 2.5)
+            win.append((wx, ya + 4, 5, 8, bool(lit[(f + k) % len(lit)])))
+        idx = 5 - (L.xx >= xb - 3)
+        glow = glow_of(L, win, mf)
+        paint(L, mf, idx, PLASTER, PLASTER_W, glow)
+        # 木框架：两头立柱、上下横梁、窗两边的柱子、窗下的短斜撑
+        tm = mf & ((L.xx < xa + 2) | (L.xx >= xb - 2) | (L.yy >= yb - 2) | (L.yy < ya + 1))
+        for (wx, wy, ww, wh, l_) in win:
+            tm |= mf & (((L.xx >= wx - 3) & (L.xx < wx - 1)) | ((L.xx >= wx + ww + 1) & (L.xx < wx + ww + 3)))
+        if not plain:
+            for (sx, sgn) in ((xa + 2, 1), (xb - 3, -1)):
+                for (px_, py_) in line4(sx, yb - 3, sx + sgn * 5, ya + 2):
+                    tm |= mf & (X == px_) & (Y == py_)
+                    tm |= mf & (X == px_ + sgn) & (Y == py_)
+        L.put(tm, TIMBER[2])
+        L.put(tm & (L.xx >= xb - 2), TIMBER[1])
+        L.put(tm & (L.yy >= yb - 1), TIMBER[1])
+        L.put(tm & (L.xx < xa + 1), TIMBER[3])
+        L.rect(xa, yb, xb, yb + 1, TIMBER[0])                     # 挑出去的楼层下面一行梁头的影子
+        for (wx, wy, ww, wh, l_) in win:
+            deep_window(L, wx, wy, ww, wh, l_, shutters=not plain, sill=False, frame_pal=PLASTER, cross=False)
+        wins += win
+        top = ya
+    # 山墙
+    rw = (xb - xa) / 2.0
+    ccx = (xa + xb) / 2.0
+    gm = poly_mask(L, [(xa, top + 0.01), (xb, top + 0.01), (ccx, top - roof_h)])
+    gidx = 5 - (L.xx >= ccx + rw * 0.6)
+    paint(L, gm, gidx, PLASTER)
+    tm = gm & ((np.abs(L.xx - ccx) < 1.0) | (L.yy >= top - 2))
+    L.put(tm, TIMBER[2])
+    if roof_h >= 16:
+        ow = ellipse(L, ccx, top - roof_h * 0.45, 2.6, 2.6)
+        L.put(ow, LAMP[2] if lit[0] else BWALL[1])
+        L.put(ow & (L.yy < top - roof_h * 0.45 - 0.5), LAMP[3] if lit[0] else SLATE[2])
+    # 两条坡上的瓦边（三行厚）+ 封檐板
+    pal = ROOF_PAL[roof]
+    outer = poly_mask(L, [(xa - 3, top + 2), (ccx, top - roof_h - 3.5), (xb + 3, top + 2)])
+    inner = poly_mask(L, [(xa + 0.5, top + 2), (ccx, top - roof_h + 0.5), (xb - 0.5, top + 2)])
+    rm = outer & ~inner
+    ridx = 5 - (L.xx >= ccx) - (L.xx >= ccx + rw * 0.5)
+    ridx = tiles(L, rm, ridx, seed + 2, top - roof_h - 4, course=3, tlen=(2, 4))
+    paint(L, rm, ridx, pal)
+    edge_in = rm & np.roll(inner, -1, 0)
+    L.put(edge_in, TIMBER[1])
+    rim_light(L, rm, pal[6])
+    # 烟囱（一侧坡上）
+    chx = int(ccx + rw * 0.45)
+    cy0 = int(top - roof_h * 0.45 - 6)
+    ch = (L.xx >= chx) & (L.xx < chx + 4) & (L.yy >= cy0) & (L.yy < top - roof_h * 0.2)
+    ch &= ~inner | (L.yy < top - roof_h * 0.45)
+    paint(L, ch, np.full(ch.shape, 3) - (L.xx >= chx + 3), BWALL)
+    L.rect(chx - 1, cy0 - 1, chx + 5, cy0 + 1, BWALL[5])
+    L.rect(chx - 1, cy0, chx + 5, cy0 + 1, BWALL[2])
+    # 门
+    if not plain:
+        moss(L, m0, base, seed + 4, n=2)
+    dx = int(cx - 5 + (rng.integers(-3, 4) if w > 24 else 0))
+    stone_door(L, dx, base, 10, 14, door_lit)
+    return {"cx": ccx, "top": top - roof_h, "base": base, "tip": (ccx, top - roof_h - 3), "rw": rw, "cap_h": roof_h, "w": w,
+            "chimney": (chx, cy0)}
+
+
+def dutch_mill(L: Layer, cx, base, wb, wt, h, seed=0, stage=0.45, wins=(), door=(11, 22, True)):
+    """荷兰式的塔式风车（静的部分）：往上收的八角塔身（三个面：左亮、中、右暗，竖的棱线），石砌；腰上一圈木头的收帆台
+    （平台 + 斜撑 + 扶手），顶上船底形的木帽（瓦），帽前伸出风轴的轴头（叶片是动画，转在轴头上）。返回轴头位置。"""
+    top = base - h
+    t = np.clip((base - L.yy) / h, 0, 1)
+    half = wb / 2.0 - (wb - wt) / 2.0 * t
+    m = (np.abs(L.xx - cx) < half) & (L.yy >= top) & (L.yy < base)
+    u = (L.xx - cx) / np.maximum(half, 0.5)
+    idx = 5 - band(u, (-0.55, 0.5)) * 1 - (u > 0.5) * 1
+    idx = idx - ((L.yy - top) / h > 0.82)
+    wl = [(int(round(cx - ww / 2.0)), top + dy, ww, wh, lit) for (dy, ww, wh, lit) in wins]
+    dr = None if door is None else (int(round(cx - door[0] / 2.0)), base, door[0], door[1])
+    idx = masonry(L, m, idx, seed, top, course=4, blen=(3, 6), edges=stone_edges(L, m, cx, half, wl, dr))
+    idx = stains(L, m, idx, wl, seed + 1)
+    idx = idx - 2 * (L.yy < top + 3)
+    glow = glow_of(L, wl, m)
+    paint(L, m, idx, BWALL, WALL_W, glow)
+    rim_light(L, m, BRIM, upto=base - 10, skip=glow)
+    for (x, y, ww, wh, lit) in wl:
+        deep_window(L, x, y, ww, wh, lit, shutters=False)
+    if door is not None:
+        stone_door(L, int(round(cx - door[0] / 2.0)), base, door[0], door[1], door[2])
+    # 收帆台
+    sy = int(round(base - h * stage))
+    hs = wb / 2.0 - (wb - wt) / 2.0 * stage
+    pw = hs + 6
+    L.rect(cx - pw, sy, cx + pw, sy + 2, WHEAT[2])
+    L.rect(cx - pw, sy, cx + pw, sy + 1, WHEAT[4])
+    L.rect(cx - pw, sy - 6, cx + pw, sy - 5, WHEAT[3])
+    for px_ in (cx - pw, cx - pw + 3, cx + pw - 4, cx + pw - 1):
+        L.rect(px_, sy - 5, px_ + 1, sy, WHEAT[2])
+    for sgn in (-1, 1):
+        for (px_, py_) in line4(cx + sgn * (pw - 1), sy + 2, cx + sgn * (hs - 1), sy + 9):
+            L.px(px_, py_, TIMBER[2])
+            L.px(px_, py_ + 1, TIMBER[1])
+    # 木帽
+    cw = wt / 2.0 + 3
+    cap = ellipse(L, cx, top + 1, cw, 9) & (L.yy < top + 2)
+    cidx = 5 - band((L.xx - cx) / cw, (-0.5, 0.0, 0.5))
+    cidx = tiles(L, cap, cidx, seed + 3, top - 9, course=3, tlen=(3, 5))
+    paint(L, cap, cidx, TERRA)
+    rim_light(L, cap, TERRA[6])
+    L.rect(cx - cw, top + 1, cx + cw, top + 3, TIMBER[1])
+    L.rect(cx - cw, top + 1, cx + cw, top + 2, TIMBER[3])
+    hub = (cx, top - 2)
+    L.put(ellipse(L, hub[0], hub[1], 3.2, 3.2), TIMBER[1])
+    return hub, {"cx": cx, "top": top - 9, "base": base, "tip": (cx, top - 9), "rw": cw, "cap_h": 9, "w": wb}
+
+
+def dutch_sails(L: Layer, cx, cy, r, ang, haze=0.0, lattice=True):
+    """荷兰风车的四片叶片：一根木头的叶杆，杆的一侧是木格子框（外边一根长条、横档一根根），框里绷着帆布；
+    帆布朝余晖（左边）的那几片亮一档。"""
+    sw = max(3.0, r * 0.26)
+    for i in range(4):
+        a = ang + i * math.pi / 2
+        ca, sa = math.cos(a), math.sin(a)
+        nx, ny = -sa, ca                                    # 帆框在叶杆的这一侧（逆着转的方向）
+        r0, r1 = r * 0.2, r
+        P = [(cx + ca * r0, cy + sa * r0), (cx + ca * r1, cy + sa * r1),
+             (cx + ca * r1 + nx * sw, cy + sa * r1 + ny * sw), (cx + ca * r0 + nx * sw * 0.8, cy + sa * r0 + ny * sw * 0.8)]
+        cm = poly_mask(L, P)
+        facing = (ca + nx * 0.5) < -0.1
+        L.put(cm, SAIL[3] if facing else SAIL[2], 235)
+        L.put(cm & (((L.xx - cx) * ca + (L.yy - cy) * sa) > r * 0.62), SAIL[4] if facing else SAIL[3], 235)
+        # 木格子：外边一根长条 + 横档
+        for (px_, py_) in line4(cx + ca * r0 + nx * (sw - 0.5), cy + sa * r0 + ny * (sw - 0.5), cx + ca * r1 + nx * (sw - 0.5),
+                                cy + sa * r1 + ny * (sw - 0.5)):
+            L.px(px_, py_, WHEAT[2])
+        if lattice:
+            step = 4.0 if r >= 20 else 3.5
+            s = r0 + step
+            while s < r1 - 1:
+                for (px_, py_) in line4(cx + ca * s, cy + sa * s, cx + ca * s + nx * (sw - 0.5), cy + sa * s + ny * (sw - 0.5)):
+                    L.px(px_, py_, WHEAT[2])
+                s += step
+        L.px(cx + ca * r1 + nx * (sw - 0.5), cy + sa * r1 + ny * (sw - 0.5), WHEAT[3])
+    for i in range(4):                                       # 叶杆（压在帆布上）
+        a = ang + i * math.pi / 2
+        ca, sa = math.cos(a), math.sin(a)
+        for (px_, py_) in line4(cx - 0.5 + ca * 2, cy - 0.5 + sa * 2, cx - 0.5 + ca * (r + 1), cy - 0.5 + sa * (r + 1)):
+            L.px(px_, py_, TIMBER[2])
+            if r >= 20:
+                L.px(px_ + (1 if abs(sa) > 0.7 else 0), py_ + (1 if abs(sa) <= 0.7 else 0), TIMBER[1])
+    hm = ellipse(L, cx, cy, 2.6 if r >= 20 else 1.8, 2.6 if r >= 20 else 1.8)
+    L.put(hm, WHEAT[3])
+    L.put(hm & (L.xx < cx), WHEAT[5])
+    if haze:
+        hazed(L, haze)
 
 
 # ======================================================================= 小镇的布局（房间坐标，x 从左到右）
@@ -825,34 +1345,6 @@ LW, LH = 144, 226                 # 住处的图
 L_DOOR = 34                       # 住处的门（图里的 x）
 CAPB = lch_ramp(0.34, 0.84, 0.05, 0.06, 282, 248, 6)        # 刷了淡蓝漆的木尖顶
 ROOMC = lch_ramp(0.30, 0.86, 0.035, 0.06, 8, 64, 7)         # 屋里被灯照着的灰泥墙：暗玫瑰 → 暖奶油
-
-# 后面那排塔（在晨后面，跟地面一起动）：(x, 塔脚 y, 宽, 高, 尖顶高, 顶, 附加)
-#   附加：rotor = 风车半径；jib = 尖顶上伸出的帆杆长；box = 花箱；balc = 阳台；taper；door；wins = 窗
-BACK_TOWERS = [
-    (20, 212, 18, 80, 32, "w", {"rotor": 11, "door": (9, 20, True)}),
-    (60, 208, 14, 114, 44, "b", {"jib": 14}),
-    (196, 210, 12, 92, 36, "w", {}),
-    (244, 213, 16, 64, 28, "b", {}),
-    (380, 212, 16, 76, 30, "w", {"rotor": 10, "door": (9, 20, False)}),
-    (414, 208, 20, 100, 38, "b", {"balc": 40, "box": True}),
-    (468, 210, 14, 126, 46, "w", {"jib": 15}),
-    (520, 214, 20, 66, 28, "b", {"rotor": 12, "door": (10, 21, True)}),
-    (592, 210, 16, 94, 36, "w", {"box": True}),
-    (644, 214, 24, 60, 26, "w", {"balc": 22, "door": (10, 22, False)}),
-    (736, 208, 16, 106, 40, "w", {"jib": 14, "box": True}),
-    (790, 212, 14, 80, 32, "b", {"door": (8, 19, True)}),
-    (1162, 210, 16, 96, 38, "w", {"box": True}),
-    (1206, 214, 22, 64, 30, "b", {"rotor": 12, "door": (10, 21, True)}),
-    (1252, 208, 14, 118, 44, "w", {"jib": 15}),
-    (1310, 212, 18, 74, 30, "w", {"balc": 30}),
-    (1410, 210, 14, 102, 40, "b", {"jib": 13, "box": True}),
-    (1668, 212, 18, 86, 34, "w", {"rotor": 11, "door": (9, 20, True)}),
-    (1706, 208, 14, 122, 44, "b", {"jib": 14}),
-    (1748, 214, 20, 68, 28, "w", {"box": True}),
-]
-MILL = (1084, 210, 30, 108, 36)   # 广场后面的大风车塔：(x, 塔脚, 宽, 高, 尖顶高)，转子半径 40
-ROPES = [(0, 1, 9, 26, 6), (5, 6, 6, 28, 8), (10, 11, 8, 24, 6), (12, 14, 8, 30, 9), (17, 18, 8, 28, 7)]   # 两座塔之间的绳帆：(左塔, 右塔, 左边离尖多远, 右边离尖多远, 下垂)
-
 
 def default_windows(w, h, rng, lit_p=0.6):
     """塔身上一列窗：从上往下每 26~30 行一扇，最下面那扇离塔脚至少 34 行（门的位置）"""
@@ -1103,88 +1595,157 @@ def foot_tufts(w, feet, seed, lift=0.1):
     return L
 
 
-# ======================================================================= 远处那排塔（视差 0.72）
+# 后面那排（在晨后面，跟地面一起动）。种类：
+#   spire = 石砌细塔 + 尖顶 + 旗；keep = 城堡塔（雉堞护墙，尖顶从里面长出来）+ 旗；
+#   house = 半木结构的窄房子（山墙朝外）；mill = 荷兰塔式风车（叶片是动画）
+BACK = [
+    ("keep", 22, 213, dict(w=22, h=72, cap_h=40, roof="slate", flag=True)),
+    ("spire", 62, 209, dict(w=14, h=112, cap_h=44, roof="terra", flag=True)),
+    ("house", 150, 214, dict(w=30, floors=2, roof_h=22, roof="terra")),
+    ("spire", 202, 210, dict(w=12, h=92, cap_h=36, roof="slate")),
+    ("mill", 262, 214, dict(wb=26, wt=17, h=74, r=22)),
+    ("house", 386, 214, dict(w=26, floors=2, roof_h=20, roof="slate")),
+    ("keep", 424, 210, dict(w=20, h=100, cap_h=44, roof="terra", flag=True)),
+    ("spire", 470, 210, dict(w=14, h=126, cap_h=46, roof="slate", flag=True)),
+    ("house", 522, 214, dict(w=32, floors=3, roof_h=24, roof="terra")),
+    ("mill", 594, 213, dict(wb=24, wt=16, h=82, r=20)),
+    ("house", 648, 214, dict(w=28, floors=2, roof_h=22, roof="slate")),
+    ("spire", 738, 208, dict(w=16, h=106, cap_h=40, roof="terra", flag=True)),
+    ("house", 794, 214, dict(w=26, floors=2, roof_h=20, roof="slate")),
+    ("house", 1160, 214, dict(w=30, floors=3, roof_h=24, roof="terra")),
+    ("keep", 1210, 213, dict(w=22, h=68, cap_h=40, roof="slate", flag=True)),
+    ("spire", 1254, 208, dict(w=14, h=118, cap_h=44, roof="terra", flag=True)),
+    ("house", 1314, 214, dict(w=28, floors=2, roof_h=20, roof="terra")),
+    ("spire", 1412, 210, dict(w=14, h=102, cap_h=40, roof="slate", flag=True)),
+    ("mill", 1670, 214, dict(wb=24, wt=16, h=78, r=20)),
+    ("spire", 1710, 208, dict(w=14, h=122, cap_h=44, roof="slate", flag=True)),
+    ("house", 1748, 214, dict(w=26, floors=2, roof_h=20, roof="terra")),
+]
+MILL = (1084, 210, 40, 26, 104, 46)   # 广场后面的大风车：(x, 塔脚, 底宽, 顶宽, 高, 叶片半径)
+ROPES = [(6, 7, 10, 30, 8), (14, 15, 8, 28, 8)]   # 两座塔之间的彩旗绳：(左, 右, 左边离尖多远, 右边离尖多远, 下垂)
+
+
+def tower_wins(h, rng, lit_p=0.6, big=6):
+    out = []
+    dy = 14
+    while dy < h - 36:
+        out.append((dy, big, 10 if big == 6 else 8, bool(rng.random() < lit_p)))
+        dy += int(rng.integers(26, 32))
+    return out
+
+
+def draw_building(L, kind, x, base, o, rng, seed, plain=False):
+    if kind in ("spire", "keep"):
+        wins = o.get("wins") or tower_wins(o["h"], rng, big=6 if o["w"] >= 16 else 5)
+        if plain:
+            wins = [(dy, 3, 4, lit) for (dy, ww, wh, lit) in wins]
+        door = None if plain else (10, 20, bool(rng.random() < 0.5))
+        return stone_tower(L, x, base, o["w"], o["h"], o["cap_h"], roof=o["roof"], wins=wins, door=door, seed=seed,
+                           crenel=(kind == "keep"), plain=plain, taper=1 if plain else 2)
+    if kind == "house":
+        return timber_house(L, x, base, o["w"], o["floors"], o["roof_h"], o["roof"], seed,
+                            lit=tuple(bool(rng.random() < 0.72) for _ in range(3)), plain=plain,
+                            door_lit=bool(rng.random() < 0.4))
+    if kind == "mill":
+        h = o["h"]
+        wins = [(int(h * 0.28), 5, 8, True), (int(h * 0.72), 5, 8, bool(rng.random() < 0.5))]
+        hub, info = dutch_mill(L, x, base, o["wb"], o["wt"], h, seed, wins=[] if plain else wins,
+                               door=None if plain else (10, 20, True))
+        info["hub"] = hub
+        return info
+
+
+def feet_of(kind, x, base, o):
+    w = o.get("w") or o.get("wb")
+    return (x, base, w + 4)
+
+
+# ======================================================================= 远处那排（视差 0.72）
 def build_far():
     rng = np.random.default_rng(77)
-    towers = []
-    x = 8.0
-    while x < FAR_W - 4:
-        w = int(rng.choice([8, 9, 10, 10, 12]))
-        h = int(rng.uniform(32, 70))
+    items = []
+    x = 10.0
+    while x < FAR_W - 6:
+        k = rng.choice(["spire", "spire", "keep", "house", "mill"])
         base = int(rng.uniform(202, 207))
-        towers.append((x, base, w, h, int(h * rng.uniform(0.36, 0.48)), "b" if rng.random() < 0.35 else "w",
-                       rng.random() < 0.38))
-        x += rng.uniform(40, 82)
-    heaps = [(tx, b + 6, tw * 2.4 + 12, max(4, 10 + rng.uniform(-2, 3))) for (tx, b, tw, *_r) in towers]
+        if k == "spire":
+            h = int(rng.uniform(34, 70))
+            o = dict(w=int(rng.choice([8, 9, 10])), h=h, cap_h=int(h * rng.uniform(0.38, 0.5)), roof=str(rng.choice(["slate", "terra"])))
+        elif k == "keep":
+            h = int(rng.uniform(30, 48))
+            o = dict(w=12, h=h, cap_h=int(h * 0.45), roof=str(rng.choice(["slate", "terra"])))
+        elif k == "house":
+            o = dict(w=int(rng.choice([16, 18])), floors=int(rng.choice([1, 2])), roof_h=14, roof=str(rng.choice(["slate", "terra"])))
+        else:
+            o = dict(wb=14, wt=9, h=int(rng.uniform(36, 48)), r=11)
+        items.append((str(k), x, base, o))
+        x += rng.uniform(40, 80)
+    heaps = [(ix, b + 6, (o.get("w") or o["wb"]) * 2.4 + 12, max(4, 10 + rng.uniform(-2, 3))) for (k, ix, b, o) in items]
     F = Layer(FAR_W, H)
     F.over(mound_cloud(FAR_W, heaps, 3, deck=207, lift=0.03))
     feet = []
-    for (tx, base, w, h, cap_h, cap, rot) in towers:
-        P = piece(tx - w - 4, base - h - cap_h - 3, tx + w + 4, base + 1)
-        wins = []
-        dy = 8
-        while dy < h - 12:
-            wins.append((dy, 3, 4, bool(rng.random() < 0.55), 0))
-            dy += int(rng.integers(14, 19))
-        T = tower_house(P, tx, base, w, h, cap_h, wins, taper=1, cap=CAPB if cap == "b" else WHEAT, dim=0)
+    for i, (k, x, base, o) in enumerate(items):
+        P = piece(x - 30, base - 140, x + 30, base + 8)
+        info = draw_building(P, k, x, base, o, rng, 900 + i, plain=True)
         F.over(hazed(P, 0.4))
-        feet.append((tx, base, w))
-        if rot:
-            r = 6.0
-            hx, hy = tx, T["top"] + 4
-            anim(f"far_rotor_{len(ANIMS)}", "town_far", (hx - r - 1, hy - r - 1, hx + r + 2, hy + r + 2), 8,
-                 lambda L, k, hx=hx, hy=hy: rotor_into(L, hx, hy, r, 0.3 + (math.pi / 3) * k / 8, arms=6, haze=0.4),
-                 off=int(rng.integers(0, 8)))
+        feet.append(feet_of(k, x, base, o))
+        if k == "mill":
+            hx, hy = info["hub"]
+            r = o["r"]
+            anim(f"far_mill_{i}", "town_far", (hx - r - 4, hy - r - 4, hx + r + 5, hy + r + 5), 16,
+                 lambda L, kk, hx=hx, hy=hy, r=r: dutch_sails(L, hx, hy, r, 0.3 + (math.pi / 2) * kk / 16, haze=0.4,
+                                                             lattice=False), off=int(rng.integers(0, 16)))
     F.over(foot_tufts(FAR_W, feet, 4, lift=0.03))
     despeckle(F)
     return F
 
 
-# ======================================================================= 后面那排塔（视差 1，在晨后面）
+# ======================================================================= 后面那排（视差 1，在晨后面）
 def build_back():
     rng = np.random.default_rng(31)
     B = Layer(W, H)
-    heaps = [(tx, 217, tw * 2.6 + 14, max(4, 217 - b + 7)) for (tx, b, tw, *_r) in BACK_TOWERS]
-    heaps.append((MILL[0], 217, 90, 16))
+    heaps = []
+    for (k, x, base, o) in BACK:
+        w = o.get("w") or o.get("wb")
+        heaps.append((x, 218, w * 2.4 + 16, max(5, 218 - base + 8)))
+    heaps.append((MILL[0], 218, 100, 18))
     B.over(mound_cloud(W, heaps, 1, deck=212))
     info = []
     feet = []
-    for i, (tx, base, w, h, cap_h, cap, ex) in enumerate(BACK_TOWERS):
-        P = piece(tx - w - 8, base - h - cap_h - 4, tx + w + 8, base + 1)
-        wins = ex.get("wins") or default_windows(w, h, rng)
-        T = tower_house(P, tx, base, w, h, cap_h, wins, door=ex.get("door"), taper=ex.get("taper", 2),
-                        cap=CAPB if cap == "b" else WHEAT, box=ex.get("box", False), balc=ex.get("balc"))
+    for i, (k, x, base, o) in enumerate(BACK):
+        P = piece(x - 40, base - 190, x + 40, base + 8)
+        if k in ("spire", "keep"):
+            plinth(P, x, base, o["w"] / 2.0, seed=40 + i)
+        T = draw_building(P, k, x, base, o, rng, 100 + i * 7)
         B.over(P)
         info.append(T)
-        feet.append((tx, base, w))
-        if "jib" in ex:
-            n = ex["jib"]
-            P = piece(T["tip"][0] - 3, T["tip"][1] - n - 4, T["tip"][0] + 4, T["tip"][1] + 2)
-            mx, my = finial_mast(P, int(T["tip"][0]), int(T["tip"][1]), n)
+        feet.append(feet_of(k, x, base, o))
+        if o.get("flag"):
+            fx, fy = int(T["tip"][0]), int(T["tip"][1])
+            P = piece(fx - 3, fy - 18, fx + 4, fy + 3)
+            px_, py_ = flagpole(P, fx, fy, 12)
             B.over(P)
-            reach, bulge = n * 0.72, n * 0.17
-            ph0 = rng.uniform(0, 2 * math.pi)
-            anim(f"jib_{i}", "town_back", (mx - 1, my - 2, mx + reach + bulge + 6, my + n + 2), 20,
-                 lambda L, k, mx=mx, my=my, n=n, reach=reach, bulge=bulge, ph0=ph0:
-                 jib(L, mx, my + 1, my + n - 2, reach + 0.8 * math.sin(2 * math.pi * k / 20 + ph0 + 0.7),
-                     bulge * (1 + 0.4 * math.sin(2 * math.pi * k / 20 + ph0))))
-        if "rotor" in ex:
-            r = float(ex["rotor"])
-            hx, hy = tx, T["top"] + 7
-            a0 = rng.uniform(0, 1)
-            anim(f"rotor_{i}", "town_back", (hx - r - 1, hy - r - 1, hx + r + 2, hy + r + 2), 8,
-                 lambda L, k, hx=hx, hy=hy, r=r, a0=a0: rotor_into(L, hx, hy, r, a0 + (math.pi / 4) * k / 8))
-    # 大风车塔：塔脚有门，腰上一扇亮窗，转子 84 像素
-    mx_, mb, mw, mh, mc = MILL
-    P = piece(mx_ - mw - 8, mb - mh - mc - 4, mx_ + mw + 8, mb + 1)
-    M = tower_house(P, mx_, mb, mw, mh, mc, [(30, 7, 10, True, 0), (58, 6, 9, False, -3)], door=(11, 24, True), taper=4,
-                    box=True)
+            ln = int(rng.integers(12, 17))
+            anim(f"flag_{i}", "town_back", (px_, py_ - 2, px_ + ln + 6, py_ + 12), 12,
+                 lambda L, kk, px_=px_, py_=py_, ln=ln: pennant(L, px_, py_ + 1, ln, 5, kk, 12), off=int(rng.integers(0, 12)))
+        if k == "mill":
+            hx, hy = T["hub"]
+            r = o["r"]
+            anim(f"mill_{i}", "town_back", (hx - r - 4, hy - r - 4, hx + r + 5, hy + r + 5), 16,
+                 lambda L, kk, hx=hx, hy=hy, r=r: dutch_sails(L, hx, hy, r, 0.4 + (math.pi / 2) * kk / 16),
+                 off=int(rng.integers(0, 16)))
+    # 广场后面的大风车
+    mx_, mb, wb, wt, mh, mr = MILL
+    P = piece(mx_ - 60, mb - mh - 30, mx_ + 60, mb + 8)
+    plinth(P, mx_, mb, wb / 2.0, h=10, seed=77)
+    hub, M = dutch_mill(P, mx_, mb, wb, wt, mh, 79, stage=0.42,
+                        wins=[(22, 6, 10, True), (50, 6, 10, False), (80, 6, 9, True)], door=(12, 24, True))
     B.over(P)
-    feet.append((mx_, mb, mw))
-    hub = (mx_, M["top"] + 12)
-    anim("mill_rotor", "town_back", (hub[0] - 42, hub[1] - 42, hub[0] + 43, hub[1] + 43), 16,
-         lambda L, k: rotor_into(L, hub[0], hub[1], 40, 0.2 + (math.pi / 4) * k / 16))
-    # 绳帆
+    M["hub"] = hub
+    feet.append((mx_, mb, wb + 4))
+    anim("mill_rotor", "town_back", (hub[0] - mr - 5, hub[1] - mr - 5, hub[0] + mr + 6, hub[1] + mr + 6), 24,
+         lambda L, k: dutch_sails(L, hub[0], hub[1], mr, 0.25 + (math.pi / 2) * k / 24))
+    # 彩旗绳
     for (i, j, da, db, sag) in ROPES:
         A, Bt = info[i], info[j]
         ya, yb = A["tip"][1] + da, Bt["tip"][1] + db
@@ -1296,71 +1857,122 @@ def build_main(back):
 
 
 # ======================================================================= 晨暂住的塔（town_room：剖面小屋，前墙进屋淡出）
-#   下面一截宽一点的圆塔是住的那层（剖开看得到屋里），塔顶一圈淡蓝漆的裙檐，裙檐里再长出一截细塔 + 尖顶 + 一架小风车：
-#   就是一座风车塔，和镇上别的塔一个样子（不是圆顶帐篷，也不是方盒子）。风车是房屋物件 townroom_rotor（100ms 一帧）。
+#   11-01 改：下截石砌圆塔是住的那层（剖开看得到屋里），上面挑出一层半木结构的楼（灰泥 + 深色木框架，下面一排托梁），
+#   再上面石板瓦的尖顶（开一扇小老虎窗），尖上挂旗（房屋物件 townroom_flag，100ms 一帧）。
 L_CX = LW // 2
-L_BODY = (22, 122)        # 下面那截的左右（塔脚）
-L_TAPER = 3
-L_ROOF = 136              # 下截的檐口
-L_CEIL = (146, 151)       # 剖开的天花板（石板）
-L_FLOOR = LH - 1          # 屋里晨踩的那一行（= 图底 = 小镇的地面）
-L_WALL = 5                # 剖开的墙厚
+L_BODY = (22, 122)        # 下截石塔的左右
+L_TAPER = 0
+L_ROOF = 136              # 下截的上沿（上面一层从这里挑出去）
+L_UP = (16, 128, 110)     # 上面那层：左右、上沿
+L_CEIL = (146, 151)       # 剖开的天花板（楼板）
+L_FLOOR = LH - 1
+L_WALL = 5
 L_DESK = (58, 88)
 L_BED = (92, 118)
 L_WIN = (63, 81, 160, 186)
-L_ROTOR = (L_CX, 71, 13.0)
 
 
-def skirt(L: Layer, cx, y_bot, rw_bot, y_top, rw_top, pal):
-    """裙檐：从檐口往上收到细塔腰上的一圈内凹的斜顶（和尖顶一个画法，只是没收到尖）"""
-    pts = []
-    n = 14
-    for i in range(n + 1):
-        s_ = i / n
-        pts.append((cx - (rw_top + (rw_bot - rw_top) * (1 - s_) ** 1.9), y_bot - (y_bot - y_top) * s_))
-    for i in range(n, -1, -1):
-        s_ = i / n
-        pts.append((cx + (rw_top + (rw_bot - rw_top) * (1 - s_) ** 1.9) + 0.01, y_bot - (y_bot - y_top) * s_))
-    pts.append((cx + rw_bot - 1, y_bot + 1.2))
-    pts.append((cx - rw_bot + 1, y_bot + 1.2))
-    m = poly_mask(L, pts)
-    u = (L.xx - cx) / rw_bot
-    idx = np.clip(4 - band(u, (-0.45, 0.05, 0.5)), 1, 5)
-    for k in range(6):
-        L.put(m & (idx == k), pal[k])
-    L.put(m & ~np.roll(m, 1, axis=1), pal[5])
-    L.put(m & (L.yy >= y_bot), pal[1])
-    return m
+def lodging_exterior():
+    E = Layer(LW, LH)
+    x0, x1 = L_BODY
+    base = LH
+    half = (x1 - x0) / 2.0
+    plinth(E, L_CX, base, half, h=9, seed=301)
+    m = (np.abs(E.xx - L_CX) < half) & (E.yy >= L_ROOF) & (E.yy < base - 9)
+    wins = [(46, 160, 8, 14, True), (90, 160, 8, 14, True)]
+    idx = flat_cyl_idx(E, L_CX, half, hi=4)
+    door_r = (L_DOOR - 7, base, 14, 30)
+    idx = masonry(E, m, idx, 303, L_ROOF, course=4, blen=(5, 8), var=0.06, edges=stone_edges(E, m, L_CX, half, wins, door_r))
+    idx = stains(E, m, idx, wins, 304)
+    idx = idx - 1 * (E.yy < L_ROOF + 4)
+    glow = glow_of(E, wins, m)
+    paint(E, m, idx, BWALL, WALL_W, glow)
+    rim_light(E, m, BWALL[5], skip=glow)
+    moss(E, (np.abs(E.xx - L_CX) < half + 2) & (E.yy >= base - 9), base, 305, n=2)
+    for (x, y, w, h, lit) in wins:
+        deep_window(E, x, y, w, h, lit, shutters=True, sill=False)
+        flower_box(E, x, y + h, w)
+    stone_door(E, L_DOOR - 7, base, 14, 30, True)
+    # 门上的条纹雨棚 + 门边的灯
+    aw = poly_mask(E, [(L_DOOR - 11, base - 35), (L_DOOR + 11, base - 35), (L_DOOR + 13, base - 31), (L_DOOR + 8, base - 29),
+                       (L_DOOR + 2, base - 30), (L_DOOR - 4, base - 29), (L_DOOR - 10, base - 31)])
+    stripe = (np.floor((E.xx - (L_DOOR - 11)) / 3).astype(int) % 2) == 0
+    E.put(aw, SAIL[3])
+    E.put(aw & stripe, BWALL[6])
+    E.put(aw & (E.xx > L_DOOR + 6), SAIL[2])
+    E.put(aw & stripe & (E.xx > L_DOOR + 6), BWALL[4])
+    E.rect(L_DOOR - 12, base - 36, L_DOOR + 12, base - 35, TIMBER[2])
+    lamp_post_hang(E, L_DOOR + 13, base - 38)
+    # 托梁：一排小木托从石塔边上伸出去，托住上面那层
+    ux0, ux1, uy = L_UP
+    X, Y = _xy(E)
+    dist = np.abs(E.xx - L_CX) - half
+    cb = (dist > 0) & (E.xx >= ux0) & (E.xx < ux1) & (E.yy >= L_ROOF) & (E.yy < L_ROOF + 3 - dist / 2.5) & (np.mod(X - ux0, 4) < 2)
+    E.put(cb, TIMBER[2])
+    E.put(cb & (E.yy < L_ROOF + 1), TIMBER[3])
+    # 上面那层：灰泥 + 木框架（圆的，灰泥也左亮右暗）
+    um = (E.xx >= ux0) & (E.xx < ux1) & (E.yy >= uy) & (E.yy < L_ROOF)
+    uh = (ux1 - ux0) / 2.0
+    uwins = [(30, uy + 7, 6, 10, True), (69, uy + 7, 6, 10, False), (100, uy + 7, 6, 10, True)]
+    uidx = flat_cyl_idx(E, L_CX, uh, hi=4)
+    uidx = uidx - 1 * (E.yy < uy + 3)
+    uglow = glow_of(E, uwins, um)
+    paint(E, um, uidx, PLASTER, PLASTER_W, uglow)
+    tm = um & ((E.yy >= L_ROOF - 2) | (E.yy < uy + 1) | (E.xx < ux0 + 2) | (E.xx >= ux1 - 2))
+    for (wx, wy, ww, wh, l_) in uwins:
+        tm |= um & (((E.xx >= wx - 3) & (E.xx < wx - 1)) | ((E.xx >= wx + ww + 1) & (E.xx < wx + ww + 3)))
+    for (sx, ex) in ((ux0 + 12, ux0 + 20), (L_CX - 6, L_CX + 2), (L_CX + 14, L_CX + 22), (ux1 - 12, ux1 - 20)):
+        for (px_, py_) in line4(sx, L_ROOF - 3, ex, uy + 2):
+            tm |= um & (X == px_) & (Y == py_)
+            tm |= um & (X == px_ + 1) & (Y == py_)
+    tidx = flat_cyl_idx(E, L_CX, uh, hi=3)
+    paint(E, tm, tidx, TIMBER)
+    E.rect(ux0, L_ROOF - 1, ux1, L_ROOF, TIMBER[0])
+    for (wx, wy, ww, wh, l_) in uwins:
+        deep_window(E, wx, wy, ww, wh, l_, shutters=True, sill=False, frame_pal=PLASTER)
+    # 尖顶（石板瓦）+ 老虎窗 + 旗杆
+    R = Layer(LW, LH)
+    tx, ty, rm = cone_roof(R, L_CX, uy, uh, 82, SLATE, 307, flare=3.0, expo=1.55, flat=True)
+    dx, dy = L_CX + 16, uy - 30                            # 老虎窗：一小间带三角顶的窗，从坡上伸出来
+    dm = (R.xx >= dx) & (R.xx < dx + 10) & (R.yy >= dy) & (R.yy < dy + 11)
+    paint(R, dm, np.full(dm.shape, 4) - (R.xx >= dx + 8), PLASTER)
+    deep_window(R, dx + 3, dy + 2, 4, 7, True, sill=False, frame_pal=PLASTER, cross=False)
+    gr = poly_mask(R, [(dx - 2, dy + 1), (dx + 5, dy - 6), (dx + 12, dy + 1)])
+    paint(R, gr, np.full(gr.shape, 4) - (R.xx >= dx + 5), SLATE)
+    R.put(gr & ~np.roll(gr, 1, axis=0), SLATE[6])
+    R.rect(dx - 1, dy + 11, dx + 11, dy + 12, SLATE[1])
+    E.over(R)
+    fx, fy = flagpole(E, int(tx), int(ty), 12)
+    return E, (fx, fy)
 
 
 def lodging():
+    E, flag = lodging_exterior()
     back = Layer(LW, LH)
+    back.a[:] = E.a
     front = Layer(LW, LH)
+    front.a[:] = E.a
+    front.a[front.yy < L_CEIL[0]] = 0
     x0, x1 = L_BODY
     base = LH
-    # ---- 外面：下截圆塔身（back、front 用同一套明暗，前墙淡回来时严丝合缝）
-    t = np.clip((base - back.yy) / (base - L_ROOF), 0, 1)
-    flare = 2.2 * np.clip(1 - (base - back.yy) / 7.0, 0, 1) ** 2
-    half = (x1 - x0) / 2.0 - L_TAPER * t + flare
-    body = (np.abs(back.xx - L_CX) < half) & (back.yy >= L_ROOF) & (back.yy < base)
-    for Lr in (back, front):
-        shade_cyl(Lr, body, L_CX, half, L_ROOF, base)
-    front.a[front.yy < L_CEIL[0]] = 0
-    # 上截细塔 + 尖顶（淡蓝漆，晨住的这座好认）+ 一扇亮窗；塔脚埋在裙檐里
-    P = Layer(LW, LH)
-    tower_house(P, L_CX, L_ROOF - 14, 34, 58, 50, [(14, 6, 9, True, 0), (36, 5, 8, False, 0)], taper=2, cap=CAPB)
-    back.over(P)
-    skirt(back, L_CX, L_ROOF + 1, (x1 - x0) / 2.0 - L_TAPER + 3, L_ROOF - 22, 18, CAPB)
+    half = (x1 - x0) / 2.0
+    body = ((np.abs(back.xx - L_CX) < half) & (back.yy >= L_ROOF) & (back.yy < base))
     # ---- 屋里（back 的剖面那一块）
     ix0, ix1 = x0 + L_WALL, x1 - L_WALL
     inner = (back.xx >= ix0) & (back.xx < ix1) & (back.yy >= L_CEIL[1]) & (back.yy < base)
     cut_w = body & (back.yy >= L_CEIL[0]) & ~inner
-    # 剖开的墙和天花板：白石的切面，朝里那一圈暗一档
-    back.put(cut_w, WALL[5])
-    back.put(cut_w & (back.yy < L_CEIL[1]), WALL[4])
-    edge_in = cut_w & (np.roll(inner, 1, 1) | np.roll(inner, -1, 1) | np.roll(inner, -1, 0))
-    back.put(edge_in, WALL[3])
-    back.put(cut_w & (back.yy < L_CEIL[0] + 1), WALL[6])
+    # 剖开的墙：石块的切面（一样砌着石缝）；天花板是上面那层的木楼板（板 + 一根根搁栅的头）
+    cw = cut_w & (back.yy >= L_CEIL[1])
+    cidx = masonry(back, cw, np.full(cw.shape, 5), 311, L_CEIL[1], course=4, blen=(3, 5), var=0.3)
+    paint(back, cw, cidx, BWALL)
+    edge_in = cw & (np.roll(inner, 1, 1) | np.roll(inner, -1, 1))
+    back.put(edge_in, BWALL[2])
+    ceil = cut_w & (back.yy < L_CEIL[1])
+    back.put(ceil, WHEAT[2])
+    back.put(ceil & (back.yy < L_CEIL[0] + 1), WHEAT[4])
+    back.put(ceil & (back.yy >= L_CEIL[1] - 1), WHEAT[1])
+    X_, Y_ = _xy(back)
+    back.put(ceil & (np.mod(X_ - x0, 9) < 3) & (back.yy >= L_CEIL[0] + 2), TIMBER[2])
     # 灰泥后墙：灯在桌上（右边），离灯越远越暗一档；墙脚一条踢脚板
     lamp = (L_DESK[1] - 5, 192)
     d = np.hypot((back.xx - lamp[0]) / 1.3, back.yy - lamp[1])
@@ -1373,6 +1985,18 @@ def lodging():
         back.rect(bx, L_CEIL[1], bx + 6, L_CEIL[1] + 3, WHEAT[2])
         back.rect(bx, L_CEIL[1], bx + 6, L_CEIL[1] + 1, WHEAT[3])
     back.rect(ix0, base - 9, ix1, base - 7, WHEAT[1])
+    # 墙裙：下半截一圈竖的木板（板缝长短不一地错开），上沿一根亮的压条；离灯近的板亮一档
+    ws = inner & (back.yy >= base - 26) & (back.yy < base - 9)
+    widx = np.where(d < 34, 2, 1)                                  # 比桌子、床暗两档（家具要跳出来）
+    X_, Y_ = _xy(back)
+    rng_w = np.random.default_rng(313)
+    sx = ix0 + 2
+    while sx < ix1 - 2:
+        widx = np.where(ws & (X_ == sx), widx - 1, widx)
+        sx += int(rng_w.integers(5, 9))
+    paint(back, ws, widx, WHEAT)
+    back.put(ws & (back.yy < base - 25), WHEAT[3])
+    back.put(ws & (back.yy >= base - 25) & (back.yy < base - 24), WHEAT[1])
     # 地板：一条看得到上面的木板（板缝暗一档）
     fl = inner & (back.yy >= base - 7)
     back.put(fl, WHEAT[3])
@@ -1416,8 +2040,8 @@ def lodging():
     for lx in (dx0 + 2, dx1 - 5):
         back.rect(lx, dt + 8, lx + 3, base - 2, WHEAT[2])
         back.rect(lx, dt + 8, lx + 1, base - 2, WHEAT[4])
-    back.rect(dx0 + 6, dt - 1, dx0 + 18, dt, WALL[6])                # 摊开的纸
-    back.rect(dx0 + 9, dt - 2, dx0 + 20, dt - 1, WALL[5])
+    back.rect(dx0 + 6, dt - 1, dx0 + 18, dt, BWALL[6])                # 摊开的纸
+    back.rect(dx0 + 9, dt - 2, dx0 + 20, dt - 1, BWALL[5])
     back.rect(dx0 + 22, dt - 4, dx0 + 25, dt, DOOR[0])                # 墨水瓶
     back.rect(dx0 + 22, dt - 4, dx0 + 23, dt - 1, DOOR[2])
     back.rect(lamp[0] - 3, dt - 2, lamp[0] + 3, dt, WHEAT[2])        # 油灯：底座、灯罩、火
@@ -1442,20 +2066,20 @@ def lodging():
     back.rect(bx0, bt + 9, bx0 + 1, base - 2, WHEAT[4])
     q = (back.xx >= bx0) & (back.xx < bx1 - 3) & (back.yy >= bt) & (back.yy < bt + 7)
     q &= ~((back.xx < bx0 + 2) & (back.yy < bt + 2) & (((back.xx - (bx0 + 2)) ** 2 + (back.yy - (bt + 2)) ** 2) > 4))
-    back.put(q, WALL[5])
-    back.put(q & (back.yy < bt + 1), WALL[6])
-    back.put(q & (back.yy >= bt + 5), WALL[3])
+    back.put(q, BWALL[5])
+    back.put(q & (back.yy < bt + 1), BWALL[6])
+    back.put(q & (back.yy >= bt + 5), BWALL[3])
     back.put(q & (np.abs(back.xx - (bx0 + 10.5)) < 1.6) & (back.yy >= bt + 1), DOOR[3])
     pl = ellipse(back, bx1 - 9, bt - 1, 5, 2.6)
-    back.put(pl, WALL[6])
-    back.put(pl & (back.yy > bt - 0.5), WALL[4])
+    back.put(pl, BWALL[6])
+    back.put(pl & (back.yy > bt - 0.5), BWALL[4])
     # 床上面一块搁板：三个罐子；窗边挂一束晒干的麦穗
     sy = 174
     back.rect(bx0 + 2, sy, bx1 - 3, sy + 2, WHEAT[3])
     back.rect(bx0 + 2, sy, bx1 - 3, sy + 1, WHEAT[5])
     for (jx, jw, jh, col) in ((bx0 + 4, 5, 7, DOOR[2]), (bx0 + 11, 4, 5, WHEAT[4]), (bx0 + 17, 5, 8, FLOWER[0])):
         back.rect(jx, sy - jh, jx + jw, sy, col)
-        back.rect(jx, sy - jh, jx + 1, sy, WALL[6])
+        back.rect(jx, sy - jh, jx + 1, sy, BWALL[6])
         back.rect(jx + 1, sy - jh - 1, jx + jw - 1, sy - jh, WHEAT[2])
     back.rect(49, L_CEIL[1], 50, 160, WHEAT[2])
     back.put(poly_mask(back, [(47, 160), (52, 160), (54, 172), (45, 172)]), WHEAT[4])
@@ -1465,37 +2089,19 @@ def lodging():
     dl = np.hypot((light.xx - lamp[0]) / 1.35, light.yy - (dt - 6))
     light.put(inner & (dl < 46), LAMP[2], 26)
     light.put(inner & (dl < 22), LAMP[2], 44)
-    # ---- 前墙：两扇亮窗（下挂花箱）、淡蓝拱门（门缝漏暖光）、门上一小片三角帆布雨棚、门边挂一盏灯
-    for wxx in (50, 88):
-        lamp_window(front, wxx, 160, 8, 14, True)
-        flower_box(front, wxx, 174, 8)
-    arch_door(front, L_DOOR - 7, base, 14, 30, True)
-    aw = poly_mask(front, [(L_DOOR - 11, base - 34), (L_DOOR + 11, base - 34), (L_DOOR + 13, base - 30), (L_DOOR + 8, base - 28),
-                           (L_DOOR + 2, base - 29), (L_DOOR - 4, base - 28), (L_DOOR - 10, base - 30)])
-    stripe = (np.floor((front.xx - (L_DOOR - 11)) / 3).astype(int) % 2) == 0      # 粉白、淡蓝相间的条纹篷
-    front.put(aw, SAIL[3])
-    front.put(aw & stripe, WALL[6])
-    front.put(aw & (front.xx > L_DOOR + 6), SAIL[2])
-    front.put(aw & stripe & (front.xx > L_DOOR + 6), WALL[4])
-    front.rect(L_DOOR - 12, base - 35, L_DOOR + 12, base - 34, WHEAT[2])
-    trim = body & (front.yy >= L_CEIL[0]) & (front.yy < L_CEIL[0] + 2)            # 前墙上沿一圈木条（盖住剖开的那道缝）
-    front.put(trim, WHEAT[2])
-    front.put(trim & (front.yy < L_CEIL[0] + 1), WHEAT[4])
-    front.put(trim & ~np.roll(body, 1, axis=1), WHEAT[5])
-    lamp_post_hang(front, L_DOOR + 13, base - 37)
     tufts = foot_tufts(LW, [(L_CX, base - 1, x1 - x0 + 2)], 8, lift=0.0)
     back.over(tufts)
     despeckle(back)
     despeckle(front)
-    # 细塔上的小风车（房屋物件，100ms 一帧，45° 八帧匀速转）
-    rx, ry, rr = L_ROTOR
-    rot = []
-    for k in range(8):
-        Lr = piece(rx - rr - 1, ry - rr - 1, rx + rr + 2, ry + rr + 2)
-        rotor_into(Lr, rx, ry, rr, 0.5 + (math.pi / 4) * k / 8)
-        despeckle(Lr)
-        rot.append(Lr)
-    return back, front, light, view, rot
+    # 尖上的旗（房屋物件，100ms 一帧）
+    fx, fy = flag
+    fl = []
+    for k in range(12):
+        Lf = piece(fx, fy - 2, fx + 22, fy + 12)
+        pennant(Lf, fx, fy + 1, 18, 6, k, 12)
+        despeckle(Lf)
+        fl.append(Lf)
+    return back, front, light, view, fl
 
 
 def lamp_post_hang(L: Layer, x, y):
@@ -1573,6 +2179,9 @@ def town_json(anims):
     }
 
 
+LODGE_FLAG = [0, 0]
+
+
 def room_json():
     return {
         "kind": "house", "host": "town", "x": LODGE, "size": [LW, LH],
@@ -1580,9 +2189,8 @@ def room_json():
         "light": "res://art/cloud_town/lodge_light.png", "view": "res://art/cloud_town/lodge_view.png",
         "floor": L_FLOOR, "walk": [L_BODY[0] + L_WALL + 6, L_BODY[1] - L_WALL - 6], "door": L_DOOR,
         "markers": {"townroom_desk": 48, "townroom_door": L_DOOR},
-        "objects": {"townroom_rotor": {"img": "res://art/cloud_town/anim/lodge_rotor.png", "x": int(L_ROTOR[0] - L_ROTOR[2] - 1),
-                                       "y": int(L_ROTOR[1] - L_ROTOR[2] - 1), "frames": 8, "states": {"spin": [0, 7]},
-                                       "default": "spin"}},
+        "objects": {"townroom_flag": {"img": "res://art/cloud_town/anim/lodge_flag.png", "x": LODGE_FLAG[0], "y": LODGE_FLAG[1],
+                                      "frames": 12, "states": {"wave": [0, 11]}, "default": "wave"}},
     }
 
 
@@ -1757,10 +2365,47 @@ def fix_speckles(a, passes=4):
         h, w = a.shape[:2]
         for (y, x) in sp:
             nb = [a[yy, xx] for (yy, xx) in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)) if 0 <= yy < h and 0 <= xx < w]
+            if a[y, x, 3] > 0 and any(c[3] > 0 for c in nb):
+                nb = [c for c in nb if c[3] > 0]                # 不透明的点只换成旁边不透明的颜色：轮廓不会被啃掉一格
             keys = [tuple(int(v) for v in c) for c in nb]
             best = max(set(keys), key=keys.count)
             a[y, x] = best
     return a
+
+
+# ======================================================================= 晨和身后墙的亮度差
+def _lum(c):
+    return c[..., 0] * 0.299 + c[..., 1] * 0.587 + c[..., 2] * 0.114
+
+
+def chen_hair():
+    """晨头发的像素（帧里最上面 20 行、最亮的那些：白头发）和它们的平均亮度"""
+    C, _, _ = chen_ref(0)
+    a = C.a.astype(np.float32)
+    lm = _lum(a)
+    op = a[..., 3] > 0
+    top = np.zeros(op.shape, bool)
+    top[:24] = True
+    sel = op & top & (lm >= np.percentile(lm[op & top], 60))
+    return sel, float(lm[sel].mean())
+
+
+CONTRAST_SPOTS = {"住处的塔": lambda: LODGE - 20, "广场的大风车": lambda: MILL[0], "半木房": lambda: 1160}
+
+
+def contrast(S: "Scene"):
+    """晨站在三栋房子跟前：头发的平均亮度 − 头发正后面那块墙（不画晨时）的平均亮度"""
+    sel, hl = chen_hair()
+    out = {}
+    for name, fx in CONTRAST_SPOTS.items():
+        x = int(fx())
+        cl = int(np.clip(x - 240, 0, W - 480))
+        img = S.render(cl).astype(np.float32)
+        ox, oy = x - cl - 28, GROUND - 56
+        ys, xs = np.nonzero(sel)
+        wall = _lum(img[ys + oy, xs + ox]).mean()
+        out[name] = (hl, float(wall), hl - float(wall))
+    return out
 
 
 # ======================================================================= 自查：孤立单像素
@@ -1801,7 +2446,8 @@ def build():
     sv(lf, "art/cloud_town/lodge_front.png")
     sv(ll, "art/cloud_town/lodge_light.png")
     sv(lv, "art/cloud_town/lodge_view.png")
-    sv(np.concatenate([j.a for j in lrot], 1), "art/cloud_town/anim/lodge_rotor.png")
+    sv(np.concatenate([j.a for j in lrot], 1), "art/cloud_town/anim/lodge_flag.png")
+    LODGE_FLAG[:] = [lrot[0].ox, lrot[0].oy]
     for a in ANIMS:
         sv(np.concatenate([f.a for f in a["_frames"]], 1), f"art/cloud_town/anim/{a['_name']}.png")
     save_json(town_json(ANIMS), "art/town/room.json",
@@ -1816,11 +2462,433 @@ def build():
     return out
 
 
+# ======================================================================= 第三轮样稿（11-01）：只做晨住的塔
+#   作者：「墙仍然没有质感」「整个小镇都没有融入背景的氛围感」。主对话：墙像贴纸、颜色和天脱节、塔脚硬切。
+#   做法照小奥斯卡色块派：色块是光照切出来的。先算一张连续的光（天光从上面来、冷紫；云的反光从下面来、偏粉；
+#   地平线的粉光从左边低处来；窗里的灯往外晕、往下照窗台），放到三角网格上分段线性（块边是直线段，像剪纸），
+#   再按 OKLab 一档档量化（亮度一档 STEP_L，色相一档 8°）。颜色全从作者天和云里取：阴面是天的深紫蓝，亮面是偏粉的灰紫。
+#   材质不画缝：墙面中部是抹灰，墙角、窗边、门边、墙脚和几处剥落的地方露出石头 —— 石头是不规则的成片色块（各块只比
+#   抹灰暗一档或一样），窗台下拖着淡淡的雨痕。塔脚前面压一排云团，贴地一层薄雾。
+#   这一版只出样稿给作者看（--sample），不写 art/、不改 room.json；过了再推到别的房子。
+sys.path.insert(0, "/Users/jiamulin/Desktop/程序programs/AI Oscar")
+from oscarkit.light import polygonal, smooth_noise   # noqa: E402
+from oscarkit.palette import oklab_to_srgb            # noqa: E402
+
+STEP_L = 0.032          # 光一档
+MAT_STEP = 0.05         # 材质（石块、雨痕）一档：比光的档大一点，石头才读得出来
+HUE_STEP = 8.0
+
+
+def lch_rgb(L, C, h):
+    hr = np.radians(h)
+    lab = np.stack([L, C * np.cos(hr), C * np.sin(hr)], -1)
+    return oklab_to_srgb(lab.reshape(-1, 3)).reshape(np.shape(L) + (3,))
+
+
+def lch_hex(L, C, h):
+    return "#%02x%02x%02x" % tuple(int(v) for v in lch_rgb(np.array(L), np.array(C), np.array(h)))
+
+
+# 塔的颜色（OKLCh，色相是 OKLab 的角度：天顶 −72°、云 −76° ~ −22°、地平线粉 −3°）
+PW = [lch_hex(0.20 + 0.055 * i, 0.045 + 0.003 * i, -62 + 7 * i) for i in range(7)]   # 窗套、门套、窗台
+TIMBER4 = [lch_hex(0.16 + 0.045 * i, 0.032, -40 + 4 * i) for i in range(5)]          # 木梁：深紫褐，不是黑
+PINK_RIM = lch_hex(0.54, 0.075, -8)                                                  # 朝地平线那条边
+
+
+def stone_cells(L: Layer, seed, sx=(4, 9), sy=(3, 5), aniso=1.7):
+    """不规则的石块：一行行错开撒点（行高、点距都随机），按「横向压扁」的距离分成泰森多边形，每块一个编号"""
+    rng = np.random.default_rng(seed)
+    pts = []
+    y = L.oy - rng.uniform(0, sy[1])
+    while y < L.oy + L.h + sy[1]:
+        x = L.ox - rng.uniform(0, sx[1])
+        while x < L.ox + L.w + sx[1]:
+            pts.append((x + rng.uniform(-1, 1), y + rng.uniform(-0.8, 0.8)))
+            x += rng.uniform(*sx)
+        y += rng.uniform(*sy)
+    P = np.array(pts)
+    best = np.full(L.xx.shape, 1e9)
+    cid = np.zeros(L.xx.shape, int)
+    for i, (px_, py_) in enumerate(P):
+        d = ((L.xx - px_) / aniso) ** 2 + (L.yy - py_) ** 2
+        upd = d < best
+        best[upd] = d[upd]
+        cid[upd] = i
+    return cid, len(P)
+
+
+def atmos_paint(L: Layer, m, Lf, Cf, hf, k, cell=(16, 14), seed=0):
+    """把连续的光（Lf 亮度、Cf 彩度、hf 色相）放到三角网格上分段线性，再一档档量化，加上材质的档 k，涂到 m 上"""
+    if not m.any():
+        return
+    Lp = polygonal(Lf, cell[0], cell[1], seed=seed)
+    hp = polygonal(hf, cell[0], cell[1], seed=seed + 1)
+    Lq = np.round(Lp / STEP_L) * STEP_L + k * MAT_STEP
+    hq = np.round(hp / HUE_STEP) * HUE_STEP
+    Cq = np.round(Cf / 0.01) * 0.01
+    rgb = lch_rgb(Lq[m], Cq[m], hq[m])
+    L.a[m, :3] = rgb
+    L.a[m, 3] = 255
+
+
+def wall_light(L: Layer, cx, half, top, base, L0=0.36, h0=-46, glows=(), seed=0):
+    """圆塔外墙的光：左边接地平线的粉光（亮、偏粉），右边背光（深紫蓝）；上面接天光（偏冷偏紫）、檐下一道影；
+    下面靠近云，被云反光照得偏粉、亮一点；窗里的灯在窗洞周围晕开、往下照窗台。返回 (亮度, 彩度, 色相) 三张图。"""
+    u = np.clip((L.xx - cx) / np.maximum(half, 0.5), -1, 1)
+    v = np.clip((L.yy - top) / max(base - top, 1), 0, 1)
+    hor = np.clip(-u * 0.85 + 0.15, 0, 1) ** 1.3                    # 地平线粉光（左边低处）
+    sky = (1 - v) ** 1.6                                             # 天光（上面）
+    bnc = v ** 2.2                                                   # 云的反光（下面）
+    eave = np.clip(1 - (L.yy - top) / 6.0, 0, 1)                     # 檐下的影
+    br = smooth_noise(L.h, L.w, 8, 26, seed=seed) * 0.5              # 很淡的竖向笔触：块边不是一条条直竖线
+    Lf = L0 + 0.08 * hor - 0.025 * sky + 0.06 * bnc - 0.07 * eave - 0.03 * np.clip(u - 0.3, 0, 1) + br * STEP_L * 0.3
+    hf = h0 + 24 * hor - 16 * sky * (1 - hor) + 16 * bnc
+    Cf = 0.046 + 0.016 * hor + 0.008 * bnc
+    for (x, y, w, h, lit) in glows:
+        if not lit:
+            continue
+        d = np.hypot((L.xx - (x + w / 2.0)) / (w / 2.0 + 5.5), (L.yy - (y + h * 0.62)) / (h / 2.0 + 6.5))
+        g = np.clip(1 - d, 0, 1) ** 0.8
+        Lf = Lf + 0.075 * g
+        hf = hf * (1 - np.clip(g * 1.6, 0, 1)) + 38 * np.clip(g * 1.6, 0, 1)
+        Cf = Cf + 0.03 * g
+    return Lf, Cf, hf
+
+
+def stone_texture(L: Layer, m, stone_m, seed, sx=(6, 12), sy=(4, 6), p_dark=0.55):
+    """露出石头的地方：每块石头只比抹灰暗一档或一样，不画缝。相邻两块尽量一深一浅（按邻居挑），形状靠明暗分开，
+    不会连成一大片斑。"""
+    cid, n = stone_cells(L, seed, sx, sy)
+    rng = np.random.default_rng(seed + 9)
+    sel = m & stone_m
+    nb = [set() for _ in range(n)]
+    for (a_, b_) in ((cid[:, :-1], cid[:, 1:]), (cid[:-1, :], cid[1:, :])):
+        s_ = sel[:, :-1] & sel[:, 1:] if a_.shape[1] < cid.shape[1] else sel[:-1, :] & sel[1:, :]
+        pa, pb = a_[s_ & (a_ != b_)], b_[s_ & (a_ != b_)]
+        for i, j in set(zip(pa.tolist(), pb.tolist())):
+            nb[i].add(j)
+            nb[j].add(i)
+    tone = np.zeros(n, int)
+    done = np.zeros(n, bool)
+    for i in rng.permutation(n):
+        dk = sum(1 for j in nb[i] if done[j] and tone[j] == -1)
+        lt = sum(1 for j in nb[i] if done[j] and tone[j] == 0)
+        if dk < lt or (dk == lt and rng.random() < p_dark):
+            tone[i] = -1
+        done[i] = True
+    k = np.zeros(L.xx.shape)
+    k[sel] = tone[cid[sel]]
+    return k
+
+
+def blob(L: Layer, cx, cy, rx, ry, seed, rough=0.35):
+    """一块不规则的斑（剥落、露石的地方）：椭圆的边被低频噪声推来推去"""
+    n = smooth_noise(L.h, L.w, 4, 4, seed=seed)
+    d = np.hypot((L.xx - cx) / rx, (L.yy - cy) / ry)
+    return d + rough * n < 1
+
+
+def rain_streaks(L: Layer, m, wins, seed):
+    """窗台下面往下拖的雨痕：一两条一像素宽、长短不一、比墙暗一档的竖道"""
+    rng = np.random.default_rng(seed)
+    k = np.zeros(L.xx.shape)
+    X, Y = _xy(L)
+    for (x, y, w, h, lit) in wins:
+        for _ in range(int(rng.integers(1, 3))):
+            sx = int(x + rng.integers(0, max(w, 1)))
+            ln = int(rng.integers(6, 15))
+            k[m & (X == sx) & (Y >= y + h + 2) & (Y < y + h + 2 + ln)] = -1
+    return k
+
+
+def lodging_exterior_v4():
+    E = Layer(LW, LH)
+    x0, x1 = L_BODY
+    base = LH
+    half = (x1 - x0) / 2.0
+    door_x = L_DOOR - 7
+    wins = [(46, 160, 8, 14, True), (90, 160, 8, 14, True)]
+    # ---- 下截圆塔（墙脚往外撇一点，是石头砌的根）
+    flare = 2.4 * np.clip(1 - (base - E.yy) / 10.0, 0, 1) ** 1.5
+    hh = half + flare
+    m = (np.abs(E.xx - L_CX) < hh) & (E.yy >= L_ROOF) & (E.yy < base)
+    Lf, Cf, hf = wall_light(E, L_CX, hh, L_ROOF, base, glows=wins, seed=401)
+    u = (E.xx - L_CX) / hh
+    nz = smooth_noise(E.h, E.w, 6, 6, seed=402)
+    stone_m = (E.yy >= base - 12 + 3 * nz)                                       # 墙脚
+    stone_m |= (np.abs(u) + 0.10 * nz) > 0.80                                    # 墙角（圆塔的两边）
+    for (x, y, w, h, lit) in wins:                                              # 窗边
+        d = np.hypot((E.xx - (x + w / 2.0)) / (w / 2.0 + 5), (E.yy - (y + h / 2.0)) / (h / 2.0 + 5))
+        stone_m |= (d + 0.25 * nz) < 1.0
+    d = np.hypot((E.xx - (door_x + 7)) / 12.0, (E.yy - (base - 18)) / 21.0)      # 门边
+    stone_m |= (d + 0.2 * nz) < 1.0
+    peel = blob(E, L_CX + 20, L_ROOF + 46, 9, 6, 403) | blob(E, L_CX - 18, L_ROOF + 18, 7, 5, 404)   # 两处剥落
+    stone_m |= peel
+    k = stone_texture(E, m, stone_m, 405)
+    k[m & (E.yy >= base - 10)] = np.minimum(k[m & (E.yy >= base - 10)], stone_texture(E, m, stone_m, 408, sx=(8, 14), sy=(5, 6))[m & (E.yy >= base - 10)])
+    k += rain_streaks(E, m & ~stone_m, wins, 406)
+    # 剥落处抹灰的断口：下沿、右沿一像素亮一档（抹灰有厚度）
+    lip = m & ~peel & (np.roll(peel, -1, 0) | np.roll(peel, 1, 1)) & ~stone_m
+    k[lip] += 1
+    atmos_paint(E, m, Lf, Cf, hf, k, seed=407)
+    edge = m & ~np.roll(m, 1, axis=1) & (E.yy > L_ROOF + 4) & (E.yy < base - 12)
+    E.put(edge, PINK_RIM)
+    for (x, y, w, h, lit) in wins:
+        deep_window(E, x, y, w, h, lit, shutters=True, sill=True, frame_pal=PW)
+        flower_box(E, x, y + h + 2, w)
+    stone_door(E, door_x, base, 14, 30, True, pal=PW)
+    # 门上的条纹雨棚 + 门边的灯
+    aw = poly_mask(E, [(L_DOOR - 11, base - 35), (L_DOOR + 11, base - 35), (L_DOOR + 13, base - 31), (L_DOOR + 8, base - 29),
+                       (L_DOOR + 2, base - 30), (L_DOOR - 4, base - 29), (L_DOOR - 10, base - 31)])
+    stripe = (np.floor((E.xx - (L_DOOR - 11)) / 3).astype(int) % 2) == 0
+    E.put(aw, lch_hex(0.50, 0.04, -75))
+    E.put(aw & stripe, PW[5])
+    E.put(aw & (E.xx > L_DOOR + 6), lch_hex(0.42, 0.04, -75))
+    E.put(aw & stripe & (E.xx > L_DOOR + 6), PW[4])
+    E.rect(L_DOOR - 12, base - 36, L_DOOR + 12, base - 35, TIMBER4[1])
+    lamp_post_hang(E, L_DOOR + 13, base - 38)
+    # ---- 托梁
+    ux0, ux1, uy = L_UP
+    X, Y = _xy(E)
+    dist = np.abs(E.xx - L_CX) - half
+    cb = (dist > 0) & (E.xx >= ux0) & (E.xx < ux1) & (E.yy >= L_ROOF) & (E.yy < L_ROOF + 3 - dist / 2.5) & (np.mod(X - ux0, 4) < 2)
+    E.put(cb, TIMBER4[2])
+    E.put(cb & (E.yy < L_ROOF + 1), TIMBER4[3])
+    # ---- 上面那层：抹灰 + 木框架（灰泥比石墙暖一点、亮一档）
+    um = (E.xx >= ux0) & (E.xx < ux1) & (E.yy >= uy) & (E.yy < L_ROOF)
+    uh = (ux1 - ux0) / 2.0
+    uwins = [(30, uy + 7, 6, 10, True), (69, uy + 7, 6, 10, False), (100, uy + 7, 6, 10, True)]
+    Lf, Cf, hf = wall_light(E, L_CX, uh, uy, L_ROOF + 40, L0=0.40, h0=-34, glows=uwins, seed=411)
+    atmos_paint(E, um, Lf, Cf, hf, np.zeros(E.xx.shape), seed=412)
+    tm = um & ((E.yy >= L_ROOF - 2) | (E.yy < uy + 1) | (E.xx < ux0 + 2) | (E.xx >= ux1 - 2))
+    for (wx, wy, ww, wh, l_) in uwins:
+        tm |= um & (((E.xx >= wx - 3) & (E.xx < wx - 1)) | ((E.xx >= wx + ww + 1) & (E.xx < wx + ww + 3)))
+    for (sx, ex) in ((ux0 + 12, ux0 + 20), (L_CX - 6, L_CX + 2), (L_CX + 14, L_CX + 22), (ux1 - 12, ux1 - 20)):
+        for (px_, py_) in line4(sx, L_ROOF - 3, ex, uy + 2):
+            tm |= um & (X == px_) & (Y == py_)
+            tm |= um & (X == px_ + 1) & (Y == py_)
+    tidx = 2 - band((E.xx - L_CX) / uh, (-0.4, 0.5))
+    paint(E, tm, tidx, TIMBER4)
+    E.rect(ux0, L_ROOF - 1, ux1, L_ROOF, TIMBER4[0])
+    E.put(um & ~np.roll(um, 1, axis=1) & ~tm, PINK_RIM)
+    for (wx, wy, ww, wh, l_) in uwins:
+        deep_window(E, wx, wy, ww, wh, l_, shutters=True, sill=False, frame_pal=PW)
+    # ---- 尖顶（11-01 第三版样稿：作者「这个三角形感觉不像屋顶」）。参考作者自己画的尖顶房子（Phage 和沐子之家）：
+    #   上段直的圆锥、下段钟形往外翻；明暗是几道竖的色带（左边接地平线粉光，往右一档档暗进夜空的深紫蓝，带一点弧）；
+    #   一圈圈瓦行是往下弯的弧（越近塔尖越短越密），行与行之间只暗一档、是连着的弧线；檐口有三行厚、本身也是同样的弧，
+    #   底下在墙上投一道影；尖上一个金属尖帽 + 小球，旗杆从球上插出去；老虎窗有自己的两坡小屋顶和侧面。
+    R = Layer(LW, LH)
+    RH, rw_s, flare_px, sag = 84, uh + 1.0, 4.5, 4.5
+    eave_y = uy + 1
+    tip_y = eave_y - RH
+    hw_of = {}
+    for yy in range(tip_y, eave_y + 1):
+        t = (yy - tip_y) / RH
+        hw_of[yy] = int(round(rw_s * t + flare_px * np.clip((t - 0.76) / 0.24, 0, 1) ** 2))
+    hwe = hw_of[eave_y]
+    X, Y = _xy(R)
+    HW = np.full((LH, LW), -1.0)
+    for yy, hw in hw_of.items():
+        HW[yy] = hw
+    HW[eave_y:] = hwe
+    dxc = np.abs(R.xx - (L_CX + 0.0))                                 # 左右对称：中心在 L_CX−0.5 和 L_CX 之间的两格尖
+    halfw = np.where(HW >= 0, HW + 1.0, -1)
+    u = np.clip((R.xx - L_CX) / np.maximum(halfw, 1), -1, 1)
+    arc = np.sqrt(np.clip(1 - u * u, 0, 1))
+    eave_bot = eave_y + 2 + sag * arc                                 # 檐口底边：往下弯的弧
+    rm = (Y >= tip_y) & (HW >= 0) & (X >= L_CX - 1 - HW) & (X < L_CX + 1 + HW) & (R.yy < eave_bot + 0.5)
+    t_ = np.clip((R.yy - tip_y) / RH, 0, 1)
+    # 竖向色带：u 加一点随高度变的偏移，色带边是略带弧的斜线，往塔尖收
+    ub = u + 0.10 * (1 - t_) * (1 - u * u)
+    band_i = band(ub, (-0.55, -0.15, 0.25, 0.62))                     # 0 = 最左（亮）… 4 = 最右（暗）
+    Lb = np.array([0.47, 0.425, 0.385, 0.345, 0.305])[band_i]
+    hb = np.array([-30, -44, -56, -66, -72])[band_i]
+    Cb = np.array([0.065, 0.058, 0.052, 0.048, 0.046])[band_i]
+    Lb = Lb + 0.03 * (t_ < 0.25)                                       # 尖上那截映着天，亮一点
+    k = np.zeros((LH, LW))
+    # 瓦行：往下弯的弧，越近塔尖越密、弧越浅
+    rng = np.random.default_rng(431)
+    yr = float(eave_y - 3)
+    rows = []
+    while yr > tip_y + 6:
+        tr = (yr - tip_y) / RH
+        rows.append((yr, tr))
+        yr -= 2.0 + 3.0 * tr
+    for (yr, tr) in rows:
+        hw = hw_of[int(round(yr))]
+        if hw < 4:
+            continue
+        pts = []
+        for xx in np.linspace(L_CX - 1 - hw + 0.5, L_CX + hw + 0.5, max(8, int(hw * 2 / 3))):
+            uu = (xx - L_CX) / (hw + 1.0)
+            pts.append((xx, yr + sag * tr * math.sqrt(max(0.0, 1 - uu * uu))))
+        for (px_, py_) in curve4(pts):
+            if 0 <= py_ < LH and 0 <= px_ < LW and rm[py_, px_]:
+                k[py_, px_] = -1
+    # 个别瓦片亮一档（贴着某一行瓦线下面的一小块）
+    for _ in range(9):
+        yr, tr = rows[int(rng.integers(1, len(rows) - 2))]
+        hw = hw_of[int(round(yr))]
+        if hw < 8:
+            continue
+        xx = int(L_CX + rng.uniform(-0.8, 0.8) * hw)
+        uu = (xx - L_CX) / (hw + 1.0)
+        yy = int(round(yr + sag * tr * math.sqrt(max(0.0, 1 - uu * uu)))) + 1
+        tile = rm & (X >= xx) & (X < xx + 3) & (Y >= yy) & (Y < yy + 2) & (k == 0)
+        k[tile] = 1
+    Lq = Lb + k * 0.035
+    rgb = lch_rgb(Lq[rm], Cb[rm], hb[rm])
+    R.a[rm, :3] = rgb
+    R.a[rm, 3] = 255
+    # 檐口：三行厚的弧形檐边（上面一行接光亮一档、下面两行是檐底的暗面）
+    fas = rm & (R.yy >= eave_bot - 2.5)
+    R.put(fas, lch_hex(0.26, 0.045, -66))
+    top_f = fas & ~np.roll(fas, 1, axis=0)
+    R.a[top_f, :3] = lch_rgb(Lb[top_f] + 0.035, Cb[top_f], hb[top_f])
+    # 左边坡沿的粉色轮廓光：一条连着的线（每行从这一行的边画到上一行的边），从塔尖往下渐强
+    prev = None
+    for yy in range(tip_y, eave_y):
+        a_ = L_CX - 1 - hw_of[yy]
+        b_ = a_ if prev is None else max(a_, prev)
+        col = PINK_RIM if (yy - tip_y) > RH * 0.35 else lch_hex(0.46, 0.06, -22)
+        for xx in range(a_, b_ + 1):
+            if xx < L_CX - 1:
+                R.px(xx, yy, col)
+        prev = a_
+    # 老虎窗：正面（抹灰，亮着窗）+ 右边一条侧面 + 两坡小屋顶（左坡亮、右坡暗，檐挑出一格）+ 在大屋顶上投的一小块影
+    dx, dy = L_CX + 15, eave_y - 33
+    sh = rm & (X >= dx + 11) & (X < dx + 15) & (Y >= dy - 2) & (Y < dy + 12) | rm & (X >= dx) & (X < dx + 13) & (Y >= dy + 11) & (Y < dy + 13)
+    R.a[sh, :3] = lch_rgb(Lb[sh] - 0.035, Cb[sh], hb[sh])
+    face = (R.xx >= dx) & (R.xx < dx + 10) & (R.yy >= dy) & (R.yy < dy + 11)
+    paint(R, face, np.full(face.shape, 4), PW)
+    side = (R.xx >= dx + 10) & (R.xx < dx + 12) & (R.yy >= dy + 1) & (R.yy < dy + 11)
+    paint(R, side, np.full(side.shape, 2), PW)
+    R.rect(dx, dy, dx + 10, dy + 1, PW[2])                            # 小屋顶底下的影
+    deep_window(R, dx + 3, dy + 3, 4, 7, True, sill=False, frame_pal=PW, cross=False)
+    R.rect(dx + 2, dy + 10, dx + 8, dy + 11, PW[5])                   # 窗台
+    gl = poly_mask(R, [(dx - 3, dy + 2), (dx + 5, dy - 8), (dx + 5.5, dy + 2)])          # 两坡小屋顶，两边各挑出 3 格
+    gr_ = poly_mask(R, [(dx + 5, dy - 8), (dx + 14, dy + 2), (dx + 5, dy + 2)])
+    R.put(gl, lch_hex(0.50, 0.065, -34))
+    R.put(gr_, lch_hex(0.34, 0.05, -62))
+    R.put((gl | gr_) & (R.yy >= dy + 1), lch_hex(0.26, 0.045, -66))    # 小屋顶的檐底（两行厚）
+    R.put(gl & ~np.roll(gl, 1, axis=1) & (R.yy < dy + 1), PINK_RIM)
+    R.rect(dx + 4, dy - 9, dx + 6, dy - 7, WHEAT[3])                   # 屋脊头上一个小尖饰
+    # 塔尖：金属尖帽（两格宽、三行高，左亮右暗）+ 上面一颗小球，旗杆从球上插出去
+    R.rect(L_CX - 2, tip_y - 1, L_CX + 2, tip_y + 3, WHEAT[2])
+    R.rect(L_CX - 2, tip_y - 1, L_CX, tip_y + 3, WHEAT[4])
+    R.rect(L_CX - 3, tip_y + 2, L_CX + 3, tip_y + 3, WHEAT[1])
+    R.rect(L_CX - 1, tip_y - 4, L_CX + 1, tip_y - 1, WHEAT[3])
+    R.rect(L_CX - 1, tip_y - 4, L_CX, tip_y - 2, WHEAT[5])
+    E.over(R)
+    fx, fy = flagpole(E, L_CX - 1, tip_y - 4, 11)
+    return E, (fx, fy)
+
+
+def foot_cloud_and_mist(base=LH):
+    """塔脚前面压的一排云团（和能走的云一条色阶，盖住塔脚最下面几行，门口那段矮一点）+ 贴地一层薄雾（固定半透明两档）"""
+    F = CA.Field(LW + 2 * PAD, LH)
+    rng = np.random.default_rng(431)
+    x = 2.0
+    while x < LW - 2:
+        near_door = abs(x - L_DOOR) < 12
+        corner = min(abs(x - L_BODY[0]), abs(x - L_BODY[1])) < 12          # 塔身两边转角：云团大、往上盖得高，像绕过塔脚
+        right = abs(x - L_BODY[1]) < 12                                      # 右边转角（离门和晨远）再高一截
+        r = rng.uniform(3.0, 4.2) if near_door else (rng.uniform(10.0, 13.0) if right else
+                                                      rng.uniform(7.5, 10.0) if corner else rng.uniform(4.5, 7.0))
+        F.new_group()
+        F.cauli(x + PAD, base - r * (0.95 if corner else 0.7) + (3.0 if near_door else rng.uniform(-1.0, 1.0)), r, 20, rng,
+                sq=0.62, depth=2,
+                kids=(2, 3), ks=(0.32, 0.55), rmin=2.0, spread=(-165, -15), ref=base - r * 1.4, unit=4)
+        x += r * rng.uniform(0.9, 1.35)
+    pal = CA.cloud_pal(0.14, 0.50, 7, C_lo=0.05, C_hi=0.085, h_lo=286, h_hi=352)    # 前面的云朝光那面亮一点
+    T = render_field(F, LW, pal, body=4, rim=(1.5, 3.2), crease=2.0, run_bands=(4, 8))
+    M = Layer(LW, LH)
+    n = smooth_noise(LH, LW, 14, 4, seed=432)
+    top1 = base - 14 + 2.5 * n
+    top2 = base - 8 + 1.5 * n
+    side = np.clip(np.minimum(M.xx - 2, LW - 2 - M.xx) / 10.0, 0, 1)
+    mist = lch_rgb(np.array(0.46), np.array(0.065), np.array(-24))
+    M.put((M.yy >= top1 + (1 - side) * 6), mist, 80)
+    M.put((M.yy >= top2 + (1 - side) * 6), mist, 135)
+    return T, M
+
+
+def lodging_v4():
+    """样稿：新的外墙 + 原来的屋里（剖面、家具、窗光照旧），前墙下面压云团、贴一层薄雾"""
+    global lodging_exterior
+    old = lodging_exterior
+    lodging_exterior = lodging_exterior_v4
+    try:
+        back, front, light, view, fl = lodging()
+    finally:
+        lodging_exterior = old
+    T, M = foot_cloud_and_mist()
+    front.over(M)
+    front.over(T)
+    return back, front, light, view, fl
+
+
+INTERLEAVE = [
+    # (插在哪一层后面, 用作者哪张云, 往下挪几行, 视差, 漂移)：作者 art/cloud/ 的原图，水平翻过来用（和背景里同一张图的形状错开）
+    ("town_far", "midfar", 28, 0.80, -2.0),    # 远处那排塔前面：薄薄一层，塔脚到塔腰被盖住
+    ("town_back", "mid", 4, 1.0, -1.2),        # 后排房子前面、地面后面：房子下段埋在云里，高低不一（路和广场在它前面，不会被盖）
+]
+
+
+def interleave_clouds(S: "Scene"):
+    """样稿：把作者的云插到建筑层之间（只在预览里叠，room.json 还没改）"""
+    ids = [c["id"] for c, _ in S.layers]
+    for (after, src, dy, sc, drift) in reversed(INTERLEAVE):
+        im = _rgba(ROOT / "art" / "cloud" / (src + ".png"))[:, ::-1].copy()
+        sh = np.zeros_like(im)
+        if dy >= 0:
+            sh[dy:] = im[:im.shape[0] - dy]
+        else:
+            sh[:dy] = im[-dy:]
+        c = {"id": f"cloud_{src}_over_{after}", "scroll": sc, "tile": True, "drift": drift}
+        S.layers.insert(ids.index(after) + 1, (c, sh))
+
+
+def sample(d: Path):
+    """样稿：只换住处，叠出「现在」和「样稿」两张 3 倍图（带晨）、一张并排对比、塔脚 6 倍局部；量晨和墙的亮度差"""
+    d.mkdir(parents=True, exist_ok=True)
+    S = Scene(0.0)
+    cl = int(np.clip(LODGE - 240, 0, W - 480))
+    chen = (LODGE - 20, GROUND)
+    now = S.render(cl, chen=chen)
+    before_c = contrast(S)["住处的塔"]
+    b, f, l, v, fl = lodging_v4()
+    for Lr in (b, f):
+        fix_speckles(Lr.a)
+    S.hback, S.hfront = b.a.astype(np.float32), f.a.astype(np.float32)
+    S.hlight, S.hview = l.a.astype(np.float32), v.a[..., 3] > 0
+    S.hobjs = [(fl[0].a.astype(np.float32), fl[0].ox, fl[0].oy)]
+    interleave_clouds(S)
+    new = S.render(cl, chen=chen)
+    after_c = contrast(S)["住处的塔"]
+    x0, x1 = 140, 380
+    for name, im in (("lodging_now", now), ("lodging_sample", new)):
+        Image.fromarray(im[:, x0:x1]).resize(((x1 - x0) * 3, 810), Image.NEAREST).save(d / f"{name}_x3.png")
+    pair = np.concatenate([now[:, x0:x1], np.zeros((270, 4, 3), np.uint8), new[:, x0:x1]], 1)
+    Image.fromarray(pair).resize((pair.shape[1] * 3, 810), Image.NEAREST).save(d / "lodging_now_vs_sample_x3.png")
+    hx = S.hx0 - cl
+    fx0, fx1, fy0, fy1 = hx + 64, hx + LW + 14, 194, 238              # 塔的右半边（晨站在左边门口），一直到塔外
+    Image.fromarray(new[fy0:fy1, fx0:fx1]).resize(((fx1 - fx0) * 6, (fy1 - fy0) * 6), Image.NEAREST).save(d / "lodging_foot_x6.png")
+    for (n_, a_) in (("back", b.a), ("front", f.a)):
+        Image.fromarray(a_).save(d / f"sample_lodge_{n_}.png")
+    print("亮度差（住处的塔）：现在 头发 %.0f 墙 %.0f 差 %.0f；样稿 头发 %.0f 墙 %.0f 差 %.0f" % (before_c + after_c))
+    print("样稿:", d)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", default="")
     ap.add_argument("--only-preview", action="store_true")
+    ap.add_argument("--sample", default="", help="只出晨住的塔的样稿（不写 art/）")
     args = ap.parse_args()
+    if args.sample:
+        sample(Path(args.sample))
+        return
     if not args.only_preview:
         build()
     if args.preview:
