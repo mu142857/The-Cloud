@@ -1255,53 +1255,167 @@ GIANT_ROOTS: list = []
 # ---------------------------------------------------------------- 第十三版：只加东西，颜色一律沿用第十一版
 # 作者：「我的方案本是叫你多加一些石头，树木……一团一团的树，大一点，可能跟主角同一层，但是大到直接顶到屏幕顶上」。
 # 大树（bigtrees 层，scroll 1.0，紧贴在 main 后面）。
-# 第十四版：作者：「这个芦苇地的树木感觉好奇怪……你就不能做一个大树吗？我记得小奥斯卡里我亲自画的树不少啊」——
-# 第十三版那种一串圆球（棉花糖）撤掉，直接用作者亲手画的「森林阔叶木」（art/reed_field/src/broadleaf_jiamu.png，
-# 原件 Phage/Aseprite Assets/Part Jiamu1/Old/森林阔叶木_副本.png，203×178）：粗主干、树洞、分叉的枝从叶团缝里露出来、
-# 一层层不规则的叶团、垂下来的枝条。像素一格不改、不缩放，只按亮度把颜色换成第十一版那套淡色（BIGTREE_LEAF / BIGTREE_BARK，
-# 叶子暗处是淡青、亮处是淡黄绿，树皮是浅浅的暖灰），整棵的平均亮度和 main 一样或者略亮。
-# 要冲出屏幕上沿：把原图的树冠左右翻过来、往上挪 BIGTREE_LIFT 行垫在原图后面（作者自己的叶团往上续一层），
-# 只留它高出原图树冠上沿的那部分（逐列看原图最上面那一格），所以续上去的叶团下沿就是原图树冠的上沿，没有横着切的一刀。
-# 原图整个盖在它前面。根（原图最下面一行）放在 BIGTREE_ROOT 行，藏在 main 那一溜草带后面。
-BIGTREE_SRC = ROOT / "art" / "reed_field" / "src" / "broadleaf_jiamu.png"
-BIGTREE_LEAF = [(55, "#94cfb8"), (70, "#b8d98a"), (88, "#cbe39c"), (106, "#dcecb2"), (999, "#ecf4d2")]   # 原色亮度 ≤ 几 → 换成这个
-BIGTREE_BARK = [(12, "#9cbdb3"), (26, "#c2cdbd"), (42, "#d6d6c0"), (60, "#e6e2cb"), (999, "#f2eedb")]
+# 第十四版用作者「森林阔叶木」原图换色直接贴（作者：「我没让你直接搬过来，我叫你画出和背景一样的那个风格」），撤掉。
+# 第十五版：尺寸照第十四版（和晨同一层、冲出屏幕上沿，宽 200 出头），作者的阔叶木只拿来参考轮廓和体量
+# （一层层横着的伞形叶、粗主干、枝从叶层的缝里露出来、下沿垂下来的叶），用湿地自己的画法重画：
+# - 叶：每一层是一大片扁穹顶，里面挤很多小叶团（半径 3–9，和远处小树、小洲那种一团团一个颗粒），leaf_tones 那套球面受光
+#   （左上来光，四档平涂）；每层下半截不出最亮那档、底下一截压到背光（伞的底面），上一层盖在下一层上投一道暗；
+#   下沿每隔一段垂一绺两三格宽、往下收尖的叶（不是作者原图那种一像素的细丝）。
+# - 颜色只用第十一版画面里已经有的颜色：叶 = main 草丛的嫩绿一套（BIGTREE_LEAF），树冠里头垫几层岛上那种偏冷的淡绿
+#   （BIGTREE_INNER，照不到太阳）；上一层盖住下一层的地方压暗一档；树干 = 超前景、石头用过的那几档淡青灰
+#   （BIGTREE_BARK：左受光、中本色、右背光），两格宽的竖纹。整棵树的平均亮度不低于 main。
+# - 根放在 BIGTREE_ROOT 行，藏在 main 那一溜草带和会动的草丛后面。
+BIGTREE_LEAF = ["#dcecb2", "#cbe39c", "#b8d98a", "#a6cf7c"]     # 受光 → 半受光 → 本色 → 背光
+BIGTREE_INNER = ["#c2e2c8", "#b6dcba", "#b6dcba", "#a5d3a8"]    # 树冠里层（岛上的淡绿）
+BIGTREE_BARK = ["#c0d8c0", "#acccbd", "#9ec5b8"]                # 受光、本色、背光
+BIGTREE_DARKER = {**{a: b for a, b in zip(["#dcecb2", "#cbe39c", "#b8d98a", "#a6cf7c"], ["#cbe39c", "#b8d98a", "#a6cf7c", "#93c47a"])},
+                  **{a: b for a, b in zip(["#c2e2c8", "#b6dcba", "#a5d3a8"], ["#b6dcba", "#a5d3a8", "#a5d3a8"])}}   # 压暗一档
+BIGTREE_CUT = (0.78, 0.5, 0.0)
 BIGTREES = [(600, 1), (1580, -1)]                                  # 树干中心的房间 x、朝向（−1 = 左右翻过来）
 BIGTREE_ROOT = 214
-BIGTREE_LIFT = 62
-BIGTREE_TRUNK_X = (84, 126)                                        # 原图主干（连树洞）所在的列
+# 一层层叶（相对树干中心 x、根往上为负）：(中心 x, 顶, 底, 半宽)；前 BIGTREE_N_INNER 层是里层（先画，垫在后面）
+BIGTREE_SHELVES = [
+    (-30, -232, -196, 30), (34, -226, -192, 30), (-20, -186, -150, 26), (30, -180, -146, 24), (-6, -146, -120, 26),
+    (-44, -254, -212, 48), (40, -248, -208, 44),
+    (-64, -204, -170, 38), (4, -214, -178, 30), (64, -200, -166, 36),
+    (-78, -160, -130, 26), (-28, -168, -134, 31), (33, -164, -130, 35), (82, -150, -122, 21),
+    (-49, -120, -92, 33), (47, -118, -90, 35),
+]
+BIGTREE_N_INNER = 5
+# 主枝：(伸到哪, 根上多粗, 梢上多粗)——从树干上头分出去，先往上长、再往外伸进各层叶
+BIGTREE_LIMBS = [((-42, -228), 11, 5), ((37, -222), 10, 5), ((-58, -180), 9, 4), ((60, -176), 9, 4), ((6, -196), 8, 4),
+                 ((-75, -136), 7, 3), ((76, -128), 7, 3), ((-50, -100), 7, 3), ((45, -98), 7, 3)]
 
 
-def bigtree_sprite():
-    src = np.array(Image.open(BIGTREE_SRC).convert("RGBA"))
-    h, w = src.shape[:2]
-    out = blank(w, h + BIGTREE_LIFT)
-    m = src[..., 3] > 0
-    top_orig = np.where(m.any(axis=0), np.argmax(m, axis=0), -1) + BIGTREE_LIFT     # 原图每一列最上面那一格（在 out 里的行）
-    flip = src[:, ::-1]
-    fm = flip[..., 3] > 0
-    for x in range(w):
-        if top_orig[x] < BIGTREE_LIFT:
-            continue                                                 # 原图这一列是空的：续的叶团也不放（不会悬在外面）
-        ys = np.nonzero(fm[:, x])[0]
-        ys = ys[ys < top_orig[x]]
-        sx = w - 1 - x                                               # 翻过来之前在原图里是哪一列
-        if BIGTREE_TRUNK_X[0] <= sx <= BIGTREE_TRUNK_X[1]:
-            ys = [y for y in ys if flip[y, x, 1] > flip[y, x, 0]]    # 主干那几列只要叶子（不要第二个树干、第二个树洞）
-        out[ys, x] = flip[ys, x]
-    out[BIGTREE_LIFT:][m] = src[m]
-    a = out[..., 3] > 0
-    for c in np.unique(out[a][:, :3], axis=0):
-        r, g, b = (int(v) for v in c)
-        lum = 0.299 * r + 0.587 * g + 0.114 * b
-        ramp = BIGTREE_BARK if r > g else BIGTREE_LEAF              # 树皮偏红棕，叶子偏绿
-        nc = next(hx for lim, hx in ramp if lum <= lim)
-        sel = a & (out[..., 0] == r) & (out[..., 1] == g) & (out[..., 2] == b)
-        out[sel, :3] = hexc(nc)[:3]
-    rows = np.nonzero(a.any(axis=1))[0]
-    bot = rows.max()
-    trunk_x = int(round(np.nonzero(a[bot - 6:bot + 1].any(axis=0))[0].mean()))
-    return out, trunk_x, bot
+def shelf_lobes(cx, top, bot, hw, rng):
+    """一层伞形的叶：外形是个扁穹顶（中间高、两头往下垂一点），里面撒很多小叶团（中间大、边上小），下面的靠前"""
+    lobes = []
+    H = bot - top
+    n = int(2 * hw * H * 0.7 / 38)
+    tries = 0
+    while len(lobes) < n and tries < n * 30:
+        tries += 1
+        u = rng.uniform(-1, 1)
+        x = cx + u * hw
+        ytop = top + H * 0.62 * abs(u) ** 1.7
+        ybot = bot + H * 0.12 * abs(u) ** 2
+        r = rng.uniform(3.2, 5.5) + 4.0 * (1 - abs(u)) * rng.uniform(0.3, 1.0)
+        if ybot - ytop < 2 * r * 0.8:
+            r = max(2.4, (ybot - ytop) / 2 * 0.9)
+        y = rng.uniform(ytop + r * 0.85, max(ytop + r * 0.85, ybot - r * 0.85))
+        lobes.append((x, y, r, (y - top) / H * 1.8 + rng.uniform(-0.4, 0.4)))
+    return lobes
+
+
+def limb(img, p0, p1, w0, w1):
+    """一截枝：从 p0（粗 w0）到 p1（细 w1），法线朝左上的那一边受光、另一边背光"""
+    (x0, y0), (x1, y1) = p0, p1
+    L = math.hypot(x1 - x0, y1 - y0)
+    n = int(L * 2) + 2
+    nx, ny = -(y1 - y0) / L, (x1 - x0) / L
+    if nx > 0 or (nx == 0 and ny > 0):
+        nx, ny = -nx, -ny                                            # 让 (nx, ny) 指向左上
+    H2, W2 = img.shape[:2]
+    tones = [hexc(c) for c in BIGTREE_BARK]
+    for i in range(n + 1):
+        t = i / n
+        cx, cy = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+        r = (w0 + (w1 - w0) * t) / 2
+        for yy in range(int(cy - r - 1), int(cy + r + 2)):
+            for xx in range(int(cx - r - 1), int(cx + r + 2)):
+                ddx, ddy = xx + 0.5 - cx, yy + 0.5 - cy
+                if not (0 <= yy < H2 and 0 <= xx < W2) or ddx * ddx + ddy * ddy > r * r:
+                    continue
+                s = (ddx * nx + ddy * ny) / max(r, 0.5)
+                img[yy, xx] = tones[0] if s > 0.45 and r > 1.4 else tones[2] if s < -0.35 else tones[1]
+
+
+def bigtree_sprite(seed=15):
+    """一棵大树（朝右的样子）。返回 (图, 树干中心 x, 根那一行 y)"""
+    rng = np.random.default_rng(seed)
+    PW, PH = 260, 290
+    ox, oy = PW // 2, PH - 6
+    img = blank(PW, PH)
+    bark = [hexc(c) for c in BIGTREE_BARK]
+    # 树干：根部往两边撇，往上收，略往左斜；左受光、右背光，几道两格宽的背光竖纹
+    for y in range(oy - 158, oy + 1):
+        h = oy - y
+        hw = 12 + 6 * max(0, 1 - h / 40) ** 2 + 0.02 * max(0, 100 - h)
+        c0 = ox - 0.04 * h
+        for x in range(int(c0 - hw - 1), int(c0 + hw + 2)):
+            d = (x + 0.5 - c0) / hw
+            if abs(d) <= 1:
+                img[y, x] = bark[0] if d < -0.55 else bark[2] if d > 0.4 else bark[1]
+    for (bx, y0, y1) in [(-3, 6, 52), (5, 22, 90), (-8, 70, 128), (2, 104, 150)]:
+        for y in range(oy - y1, oy - y0):
+            x = int(round(ox - 0.04 * (oy - y) + bx))
+            img[y, x:x + 2] = bark[2]
+    # 主枝（两截，弯的）
+    for (tx, ty), w0, w1 in BIGTREE_LIMBS:
+        sx, sy = ox - 6 + tx * 0.12, oy + max(ty + 40, -150)
+        ex, ey = ox + tx, oy + ty
+        mx, my = sx + (ex - sx) * 0.35, sy + (ey - sy) * 0.65
+        limb(img, (sx, sy), (mx, my), w0, (w0 + w1) / 2)
+        limb(img, (mx, my), (ex, ey), (w0 + w1) / 2, w1)
+    # 叶：一层层贴（里层先、再从上往下，下面的在前）
+    shelf_id = np.full((PH, PW), -1)
+    for k, (cx, t, b, hw) in enumerate(BIGTREE_SHELVES):
+        lobes = shelf_lobes(ox + cx, oy + t, oy + b, hw, rng)
+        pal = [hexc(c) for c in (BIGTREE_INNER if k < BIGTREE_N_INNER else BIGTREE_LEAF)]
+        xa = int(min(l[0] - l[2] for l in lobes)) - 1
+        xb = int(max(l[0] + l[2] for l in lobes)) + 2
+        ya = int(min(l[1] - l[2] for l in lobes)) - 1
+        yb = int(max(l[1] + l[2] for l in lobes)) + 2
+        tone = leaf_tones(lobes, xa, ya, xb, yb, rng, cut=BIGTREE_CUT)
+        rel = (np.arange(ya, yb)[:, None] - (oy + t)) / (b - t)
+        m = tone >= 0
+        tone[m & (rel > 0.42) & (tone == 0)] = 1                    # 受光只在每层的上沿
+        tone[m & (rel > 0.66) & (tone < 2)] = 2                     # 伞的底面背光
+        tone[m & (rel > 0.9)] = 3
+        for j, i in zip(*np.nonzero(m)):
+            yy, xx = ya + j, xa + i
+            if 0 <= yy < PH and 0 <= xx < PW:
+                img[yy, xx] = pal[tone[j, i]]
+                shelf_id[yy, xx] = k
+        # 垂叶：从这一层真正的最下面一格接出去（不悬空），两三格宽、往下收；左边亮一档、下半截右边和尖上暗一档
+        x = xa + int(rng.integers(3, 8))
+        while x < xb - 3:
+            ys = np.nonzero(shelf_id[:, x] == k)[0]
+            ys2 = np.nonzero(shelf_id[:, x + 1] == k)[0] if x + 1 < PW else []
+            if len(ys) and len(ys2) and ys.max() > oy + t + (b - t) * 0.5:
+                y0 = min(ys.max(), ys2.max())
+                L = int(rng.integers(4, 13))
+                wd = rng.uniform(2.6, 3.8)
+                for d in range(1, L + 1):
+                    u = d / L
+                    r = wd * 0.5 * (1 - u * 0.6) + 0.3
+                    pxc = x + 1 + 0.6 * math.sin(d * 0.7 + x)
+                    for xx in range(int(pxc - r - 1), int(pxc + r + 2)):
+                        dx = xx + 0.5 - pxc
+                        if abs(dx) > r or not (0 <= xx < PW) or y0 + d >= PH:
+                            continue
+                        img[y0 + d, xx] = pal[1] if dx < -r * 0.35 and u < 0.6 else pal[3] if (dx > r * 0.3 and u > 0.4) or u > 0.85 else pal[2]
+                        shelf_id[y0 + d, xx] = k
+            x += int(rng.integers(4, 10)) if rng.random() > 0.25 else int(rng.integers(12, 22))
+    # 上一层盖在下一层上的影子：头顶 1–2 格是先画的那一层 → 压暗一档
+    out = img.copy()
+    for yy, xx in zip(*np.nonzero(shelf_id >= 0)):
+        k = shelf_id[yy, xx]
+        if any(yy - d >= 0 and 0 <= shelf_id[yy - d, xx] < k for d in (1, 2)):
+            cur = "#%02x%02x%02x" % tuple(int(v) for v in img[yy, xx][:3])
+            if cur in BIGTREE_DARKER:
+                out[yy, xx] = hexc(BIGTREE_DARKER[cur])
+    img = out
+    corner_fix(img)
+    speck_fix(img)
+    corner_fix(img)
+    alpha_fix(img)
+    de_alt(img, passes=2)
+    corner_fix(img)
+    edge_diag_fill(img)
+    speck_fix(img)
+    corner_fix(img)
+    return img, ox, oy
 
 
 def draw_bigtrees():
@@ -2044,8 +2158,8 @@ GRASS_T = {                              # 草丛的颜色（暗缝、背光、�
     "M": (GREEN[8], GREEN[7], GREEN[6], GREEN[4], GREEN[2]),
     "GF": ("#86b86e", "#93c47a", GREEN[0], GREEN[2], GREEN[1]),      # 前景：深一档
 }
-ROW_Z = {"r0": -40, "g0": -38, "r1": -30, "g1": -28, "r2": 5, "g2": 6, "gf": 115}
-ROW_SCROLL = {"gf": 1.3}
+ROW_Z = {"r0": -40, "g0": -38, "r1": -30, "g1": -28, "r2": 5, "g2": 6, "g3": 24, "g4": 112, "gf": 115}
+ROW_SCROLL = {"gf": 1.3, "g4": 1.25}
 
 
 def water_c(y):
@@ -2271,6 +2385,146 @@ def grass_variants():
             wy = 226 if kind != "front" else 260
             out[f"{pre}{i}"] = {"row": "g", "kind": kind, "size": pre[-1], "h": h, "rest": 0.0,
                                 "frames": grass_frames(base, bx, by, wet, wy)}
+    out.update(deep_variants())
+    return out
+
+
+# ---------------------------------------------------------------- 第十六版：晨脚前的水草（g3）+ 镜头前的大叶（g4）
+# 作者看第十五版：「这些草太像了，像泡沫一样笼罩着主角」——第十五版的深草是 grass_base 那种圆鼓鼓的草团，连成一条整带、颜色和 main 草丛一样。
+# 改成一根根的叶：两三像素宽、往上收尖、各自朝不同方向斜（plant_blade），混几种湿地植物，每种高矮不一：
+#   莎草（细叶一丛）、香蒲（细秆顶一根棕黄蒲棒）、芦苇秆（顶上一小撮穗、秆上斜出两片蓝叶）、开小花的细茎、偶尔一两片很长的斜叶。
+# 颜色只挑第十一版画面里已有的、和 main 草丛分得开的：叶 = 岛上那种偏冷的淡绿（DEEP_LEAF），蒲棒 = 芦苇秆的棕黄（DEEP_CAT），
+# 芦苇 = 芦苇层的秆、穗、蓝叶（DEEP_REED），小花 = 奶白 / 白 / 淡蓝。没有比第十一版更深的颜色。
+# 镜头前的大叶（g4）：几丛很宽的长叶，根在画面下沿外，颜色用超前景 fg 那三档淡青灰。
+DEEP_LEAF = ["#b6dcba", "#a5d3a8", "#9ed0ac"]          # 受光、本色、背光
+DEEP_CAT = ["#dbc05a", "#d5ba52", "#cfb34c"]
+DEEP_REED = {"stem": ["#e0cb6c", "#dcc66a"], "plume": ["#ffeb8e", "#f8d445", "#93cbec"], "leaf": ["#93cbec", "#8cc3e3"]}
+DEEP_FLOWER = ["#fffef6", "#fef3bf", "#bae2f3"]
+NEAR_LEAF = ["#b9d8cc", "#9ec5b8", "#88b4a7"]          # = FG_TONES（受光、本色、背光）
+
+
+def plant_blade(img, x0, y0, L, ang, curve, w, tones):
+    """一片叶：根在 (x0, y0)，往上长 L，起始斜 ang（弧度，正 = 往右），越往上越往 ang 那边弯（curve）；
+    根上 w 宽、往上收尖。法线朝左的那半边受光一档、宽的地方右边背光一档"""
+    H2, W2 = img.shape[:2]
+    cs = [hexc(c) for c in tones]
+    n = max(8, int(L * 4))
+    x, y = float(x0), float(y0)
+    for i in range(n + 1):
+        t = i / n
+        a = ang + curve * t
+        r = w / 2 * (1 - t) ** 0.85
+        ca, sa = math.cos(a), math.sin(a)
+        for yy in range(int(y - r - 1), int(y + r + 2)):
+            for xx in range(int(x - r - 1), int(x + r + 2)):
+                if not (0 <= yy < H2 and 0 <= xx < W2):
+                    continue
+                dx, dy = xx + 0.5 - x, yy + 0.5 - y
+                core = xx == int(math.floor(x)) and yy == int(math.floor(y))
+                if not core and dx * dx + dy * dy > r * r:
+                    continue
+                sd = dx * ca + dy * sa                      # 横过叶片的距离（负 = 左边）
+                img[yy, xx] = cs[0] if sd < -0.3 and r > 0.7 else cs[2] if sd > 0.5 and r > 1.1 else cs[1]
+        x += sa * L / n
+        y -= ca * L / n
+    return x, y
+
+
+def plant_stem(img, x0, y0, L, ang, c):
+    """一根一像素的细秆（四邻接），微微弯；返回顶端"""
+    pts = path4([(x0 + math.sin(ang) * L * t * (1 + 0.3 * t), y0 - L * t) for t in np.linspace(0, 1, int(L * 3) + 2)])
+    for (px, py) in pts:
+        if 0 <= py < img.shape[0] and 0 <= px < img.shape[1]:
+            img[py, px] = hexc(c)
+    return pts[-1]
+
+
+def deep_plant(kind, h, rng):
+    """一株（一小丛）水草，返回 (图, 根 x, 根 y)。种类：s/m 莎草矮/中、f 小花、c 香蒲、r 芦苇秆、t 很长的斜叶、n 镜头前的大叶"""
+    big = kind == "n"
+    W2, H2 = (int(h * 1.6) + 40, h + 16) if big else (int(h * 1.4) + 24, h + 12)
+    img = blank(W2, H2)
+    bx, by = W2 // 2, H2 - 2
+    if kind in ("s", "m", "t"):
+        nb = int(rng.integers(5, 9)) if kind != "t" else int(rng.integers(2, 4))
+        blades = []
+        for _ in range(nb):
+            ang = rng.uniform(-0.65, 0.65)
+            blades.append((h * rng.uniform(0.4, 0.95), ang, math.copysign(rng.uniform(0.1, 0.5), ang), float(rng.choice([2.0, 2.4, 3.0]))))
+        if kind == "t":                                        # 一两片很长的斜叶（从晨身前划过去的那种）
+            side = rng.choice([-1, 1])
+            for k in range(int(rng.integers(1, 3))):
+                blades.append((h * rng.uniform(0.9, 1.05), side * rng.uniform(0.32, 0.5), side * rng.uniform(0.15, 0.45), 3.0))
+        else:
+            blades.append((h, rng.uniform(-0.25, 0.25), rng.uniform(-0.3, 0.3), 2.6))
+        for (L, ang, cv, w) in sorted(blades, key=lambda b: -b[0]):
+            plant_blade(img, bx + ang * 3, by, L, ang, cv, w, DEEP_LEAF)
+    elif kind == "f":
+        for _ in range(int(rng.integers(3, 5))):
+            ang = rng.uniform(-0.6, 0.6)
+            plant_blade(img, bx + ang * 2, by, h * rng.uniform(0.3, 0.5), ang, math.copysign(0.3, ang), 2.0, DEEP_LEAF)
+        for _ in range(int(rng.integers(3, 6))):
+            tx, ty = plant_stem(img, bx + int(rng.integers(-3, 4)), by - 1, h * rng.uniform(0.6, 1.0), rng.uniform(-0.35, 0.35), DEEP_LEAF[1])
+            c = hexc(DEEP_FLOWER[int(rng.integers(0, 3))])
+            for (fx, fy) in ((tx, ty - 1), (tx + 1, ty - 1), (tx, ty)):
+                if 0 <= fy < H2 and 0 <= fx < W2:
+                    img[fy, fx] = c
+    elif kind == "c":
+        for _ in range(int(rng.integers(3, 5))):                # 底下几片剑一样的叶
+            ang = rng.uniform(-0.45, 0.45)
+            plant_blade(img, bx + ang * 3, by, h * rng.uniform(0.45, 0.8), ang, math.copysign(rng.uniform(0.1, 0.35), ang), 2.4, DEEP_LEAF)
+        for _ in range(int(rng.integers(1, 3))):
+            tx, ty = plant_stem(img, bx + int(rng.integers(-2, 3)), by - 1, h * rng.uniform(0.8, 1.0), rng.uniform(-0.12, 0.12), DEEP_LEAF[2])
+            hh = int(rng.integers(6, 9))                        # 蒲棒：三格宽，左亮右暗，上下收圆一点，顶上再冒一小截秆
+            for k in range(hh):
+                yy = ty - 1 - k
+                for dx, c in ((-1, DEEP_CAT[0]), (0, DEEP_CAT[1]), (1, DEEP_CAT[2])):
+                    if (k == 0 or k == hh - 1) and dx != 0 and dx == (1 if k == 0 else -1):
+                        continue
+                    if 0 <= yy < H2:
+                        img[yy, tx + dx] = hexc(c)
+            for k in range(2):
+                if ty - 1 - hh - k >= 0:
+                    img[ty - 1 - hh - k, tx] = hexc(DEEP_LEAF[2])
+    elif kind == "r":
+        for _ in range(int(rng.integers(1, 3))):
+            ang = rng.uniform(-0.15, 0.15)
+            L = h * rng.uniform(0.85, 1.0)
+            sx = bx + int(rng.integers(-2, 3))
+            tx, ty = plant_stem(img, sx, by - 1, L, ang, DEEP_REED["stem"][1])
+            plant_stem(img, sx + 1, by - 1, L * 0.55, ang, DEEP_REED["stem"][0])     # 秆下半截两格宽
+            side = rng.choice([-1, 1])                          # 秆上斜出一片蓝叶，往上翘
+            fy = by - 1 - L * rng.uniform(0.25, 0.45)
+            plant_blade(img, sx + math.sin(ang) * (by - fy), fy, rng.uniform(9, 14), side * rng.uniform(0.45, 0.7), side * 0.35, 2.0,
+                        [DEEP_REED["leaf"][0], DEEP_REED["leaf"][0], DEEP_REED["leaf"][1]])
+            side = rng.choice([-1, 1])                          # 穗：一小撮，往一边垂
+            for _k in range(int(rng.integers(2, 4))):
+                plant_blade(img, tx, ty, rng.uniform(3, 6), side * rng.uniform(1.7, 2.3), side * 0.3, 2.0, DEEP_REED["plume"])
+    elif kind == "n":
+        nb = int(rng.integers(3, 6))
+        for k in range(nb):
+            ang = rng.uniform(-0.55, 0.55)
+            plant_blade(img, bx + ang * 10 + rng.uniform(-6, 6), by, h * rng.uniform(0.55, 1.0), ang,
+                        math.copysign(rng.uniform(0.3, 0.8), ang), rng.uniform(5.5, 8.0), NEAR_LEAF)
+    return img, bx, by
+
+
+def deep_variants():
+    """g3 / g4 的种类，各 31 个角度一帧（同 grass_frames）。自己的随机数，别的草一格不动"""
+    rng = np.random.default_rng(1616)
+    spec = [  # 名字前缀, 种类, 高, 几种
+        ("dp_s", "s", (10, 15), 2), ("dp_m", "m", (16, 22), 2), ("dp_f", "f", (12, 18), 2),
+        ("dp_c", "c", (24, 32), 2), ("dp_r", "r", (28, 40), 2), ("dp_t", "t", (38, 48), 2),
+        ("near_n", "n", (110, 140), 3),
+    ]
+    out = {}
+    for pre, k, hr, n in spec:
+        for i in range(n):
+            h = int(rng.integers(*hr))
+            base, bx, by = deep_plant(k, h, rng)
+            wet = k != "n"
+            out[f"{pre}{i}"] = {"row": "g", "kind": "near" if k == "n" else "deep", "size": k, "h": h, "rest": 0.0,
+                                "frames": grass_frames(base, bx, by, wet, 226)}
     return out
 
 
@@ -2811,8 +3065,66 @@ def place6(vs, grass, gy, ws, isles):
         if rng.random() < 0.6:
             for k in range(int(rng.integers(2, 5))):
                 add("r0", cx + rng.normal(0, 8), by + int(rng.integers(0, 3)), str(rng.choice(rnames["r0"])), rng.uniform(-8, 10))
+    out["g3"] = place_deep(grass, gy)
+    out["g4"] = place_near(grass)
     for r in out:
         out[r].sort(key=lambda t: t[0])
+    return out
+
+
+# g3：晨脚前的水草，根在晨脚底前面 3–7 行（水里，带湿边和倒影）。第十六版大幅变稀：一簇 1–3 株，簇和簇之间空 80–190 像素，
+# 露出水面和后面的草；大多是矮的（顶在晨的小腿到膝盖），香蒲 / 芦苇秆细，挡不住人；隔一大段才有一株很长的斜叶从晨身前划过去。
+# 说话的地方（markers 左右 44）只放矮莎草和小花。z 24：在脚踝的水面（21）和水花（22）前面、低雾（25）后面；被晨推开、再弹回来。
+G4_SCROLL = 1.25
+G4_CLEAR = (110, 370)                                   # 说话的那几个镜头位置，镜头前的大叶不进屏幕这一段
+
+
+def place_deep(grass, gy):
+    rng = np.random.default_rng(1616)
+    by = {}
+    for n, v in grass.items():
+        if v["kind"] == "deep":
+            by.setdefault(v["size"], []).append(n)
+    by = {k: sorted(v) for k, v in by.items()}
+    marks = room_json_markers()
+    out = []
+
+    def add(x, k):
+        xi = int(np.clip(x, 4, W - 5))
+        out.append([xi, int(gy[xi] + rng.integers(3, 8)), str(rng.choice(by[k])), round(float(rng.uniform(0, 6.28)), 2),
+                    round(float(rng.uniform(-5, 5)), 1)])
+    x = rng.uniform(20, 60)
+    while x < W - 20:
+        near = any(abs(x - m) < 44 for m in marks)
+        for j in range(int(rng.choice([1, 2, 2, 3]))):
+            k = str(rng.choice(["s", "f"])) if near else str(rng.choice(["s", "m", "f", "c", "r"], p=[0.32, 0.26, 0.16, 0.13, 0.13]))
+            add(x + j * rng.uniform(5, 11), k)
+        x += rng.uniform(80, 190)
+    x = rng.uniform(150, 300)                           # 很长的斜叶：隔一大段一株，不在说话的地方
+    while x < W - 40:
+        if not any(abs(x - m) < 60 for m in marks):
+            add(x, "t")
+        x += rng.uniform(280, 420)
+    return out
+
+
+def place_near(grass):
+    """g4：镜头前的大叶（层坐标，宽 480 + 1440 × G4_SCROLL），根在画面下沿外；说话的镜头位置屏幕中间空开"""
+    rng = np.random.default_rng(1717)
+    names = sorted(n for n, v in grass.items() if v["kind"] == "near")
+    cams = [min(max(m - 240, 0), W - 480) for m in room_json_markers()]
+    fw = 480 + (W - 480) * G4_SCROLL
+    out = []
+    fx = rng.uniform(20, 80)
+    while fx < fw - 20:
+        for _ in range(40):
+            if all(not (G4_CLEAR[0] - 40 < fx - c * G4_SCROLL < G4_CLEAR[1] + 40) for c in cams):
+                break
+            fx += 17
+        if fx < fw - 20:
+            out.append([int(fx), int(rng.integers(288, 298)), str(rng.choice(names)), round(float(rng.uniform(0, 6.28)), 2),
+                        round(float(rng.uniform(-6, 6)), 1)])
+        fx += rng.uniform(200, 340)
     return out
 
 
@@ -3092,19 +3404,11 @@ def main():
     print("自查：")
     bad = 0
     for k in ("sky", "streaks", *[r["id"] for r in RANGES], "far", "mid", "isles", "main", "ankle", "ankle_water", *[g[0] for g in GIANTS],
-              *[m[0] for m in MISTS], "fg"):
+              *[m[0] for m in MISTS], "fg", "bigtrees"):
         bad += scan(k, imgs[k], alpha_only=False)
         bad += dashes(k, imgs[k])
     for k in ("glints", "mid_glints"):
         bad += dashes(k, imgs[k])
-    # 大树是作者亲手画的原图（只换了颜色），它自己的对角 / 单点是作者的笔法，不算问题、也不去改；只确认换色前后形状一格没变
-    src = np.array(Image.open(BIGTREE_SRC).convert("RGBA"))
-    spr, _tx, _bot = bigtree_sprite()
-    sm = src[..., 3] > 0
-    below_top = np.arange(src.shape[0])[:, None] >= np.where(sm.any(axis=0), np.argmax(sm, axis=0), src.shape[0])[None, :]
-    lower = spr[BIGTREE_LIFT:]
-    same = bool((lower[sm][:, 3] == src[sm][:, 3]).all() and not (lower[..., 3][below_top & ~sm] > 0).any())
-    print("  bigtrees：作者原图（不缩放、不改像素，只换色），原图那一块的轮廓和原件一样：", same)
     nr = 0
     for vn, v in meta["variants"].items():          # 逐帧扫（整张图集里帧和帧之间的分隔列会被当成缺口）
         for (fx, fy, fw, fh, *_r) in v["frames"]:

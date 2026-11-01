@@ -101,10 +101,26 @@
    "y": 0
   },
   {
+   "id": "cloud_midfar_over",
+   "img": "res://art/cloud_town/cloud_midfar_over.png",
+   "scroll": 0.8,
+   "y": 0,
+   "tile": true,
+   "drift": -2.0
+  },
+  {
    "id": "town_back",
    "img": "res://art/cloud_town/town_back.png",
    "scroll": 1.0,
    "y": 0
+  },
+  {
+   "id": "cloud_mid_over",
+   "img": "res://art/cloud_town/cloud_mid_over.png",
+   "scroll": 1.0,
+   "y": 0,
+   "tile": true,
+   "drift": -1.2
   },
   {
    "id": "town_main",
@@ -183,8 +199,8 @@
       "layer": "town_far",
       "img": "res://art/cloud_town/anim/far_mill_11.png",
       "x": 665,
-      "y": 149,
-      "w": 32,
+      "y": 148,
+      "w": 31,
       "frames": 16,
       "off": 9
      },
@@ -192,8 +208,8 @@
       "layer": "town_far",
       "img": "res://art/cloud_town/anim/far_mill_16.png",
       "x": 993,
-      "y": 153,
-      "w": 32,
+      "y": 152,
+      "w": 31,
       "frames": 16,
       "off": 6
      },
@@ -201,8 +217,8 @@
       "layer": "town_far",
       "img": "res://art/cloud_town/anim/far_mill_19.png",
       "x": 1184,
-      "y": 144,
-      "w": 32,
+      "y": 143,
+      "w": 31,
       "frames": 16,
       "off": 9
      },
@@ -210,16 +226,16 @@
       "layer": "town_far",
       "img": "res://art/cloud_town/anim/far_mill_22.png",
       "x": 1360,
-      "y": 145,
-      "w": 32,
+      "y": 144,
+      "w": 31,
       "frames": 16,
       "off": 12
      },
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_0.png",
-      "x": 22,
-      "y": 82,
+      "x": 21,
+      "y": 74,
       "w": 18,
       "frames": 12,
       "off": 0
@@ -227,8 +243,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_1.png",
-      "x": 62,
-      "y": 39,
+      "x": 61,
+      "y": 36,
       "w": 21,
       "frames": 12,
       "off": 3
@@ -237,7 +253,7 @@
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/mill_4.png",
       "x": 236,
-      "y": 112,
+      "y": 109,
       "w": 53,
       "frames": 16,
       "off": 11
@@ -245,8 +261,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_6.png",
-      "x": 424,
-      "y": 47,
+      "x": 423,
+      "y": 39,
       "w": 20,
       "frames": 12,
       "off": 9
@@ -254,8 +270,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_7.png",
-      "x": 470,
-      "y": 24,
+      "x": 469,
+      "y": 21,
       "w": 19,
       "frames": 12,
       "off": 5
@@ -264,7 +280,7 @@
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/mill_9.png",
       "x": 570,
-      "y": 105,
+      "y": 102,
       "w": 49,
       "frames": 16,
       "off": 7
@@ -272,8 +288,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_11.png",
-      "x": 738,
-      "y": 48,
+      "x": 737,
+      "y": 45,
       "w": 20,
       "frames": 12,
       "off": 2
@@ -281,8 +297,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_14.png",
-      "x": 1210,
-      "y": 86,
+      "x": 1209,
+      "y": 78,
       "w": 21,
       "frames": 12,
       "off": 4
@@ -290,8 +306,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_15.png",
-      "x": 1254,
-      "y": 32,
+      "x": 1253,
+      "y": 29,
       "w": 20,
       "frames": 12,
       "off": 7
@@ -299,8 +315,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_17.png",
-      "x": 1412,
-      "y": 54,
+      "x": 1411,
+      "y": 51,
       "w": 18,
       "frames": 12,
       "off": 8
@@ -309,7 +325,7 @@
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/mill_18.png",
       "x": 1646,
-      "y": 110,
+      "y": 107,
       "w": 49,
       "frames": 16,
       "off": 12
@@ -317,8 +333,8 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/flag_19.png",
-      "x": 1710,
-      "y": 28,
+      "x": 1709,
+      "y": 25,
       "w": 22,
       "frames": 12,
       "off": 7
@@ -327,7 +343,7 @@
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/mill_rotor.png",
       "x": 1033,
-      "y": 53,
+      "y": 47,
       "w": 103,
       "frames": 24,
       "off": 0
@@ -335,18 +351,18 @@
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/rope_6_7.png",
-      "x": 421,
-      "y": 66,
-      "w": 56,
+      "x": 423,
+      "y": 61,
+      "w": 51,
       "frames": 20,
       "off": 0
      },
      {
       "layer": "town_back",
       "img": "res://art/cloud_town/anim/rope_14_15.png",
-      "x": 1207,
-      "y": 72,
-      "w": 54,
+      "x": 1209,
+      "y": 69,
+      "w": 50,
       "frames": 20,
       "off": 0
      },

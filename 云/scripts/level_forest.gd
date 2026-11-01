@@ -50,7 +50,7 @@ extends Node2D
 ##   F8（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
 ##                      见 scripts/dev_panel.gd 和 docs/forest_chapter.md 末尾
 ##   --chen_x=x         （和 --beat 一起）跳完以后让晨站到这个 x（截互动提示用）
-##   --free=forest|river 直接进自由探索（F8 第 5 页「探索」同一套）。不播开场、剧情、对话、目标、卡关提示，剧情的墙不算，NPC 藏着；
+##   --free=forest|river|reeds 直接进自由探索（F8 第 5 页「探索」同一套）。不播开场、剧情、对话、目标、卡关提示，剧情的墙不算，NPC 藏着；
 ##                      换地方的交互照常（E / 点击：进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥，走到边上的出口），不看剧情 flag。
 ##                      拍截图也可以直接给房间名（treehouse / cockpit / river_home / market / oldstreet / warehouse / southbridge），
 ##                      和 --chen_x=x|left|mid|right、--shot= 一起用（面板不开；要开加 --dev）
@@ -93,11 +93,11 @@ const DEV_FREE_CH_META := "level_forest_dev_free_ch"   # F8 传送页的地图�
 const FREE_CLI_META := "level_forest_free_cli"   # --free= 只在第一次载入时用（退出探索重开本章时不再进去）
 ## 自由探索能去的场景：id → 章节（id 就是房间名；river_home 是河岸里的小屋，treehouse 是森林里的树屋）
 ## 面板给 forest、river、reeds 三个入口（river = 从河岸起）；别的房间名只给命令行拍截图用
-## reeds = 云层星的芦苇地（art/reed_field，第三章才接进剧本）：借河流这一章的世界，临时建这个房间进去（_free_add_stage）
+## reeds = 云层星的芦苇地：第三章（final）剧本里的 reed_field 房间，在终章的世界里进（F8 地图也是终章那张）
 const FREE_ROOMS := {"forest": "forest", "river": "river", "treehouse": "forest", "cockpit": "flight1", "river_bank": "river",
 	"river_home": "river", "market": "river", "stairwell": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river",
-	"reeds": "river"}
-const FREE_EXTRA := {"reeds": "reed_field"}   # 剧本 rooms 里还没有的房间：自由探索入口 id → 房间 id
+	"reeds": "final", "reed_field": "final"}
+const FREE_ALIAS := {"reeds": "reed_field"}   # 自由探索入口 id → 房间 id（入口名和房间名不一样的）
 const FREE_STAIR := "free_stair_"   # 自由探索给多层小屋楼梯口加的 marker（上楼 / 下楼的进出口）
 const FREE_SHIFT := 1.0            # 自由探索按住 Shift：晨每帧走的距离再多这么多倍（chen.gd 的 Shift 已经 ×1.5，合起来 ×3；动画帧速不变）
 const DEV_OPEN_META := "level_forest_dev_open"   # 开场的外星人同伴：森林里不出现（那套图以后是河边的泥芙）
@@ -3860,8 +3860,7 @@ func _free_spawn(id: String) -> void:
 	var w: Node2D = story.world
 	if id in ["forest", "river", "cockpit"] and str(FREE_ROOMS[id]) == chapter:
 		return                                     # 已经在 _start_free / _start_chapter 里站好了
-	if FREE_EXTRA.has(id):
-		id = _free_add_stage(str(FREE_EXTRA[id]))
+	id = str(FREE_ALIAS.get(id, id))
 	var x := chen.position.x
 	if id == "treehouse":
 		var hw: Vector2 = w.house["walk"]
@@ -3875,28 +3874,9 @@ func _free_spawn(id: String) -> void:
 		x = (fw.x + fw.y) / 2.0 if sg.is_house else fw.x + 40.0
 	story._teleport(id, x, [], true)
 	_walk_target = NAN
+	if _engine_hum != null and id != "cockpit":
+		_engine_hum.stop()                         # 终章从驾驶舱起（_start_chapter 开的引擎声），探索直接站到别的房间
 	_enter_play()
-
-
-## 剧本 rooms 里还没有的房间（芦苇地）：在这一章的世界里临时建一个 room_stage（和 story_world.add_stages 建的一样），
-## markers 登记进世界。房间自己的 origin 要和这一章别的房间错开（芦苇地是 (0, 1080)）。这一章没有多房间（森林）就不建。
-func _free_add_stage(rid: String) -> String:
-	var w: Node2D = story.world
-	if w.is_stage(rid):
-		return rid
-	if w._stage_root == null:
-		push_warning("自由探索：%s 这一章没有多房间，建不了 %s" % [chapter, rid])
-		return rid
-	var sg: Node2D = (load("res://scripts/room_stage.gd") as GDScript).new()
-	sg.setup(rid, w)
-	sg.visible = false
-	w.stages[rid] = sg
-	w._stage_root.add_child(sg)
-	for nm in sg.markers:
-		w.markers[str(nm)] = sg.mx(str(nm))
-		w._marker_room[str(nm)] = rid
-	print("FREE_ROAM 临时房间 %s origin=%s size=%s" % [rid, sg.origin, sg.size])
-	return rid
 
 
 ## 进出口：剧本里 scene 会 fade_to 到别的房间 / 森林另一段的 hotspot（同一个地方、同一个去处只留一个；不看 need / not，

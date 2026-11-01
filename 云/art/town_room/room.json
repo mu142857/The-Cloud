@@ -24,8 +24,8 @@
  "objects": {
   "townroom_flag": {
    "img": "res://art/cloud_town/anim/lodge_flag.png",
-   "x": 72,
-   "y": 14,
+   "x": 71,
+   "y": 10,
    "frames": 12,
    "states": {
     "wave": [
