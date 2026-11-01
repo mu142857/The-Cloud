@@ -1,0 +1,108 @@
+{
+ "_comment": "tools/cloud_folk_art.py 生成，别手改（要改先改脚本）。云层星的居民，图里朝右，朝左引擎翻转；100ms 一帧。",
+ "frame": [
+  48,
+  64
+ ],
+ "sheet": "passerby.png",
+ "anchor": [
+  22,
+  61
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": false,
+ "head": 40,
+ "speed": 24,
+ "color": "#8a9a7c",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "loop": true
+  },
+  "walk": {
+   "frames": [
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ],
+   "loop": true
+  },
+  "talk": {
+   "frames": [
+    13,
+    14,
+    15,
+    16
+   ],
+   "loop": true
+  },
+  "laugh": {
+   "frames": [
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+   ],
+   "loop": false
+  },
+  "point": {
+   "frames": [
+    24,
+    25,
+    26,
+    27
+   ],
+   "loop": false,
+   "hold": true
+  },
+  "nod": {
+   "frames": [
+    28,
+    29,
+    28,
+    30
+   ],
+   "loop": false
+  }
+ },
+ "alias": {
+  "smile": "laugh",
+  "chuckle": "laugh",
+  "look": "idle",
+  "stand": "idle",
+  "wave": "point",
+  "give": "point"
+ }
+}

@@ -1118,6 +1118,7 @@ func _place(n: Node2D, x: float, r: String, lv := -1) -> void:
 	if npcs.values().has(n):
 		n.stop()
 		n.ground_fn = _npc_ground(n, r)
+		_env_form(n, r)
 	var ls := _lv_stage(r)
 	if ls != null:
 		if lv < 0 and n == chen and _arrive_lv >= 0:
@@ -1135,6 +1136,20 @@ func _place(n: Node2D, x: float, r: String, lv := -1) -> void:
 	_npc_room[n.name] = r
 	if n == miluo and world.house.has("front_x0"):
 		_set_miluo_front(r != "treehouse" and not world.behind_front(round(x)))    # 直接放过去的：图层也直接对
+
+
+## 通用角色按房间的 env 换一套颜色（json 写了 "env_forms": true 才换；forms 里有这个 env 就用它，没有回默认那套）：
+## 云层星的人群（crowd）白天在芦苇地、夜里在云镇，两套明暗（11-01 终章角色）
+func _env_form(n: Node2D, r: String) -> void:
+	if not (n.get("cfg") is Dictionary and bool((n.get("cfg") as Dictionary).get("env_forms", false))):
+		return
+	var sg = world.stages.get(r, null)
+	var e := ""
+	if sg != null:
+		e = str(sg.env if not (sg.is_house and sg.host != null) else sg.host.env)
+	var f := e if n.has_form(e) else ""
+	if f != str(n.get("form")):
+		n.set_form(f)
 
 
 ## NPC 脚下的地面。悬浮的（妮芙的鲸鱼壳，hover）飘过比她窄的坑（旧街挂钩旁通仓库的下沉口）不掉进去：
@@ -2731,11 +2746,10 @@ func validate() -> Array[String]:
 							out.append("info: scene %s：物件 %s 还没有图 / 位置（room.json 里加上就有；现在只记状态）" % [id, pid])
 						continue
 					if world.cockpit != null and world.cockpit.has_prop(pid):
-						var ks: Array = world.cockpit.KNOWN_STATES.get(pid, [])
 						if not world.cockpit.objects.has(pid) and pid != "cockpit_window":
 							out.append("info: scene %s：驾驶舱物件 %s 没有位置（cockpit.json / 占位布局里都没有），只记状态" % [id, pid])
-						elif not ks.has(str(st.get("state", ""))):
-							out.append("info: scene %s：驾驶舱物件 %s 的状态 %s 引擎没专门画（占位亮一档；有 %s_%s.png 就用图）" % [id, pid, st.get("state"), pid.trim_prefix("cockpit_"), st.get("state")])
+						elif not world.cockpit.knows_state(pid, str(st.get("state", ""))):
+							out.append("info: scene %s：驾驶舱物件 %s 的状态 %s 没有画（cockpit.json 的 states、%s_%s.png、窗外的 sky.json / sky_final.json 里都没有）" % [id, pid, st.get("state"), pid, st.get("state")])
 					elif not world.props.has(world.prop_id(pid)) and not pid in world.PSEUDO_PROPS:
 						out.append("scene %s：没有物件 %s（只记状态，画面上没东西）" % [id, pid])
 				"guide":

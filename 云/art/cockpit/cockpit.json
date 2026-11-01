@@ -89,7 +89,17 @@
    "tilt",
    "skid",
    "channel",
-   "crate"
+   "crate",
+   "cloud_sea",
+   "cloud_low",
+   "cloud_part",
+   "land_west",
+   "land_east",
+   "land_town",
+   "yard_parked",
+   "yard_elephant_far",
+   "cloud_orbit",
+   "elephant_shadow"
   ],
   "mask": "window_mask.png",
   "debris": [
@@ -106,7 +116,7 @@
   "（屏幕底色：很暗的灰绿，比如 #101614）",
   "window_<state>（+ 避障时的 airflow / debris_*）",
   "cockpit_back",
-  "objects（cockpit_console / cockpit_nav / cockpit_repair_log / cockpit_bell / cockpit_toolbox / cockpit_leak / cockpit_leak_steam / cockpit_converter / cockpit_bag / cockpit_phone）",
+  "objects（cockpit_console / cockpit_nav / cockpit_repair_log / cockpit_bell / cockpit_toolbox / cockpit_leak / cockpit_leak_steam / cockpit_converter / cockpit_bag / cockpit_phone；终章加：cockpit_cabinet / cockpit_burnlist / cockpit_map / cockpit_note / cockpit_footage / cockpit_journal / cockpit_drawing / cockpit_tools / cockpit_copilot / cockpit_screen / cockpit_lamp，都默认 hidden）",
   "人物",
   "cockpit_front（机身外壳；进舱淡出 / 出舱淡入，舱里时不显示）"
  ],
@@ -196,6 +206,38 @@
    "ground_y": -22,
    "px": [
     259,
+    128
+   ]
+  },
+  "cockpit_cabinet": {
+   "x": 70,
+   "ground_y": -22,
+   "px": [
+    235,
+    128
+   ]
+  },
+  "cockpit_drawing": {
+   "x": -65,
+   "ground_y": -22,
+   "px": [
+    100,
+    128
+   ]
+  },
+  "cockpit_panel": {
+   "x": -81,
+   "ground_y": -22,
+   "px": [
+    84,
+    128
+   ]
+  },
+  "cockpit_tools": {
+   "x": -77,
+   "ground_y": -22,
+   "px": [
+    88,
     128
    ]
   }
@@ -330,13 +372,11 @@
    "w": 20,
    "h": 21,
    "frames": 1,
-   "states": {
-    "default": 0
-   },
    "px": [
     250,
     107
-   ]
+   ],
+   "note": "一状态一张图：cockpit_bag_<状态>.png（tools/cockpit_final_art.py）；没有那张就用 cockpit_bag.png"
   },
   "cockpit_phone": {
    "x": -118,
@@ -344,14 +384,12 @@
    "w": 8,
    "h": 13,
    "frames": 1,
-   "states": {
-    "by_gauges": 0
-   },
    "px": [
     47,
     84
    ],
-   "default": "hidden"
+   "default": "hidden",
+   "note": "一状态一张图：cockpit_phone_<状态>.png（tools/cockpit_final_art.py）；没有那张就用 cockpit_phone.png"
   },
   "cockpit_leak_steam": {
    "x": 41,
@@ -366,6 +404,186 @@
     206,
     60
    ]
+  },
+  "cockpit_cabinet": {
+   "x": 53,
+   "y": -42,
+   "w": 34,
+   "h": 20,
+   "frames": 5,
+   "states": {
+    "closed": 0,
+    "open": 1,
+    "hand": 2,
+    "empty_bottle": 3,
+    "put_back": 4
+   },
+   "px": [
+    218,
+    108
+   ],
+   "default": "hidden"
+  },
+  "cockpit_burnlist": {
+   "x": 48,
+   "y": -55,
+   "w": 8,
+   "h": 11,
+   "frames": 2,
+   "states": {
+    "close": 0,
+    "flipped": 1
+   },
+   "px": [
+    213,
+    95
+   ],
+   "default": "hidden"
+  },
+  "cockpit_map": {
+   "x": -144,
+   "y": -71,
+   "w": 26,
+   "h": 15,
+   "frames": 3,
+   "states": {
+    "open": 0,
+    "line_pressed": 1,
+    "beside_panel": 2
+   },
+   "px": [
+    21,
+    79
+   ],
+   "default": "hidden"
+  },
+  "cockpit_note": {
+   "x": -78,
+   "y": -79,
+   "w": 7,
+   "h": 10,
+   "frames": 4,
+   "states": {
+    "flipped": 0,
+    "folded_half": 1,
+    "open": 2,
+    "folded": 3
+   },
+   "px": [
+    87,
+    71
+   ],
+   "default": "hidden"
+  },
+  "cockpit_footage": {
+   "x": -100,
+   "y": -65,
+   "w": 11,
+   "h": 8,
+   "frames": 1,
+   "states": {
+    "lid_closed": 0
+   },
+   "px": [
+    65,
+    85
+   ],
+   "default": "hidden"
+  },
+  "cockpit_journal": {
+   "x": -85,
+   "y": -67,
+   "w": 10,
+   "h": 10,
+   "frames": 2,
+   "states": {
+    "deer_page": 0,
+    "first_page_out": 1
+   },
+   "px": [
+    80,
+    83
+   ],
+   "default": "hidden"
+  },
+  "cockpit_drawing": {
+   "x": -87,
+   "y": -84,
+   "w": 36,
+   "h": 46,
+   "frames": 4,
+   "states": {
+    "open": 0,
+    "under_page": 1,
+    "beside_panel": 2,
+    "within_reach": 3
+   },
+   "px": [
+    78,
+    66
+   ],
+   "default": "hidden"
+  },
+  "cockpit_tools": {
+   "x": -95,
+   "y": -38,
+   "w": 14,
+   "h": 14,
+   "frames": 1,
+   "states": {
+    "left": 0
+   },
+   "px": [
+    70,
+    112
+   ],
+   "default": "hidden"
+  },
+  "cockpit_copilot": {
+   "x": -37,
+   "y": -54,
+   "w": 22,
+   "h": 14,
+   "frames": 1,
+   "states": {
+    "toolbag_wrench": 0
+   },
+   "px": [
+    128,
+    96
+   ],
+   "default": "hidden"
+  },
+  "cockpit_screen": {
+   "x": -107,
+   "y": -54,
+   "w": 23,
+   "h": 18,
+   "frames": 2,
+   "states": {
+    "descent": 0,
+    "orbit": 1
+   },
+   "px": [
+    58,
+    96
+   ],
+   "default": "hidden"
+  },
+  "cockpit_lamp": {
+   "x": -165,
+   "y": -150,
+   "w": 330,
+   "h": 150,
+   "frames": 1,
+   "states": {
+    "off": 0
+   },
+   "px": [
+    0,
+    0
+   ],
+   "default": "hidden"
   }
  },
  "hotspots": {
@@ -379,7 +597,12 @@
   "converter": 13,
   "toolbox": 39,
   "leak": 48,
-  "bag": 94
+  "bag": 94,
+  "cabinet": 70,
+  "drawing": -65,
+  "tools": -77,
+  "panel": -81
  },
- "note": "objects 的 x,y = 左上角（相对锚点），w = 帧宽，frames = 横排帧数；states = 每个状态对应第几帧（多帧动画写成 [起, 止]）；fps = 动画帧率（100ms 一帧 = 10）。cockpit_leak_steam 只在 cockpit_leak = steam 时显示。默认状态：console normal、nav stable、converter closed、leak default、toolbox closed、repair_log none、bell bell；写了 default 的按它（cockpit_phone 默认 hidden，剧本 prop by_gauges 才出现）。"
+ "note": "objects 的 x,y = 左上角（相对锚点），w = 帧宽，frames = 横排帧数；states = 每个状态对应第几帧（多帧动画写成 [起, 止]）；fps = 动画帧率（100ms 一帧 = 10）。cockpit_leak_steam 只在 cockpit_leak = steam 时显示。默认状态：console normal、nav stable、converter closed、leak default、toolbox closed、repair_log none、bell bell；写了 default 的按它（cockpit_phone 默认 hidden，剧本 prop by_gauges 才出现）。",
+ "final_note": "终章（tools/cockpit_final_art.py --json 合进来的）：新物件都默认 hidden，剧本 prop 了才出现，flight1 看不见；cockpit_screen 盖在 cockpit_nav 上；cockpit_lamp 是整张剖面那么大的一层暗色（关灯）；窗外的终章状态在 sky/sky_final.json。重跑 tools/cockpit_art.py 会重写这个文件，之后要再跑一次 --json。"
 }

@@ -1,0 +1,139 @@
+{
+ "_comment": "tools/cloud_folk_art.py 生成，别手改（要改先改脚本）。云层星的居民，图里朝右，朝左引擎翻转；100ms 一帧。",
+ "frame": [
+  48,
+  64
+ ],
+ "sheet": "townsfolk.png",
+ "anchor": [
+  22,
+  61
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": false,
+ "head": 50,
+ "speed": 30,
+ "color": "#7c6c84",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "loop": true
+  },
+  "walk": {
+   "frames": [
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ],
+   "loop": true
+  },
+  "talk": {
+   "frames": [
+    13,
+    14,
+    15,
+    16
+   ],
+   "loop": true
+  },
+  "point": {
+   "frames": [
+    17,
+    18,
+    19,
+    20
+   ],
+   "loop": false,
+   "hold": true
+  },
+  "sit": {
+   "frames": [
+    21,
+    22,
+    23,
+    24,
+    25,
+    26
+   ],
+   "loop": false,
+   "then": "sit_idle",
+   "shadow": false
+  },
+  "sit_idle": {
+   "frames": [
+    27,
+    28,
+    29,
+    30
+   ],
+   "loop": true,
+   "shadow": false
+  },
+  "wave": {
+   "frames": [
+    31,
+    32,
+    33,
+    34,
+    35
+   ],
+   "loop": false
+  },
+  "laugh": {
+   "frames": [
+    36,
+    37,
+    38,
+    39,
+    40
+   ],
+   "loop": false
+  },
+  "nod": {
+   "frames": [
+    41,
+    42,
+    41,
+    43
+   ],
+   "loop": false
+  }
+ },
+ "alias": {
+  "look": "idle",
+  "stand": "idle",
+  "smile": "laugh",
+  "give": "point",
+  "show": "point",
+  "guide": "point"
+ }
+}

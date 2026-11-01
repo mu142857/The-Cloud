@@ -2158,6 +2158,7 @@ GRASS_T = {                              # 草丛的颜色（暗缝、背光、�
     "M": (GREEN[8], GREEN[7], GREEN[6], GREEN[4], GREEN[2]),
     "GF": ("#86b86e", "#93c47a", GREEN[0], GREEN[2], GREEN[1]),      # 前景：深一档
 }
+YARD_FLAT = (338, 446)                   # 结局一被压倒的那一大片草（tools/reed_field_props.py 画）：这一段不放会动的草丛 g1
 ROW_Z = {"r0": -40, "g0": -38, "r1": -30, "g1": -28, "r2": 5, "g2": 6, "g3": 24, "g4": 112, "gf": 115}
 ROW_SCROLL = {"gf": 1.3, "g4": 1.25}
 
@@ -2395,17 +2396,21 @@ def grass_variants():
 #   莎草（细叶一丛）、香蒲（细秆顶一根棕黄蒲棒）、芦苇秆（顶上一小撮穗、秆上斜出两片蓝叶）、开小花的细茎、偶尔一两片很长的斜叶。
 # 颜色只挑第十一版画面里已有的、和 main 草丛分得开的：叶 = 岛上那种偏冷的淡绿（DEEP_LEAF），蒲棒 = 芦苇秆的棕黄（DEEP_CAT），
 # 芦苇 = 芦苇层的秆、穗、蓝叶（DEEP_REED），小花 = 奶白 / 白 / 淡蓝。没有比第十一版更深的颜色。
-# 镜头前的大叶（g4）：几丛很宽的长叶，根在画面下沿外，颜色用超前景 fg 那三档淡青灰。
+# 镜头前的大丛（g4）：根在画面下沿外。第十七版（作者：「最前面那两大丛像芦荟、龙舌兰」）改成香蒲和芦苇：细长的叶（有的折下来垂着）、
+# 几根顶着暖棕蒲棒的香蒲秆、一两根带穗的芦苇秆；颜色用 main 草丛的绿、芦苇那一带的黄绿、蒲棒的棕黄（不再用超前景那套淡青灰）。
 DEEP_LEAF = ["#b6dcba", "#a5d3a8", "#9ed0ac"]          # 受光、本色、背光
 DEEP_CAT = ["#dbc05a", "#d5ba52", "#cfb34c"]
 DEEP_REED = {"stem": ["#e0cb6c", "#dcc66a"], "plume": ["#ffeb8e", "#f8d445", "#93cbec"], "leaf": ["#93cbec", "#8cc3e3"]}
 DEEP_FLOWER = ["#fffef6", "#fef3bf", "#bae2f3"]
-NEAR_LEAF = ["#b9d8cc", "#9ec5b8", "#88b4a7"]          # = FG_TONES（受光、本色、背光）
+NEAR_LEAF = [["#cbe39c", "#b8d98a", "#a6cf7c"],       # 第十七版镜头前的大丛：main 草丛的绿（受光、本色、背光）
+             ["#e4df74", "#d8d466", "#cdcb58"]]       # 芦苇那一带草的黄绿
+NEAR_REED_STEM = ["#e0cb6c", "#dcc66a", "#dbc05a"]
 
 
-def plant_blade(img, x0, y0, L, ang, curve, w, tones):
+def plant_blade(img, x0, y0, L, ang, curve, w, tones, fold=None):
     """一片叶：根在 (x0, y0)，往上长 L，起始斜 ang（弧度，正 = 往右），越往上越往 ang 那边弯（curve）；
-    根上 w 宽、往上收尖。法线朝左的那半边受光一档、宽的地方右边背光一档"""
+    根上 w 宽、往上收尖。法线朝左的那半边受光一档、宽的地方右边背光一档。
+    fold = (t0, da)：长到 t0 那儿折一下，往 da 那边弯下去（叶子弯折下垂）"""
     H2, W2 = img.shape[:2]
     cs = [hexc(c) for c in tones]
     n = max(8, int(L * 4))
@@ -2413,6 +2418,8 @@ def plant_blade(img, x0, y0, L, ang, curve, w, tones):
     for i in range(n + 1):
         t = i / n
         a = ang + curve * t
+        if fold:
+            a += fold[1] * sstep(fold[0] - 0.04, fold[0] + 0.06, t)
         r = w / 2 * (1 - t) ** 0.85
         ca, sa = math.cos(a), math.sin(a)
         for yy in range(int(y - r - 1), int(y + r + 2)):
@@ -2500,31 +2507,74 @@ def deep_plant(kind, h, rng):
             side = rng.choice([-1, 1])                          # 穗：一小撮，往一边垂
             for _k in range(int(rng.integers(2, 4))):
                 plant_blade(img, tx, ty, rng.uniform(3, 6), side * rng.uniform(1.7, 2.3), side * 0.3, 2.0, DEEP_REED["plume"])
-    elif kind == "n":
-        nb = int(rng.integers(3, 6))
-        for k in range(nb):
-            ang = rng.uniform(-0.55, 0.55)
-            plant_blade(img, bx + ang * 10 + rng.uniform(-6, 6), by, h * rng.uniform(0.55, 1.0), ang,
-                        math.copysign(rng.uniform(0.3, 0.8), ang), rng.uniform(5.5, 8.0), NEAR_LEAF)
+    elif kind == "n":                                       # 第十七版：镜头前的一大丛香蒲和芦苇
+        for k in range(int(rng.integers(8, 12))):              # 细长的叶，一根根往上收尖，有的折下来垂着
+            ang = rng.uniform(-0.5, 0.5)
+            tones = NEAR_LEAF[int(rng.integers(0, 2))]
+            fold = (rng.uniform(0.68, 0.85), math.copysign(rng.uniform(0.9, 1.4), ang)) if rng.random() < 0.4 else None
+            plant_blade(img, bx + ang * 12 + rng.uniform(-6, 6), by, h * rng.uniform(0.55, 1.0), ang,
+                        math.copysign(rng.uniform(0.1, 0.35), ang), rng.uniform(5.0, 7.0), tones, fold=fold)
+        for k in range(int(rng.integers(2, 4))):               # 香蒲秆：顶上一根暖棕的蒲棒
+            ang = rng.uniform(-0.18, 0.18)
+            L = h * rng.uniform(0.75, 1.0)
+            sx = bx + rng.uniform(-14, 14)
+            tx, ty = plant_blade(img, sx, by, L, ang, ang * 0.3, 3.0, NEAR_LEAF[0])
+            hh, hw = int(rng.integers(13, 18)), 5
+            cx0, cy0 = int(round(tx)), int(round(ty))
+            for j in range(hh):
+                yy = cy0 + 2 - j
+                inset = 1 if j in (0, hh - 1) else 0
+                for dx in range(-hw // 2 + inset, hw // 2 + 1 - inset):
+                    if 0 <= yy < H2 and 0 <= cx0 + dx < W2:
+                        img[yy, cx0 + dx] = hexc(DEEP_CAT[0] if dx < -1 + inset else DEEP_CAT[2] if dx > 0 else DEEP_CAT[1])
+            for j in range(4):                                  # 蒲棒顶上冒出来的一小截秆
+                yy = cy0 + 2 - hh - j
+                if 0 <= yy < H2:
+                    img[yy, cx0] = hexc(NEAR_LEAF[0][1])
+        for k in range(int(rng.integers(1, 3))):               # 芦苇秆：秆上斜出一片叶，顶上一撮穗往一边垂
+            ang = rng.uniform(-0.25, 0.25)
+            L = h * rng.uniform(0.85, 1.05)
+            sx = bx + rng.uniform(-16, 16)
+            tx, ty = plant_blade(img, sx, by, L, ang, ang * 0.4, 3.0, NEAR_REED_STEM)
+            side = rng.choice([-1, 1])
+            fy = by - L * rng.uniform(0.35, 0.55)
+            plant_blade(img, sx + math.sin(ang) * (by - fy), fy, L * rng.uniform(0.3, 0.45), side * rng.uniform(0.5, 0.8),
+                        side * 0.6, 4.0, NEAR_LEAF[1], fold=(0.6, side * 1.2))
+            side = rng.choice([-1, 1])
+            for _j in range(int(rng.integers(6, 10))):
+                plant_blade(img, tx + rng.uniform(-1, 1), ty + rng.uniform(0, 4), rng.uniform(12, 20), side * rng.uniform(1.1, 2.4),
+                            side * 0.5, 4.0, DEEP_REED["plume"])
     return img, bx, by
+
+
+def fill_slits(img):
+    """左右都是不透明、自己透明的一像素横缝 → 用右边那格的颜色填上"""
+    a = img[..., 3] > 0
+    ys, xs = np.nonzero(~a[:, 1:-1] & a[:, :-2] & a[:, 2:])
+    for y, x in zip(ys, xs + 1):
+        img[y, x] = img[y, x + 1]
 
 
 def deep_variants():
     """g3 / g4 的种类，各 31 个角度一帧（同 grass_frames）。自己的随机数，别的草一格不动"""
     rng = np.random.default_rng(1616)
     spec = [  # 名字前缀, 种类, 高, 几种
-        ("dp_s", "s", (10, 15), 2), ("dp_m", "m", (16, 22), 2), ("dp_f", "f", (12, 18), 2),
-        ("dp_c", "c", (24, 32), 2), ("dp_r", "r", (28, 40), 2), ("dp_t", "t", (38, 48), 2),
-        ("near_n", "n", (110, 140), 3),
+        ("dp_s", "s", (10, 15), 3), ("dp_m", "m", (16, 22), 3), ("dp_f", "f", (12, 18), 3),
+        ("dp_c", "c", (24, 32), 3), ("dp_r", "r", (28, 40), 3), ("dp_t", "t", (38, 48), 2),
+        ("near_n", "n", (88, 112), 3),
     ]
     out = {}
     for pre, k, hr, n in spec:
         for i in range(n):
             h = int(rng.integers(*hr))
             base, bx, by = deep_plant(k, h, rng)
-            wet = k != "n"
+            wet = k not in ("n", "t")                          # 长斜叶不画倒影（倒影会在水里交叉成一个叉）
+            frames = grass_frames(base, bx, by, wet, 226)
+            if k == "n":                                    # 大丛弯过去时两片叶时贴时不贴，中间一道一像素的缝会断成点线：贴上
+                for fr in frames:
+                    fill_slits(fr[0])
             out[f"{pre}{i}"] = {"row": "g", "kind": "near" if k == "n" else "deep", "size": k, "h": h, "rest": 0.0,
-                                "frames": grass_frames(base, bx, by, wet, 226)}
+                                "frames": frames}
     return out
 
 
@@ -3066,6 +3116,7 @@ def place6(vs, grass, gy, ws, isles):
             for k in range(int(rng.integers(2, 5))):
                 add("r0", cx + rng.normal(0, 8), by + int(rng.integers(0, 3)), str(rng.choice(rnames["r0"])), rng.uniform(-8, 10))
     out["g3"] = place_deep(grass, gy)
+    out["g1"] = [e for e in out["g1"] if not (YARD_FLAT[0] <= e[0] <= YARD_FLAT[1])]   # 被压倒的那一片（v18）
     out["g4"] = place_near(grass)
     for r in out:
         out[r].sort(key=lambda t: t[0])
@@ -3074,7 +3125,7 @@ def place6(vs, grass, gy, ws, isles):
 
 # g3：晨脚前的水草，根在晨脚底前面 3–7 行（水里，带湿边和倒影）。第十六版大幅变稀：一簇 1–3 株，簇和簇之间空 80–190 像素，
 # 露出水面和后面的草；大多是矮的（顶在晨的小腿到膝盖），香蒲 / 芦苇秆细，挡不住人；隔一大段才有一株很长的斜叶从晨身前划过去。
-# 说话的地方（markers 左右 44）只放矮莎草和小花。z 24：在脚踝的水面（21）和水花（22）前面、低雾（25）后面；被晨推开、再弹回来。
+# 说话的地方（markers 左右 44）只放矮莎草和小花；芦苇那两片前面不放香蒲和芦苇秆（颜色和后面的芦苇一样，会糊）。z 24：在脚踝的水面（21）和水花（22）前面、低雾（25）后面；被晨推开、再弹回来。
 G4_SCROLL = 1.25
 G4_CLEAR = (110, 370)                                   # 说话的那几个镜头位置，镜头前的大叶不进屏幕这一段
 
@@ -3096,9 +3147,15 @@ def place_deep(grass, gy):
     x = rng.uniform(20, 60)
     while x < W - 20:
         near = any(abs(x - m) < 44 for m in marks)
-        for j in range(int(rng.choice([1, 2, 2, 3]))):
-            k = str(rng.choice(["s", "f"])) if near else str(rng.choice(["s", "m", "f", "c", "r"], p=[0.32, 0.26, 0.16, 0.13, 0.13]))
-            add(x + j * rng.uniform(5, 11), k)
+        n = int(rng.choice([1, 2, 2, 3]))
+        if near:
+            kinds = list(rng.choice(["s", "f"], size=min(n, 2), replace=False))
+        elif zone_at(int(x)) == "reeds":                 # 芦苇那两片前面：香蒲的棕黄、芦苇秆会和后面的芦苇糊在一起，只放冷绿的莎草和小花
+            kinds = list(rng.choice(["s", "m", "f"], size=n, replace=False, p=[0.4, 0.3, 0.3]))
+        else:
+            kinds = list(rng.choice(["s", "m", "f", "c", "r"], size=n, replace=False, p=[0.2, 0.15, 0.15, 0.25, 0.25]))
+        for j, k in enumerate(kinds):                    # 一簇里每株是不同的植物，不重复同一块印章
+            add(x + j * rng.uniform(5, 11), str(k))
         x += rng.uniform(80, 190)
     x = rng.uniform(150, 300)                           # 很长的斜叶：隔一大段一株，不在说话的地方
     while x < W - 40:
@@ -3122,13 +3179,32 @@ def place_near(grass):
                 break
             fx += 17
         if fx < fw - 20:
-            out.append([int(fx), int(rng.integers(288, 298)), str(rng.choice(names)), round(float(rng.uniform(0, 6.28)), 2),
+            out.append([int(fx), int(rng.integers(288, 298)), names[len(out) % len(names)], round(float(rng.uniform(0, 6.28)), 2),
                         round(float(rng.uniform(-6, 6)), 1)])
         fx += rng.uniform(200, 340)
     return out
 
 
 # ---------------------------------------------------------------- room.json
+def insert_prop_layers(layers):
+    """中景的树（tools/reed_field_props.py 画，props/layers.json）：每层插在它跟着的那层（after）后面；z 都写明了，不挤别的层的 z"""
+    p = OUT / "props" / "layers.json"
+    if not p.exists():
+        return layers
+    out = list(layers)
+    for L in json.loads(p.read_text(encoding="utf-8")):
+        L = {k: v for k, v in L.items() if k != "after"} | {"_after": L.get("after", "")}
+        i = next((k for k, q in enumerate(out) if q["id"] == L["_after"]), len(out) - 1)
+        out.insert(i + 1, {k: v for k, v in L.items() if k != "_after"})
+    return out
+
+
+def prop_objects():
+    """结局一、二的物件：tools/reed_field_props.py 画、写在 props/objects.json（重出 room.json 时照抄过来，不丢）"""
+    p = OUT / "props" / "objects.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
 def room_json():
     layers = [
         {"id": "sky", "img": "sky.png", "scroll": 0.0, "y": 0},
@@ -3159,6 +3235,7 @@ def room_json():
         layers.insert(next(i for i, q in enumerate(layers) if q["id"] == before), L)
     for i, L in enumerate(layers):
         L.setdefault("z", -100 + 2 * i)
+    layers = insert_prop_layers(layers)
     zid = {L["id"]: L["z"] for L in layers}
     FAUNA_Z.update({"isle": zid["isles"] + 1, "flock": zid["hills"] + 1})
     return {
@@ -3176,7 +3253,7 @@ def room_json():
         "walk": WALK,
         "markers": {"reed_field_west": 60, "reed_field_spot1": SPOTS[0], "reed_field_water": SPOTS[1],
                     "reed_field_town": (TOWN[0] + TOWN[1]) // 2, "reed_field_spot3": SPOTS[2], "reed_field_east": 1860},
-        "objects": {},
+        "objects": prop_objects(),
         "portals": [],
         "ambient": [],
         "scripts": [{"script": "res://scripts/reed_field.gd", "x": 0, "y": 0, "z": -40,
@@ -3193,7 +3270,9 @@ def room_json():
 SHADE_RINGS = [((44, 54), 0.99), ((35, 45), 0.98), ((27, 36), 0.97), ((20, 28), 0.962), ((13, 21), 0.955)]   # 晨身后压暗（和 reed_field.gd 一样）
 
 
-def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, birds=None, bmeta=None, chen_frame=18, skip=None, splash=None):
+def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, birds=None, bmeta=None, chen_frame=18, skip=None, splash=None,
+            chen_flip=False, extra=None):
+    """extra：[(z, fn(blit))]，预览里另外叠的东西（物件、居民……，tools/reed_field_props.py 用）；chen_flip = 晨朝左"""
     j = room_json()
     out = np.zeros((H, 480, 4), np.uint8)
     out[...] = hexc(j["bg"][0])
@@ -3216,6 +3295,8 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
     def layer(L):
         if L["id"] == skip:
             return
+        if L["id"] not in layers_img:                  # 中景的树（props/ 里的层）：主脚本不画，从文件读
+            layers_img[L["id"]] = np.array(Image.open(OUT / L["img"]).convert("RGBA"))
         im = layers_img[L["id"]]
         sc = L.get("scroll", 1.0)
         x = round(L.get("x", 0) - cl * sc)
@@ -3244,6 +3325,10 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
 
     sheet = np.array(Image.open(ROOT / "art/characters/chen/chen_oscar.png").convert("RGBA"))
     fr = sheet[:, chen_frame * 68:(chen_frame + 1) * 68]
+    cax = 26
+    if chen_flip:
+        fr = fr[:, ::-1]
+        cax = 67 - 26
 
     def do_birds():
         if birds is not None:
@@ -3271,11 +3356,11 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
         ref = fr[::-1].copy()
         m = ref[..., 3] > 0
         ref[m, :3] = np.round(ref[m, :3] * 0.55 + np.array([176, 220, 205]) * 0.45).astype(np.uint8)
-        blit(ref, gx - 26, g, alpha=0.42)
+        blit(ref, gx - cax, g, alpha=0.42)
 
     def do_chen():
         if chen_x is not None:
-            blit(fr, round(chen_x - cl) - 26, ground(chen_x) - 58)
+            blit(fr, round(chen_x - cl) - cax, ground(chen_x) - 58)
 
     items = []
     for i, L in enumerate(j["layers"]):
@@ -3283,6 +3368,8 @@ def compose(layers_img, atlas, meta, place, cl, chen_x=None, theta_fn=None, bird
     for rname, z in ROW_Z.items():
         items.append((z, 0, lambda r=rname: reeds(r, ROW_SCROLL.get(r, 1.0))))
     items += [(-29, 0, do_birds), (-3, 0, do_refl), (-2, 0, do_shade), (0, 0, do_chen)]
+    for z, fn in (extra or []):
+        items.append((z, 1, lambda fn=fn: fn(blit)))
 
     def do_splash():                              # 预览：落脚那一下的水花（第 splash 帧），锚点 = 水面那一行、脚的正下方
         if splash is None or chen_x is None or not fauna_global:

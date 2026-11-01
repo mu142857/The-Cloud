@@ -1,0 +1,75 @@
+{
+ "_comment": "tools/cloud_folk_art.py 生成，别手改（要改先改脚本）。云层星的「周围的人」：四个人一张图（剪影，一条窄色阶），只出现 / 消失、不走路（walk 退回待机）。图里朝右，朝左引擎翻转；100ms 一帧。forms：白天（芦苇地）用默认的淡紫灰；放进 env 是 cloud 的房间（夜里的云镇）时 story_runner 换成 cloud 那套（暗一截）。pass = 不占路：是背景里站着的一群人，晨和别人可以站在他们前面（不然 100 宽的一格会把人推出 70 像素）。",
+ "form": "",
+ "env_forms": true,
+ "forms": {
+  "cloud": {
+   "sheet": "crowd_night.png"
+  }
+ },
+ "frame": [
+  100,
+  64
+ ],
+ "sheet": "crowd.png",
+ "anchor": [
+  50,
+  61
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": false,
+ "head": 52,
+ "speed": 24,
+ "shadow_w": 60,
+ "pass": true,
+ "color": "#8a8296",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "loop": true
+  },
+  "talk": {
+   "frames": [
+    7,
+    8,
+    9,
+    10
+   ],
+   "loop": true
+  }
+ },
+ "alias": {
+  "walk": "idle",
+  "look": "idle",
+  "point": "talk",
+  "laugh": "talk",
+  "nod": "talk",
+  "cheer": "talk"
+ }
+}

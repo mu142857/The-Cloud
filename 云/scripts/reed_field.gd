@@ -59,7 +59,8 @@ extends Node2D
 const ANG_RANGE := 80
 ## 每排：视差、晨推的半径（像素）、最多弯几度、风的大小（倍）、z（绝对；晨是 0，main 层大约 −92）
 ## 第六版：草丛为主（g0 小洲上、g1 路后面、g2 路前面、gf 前景 scroll 1.3），芦苇零星几簇（r0 / r1 / r2）。
-## 第十五版：g3 = 晨脚前面的深草（z 24，在脚踝水面和水花前面），挡住晨的下半身，走过去被推开、再弹回来。
+## 第十五版：g3 = 晨脚前面的深草（z 24，在脚踝水面和水花前面），走过去被推开、再弹回来。
+## 第十六版：g3 改成稀疏的一根根水草（莎草、香蒲、芦苇秆、小花、偶尔一片长斜叶）；g4 = 镜头前的大叶（scroll 1.25，z 112，根在画面下沿外）。
 ## 草丛的帧也是 31 个角度（画图脚本里 ±40° 以外按 ±40° 画，草不会倒平），一样按弹簧阻尼挑帧：被晨压下去、再软软地弹回来。
 const ROWS := {
 	"r0": {"scroll": 1.0, "radius": 12.0, "bend": 26.0, "wind": 1.25, "z": -40},
@@ -68,7 +69,8 @@ const ROWS := {
 	"g1": {"scroll": 1.0, "radius": 24.0, "bend": 38.0, "wind": 0.45, "z": -28},
 	"r2": {"scroll": 1.0, "radius": 16.0, "bend": 70.0, "wind": 0.7, "z": 5},
 	"g2": {"scroll": 1.0, "radius": 22.0, "bend": 38.0, "wind": 0.4, "z": 6},
-	"g3": {"scroll": 1.0, "radius": 24.0, "bend": 40.0, "wind": 0.4, "z": 24},
+	"g3": {"scroll": 1.0, "radius": 20.0, "bend": 40.0, "wind": 0.6, "z": 24},
+	"g4": {"scroll": 1.25, "radius": 30.0, "bend": 26.0, "wind": 0.35, "z": 112},
 	"gf": {"scroll": 1.3, "radius": 34.0, "bend": 30.0, "wind": 0.35, "z": 115},
 }
 const BIRD_Z := -29                 # 在 r1 前面（歇在穗顶上的不会被穗盖住）、晨后面
@@ -381,12 +383,27 @@ func _load_tex(p: String) -> Texture2D:
 
 
 # ======================================================================= 每帧
+## 只在某个结局出现的物件（room.json 的 objects 里写 "need": [flag…]，tools/reed_field_props.py 画的）：结局一停在西头的飞船、
+## 结局二停在东头的那艘。room_stage 只在换状态时算一次可见，这里每帧按 flag 再盖一遍（藏起来的状态照样藏着）。
+func _need_objects(stage: Node) -> void:
+	var objs = stage.get("objects") if stage != null else null
+	var cfg = stage.get("ocfg") if stage != null else null
+	if not (objs is Dictionary and cfg is Dictionary):
+		return
+	for oid in objs:
+		var c = cfg.get(oid, {})
+		if c is Dictionary and c.has("need"):
+			var spr: Sprite2D = objs[oid]
+			spr.visible = not bool(spr.get_meta("hidden", false)) and StoryState.all_of(c["need"])
+
+
 func _process(delta: float) -> void:
 	if not _ok or not is_visible_in_tree():
 		return
 	var dt := minf(delta, 0.05)
 	_t += dt
 	var stage := get_parent()
+	_need_objects(stage)
 	var org: Vector2 = stage.get("origin") if stage != null and stage.get("origin") is Vector2 else Vector2.ZERO
 	var cam := get_viewport().get_camera_2d()
 	if cam != null:

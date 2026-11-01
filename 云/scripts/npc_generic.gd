@@ -5,6 +5,7 @@ extends Node2D
 ## 节点的 position = 脚底（踩在地面那一行下面一格，和晨一样：position.y = round(地面) + 1）。
 ## 帧时长：每个动作自己的 ms（默认 json 顶层 ms，再默认 100）；绝不加速，走得快慢只改移动速度。
 ## 找动作：anims[名字] → alias[名字] → GENERIC_ALIAS → idle（resolve 返回 "" 时由 story_runner 打 MISSING_ANIM）。
+## 每个动作可选：then = 播完（不循环的）接哪段（坐下 → 坐着晃脚）；shadow = false 这段不画脚下的影子（跳上长椅以后）。
 ## forms：多套形态（妮芙 land / swim），每套里写的键覆盖顶层；没有图的那套 = 占位色块。
 ## hover / bob / bob_s（可选）：整只离地 hover 像素悬浮、上下浮 bob 像素（平滑正弦，bob_s 秒一圈，取整到像素，不改帧）。
 ## bob_top（可选，帧里的一行）：只有这一行以上往下点 bob 像素再回来，这行和下面不动（大嘴鸟蹲在自带的树桩上：头和身子轻轻起伏，
@@ -318,6 +319,9 @@ func _show_frame() -> void:
 		i = frames.size() - 1
 		if not _done:
 			_done = true
+			if d.has("then"):
+				play(str(d["then"]), true)
+				return
 			if not d.get("hold", false):
 				play("idle", true)
 				return
@@ -327,7 +331,7 @@ func _show_frame() -> void:
 	spr.flip_h = (facing < 0) == drawn_right
 	var ax := an.x if not spr.flip_h else fr.x - 1.0 - an.x
 	spr.offset = Vector2(-ax, -an.y - 1.0 + bob)
-	_shadow.visible = shadow and form != "swim"
+	_shadow.visible = shadow and form != "swim" and d.get("shadow", true)
 	_shadow.scale.x = 2.0 if cur.get("hover", 0.0) > 0.0 else 1.0      # 悬浮的鲸壳比人宽，影子拉宽一倍
 	if cur.has("shadow_w"):
 		_shadow.scale.x = float(cur["shadow_w"]) / 12.0

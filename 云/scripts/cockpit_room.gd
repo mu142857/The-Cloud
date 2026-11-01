@@ -511,6 +511,21 @@ func has_prop(id: String) -> bool:
 	return id.begins_with(PREFIX)
 
 
+## --story_check 用：这个物件的这个状态有没有画——引擎专门画的（KNOWN_STATES）、cockpit.json 的 states、
+## 一状态一张图（<id>_<状态>.png）、窗外 = sky.json / sky_final.json 的 states
+func knows_state(id: String, st: String) -> bool:
+	if (KNOWN_STATES.get(id, []) as Array).has(st):
+		return true
+	if id == "cockpit_window":
+		return (sky.get("states", {}) as Dictionary).has(st)
+	if objects.has(id):
+		if (objects[id]["states"] as Dictionary).has(st):
+			return true
+		if st in ["default", "show", "shown", "hidden"]:
+			return true
+	return _art_tex([id + "_" + st, id.trim_prefix(PREFIX) + "_" + st]) != null
+
+
 ## 物件在世界里的矩形（hotspot 的点击框、提示箭头）；窗户 = 窗户矩形；只有 marker 的（座椅）= 站的地方往上一块
 func prop_rect(id: String) -> Rect2:
 	var r := Rect2()
@@ -771,10 +786,28 @@ func _read_sky() -> void:
 		if j is Dictionary and j.get("states", null) is Dictionary and j.get("layers", null) is Dictionary:
 			sky = j
 			sky_art = true
+			_merge_sky(SKY + "sky_final.json")
 			return
 		push_warning("驾驶舱：art/cockpit/sky/sky.json 读不了（JSON 不对？要有 layers 和 states），用程序画的占位背景")
 	sky = PH_SKY
 	sky_art = false
+
+
+## 终章的窗外关键帧（tools/cockpit_final_art.py 生成的 sky_final.json，格式同 sky.json）：layers / states 合进来，
+## 只加 sky.json 里没有的名字（sky.json 是 tools/sky_art.py 的，两边各管各的）
+func _merge_sky(p: String) -> void:
+	if not FileAccess.file_exists(p):
+		return
+	var j = JSON.parse_string(FileAccess.get_file_as_string(p))
+	if not j is Dictionary:
+		push_warning("驾驶舱：%s 读不了（JSON 不对？），终章窗外没有" % p)
+		return
+	for key in ["layers", "states"]:
+		var src = j.get(key, {})
+		if src is Dictionary:
+			for k in src:
+				if not (sky[key] as Dictionary).has(k):
+					sky[key][k] = src[k]
 
 
 ## 背景里一层的图：sky.json 的 img（art/cockpit/sky/ 下）；占位 = 程序画

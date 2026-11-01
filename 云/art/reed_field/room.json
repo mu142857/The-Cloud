@@ -90,6 +90,13 @@
    "z": -84
   },
   {
+   "id": "trees_mid",
+   "img": "props/trees_mid.png",
+   "scroll": 0.35,
+   "y": 85,
+   "z": -85
+  },
+  {
    "id": "mid_glints",
    "img": "mid_glints.png",
    "scroll": 0.35,
@@ -153,6 +160,13 @@
    "y": 146,
    "tile": true,
    "z": -74
+  },
+  {
+   "id": "trees_isles",
+   "img": "props/trees_isles.png",
+   "scroll": 0.62,
+   "y": 68,
+   "z": -75
   },
   {
    "id": "giant_dandelion_mid",
@@ -315,7 +329,167 @@
   "reed_field_spot3": 1320,
   "reed_field_east": 1860
  },
- "objects": {},
+ "objects": {
+  "yard_ship": {
+   "img": "props/ship.png",
+   "x": 34,
+   "y": 176,
+   "w": 142,
+   "h": 66,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "parked": 0
+   },
+   "z": -5,
+   "need": [
+    "final_ending_1"
+   ],
+   "click": [
+    34,
+    176,
+    142,
+    52
+   ]
+  },
+  "east_plane": {
+   "img": "props/ship.png",
+   "x": 1772,
+   "y": 175,
+   "w": 142,
+   "h": 66,
+   "frames": 2,
+   "states": {
+    "broken": 1,
+    "wing_up": 0
+   },
+   "z": -5,
+   "need": [
+    "final_ending_2"
+   ],
+   "click": [
+    1772,
+    175,
+    142,
+    52
+   ],
+   "default": "broken"
+  },
+  "yard_toolbag": {
+   "img": "props/toolbag.png",
+   "x": 134,
+   "y": 221,
+   "w": 30,
+   "h": 13,
+   "frames": 2,
+   "states": {
+    "placed": 0
+   },
+   "default": "hidden",
+   "z": 22
+  },
+  "east_toolbag": {
+   "img": "props/toolbag.png",
+   "x": 1834,
+   "y": 220,
+   "w": 30,
+   "h": 13,
+   "frames": 2,
+   "states": {
+    "ready": 1
+   },
+   "default": "hidden",
+   "z": 22
+  },
+  "east_water_cup": {
+   "img": "props/water_cup.png",
+   "x": 1756,
+   "y": 222,
+   "w": 9,
+   "h": 10,
+   "states": {
+    "placed": 0
+   },
+   "default": "hidden",
+   "z": 22
+  },
+  "yard_stone": {
+   "img": "props/soil.png",
+   "x": 904,
+   "y": 218,
+   "w": 34,
+   "h": 14,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "placed": 1
+   },
+   "z": 22
+  },
+  "east_bed": {
+   "img": "props/flower_bed.png",
+   "x": 1396,
+   "y": 201,
+   "w": 64,
+   "h": 36,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "empty": 0,
+    "planted": 1
+   },
+   "z": 26
+  },
+  "yard_sign": {
+   "img": "props/sign.png",
+   "x": 250,
+   "y": 187,
+   "w": 34,
+   "h": 46,
+   "z": -5,
+   "click": [
+    250,
+    190,
+    34,
+    38
+   ]
+  },
+  "yard_grass": {
+   "img": "props/flat_grass.png",
+   "x": 334,
+   "y": 206,
+   "w": 148,
+   "h": 30,
+   "z": 22
+  },
+  "east_tree": {
+   "img": "props/tree_rub.png",
+   "x": 1572,
+   "y": 132,
+   "w": 26,
+   "h": 22,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "bark_rubbed": 1
+   },
+   "z": -65
+  },
+  "sky": {
+   "img": "props/empty.png",
+   "x": 0,
+   "y": 0,
+   "w": 1,
+   "h": 1,
+   "states": {
+    "day": 0,
+    "dusk": 0,
+    "night": 0,
+    "shadow_pass": 0
+   },
+   "_note": "纯剧情状态（看天：傍晚、夜里、白天），画面上没有东西"
+  }
+ },
  "portals": [],
  "ambient": [],
  "scripts": [

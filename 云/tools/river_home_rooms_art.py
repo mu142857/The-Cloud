@@ -1235,6 +1235,7 @@ def build():
     clefts(front, front.a[..., 3] > 0, np.zeros((H, W), bool))
     light = build_light(allm)
     objs = build_objects(dobjs, p, back.a)
+    objs["river_home_cup"] = cup_obj(objs["river_home_table"])
     return back.a, front.a, light, objs
 
 
@@ -1473,6 +1474,20 @@ def build_objects(dobjs, p, back):
         else:
             raise SystemExit("没处理的物件：" + prop)
     return out
+
+
+def cup_obj(table):
+    """尾声（story_final epi_niff_bell）妮芙递给晨的那杯（甜的，拿错了）：就是餐桌 cup_stays 那帧里的杯子，
+    一个像素不改搬出来，放在桌子晨那一头（沙漏左边）。default 空着，offered 杯子在桌上。"""
+    img, frames, x, y, states, note = table
+    f0, f1 = frames[states["default"]], frames[states["cup_stays"]]
+    d = (f1 != f0).any(-1)
+    ys, xs = np.nonzero(d)
+    x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
+    cup = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
+    cup[d[y0:y1, x0:x1]] = f1[y0:y1, x0:x1][d[y0:y1, x0:x1]]
+    return ("obj_cup", [np.zeros_like(cup), cup], 160, y + y0, {"default": 0, "offered": 1},
+            "尾声妮芙递给晨的那杯（餐桌 cup_stays 帧里那只杯子），offered 时在桌子晨那一头")
 
 
 def room_json(objs):

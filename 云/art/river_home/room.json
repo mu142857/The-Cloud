@@ -383,6 +383,20 @@
     46
    ]
   },
+  "river_home_cup": {
+   "img": "obj_cup.png",
+   "x": 160,
+   "y": 247,
+   "w": 6,
+   "h": 6,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "offered": 1
+   },
+   "default": "default",
+   "note": "尾声妮芙递给晨的那杯（餐桌 cup_stays 帧里那只杯子），offered 时在桌子晨那一头"
+  },
   "chen_drawing": {
    "img": "obj_empty.png",
    "x": 0,

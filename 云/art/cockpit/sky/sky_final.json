@@ -1,0 +1,1077 @@
+{
+ "_note": "tools/cockpit_final_art.py 生成，别手改。终章（final）的窗外关键帧；格式和 sky.json 一样（docs/flight_sky_contract.md），引擎把这里的 layers / states 合进 sky.json（只加 sky.json 里没有的名字）。z 从 1000 起：和 flight1 的层不混。大象两张（fc_elephant_far / fc_elephant_shadow）是占位，美术姐的图直接换同名文件。",
+ "layers": {
+  "cs_sky": {
+   "img": "cs_sky.png",
+   "z": 1000
+  },
+  "rd_sky": {
+   "img": "rd_sky.png",
+   "z": 1001
+  },
+  "rk_sky": {
+   "img": "rk_sky.png",
+   "z": 1002
+  },
+  "cs_high": {
+   "img": "cs_high.png",
+   "z": 1003,
+   "tile": true
+  },
+  "rd_streaks": {
+   "img": "rd_streaks.png",
+   "z": 1004,
+   "tile": true
+  },
+  "rk_streaks": {
+   "img": "rk_streaks.png",
+   "z": 1005,
+   "tile": true
+  },
+  "fc_ceiling": {
+   "img": "fc_ceiling.png",
+   "z": 1006,
+   "tile": true
+  },
+  "cs_spires": {
+   "img": "cs_spires.png",
+   "z": 1007,
+   "tile": true
+  },
+  "rd_mtn_far": {
+   "img": "rd_mtn_far.png",
+   "z": 1008,
+   "tile": true
+  },
+  "rk_mtn_far": {
+   "img": "rk_mtn_far.png",
+   "z": 1009,
+   "tile": true
+  },
+  "rd_mtn_mid": {
+   "img": "rd_mtn_mid.png",
+   "z": 1010,
+   "tile": true
+  },
+  "rk_mtn_mid": {
+   "img": "rk_mtn_mid.png",
+   "z": 1011,
+   "tile": true
+  },
+  "cs_far": {
+   "img": "cs_far.png",
+   "z": 1012,
+   "tile": true
+  },
+  "fc_elephant_shadow": {
+   "img": "fc_elephant_shadow.png",
+   "z": 1013
+  },
+  "rd_hills": {
+   "img": "rd_hills.png",
+   "z": 1014,
+   "tile": true
+  },
+  "rk_hills": {
+   "img": "rk_hills.png",
+   "z": 1015,
+   "tile": true
+  },
+  "rd_mist_hills": {
+   "img": "rd_mist_hills.png",
+   "z": 1016,
+   "tile": true
+  },
+  "rk_mist_hills": {
+   "img": "rk_mist_hills.png",
+   "z": 1017,
+   "tile": true
+  },
+  "cs_midfar": {
+   "img": "cs_midfar.png",
+   "z": 1018,
+   "tile": true
+  },
+  "rd_far": {
+   "img": "rd_far.png",
+   "z": 1019,
+   "tile": true
+  },
+  "rk_far": {
+   "img": "rk_far.png",
+   "z": 1020,
+   "tile": true
+  },
+  "rd_mist_far": {
+   "img": "rd_mist_far.png",
+   "z": 1021,
+   "tile": true
+  },
+  "rk_mist_far": {
+   "img": "rk_mist_far.png",
+   "z": 1022,
+   "tile": true
+  },
+  "fc_elephant_far": {
+   "img": "fc_elephant_far.png",
+   "z": 1023
+  },
+  "fc_town_far": {
+   "img": "fc_town_far.png",
+   "z": 1024
+  },
+  "cs_mid": {
+   "img": "cs_mid.png",
+   "z": 1025,
+   "tile": true
+  },
+  "cs_wash": {
+   "img": "cs_wash.png",
+   "z": 1026
+  },
+  "rd_mid": {
+   "img": "rd_mid.png",
+   "z": 1027,
+   "tile": true
+  },
+  "rk_mid": {
+   "img": "rk_mid.png",
+   "z": 1028,
+   "tile": true
+  },
+  "rd_mid_glints": {
+   "img": "rd_mid_glints.png",
+   "z": 1029,
+   "tile": true
+  },
+  "rk_mid_glints": {
+   "img": "rk_mid_glints.png",
+   "z": 1030,
+   "tile": true
+  },
+  "rd_mist_mid": {
+   "img": "rd_mist_mid.png",
+   "z": 1031,
+   "tile": true
+  },
+  "rk_mist_mid": {
+   "img": "rk_mist_mid.png",
+   "z": 1032,
+   "tile": true
+  },
+  "rd_isles": {
+   "img": "rd_isles.png",
+   "z": 1033,
+   "tile": true
+  },
+  "rk_isles": {
+   "img": "rk_isles.png",
+   "z": 1034,
+   "tile": true
+  },
+  "fc_meadow": {
+   "img": "fc_meadow.png",
+   "z": 1035,
+   "tile": true
+  },
+  "fk_meadow": {
+   "img": "fk_meadow.png",
+   "z": 1036,
+   "tile": true
+  },
+  "fc_yard": {
+   "img": "fc_yard.png",
+   "z": 1037
+  },
+  "fk_yard": {
+   "img": "fk_yard.png",
+   "z": 1038
+  },
+  "fc_east": {
+   "img": "fc_east.png",
+   "z": 1039
+  },
+  "fc_gap": {
+   "img": "fc_gap.png",
+   "z": 1040
+  },
+  "fc_bank_l": {
+   "img": "fc_bank_l.png",
+   "z": 1041
+  },
+  "fc_bank_r": {
+   "img": "fc_bank_r.png",
+   "z": 1042
+  },
+  "cs_near": {
+   "img": "cs_near.png",
+   "z": 1043,
+   "tile": true
+  },
+  "cs_main": {
+   "img": "cs_main.png",
+   "z": 1044,
+   "tile": true
+  },
+  "cs_front": {
+   "img": "cs_front.png",
+   "z": 1045,
+   "tile": true
+  }
+ },
+ "states": {
+  "cloud_sea": {
+   "blend": 3.0,
+   "bg": [
+    "#120c1e",
+    "#2a1d33"
+   ],
+   "layers": [
+    {
+     "id": "cs_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_high",
+     "y": 65,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "cs_spires",
+     "y": 44,
+     "speed": 0.8,
+     "vy": 0
+    },
+    {
+     "id": "cs_far",
+     "y": 137,
+     "speed": 2.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_midfar",
+     "y": 147,
+     "speed": 4.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_mid",
+     "y": 127,
+     "speed": 8.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_wash",
+     "y": 142,
+     "speed": 0.0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_near",
+     "y": 195,
+     "speed": 14.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_main",
+     "y": 219,
+     "speed": 22.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_front",
+     "y": 243,
+     "speed": 34.0,
+     "vy": 0
+    }
+   ]
+  },
+  "cloud_low": {
+   "blend": 4.0,
+   "bg": [
+    "#120c1e",
+    "#2a1d33"
+   ],
+   "layers": [
+    {
+     "id": "cs_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_high",
+     "y": 62,
+     "speed": 0.6,
+     "vy": -0.2
+    },
+    {
+     "id": "cs_spires",
+     "y": 40,
+     "speed": 0.8,
+     "vy": -0.2
+    },
+    {
+     "id": "cs_far",
+     "y": 131,
+     "speed": 2.0,
+     "vy": -0.6
+    },
+    {
+     "id": "cs_midfar",
+     "y": 137,
+     "speed": 4.0,
+     "vy": -0.6
+    },
+    {
+     "id": "cs_mid",
+     "y": 111,
+     "speed": 8.0,
+     "vy": -0.6
+    },
+    {
+     "id": "cs_wash",
+     "y": 126,
+     "speed": 0.0,
+     "vy": -0.6,
+     "x": -48
+    },
+    {
+     "id": "cs_near",
+     "y": 174,
+     "speed": 14.0,
+     "vy": -0.6
+    },
+    {
+     "id": "cs_main",
+     "y": 193,
+     "speed": 22.0,
+     "vy": -0.6
+    },
+    {
+     "id": "cs_front",
+     "y": 211,
+     "speed": 34.0,
+     "vy": -0.6
+    },
+    {
+     "id": "fc_bank_l",
+     "y": 122,
+     "speed": 0,
+     "vy": 0,
+     "x": -170
+    },
+    {
+     "id": "fc_bank_r",
+     "y": 122,
+     "speed": 0,
+     "vy": 0,
+     "x": 150
+    }
+   ]
+  },
+  "cloud_part": {
+   "blend": 3.5,
+   "bg": [
+    "#120c1e",
+    "#2a1d33"
+   ],
+   "layers": [
+    {
+     "id": "cs_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_high",
+     "y": 62,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "cs_spires",
+     "y": 40,
+     "speed": 0.8,
+     "vy": 0
+    },
+    {
+     "id": "cs_far",
+     "y": 131,
+     "speed": 2.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_midfar",
+     "y": 137,
+     "speed": 4.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_mid",
+     "y": 111,
+     "speed": 8.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_wash",
+     "y": 126,
+     "speed": 0.0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_near",
+     "y": 144,
+     "speed": 14.0,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "cs_main",
+     "y": 163,
+     "speed": 22.0,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "cs_front",
+     "y": 181,
+     "speed": 34.0,
+     "vy": 0,
+     "alpha": 0.0
+    },
+    {
+     "id": "fc_gap",
+     "y": 154,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "fc_bank_l",
+     "y": 122,
+     "speed": 0,
+     "vy": -0.5,
+     "x": -420
+    },
+    {
+     "id": "fc_bank_r",
+     "y": 122,
+     "speed": 0,
+     "vy": -0.5,
+     "x": 176
+    }
+   ]
+  },
+  "land_west": {
+   "blend": 2.2,
+   "bg": [
+    "#cfe8f2",
+    "#e9f4ee"
+   ],
+   "layers": [
+    {
+     "id": "rd_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "rd_streaks",
+     "y": 13,
+     "speed": 1,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mtn_far",
+     "y": 43,
+     "speed": 0.4,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mtn_mid",
+     "y": 80,
+     "speed": 0.8,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_hills",
+     "y": 109,
+     "speed": 1.6,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mist_hills",
+     "y": 119,
+     "speed": 2,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_far",
+     "y": 129,
+     "speed": 3,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mist_far",
+     "y": 129,
+     "speed": 3.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mid",
+     "y": 130,
+     "speed": 4.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mid_glints",
+     "y": 141,
+     "speed": 4.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mist_mid",
+     "y": 144,
+     "speed": 5.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_isles",
+     "y": 142,
+     "speed": 7,
+     "vy": -0.4
+    },
+    {
+     "id": "fc_meadow",
+     "y": 172,
+     "speed": 12,
+     "vy": -0.8
+    },
+    {
+     "id": "fc_ceiling",
+     "y": -225,
+     "speed": 4,
+     "vy": -1.5
+    },
+    {
+     "id": "fc_yard",
+     "y": 62,
+     "speed": 2.5,
+     "vy": -0.6,
+     "x": -26
+    }
+   ]
+  },
+  "land_east": {
+   "blend": 2.2,
+   "bg": [
+    "#cfe8f2",
+    "#e9f4ee"
+   ],
+   "layers": [
+    {
+     "id": "rd_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "rd_streaks",
+     "y": 13,
+     "speed": 1,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mtn_far",
+     "y": 43,
+     "speed": 0.4,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mtn_mid",
+     "y": 80,
+     "speed": 0.8,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_hills",
+     "y": 109,
+     "speed": 1.6,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mist_hills",
+     "y": 119,
+     "speed": 2,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_far",
+     "y": 129,
+     "speed": 3,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mist_far",
+     "y": 129,
+     "speed": 3.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mid",
+     "y": 130,
+     "speed": 4.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mid_glints",
+     "y": 141,
+     "speed": 4.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_mist_mid",
+     "y": 144,
+     "speed": 5.5,
+     "vy": -0.4
+    },
+    {
+     "id": "rd_isles",
+     "y": 142,
+     "speed": 7,
+     "vy": -0.4
+    },
+    {
+     "id": "fc_meadow",
+     "y": 172,
+     "speed": 12,
+     "vy": -0.8
+    },
+    {
+     "id": "fc_ceiling",
+     "y": -225,
+     "speed": 4,
+     "vy": -1.5
+    },
+    {
+     "id": "fc_east",
+     "y": 62,
+     "speed": 2.5,
+     "vy": -0.6,
+     "x": -26
+    }
+   ]
+  },
+  "land_town": {
+   "blend": 2.5,
+   "bg": [
+    "#120c1e",
+    "#2a1d33"
+   ],
+   "layers": [
+    {
+     "id": "cs_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_high",
+     "y": 61,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "cs_spires",
+     "y": 38,
+     "speed": 0.8,
+     "vy": 0
+    },
+    {
+     "id": "cs_far",
+     "y": 128,
+     "speed": 2.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_midfar",
+     "y": 132,
+     "speed": 4.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_mid",
+     "y": 103,
+     "speed": 8.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_wash",
+     "y": 118,
+     "speed": 0.0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_near",
+     "y": 162,
+     "speed": 14.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_main",
+     "y": 179,
+     "speed": 22.0,
+     "vy": 0
+    },
+    {
+     "id": "cs_front",
+     "y": 193,
+     "speed": 34.0,
+     "vy": 0
+    },
+    {
+     "id": "fc_town_far",
+     "y": 53,
+     "speed": 6,
+     "vy": -0.5,
+     "x": -520
+    }
+   ]
+  },
+  "yard_parked": {
+   "blend": 2.0,
+   "bg": [
+    "#9c8bb0",
+    "#f0c4a2"
+   ],
+   "layers": [
+    {
+     "id": "rk_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "rk_streaks",
+     "y": -1,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "rk_mtn_far",
+     "y": 29,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mtn_mid",
+     "y": 66,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_hills",
+     "y": 95,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mist_hills",
+     "y": 105,
+     "speed": 0.4,
+     "vy": 0
+    },
+    {
+     "id": "rk_far",
+     "y": 115,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mist_far",
+     "y": 115,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "rk_mid",
+     "y": 116,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mid_glints",
+     "y": 127,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mist_mid",
+     "y": 130,
+     "speed": 0.8,
+     "vy": 0
+    },
+    {
+     "id": "rk_isles",
+     "y": 128,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "fk_meadow",
+     "y": 200,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "fk_yard",
+     "y": 86,
+     "speed": 0,
+     "vy": 0,
+     "x": 300
+    }
+   ]
+  },
+  "yard_elephant_far": {
+   "blend": 2.5,
+   "bg": [
+    "#9c8bb0",
+    "#f0c4a2"
+   ],
+   "layers": [
+    {
+     "id": "rk_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "rk_streaks",
+     "y": -1,
+     "speed": 1,
+     "vy": 0
+    },
+    {
+     "id": "rk_mtn_far",
+     "y": 29,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mtn_mid",
+     "y": 66,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_hills",
+     "y": 95,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mist_hills",
+     "y": 105,
+     "speed": 0.4,
+     "vy": 0
+    },
+    {
+     "id": "rk_far",
+     "y": 115,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mist_far",
+     "y": 115,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "rk_mid",
+     "y": 116,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mid_glints",
+     "y": 127,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "rk_mist_mid",
+     "y": 130,
+     "speed": 0.8,
+     "vy": 0
+    },
+    {
+     "id": "rk_isles",
+     "y": 128,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "fk_meadow",
+     "y": 200,
+     "speed": 0,
+     "vy": 0
+    },
+    {
+     "id": "fk_yard",
+     "y": 86,
+     "speed": 0,
+     "vy": 0,
+     "x": 300
+    },
+    {
+     "id": "fc_elephant_far",
+     "y": 110,
+     "speed": 0,
+     "vy": 0,
+     "x": 126
+    }
+   ]
+  },
+  "cloud_orbit": {
+   "blend": 5.0,
+   "bg": [
+    "#0b0714",
+    "#221830"
+   ],
+   "layers": [
+    {
+     "id": "cs_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_high",
+     "y": 80,
+     "speed": 0.18,
+     "vy": 0
+    },
+    {
+     "id": "cs_spires",
+     "y": 64,
+     "speed": 0.24,
+     "vy": 0
+    },
+    {
+     "id": "cs_far",
+     "y": 167,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "cs_midfar",
+     "y": 192,
+     "speed": 1.2,
+     "vy": 0
+    },
+    {
+     "id": "cs_mid",
+     "y": 192,
+     "speed": 2.4,
+     "vy": 0
+    },
+    {
+     "id": "cs_wash",
+     "y": 207,
+     "speed": 0.0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_near",
+     "y": 280,
+     "speed": 4.2,
+     "vy": 0
+    }
+   ]
+  },
+  "elephant_shadow": {
+   "blend": 2.0,
+   "bg": [
+    "#0b0714",
+    "#221830"
+   ],
+   "layers": [
+    {
+     "id": "cs_sky",
+     "y": -48,
+     "speed": 0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_high",
+     "y": 80,
+     "speed": 0.18,
+     "vy": 0
+    },
+    {
+     "id": "cs_spires",
+     "y": 64,
+     "speed": 0.24,
+     "vy": 0
+    },
+    {
+     "id": "cs_far",
+     "y": 167,
+     "speed": 0.6,
+     "vy": 0
+    },
+    {
+     "id": "cs_midfar",
+     "y": 192,
+     "speed": 1.2,
+     "vy": 0
+    },
+    {
+     "id": "cs_mid",
+     "y": 192,
+     "speed": 2.4,
+     "vy": 0
+    },
+    {
+     "id": "cs_wash",
+     "y": 207,
+     "speed": 0.0,
+     "vy": 0,
+     "x": -48
+    },
+    {
+     "id": "cs_near",
+     "y": 280,
+     "speed": 4.2,
+     "vy": 0
+    },
+    {
+     "id": "fc_elephant_shadow",
+     "y": 94,
+     "speed": 9,
+     "vy": 0,
+     "x": -30
+    }
+   ]
+  }
+ }
+}

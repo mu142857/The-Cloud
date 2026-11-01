@@ -1,0 +1,24 @@
+{
+	"_note": "终章尾声最后一段「回家的列车」（第三章计划第十一节：城市车站 city_station → 渐黑渐亮进这里 → 剧情姐的车厢段 → 全剧终）。图是 tools/home_train_art.py 画的，重出会覆盖这个文件夹里的 png 和 occlusion.json（这个 room.json 是手写的，脚本不碰）。一屏 480×270：车厢剖面（近侧那面墙切掉，正侧面），窗外和车顶上面的风景、光束、膝上的太阳都在 scripts/home_train.gd 里动。train_window / train_seat 是只记状态的 1×1 空物件（home_train.gd 读状态做出城、换树、膝上的太阳）。乘客、吊环是 16 帧 100ms 的循环（车在晃）。env 借 reeds：暖白的太阳从左上来、斗篷几乎不染色、没有脚下特效，和这里的阳光一个方向。origin 放在小镇（0, 1620）下面，F8 地图上不叠。",
+	"size": [480, 270],
+	"origin": [0, 1890],
+	"env": "reeds",
+	"cam_y": 135,
+	"ground": 228,
+	"walk": [36, 462],
+	"bg": ["#4f5452", "#8a8475"],
+	"layers": [
+		{"id": "car", "img": "car.png", "scroll": 1.0, "z": -100},
+		{"id": "glass", "img": "glass.png", "scroll": 1.0, "z": -99}
+	],
+	"markers": {"train_door": 52, "train_seat": 305},
+	"objects": {
+		"train_window": {"img": "empty.png", "x": 0, "y": 0, "states": {"afternoon_sun": 0, "trees_passing": 0}},
+		"train_seat": {"img": "empty.png", "x": 305, "y": 208, "states": {"sun_on_knees": 0}},
+		"straps": {"img": "straps.png", "frames": 16, "x": 0, "y": 148, "z": -4, "default": "loop", "states": {"loop": [0, 15]}, "ms": 100},
+		"passengers": {"img": "passengers.png", "frames": 16, "x": 0, "y": 168, "z": -3, "default": "loop", "states": {"loop": [0, 15]}, "ms": 100}
+	},
+	"portals": [],
+	"ambient": [],
+	"scripts": [{"script": "res://scripts/home_train.gd", "x": 0, "y": 0, "z": 0}]
+}
