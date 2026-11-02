@@ -76,10 +76,10 @@ const HOUSE_SIZE := Vector2i(260, 200)   # 树屋占位图多大
 const DEFAULT_MARKERS := {
 	"wall_left": -1120, "scrap": -1020, "wreck": -840, "luggage": -770, "chen_start": -710, "wood": 372,
 	"resin": 520, "deer_appear": -400, "branch": 690, "road_start": 900, "stall": 1100, "log": 1400,
-	"fog_start": 1550, "cloth": 1780, "hollow": 1900, "wall_road": 1960,
-	"road_house": 1250, "glade_rock": 2080, "glade_sign_base": 2130, "signal_box": 2180, "wall_glade": 2260,
-	"pine": 3700, "shop_plank": 3640,
-	"wall_house": 2880, "treehouse": 3100, "empty_house": 3400, "shop": 3620, "slope": 3900, "wall_right": 4100,
+	"fog_start": 1550, "cloth": 1890, "hollow": 2060, "wall_road": 2120,
+	"road_house": 1250, "glade_rock": 2250, "glade_sign_base": 2380, "signal_box": 2500, "wall_glade": 2700,
+	"pine": 4150, "shop_plank": 1165,
+	"wall_house": 3330, "treehouse": 3550, "empty_house": 3850, "shop": 4070, "slope": 4350, "wall_right": 4550,
 	# 屋内（剧本原来按 480 宽一屏写的 x，换算进树屋，见上）
 	"room_door": 40, "room_chairs": 100, "room_kettle": 145, "room_radio": 195, "room_sign": 235,
 	"room_tools": 275, "room_miluo": 305, "room_dish": 330, "room_gramophone": 360, "room_box": 390, "room_pipes": 440,
@@ -114,7 +114,7 @@ const PROPS := {
 	"branch_b": {"tex": "branch_b.png", "at": "log", "dx": 36, "size": [36, 10], "color": "#5a4631",
 		"states": {"moved": {"dx": 40}}},
 	"cloth": {"tex": "cloth.png", "at": "cloth", "dy": -34, "dy_art": 0, "size": [10, 16], "color": "#9a8f78", "frames": 2, "anim": 700},
-	"hoofprints": {"tex": "hoofprints.png", "at": "cloth", "dx": -46, "size": [24, 3], "color": "#2e2a22", "sink": 2},
+	"hoofprints": {"tex": "hoofprints.png", "at": "hoofprints", "dx": 0, "size": [24, 3], "color": "#2e2a22", "sink": 2},
 	"hollow": {"tex": "hollow.png", "at": "hollow", "size": [60, 10], "color": "#1c2624", "sink": 6},
 	"empty_house": {"tex": "empty_house.png", "at": "empty_house", "size": [110, 80], "color": "#33302a"},
 	"empty_item": {"tex": "empty_item.png", "at": "empty_house", "dx": 40, "size": [12, 10], "color": "#6e6555"},

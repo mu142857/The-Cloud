@@ -86,6 +86,7 @@ var _age := 0.0
 var _flash := 0.0
 var _choosing := false
 var _scroll := 0.0                    # 聊天往上翻了多少像素（0 = 最底下）
+var _pan_acc := 0.0                   # 触控板滑动攒下的、还不到一像素的部分
 var _content_h := 0.0
 var _fresh := -1                      # 刚追加的第一条（第几条）：从它往后一条一条「到」，到之前不画，到的时候一声音效
 var _fresh_t := 0.0                   # 第一条还要等多久
@@ -464,6 +465,16 @@ func _input(e: InputEvent) -> void:
 	if str(story.auto) != "":
 		get_viewport().set_input_as_handled()     # 自动玩不吃真的按键（和关卡一样）
 		return
+	if e is InputEventPanGesture:
+		# Mac 触控板两指滑动不发滚轮，发的是 PanGesture：delta.y > 0 = 往新的那头（下面）走
+		get_viewport().set_input_as_handled()
+		if mode != "notify" and not _choosing:
+			_pan_acc -= (e as InputEventPanGesture).delta.y * 6.0
+			var step := float(int(_pan_acc))      # 攒够一整个像素才动，慢慢滑也不丢
+			if step != 0.0:
+				_pan_acc -= step
+				_scroll_px(step)
+		return
 	if not (e is InputEventKey or e is InputEventMouse):
 		return
 	get_viewport().set_input_as_handled()
@@ -508,11 +519,12 @@ func _input(e: InputEvent) -> void:
 	elif k in [KEY_RIGHT, KEY_D]:
 		_set_sel(_keys.size() - 1)
 	elif k in [KEY_UP, KEY_W, KEY_DOWN, KEY_S]:
+		# 先翻聊天记录；翻到头了（或者本来就翻不动）再切上 / 下一个联系人
 		var up := k in [KEY_UP, KEY_W]
-		if mode == "browse":
+		var before := _scroll
+		_scroll_by(1 if up else -1)
+		if mode == "browse" and is_equal_approx(before, _scroll) and not ke.echo:
 			_step_contact(-1 if up else 1)
-		else:
-			_scroll_by(1 if up else -1)
 	elif confirm:
 		_choose(_sel)
 	elif k == KEY_ESCAPE:
@@ -569,8 +581,13 @@ func _select_contact(id: String) -> void:
 
 
 func _scroll_by(n: int) -> void:
+	_scroll_px(n * (_lh + 1.0))
+
+
+## 往上翻 px 像素（负数往下）；取整，字不会落在半个像素上
+func _scroll_px(px: float) -> void:
 	var area := _chat_rect().size.y
-	_scroll = clampf(_scroll + n * (_lh + 1.0), 0.0, maxf(0.0, _content_h - area + 6.0))
+	_scroll = clampf(roundf(_scroll + px), 0.0, maxf(0.0, _content_h - area + 6.0))
 
 
 # ======================================================================= 排版

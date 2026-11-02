@@ -258,12 +258,13 @@
    "y": 130,
    "w": 300,
    "h": 96,
-   "frames": 4,
+   "frames": 5,
    "states": {
     "default": 0,
     "beached": 1,
     "straps_drying": 2,
-    "fixed": 3
+    "fixed": 3,
+    "launched": 4
    }
   },
   "river_bank_crates": {

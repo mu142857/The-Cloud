@@ -2155,19 +2155,24 @@ def town_json(anims):
     layers = cloud_layers()
     over = {after: {"id": f"cloud_{src}_over", "img": f"res://art/cloud_town/cloud_{src}_over.png", "scroll": sc, "y": 0,
                     "tile": True, "drift": drift} for (after, src, dy, sc, drift) in INTERLEAVE}
-    layers += [{"id": "town_far", "img": "res://art/cloud_town/town_far.png", "scroll": FAR_SC, "y": 0}, over["town_far"],
-               {"id": "town_back", "img": "res://art/cloud_town/town_back.png", "scroll": 1.0, "y": 0}, over["town_back"],
-               {"id": "town_main", "img": "res://art/cloud_town/town_main.png", "scroll": 1.0, "y": 0},
+    dk = deck_layers()
+    layers += [{"id": "town_far", "img": "res://art/cloud_town/town_far.png", "scroll": FAR_SC, "y": 0}, dk["town_far"], over["town_far"],
+               dk["cloud_midfar_over"],
+               {"id": "town_back", "img": "res://art/cloud_town/town_back.png", "scroll": 1.0, "y": 0}, dk["town_back"], over["town_back"],
+               {"id": "town_main", "img": "res://art/cloud_town/town_main.png", "scroll": 1.0, "y": 0}, dk["town_main"],
                {"id": "front", "img": "res://art/cloud/front.png", "scroll": 1.4, "y": 0, "tile": True, "front": True}]
     hx0 = LODGE - LW // 2
     return {
-        "size": [W, H], "origin": list(ORIGIN), "env": "cloud", "bg": ["#1d1530", "#4a3550"],
+        "size": [ROOM_W, H], "origin": list(ORIGIN), "env": "cloud", "bg": ["#1d1530", "#4a3550"],
         "layers": layers,
-        "ground": GROUND, "walk": [16, W - 16],
+        "ground": GROUND, "walk": [16, W - 16], "cam": [0, W],
+        "walk_when": [{"need": ["final_e3_walk"], "not": ["final_e3_seed_todo", "final_e3_seed_done"],
+                       "walk": [16, DECK_WALK_END], "cam": [0, ROOM_W],
+                       "_note": "云台（小镇右边那一屏）只在结局三「走一圈」那天开放：之前和之后晨走不过去、镜头也不往那边看"}],
         "markers": {
             "town_landing": 262, "town_helper": 304, "town_basket": 598, "town_plaza_side": 862, "town_fountain": FOUNTAIN,
             "town_back_side": 1052, "town_crowd": 1116, "town_bench": BENCHES[1] + 15, "town_far_side": 1250,
-            "town_bed": BED_X + 30, "town_lodging": hx0 + L_DOOR,
+            "town_bed": BED_X + 30, "town_lodging": hx0 + L_DOOR, "town_deck": PIER[0] - 40, "town_deck_end": DECK_END,
         },
         "objects": {
             "town_ship": {"img": "res://art/cloud_town/ship_parked.png", "x": SHIP_X, "y": SHIP_Y},
@@ -2248,7 +2253,7 @@ class Scene:
         sx = np.arange(480)
         if c.get("tile"):
             return (sx + int(round(cl * sc - float(c.get("drift", 0.0)) * self.t))) % w
-        return sx + cl - int(round(cl * (1 - sc)))
+        return sx + cl - int(round(cl * (1 - sc))) - int(c.get("x", 0))
 
     def render(self, cl, front_alpha=1.0, chen=None, house=True, only_far=False, planted=False):
         img = np.zeros((270, 480, 3), np.float32)
@@ -2444,6 +2449,12 @@ def build():
     sv(far, "art/cloud_town/town_far.png")
     sv(back[0], "art/cloud_town/town_back.png")
     sv(main, "art/cloud_town/town_main.png")
+    dfar = build_deck_far(far)                                       # 云台（小镇右边加的一屏）：接在三张原图右边
+    DECK_FAR_X[0] = dfar.ox
+    sv(dfar, "art/cloud_town/deck_far.png")
+    sv(build_deck_back(back[0]), "art/cloud_town/deck_back.png")
+    sv(build_deck_main(main), "art/cloud_town/deck_main.png")
+    sv(build_deck_dim(), "art/cloud_town/deck_dim.png", fix=False)
     sv(ship_img(), "art/cloud_town/ship_parked.png", fix=False)        # 作者的飞船原图，一个像素都不动
     bed = np.concatenate([flower_bed(0).a, flower_bed(1).a], 1)
     sv(bed, "art/cloud_town/town_bed.png")
@@ -2464,7 +2475,7 @@ def build():
     save_json(town_json(ANIMS), "art/town/room.json",
               "结局三 · 云层上的风帆小镇。tools/cloud_town_art.py 生成，别手改。天和云是作者 art/cloud/ 的原图（照 scenes/cloud_test.tscn 的视差和漂移），"
               "小镇（远塔、塔、地面）在 art/cloud_town/。风车、帆、水车、喷泉的动画由 scripts/cloud_town.gd 挂到层上播（100ms 一帧）。"
-              "从左到右：木停机台（飞船）→ 石头路（倒了的篮子）→ 湿石台广场（喷泉、水车、大风车、长椅）→ 花圃和龙头 → 晨住的塔（town_room）。")
+              "从左到右：木停机台（飞船）→ 石头路（倒了的篮子）→ 湿石台广场（喷泉、水车、大风车、长椅）→ 花圃和龙头 → 晨住的塔（town_room）→ 云台（纯云 + 木栈桥，结局三走一圈那天才开放，见 walk_when / cam）。")
     save_json(room_json(), "art/town_room/room.json",
               "结局三 · 晨在云层小镇暂住的屋子（剖面小屋，在 town 里；前墙进屋淡出）。tools/cloud_town_art.py 生成，别手改。"
               "一座风车塔：下截是住的那层（左边门、中间书桌，窗在桌子上面透出外面的天和云、右边床），淡蓝裙檐上一截细塔 + 尖顶，小风车是动的。")
@@ -3521,6 +3532,149 @@ def mill_v2(L: Layer, cx, base, wb, wt, h, seed=0, stage=0.45, wins=(), door=(11
     L.put(ellipse(L, hub[0], hub[1], 3.2 if wb >= 30 else 2.4, 3.2 if wb >= 30 else 2.4), TIMBER4[1])
     return hub, {"cx": cx, "top": Rf["tip_y"] + 4, "base": base, "tip": Rf["tip"], "rw": Rf["R"], "cap_h": cap_h, "w": wb,
                  "hw": Rf["hw"]}
+
+
+# ======================================================================= 云台（11-02，结局三「走一圈」那天才开放）
+#   广场再往外、住处那头的尽头：一屏纯云，没有建筑和人。平的云面往前铺，尽头一段木栈桥伸出去，桥下是更低的云海。
+#   小镇原来的四张图（town_far / back / main）一像素不动：云台是另外三张图，接在它们右边（room.json 里层带 x）。
+#   接缝：地面和远处那排用「缝合」——新图左边先盖一段和原图一样的像素，再沿颜色差最小的一条竖缝（每行最多挪一格）
+#   换成新画的云，看不出缝；后排房子 x1748 那栋在原图边上被切了一半，用一大团暗面朝外的积云把它和接缝一起埋住。
+#   晨要比背景亮：云台这段没有房子挡着，作者那层飘过来的 midfar 云（cloud_midfar_over，亮粉）会正好飘到晨头后面
+#   （量出来最低 149）→ 在它前面、后排云丘后面盖一张 deck_dim：小镇天里最深的那个靛紫，透明度从 1760 往右 120 像素
+#   慢慢加到 DECK_DIM_A（约压暗一档），天、远处的云、飘过来的云一起暗一档；晨、地面、栈桥、后排云丘不受影响。
+DECK_X0 = W                               # 小镇原图到这里为止
+ROOM_W = W + 480                          # 加一屏
+PIER = (2028, 2204)                       # 栈桥（晨能走到 2190）
+DECK_WALK_END = 2190
+DECK_END = 2176                           # 走到这里触发 e3_round
+DECK_DIM_A = 0.16                         # 压暗一档：盖一层深靛紫的透明度
+DECK_DIM_RAMP = 120                       # 从小镇边上往右多少像素慢慢加满（不是一条硬边）
+SEAM = 56                                 # 缝合区多宽
+
+
+def stitch(A, B):
+    """A、B 是同一块区域（h×w×4）：返回 mask，True = 用 A。沿 |A−B| 最小的一条竖缝切（每行最多左右挪一格，缝左边用 A）。
+    最左一列一定是 A、最右一列一定是 B。"""
+    d = np.abs(A.astype(np.int32) - B.astype(np.int32)).sum(-1).astype(np.float64)
+    h, w = d.shape
+    d[:, 0] = d[:, -1] = 1e9
+    acc = d.copy()
+    for y in range(1, h):
+        p = acc[y - 1]
+        best = np.minimum(p, np.minimum(np.r_[np.inf, p[:-1]], np.r_[p[1:], np.inf]))
+        acc[y] += best
+    seam = np.zeros(h, int)
+    seam[-1] = int(np.argmin(acc[-1]))
+    for y in range(h - 2, -1, -1):
+        x = seam[y + 1]
+        lo, hi = max(x - 1, 1), min(x + 2, w - 1)
+        seam[y] = lo + int(np.argmin(acc[y, lo:hi]))
+    return np.arange(w)[None, :] < seam[:, None]
+
+
+def stitch_into(new: Layer, old_arr, old_x0, n=SEAM):
+    """new（ox = 大图里的起点）和 old_arr（大图里的整张）在 old_x0 起的 n 列里缝起来；old_x0 左边整段照抄原图。
+    缝只量缝上的颜色差，不管缝左边丢掉了什么：缝合区里别有原图的房子（远处那排只留最后 14 列）。"""
+    A = old_arr[:, old_x0:old_x0 + n]
+    c0 = old_x0 - new.ox
+    B = new.a[:, c0:c0 + n].copy()
+    m = stitch(A, B)
+    B[m] = A[m]
+    new.a[:, c0:c0 + n] = B
+    new.a[:, :c0] = old_arr[:, new.ox:old_x0]
+
+
+def deck_terrain(x):
+    """云台的云面：照小镇的起伏接过来，到栈桥前慢慢沉下去（桥伸到更低的云海上）"""
+    y = 226 + 0.9 * math.sin(x / 41.0) + 0.5 * math.sin(x / 13.0 + 1.0)
+    t = np.clip((x - (PIER[0] + 20)) / 70.0, 0, 1)
+    return y + 20 * t * t * (3 - 2 * t)
+
+
+def build_deck_main(town_main):
+    x0 = DECK_X0 - SEAM
+    w = ROOM_W - x0
+    D = Layer(w, H, x0, 0)
+    G = ground_cloud(w, lambda x: deck_terrain(x + x0), 41, flats=[(0, PIER[0] - x0 + 30)])
+    G.ox = x0
+    D.over(G)
+    # 栈桥：和停机台同一种木台（台面一块块木板、前沿一道亮、正面横梁、木桩插进云里），只是窄长，尽头两根系船桩
+    deck(D, PIER[0], PIER[1], 221, GROUND, 256, 17)
+    bollard(D, PIER[1] - 8, 222)
+    lip = lip_cloud(w, PIER[0] - 10 - x0, PIER[0] + 26 - x0, 229, 19, r=(4, 7))   # 桥头压在云面里（不是搁在云上的一块板）
+    lip.ox = x0
+    D.over(lip)
+    sea = lip_cloud(w, PIER[0] + 14 - x0, w + 8, 247, 23, r=(6, 11))     # 桥身下面那层更低的云海，木桩没进去
+    sea.ox = x0
+    D.over(sea)
+    stitch_into(D, town_main.a, DECK_X0 - SEAM)
+    despeckle(D)
+    return D
+
+
+def build_deck_back(town_back):
+    """后排（视差 1）：把 build_back 在加宽的画布上重跑一遍（房子、云丘的随机数和原来一样，只是画布往右多了一屏），
+    右边那截就是同一片云丘接着往前铺、没有房子；x1748 那栋在原图边上被切掉的半边也就补全了。再和原图缝合。"""
+    global W
+    w0, saved = W, list(ANIMS)
+    W = ROOM_W
+    try:
+        wide = build_back()[0]
+    finally:
+        W = w0
+        ANIMS[:] = saved
+    x0 = DECK_X0 - SEAM
+    B = Layer(ROOM_W - x0, H, x0, 0)
+    B.a[:] = wide.a[:, x0:]
+    stitch_into(B, town_back.a, x0)
+    return B
+
+
+def build_deck_far(town_far):
+    """远处那排（视差 FAR_SC）：接着 town_far 的云丘往右，没有房子（暗一档由 deck_dim 统一压）。"""
+    x0 = town_far.w - SEAM - 4
+    w = int(math.ceil(480 + (ROOM_W - 480) * FAR_SC)) + 4 - x0
+    rng = np.random.default_rng(61)
+    heaps = []
+    x = 18.0
+    while x < w:
+        heaps.append((x, 213, rng.uniform(30, 60), rng.uniform(4, 11)))
+        x += rng.uniform(34, 60)
+    F = Layer(w, H, x0, 0)
+    M = mound_cloud(w, heaps, 7, deck=207, lift=0.03)
+    M.ox = x0
+    F.over(M)
+    # town_far 云丘下面那截深色（和原图同一个颜色往下铺满），不然露出后面作者的云
+    col = town_far.a[:, -1]
+    for y in range(H):
+        if col[y, 3] == 255 and y > 200:
+            m = F.a[y, :, 3] < 255
+            F.a[y, m] = col[y]
+    stitch_into(F, town_far.a, town_far.w - 14, 14)
+    despeckle(F)
+    return F
+
+
+def build_deck_dim():
+    w = ROOM_W - DECK_X0
+    t = np.clip((np.arange(w) + 0.5) / DECK_DIM_RAMP, 0, 1)
+    a = np.zeros((H, w, 4), np.uint8)
+    a[..., :3] = hexc("#1d1530")
+    a[..., 3] = np.round(255 * DECK_DIM_A * t * t * (3 - 2 * t))[None, :]
+    return a
+
+
+def deck_layers():
+    """room.json 里云台那三层（插在小镇对应的层后面）"""
+    return {
+        "town_far": {"id": "deck_far", "img": "res://art/cloud_town/deck_far.png", "scroll": FAR_SC, "y": 0, "x": DECK_FAR_X[0]},
+        "cloud_midfar_over": {"id": "deck_dim", "img": "res://art/cloud_town/deck_dim.png", "scroll": 1.0, "y": 0, "x": DECK_X0},
+        "town_back": {"id": "deck_back", "img": "res://art/cloud_town/deck_back.png", "scroll": 1.0, "y": 0, "x": DECK_X0 - SEAM},
+        "town_main": {"id": "deck_main", "img": "res://art/cloud_town/deck_main.png", "scroll": 1.0, "y": 0, "x": DECK_X0 - SEAM},
+    }
+
+
+DECK_FAR_X = [0]
 
 
 def main():

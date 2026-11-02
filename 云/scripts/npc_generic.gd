@@ -204,10 +204,36 @@ func talk(on: bool) -> void:
 		play("idle")
 
 
+## 转身：json 写 "turn_fade": 秒 的（阿汀：奥斯卡的阴险守卫，背后的黑团子很大，一翻就整团从左跳到右）不硬翻，
+## 留一个旧朝向的替身原地 4 档淡出、新朝向 4 档淡入（11-02 作者：阿汀翻转的动静巨大，很破坏氛围）
 func face(dir: int) -> void:
 	if dir == 0:
 		return
-	facing = 1 if dir > 0 else -1
+	var nf := 1 if dir > 0 else -1
+	if nf == facing:
+		return
+	var tf := float(cur.get("turn_fade", 0.0))
+	if tf > 0.0 and visible and is_inside_tree() and spr != null and spr.texture != null:
+		var g := spr.duplicate() as Sprite2D
+		add_child(g)
+		g.z_index = spr.z_index
+		facing = nf
+		_show_frame()
+		var me := spr
+		var tw := create_tween()
+		tw.tween_method(func(k: float):
+			var a := floorf(k * 4.0) / 4.0
+			if is_instance_valid(me):
+				me.modulate.a = a
+			if is_instance_valid(g):
+				g.modulate.a = 1.0 - a, 0.0, 1.0, tf)
+		tw.tween_callback(func():
+			if is_instance_valid(g):
+				g.queue_free()
+			if is_instance_valid(me):
+				me.modulate.a = 1.0)
+		return
+	facing = nf
 	_show_frame()
 
 
@@ -235,11 +261,11 @@ func stop() -> void:
 
 
 ## 跟随：每帧给目标 x（弹簧追，欠阻尼一点点就停稳），dir_to = 停下以后朝哪看（晨的 x）
-func follow_to(tx: float, look_x: float, delta: float) -> void:
+## w = 弹簧有多硬（默认 6：很快贴上）；跟着晨走用软一点的（story_runner.FOLLOW_W），起步慢、慢慢加速追上、到了慢慢停
+func follow_to(tx: float, look_x: float, delta: float, w := 6.0) -> void:
 	if is_walking():
 		return
 	var d := tx - position.x
-	var w := 6.0
 	var acc := w * w * d - 2.0 * 0.9 * w * _vel
 	_vel = clampf(_vel + acc * delta, -speed * 2.2, speed * 2.2)
 	if absf(d) < 1.0 and absf(_vel) < 4.0:

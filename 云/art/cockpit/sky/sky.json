@@ -431,18 +431,6 @@
      "vy": 0
     },
     {
-     "id": "forest_ridge",
-     "y": 390,
-     "speed": 2.88,
-     "vy": 0.0
-    },
-    {
-     "id": "forest_far",
-     "y": 480,
-     "speed": 8.64,
-     "vy": 0.0
-    },
-    {
      "id": "cloud_far",
      "y": 0,
      "speed": 3.68,

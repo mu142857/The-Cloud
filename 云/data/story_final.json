@@ -31,8 +31,8 @@
 		"east_water": 1530,
 		"east_water_cup": 1758,
 		"east_wing": 1768,
-		"forest_crossroad": 2950,
-		"forest_deer": 3010,
+		"forest_crossroad": 3400,
+		"forest_deer": 3460,
 		"forest_treehouse": "treehouse",
 		"river_home_door": 0,
 		"river_home_niff": 0,
@@ -43,6 +43,7 @@
 		"town_bench": 0,
 		"town_crowd": 0,
 		"town_far_side": 0,
+		"town_deck_end": 0,
 		"town_fountain": 0,
 		"town_helper": 0,
 		"town_landing": 0,
@@ -54,15 +55,15 @@
 		"train_seat": 0,
 		"treehouse_door": "room_door",
 		"treehouse_miluo": "room_miluo",
-		"yard_elephant": 700,
+		"yard_elephant": 1090,
 		"yard_grass": 360,
-		"yard_hill": 1060,
+		"yard_hill": 1420,
 		"yard_landing": 120,
-		"yard_passerby": 530,
-		"yard_prints": 470,
+		"yard_passerby": 830,
+		"yard_prints": 640,
 		"yard_sign": 240,
 		"yard_soil": 900,
-		"yard_water": 610
+		"yard_water": 980
 	},
 	"rooms": ["cockpit", "reed_field", "town", "town_room", "forest", "treehouse", "river_bank", "river_home", "city", "home_train"],
 	"objectives": [
@@ -73,7 +74,7 @@
 		{"need": ["final_e1_soil"], "not": ["final_seed_planted"], "zh": "把种子种进湿土", "en": "Plant the seed in the damp soil", "show_fuel": false, "added": true},
 		{"need": ["final_e1_seed_todo"], "not": ["final_e1_soil"], "zh": "问问哪里能种种子", "en": "Ask where to plant the seed", "show_fuel": false, "added": true},
 		{"need": ["final_e1_prints"], "not": ["final_e1_met"], "zh": "往声音那边走", "en": "Follow the sound", "show_fuel": false, "added": true},
-		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "zh": "沿着指示牌去水源", "en": "Follow the sign to the water", "show_fuel": false, "added": true},
+		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "zh": "沿着指示牌，去大象喝水的地方", "en": "Follow the sign to where the elephant drinks", "show_fuel": false, "added": true},
 		{"need": ["final_e2_seed_done"], "not": ["final_e2_night", "final_epilogue"], "zh": "回飞机休息", "en": "Rest in the ship", "show_fuel": false, "added": true},
 		{"need": ["final_e2_seed_todo"], "not": ["final_seed_planted"], "zh": "把种子种进花圃", "en": "Plant the seed in the flower bed", "show_fuel": false, "added": true},
 		{"need": ["final_e2_dusk"], "not": ["final_e2_recorded"], "zh": "回飞机，把位置记下来", "en": "Back to the ship, note the location", "show_fuel": false, "added": true},
@@ -81,7 +82,7 @@
 		{"need": ["final_e3_seed_done"], "not": ["final_epilogue"], "zh": "回住处", "en": "Back to the lodging", "show_fuel": false, "added": true},
 		{"need": ["final_e3_seed_todo"], "not": ["final_seed_planted"], "zh": "把种子种进广场外的花圃", "en": "Plant the seed in the bed outside the plaza", "show_fuel": false, "added": true},
 		{"need": ["final_e3_round"], "not": ["final_e3_seed_todo", "final_e3_seed_done"], "zh": "回长椅那边", "en": "Go back to the bench", "show_fuel": false, "added": true},
-		{"need": ["final_e3_walk"], "not": ["final_e3_round"], "zh": "自己绕广场走一圈", "en": "Walk around the plaza on your own", "show_fuel": false, "added": true},
+		{"need": ["final_e3_walk"], "not": ["final_e3_round"], "zh": "自己走一圈：去广场外的云台", "en": "Take a walk on your own: out to the cloud pier", "show_fuel": false, "added": true},
 		{"need": ["final_e3_day3"], "not": ["final_e3_walk"], "zh": "自己绕到喷泉另一侧", "en": "Go round the fountain on your own", "show_fuel": false, "added": true},
 		{"need": ["final_e3_touched"], "not": ["final_e3_day3"], "zh": "出门", "en": "Go out", "show_fuel": false, "added": true},
 		{"need": ["final_e3_day1"], "not": ["final_e3_touched"], "zh": "回住处", "en": "Back to the lodging", "show_fuel": false, "added": true},
@@ -92,10 +93,10 @@
 		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "lines": [{"zh": "妮芙还在等我讲完。", "en": "Niff's still waiting for me to finish.", "added": true}]},
 		{"need": ["final_epi_deer"], "not": ["final_epi_miluo"], "lines": [{"zh": "弥洛的树屋，就在前面。", "en": "Milo's treehouse is just ahead.", "added": true}]},
 		{"need": ["final_e1_prints"], "not": ["final_e1_met"], "lines": [{"zh": "咀嚼的声音……在水边。", "en": "Chewing... by the water.", "added": true}]},
-		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "lines": [{"zh": "指示牌指着水源。", "en": "The sign points to the water.", "added": true}, {"zh": "……先去看看。", "en": "...I'll go take a look.", "added": true}]},
+		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "lines": [{"zh": "指示牌指着大象喝水的地方。", "en": "The sign points to where the elephant drinks.", "added": true}, {"zh": "……先去看看。", "en": "...I'll go take a look.", "added": true}]},
 		{"need": ["final_e2_landed"], "not": ["final_e2_seen"], "lines": [{"zh": "低鸣在坡下面。", "en": "The rumble's down the slope.", "added": true}]},
 		{"need": ["final_e3_landed"], "not": ["final_e3_day1"], "lines": [{"zh": "他们都往喷泉那边走。", "en": "Everyone's heading for the fountain.", "added": true}]},
-		{"need": ["final_e3_walk"], "not": ["final_e3_round"], "lines": [{"zh": "广场那头，还没看过。", "en": "Haven't checked the far end of the plaza.", "added": true}]}
+		{"need": ["final_e3_walk"], "not": ["final_e3_round"], "lines": [{"zh": "住处再往外，还有一段云台。", "en": "Past the lodging, there's a pier out into the clouds.", "added": true}]}
 	],
 	"hotspots": [
 		{"id": "ck_bell", "at": "cockpit_bell", "room": "cockpit", "label": {"zh": "铜铃", "en": "Copper Bell"}, "need": ["final_started"], "not": ["final_descend", "final_ending_4", "burned_copper_bell"], "once": false, "scene": "ck_bell"},
@@ -125,7 +126,7 @@
 		{"id": "town_lodging_1", "at": "town_lodging", "room": "town", "label": {"zh": "住处", "en": "Lodging"}, "need": ["final_e3_day1"], "not": ["final_e3_touched"], "once": false, "scene": "e3_touch"},
 		{"id": "townroom_door", "at": "townroom_door", "room": "town_room", "label": {"zh": "门", "en": "Door"}, "need": ["final_e3_touched"], "not": ["final_e3_day3"], "once": false, "scene": "e3_confess"},
 		{"id": "town_back", "at": "town_back_side", "room": "town", "label": {"zh": "喷泉另一侧", "en": "Other side of the fountain"}, "need": ["final_e3_day3"], "not": ["final_e3_walk"], "once": false, "scene": "e3_listen", "trigger": "enter", "range": 30},
-		{"id": "town_far", "at": "town_far_side", "room": "town", "label": {"zh": "广场那头", "en": "Far end of the plaza"}, "need": ["final_e3_walk"], "not": ["final_e3_round"], "once": false, "scene": "e3_round", "trigger": "enter", "range": 30},
+		{"id": "town_far", "at": "town_deck_end", "room": "town", "label": {"zh": "云台尽头", "en": "End of the cloud pier"}, "need": ["final_e3_walk"], "not": ["final_e3_round"], "once": false, "scene": "e3_round", "trigger": "enter", "range": 30},
 		{"id": "town_bench", "at": "town_bench", "room": "town", "label": {"zh": "长椅", "en": "Bench"}, "need": ["final_e3_round"], "not": ["final_e3_seed_todo", "final_e3_seed_done"], "once": false, "scene": "e3_bench"},
 		{"id": "town_fountain_look", "at": "town_fountain", "room": "town", "label": {"zh": "喷泉", "en": "Fountain"}, "need": ["final_e3_walk"], "not": [], "once": false, "scene": "e3_fountain_look"},
 		{"id": "town_bench_chat", "at": "town_bench", "room": "town", "label": {"zh": "居民", "en": "Local"}, "need": ["final_e3_walk"], "not": ["final_e3_round"], "once": false, "scene": "e3_townsfolk_chat"},
@@ -570,6 +571,9 @@
 			{"do": "prop", "id": "cockpit_phone", "state": "face_down"},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
 			{"say": "chen", "zh": "这些我也舍不得，得再想想。", "en": "I can't let go of these either. I need to think."},
+			{"do": "flashback", "id": 4, "place": "street", "end": "still", "hold": true, "lines": [
+				{"zh": "可大象就算在那儿，她也不一定回我啊。", "en": "But even if the elephant's there, she might not write back."}], "added": true},
+			{"do": "flashback_wake", "wait": false},
 			{"do": "if", "flag": "burned_copper_bell", "then": "approach_rope", "else": "approach_bell"}
 		],
 		"approach_bell": [
@@ -592,7 +596,6 @@
 			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
 			{"do": "sfx", "name": "cloud_part"},
 			{"narr": {"zh": "地面信号恢复。", "en": "Ground signal restored."}, "added": true},
-			{"do": "prop", "id": "cockpit_window", "state": "cloud_part"},
 			{"do": "wait", "sec": 1.0},
 			{"narr": {"zh": "西侧：旧货场。运输船号对上了。", "en": "West: old freight yard. Transport ship number matches."}, "added": true},
 			{"do": "sfx", "name": "elephant_low_call", "pan": 0.8},
@@ -639,8 +642,7 @@
 		],
 		"ending1": [
 			{"do": "flag", "set": "final_ending_1"},
-			{"do": "prop", "id": "cockpit_window", "state": "land_west"},
-			{"do": "wait", "sec": 2.5},
+			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
 			{"do": "fade_to", "room": "reed_field", "at": "yard_landing"},
 			{"do": "sfx", "name": "rough_landing"},
 			{"do": "wait", "sec": 1.5},
@@ -655,7 +657,7 @@
 		],
 		"yard_sign": [
 			{"say": "chen", "zh": "运输记录里的指示牌。", "en": "The sign from the transport records.", "added": true},
-			{"say": "chen", "zh": "箭头指着水源。", "en": "The arrow points to the water.", "added": true}
+			{"say": "chen", "zh": "箭头往东……写着「饮水处，大型动物」。", "en": "The arrow points east... \"Watering spot, large animals.\"", "added": true}
 		],
 		"yard_grass": [
 			{"say": "chen", "zh": "草被压倒了。", "en": "The grass is flattened.", "added": true},
@@ -880,8 +882,7 @@
 		],
 		"ending2": [
 			{"do": "flag", "set": "final_ending_2"},
-			{"do": "prop", "id": "cockpit_window", "state": "land_east"},
-			{"do": "wait", "sec": 2.5},
+			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
 			{"do": "fade_to", "room": "reed_field", "at": "east_landing"},
 			{"do": "sfx", "name": "rough_landing"},
 			{"do": "wait", "sec": 1.5},
@@ -1101,8 +1102,7 @@
 		],
 		"ending3": [
 			{"do": "flag", "set": "final_ending_3"},
-			{"do": "prop", "id": "cockpit_window", "state": "land_town"},
-			{"do": "wait", "sec": 2.5},
+			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
 			{"do": "fade_to", "room": "town", "at": "town_landing"},
 			{"do": "sfx", "name": "landing_soft"},
 			{"do": "show", "who": "townsfolk", "at": "town_helper"},
@@ -1257,11 +1257,17 @@
 		],
 		"e3_wait": [
 			{"say": "townsfolk", "zh": "那我坐这儿等你。", "en": "I'll sit here and wait for you."},
+			{"do": "follow", "who": "townsfolk", "on": false},
 			{"do": "walk", "who": "townsfolk", "to": "town_bench"},
 			{"do": "anim", "who": "townsfolk", "name": "sit"},
+			{"do": "ambient", "name": "plaza_crowd", "at": "town_fountain", "on": true},
+			{"do": "ambient", "name": "fountain", "at": "town_fountain", "on": true, "dist": 640},
+			{"do": "ambient", "name": "cloud_wind", "at": "town_deck_end", "on": true, "dist": 760},
 			{"do": "flag", "set": "final_e3_walk"}
 		],
 		"e3_round": [
+			{"do": "wait", "sec": 1.5},
+			{"narr": {"zh": "喷泉和人声都远了，只剩风。", "en": "The fountain and the voices have faded. Only the wind."}, "added": true},
 			{"do": "anim", "who": "chen", "name": "look_up"},
 			{"do": "wait", "sec": 1.5},
 			{"say": "chen", "zh": "……", "en": "...", "added": true},
@@ -1302,7 +1308,7 @@
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "journal_strike", "match": "今天，我终于见到了大象"},
 			{"do": "journal", "zh": "昨天我看见一块空地，伸出去的手也落了空。那时候不好意思说。", "en": "Yesterday I saw empty ground, and my hand reached into nothing. I was too embarrassed to say so then."},
-			{"do": "journal", "zh": "今天：喷泉这边、另一侧、长椅旁边，都看过。", "en": "Today: this side of the fountain, the other side, by the bench. Looked at all of it.", "added": true},
+			{"do": "journal", "zh": "今天：喷泉这边、另一侧、云台尽头、长椅旁边，都看过。", "en": "Today: this side of the fountain, the other side, the end of the cloud pier, by the bench. Looked at all of it.", "added": true},
 			{"do": "journal", "zh": "（画了喷泉的形状）下次换一条路线。", "en": "(a sketch of the fountain) Try a different route next time.", "added": true},
 			{"do": "wait", "sec": 1.5},
 			{"do": "show_item", "item": "elephant_drawing"},

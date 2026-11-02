@@ -603,6 +603,19 @@ func walls() -> Vector2:
 		if chen_stair >= 0:
 			var s: Dictionary = _stairs[chen_stair]
 			w = Vector2(minf(s["xa"], s["xb"]), maxf(s["xa"], s["xb"]))
+	var wc := _walk_when()
+	if not wc.is_empty():
+		w = _v2(wc.get("walk", [w.x, w.y]), w)
+	if walk_override is Vector2:
+		w = walk_override
+	var rope = cfg.get("rope", null)
+	if rope is Dictionary and rope_on():
+		w.y = minf(w.y, float(rope.get("end", w.y)))
+	return Vector2(origin.x + w.x, origin.x + w.y)
+
+
+## walk_when 里第一个满足的那条（都不满足 = {}）
+func _walk_when() -> Dictionary:
 	for wc in cfg.get("walk_when", []):
 		if not wc is Dictionary:
 			continue
@@ -612,14 +625,8 @@ func walls() -> Vector2:
 			var parts := pr.split("=")
 			ok = world != null and str(world.prop_state(parts[0])) == parts[1]
 		if ok:
-			w = _v2(wc.get("walk", [w.x, w.y]), w)
-			break
-	if walk_override is Vector2:
-		w = walk_override
-	var rope = cfg.get("rope", null)
-	if rope is Dictionary and rope_on():
-		w.y = minf(w.y, float(rope.get("end", w.y)))
-	return Vector2(origin.x + w.x, origin.x + w.y)
+			return wc
+	return {}
 
 
 func set_walk(w: Vector2) -> void:
@@ -782,7 +789,15 @@ func clamp_cam_x(x: float) -> float:
 		return host.clamp_cam_x(x)
 	if size.x <= 480.0:
 		return origin.x + size.x / 2.0
-	return clampf(x, origin.x + 240.0, origin.x + size.x - 240.0)
+	# room.json "cam": [左, 右] = 镜头能看到的范围（房间 x，不写 = 整个房间）；walk_when 那条也可以带 cam（结局三的云台：没开放那几天镜头不往那边看）
+	var c: Vector2 = _v2(cfg.get("cam", [0, size.x]), Vector2(0, size.x))
+	var wc := _walk_when()
+	if wc.has("cam"):
+		c = _v2(wc["cam"], c)
+	c = Vector2(maxf(c.x, 0.0), minf(c.y, size.x))
+	if c.y - c.x <= 480.0:
+		return origin.x + (c.x + c.y) / 2.0
+	return clampf(x, origin.x + c.x + 240.0, origin.x + c.y - 240.0)
 
 
 ## 两头的入口：[{edge, to, at, kind, need, not, x}]

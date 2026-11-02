@@ -75,6 +75,10 @@ extends Node
 ##                           出来以后、远处树冠晃到一半时也各存一张（ui_choice / ui_items / ui_elephant）
 ##   --beat=<flag>           直接跳到「设这个 flag 的那个 scene 播完」的样子（瞬间把前面的都过一遍：flags、物品、NPC 位置都对）
 ##   --story_check           只检查剧本（引用不到的 marker / scene / item、不支持的步骤……），打印 STORY_CHECK 后退出
+## 母星闪回（11-02）：{"do": "flashback", "id", "place", "end", "lines", "fall", "hold"} / {"do": "flashback_wake", "wait"}，
+##   玩法和参数见 scripts/flashback.gd 文件头；四次在哪、F8 怎么看见 docs/闪回_实现说明.md。
+##   --fb_dev=N              和 --beat=（FLASHBACK_DEV 里那一行的 beat）一起：跳完节拍从第 N 次闪回前几步开始播（= F8「闪回 N」）
+##   --fb_caught             自动玩到闪回时站着不动（走被追上那条路）；--fb_full 自动玩也按真实时长播闪回
 ##   --auto_to=<flag>        自动玩遇到点选时，优先选「走下去会设这个 flag」的那个（夜间测试：从森林连着玩到指定结局，如 final_ending_3）
 
 const DEFAULT_STORY := "res://data/story_forest.json"
@@ -86,7 +90,8 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"choice", "elephant_call", "journal_strike", "count", "journal_mark", "drawing_closeup", "treeline_match", "fuel", "camera",
 	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup",   # 后六个：多房间章节（docs/river_rooms_contract.md）
 	"pose",   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
-	"barter"]   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
+	"barter",   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
+	"flashback", "flashback_wake"]   # 母星闪回（scripts/flashback.gd）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
@@ -123,6 +128,16 @@ const PHONE_GD := preload("res://scripts/phone_ui.gd")
 const BARK_GD := preload("res://scripts/story_bark.gd")      # say 带 bark：晨头顶的小气泡（不锁人）
 const QUICK_GD := preload("res://scripts/story_quick.gd")    # give 数组、走过去就捡（hotspot pickup）
 const BARTER_GD := preload("res://scripts/barter.gd")         # 以物易物（大嘴鸟、料理鼠妈…）
+const FLASHBACK_GD := preload("res://scripts/flashback.gd")   # 母星闪回（4 次）
+const FLASHBACK_LAYER := 55                                     # 闪回那一层：盖在黑幕（Top 50）上面、F8 面板（60）下面
+## F8 传送页的「闪回」按钮（dev_panel.gd）：重新载入那一章、跳节拍到 beat，再从 scene 里闪回那一步往前 back 步开始播
+const FLASHBACK_DEV := [
+	{"id": 1, "chapter": "forest", "beat": "fog_on", "scene": "went_wrong_first", "back": 3, "zh": "森林迷雾"},
+	{"id": 2, "chapter": "forest", "beat": "slope_talked", "scene": "slope_b", "back": 1, "zh": "森林坡地"},
+	{"id": 3, "chapter": "river", "beat": "river_deer_msg", "scene": "home_wait_talk", "back": 4, "zh": "妮芙家"},
+	{"id": 4, "chapter": "final", "beat": "final_fuel_done", "scene": "approach_page", "back": 99, "zh": "燃料柜"},
+]
+const DEV_FB_META := "the_cloud_dev_flashback"
 
 var level: Node2D
 var path := ""
@@ -138,6 +153,7 @@ var bark: Control                    # 头顶小气泡（story_bark.gd）
 var quick: RefCounted                # story_quick.gd
 var barter: RefCounted               # barter.gd
 var cockpit_ui: Control              # 正在等玩家的驾驶舱步骤（避碎石 / 选纪念品；软锁检测用）
+var flashback_ui: Control            # 闪回停在黑 / 白上、等 flashback_wake 的那一层（flashback.gd，hold）
 var missing_anims := {}              # 剧本要、晨还没有的动作（MISSING_ANIM，给奥斯卡画）
 const CHEN_ALIAS := "res://data/chen_anim_alias.json"
 var _chen_alias = null                # chen_alias() 读进来的别名表
@@ -446,6 +462,8 @@ func play(id: String, manage := true, from_index := 0) -> void:
 			ff_resume = next                 # 跳节拍（别的章节）：设目标 flag 的 scene 播完就停，后面的由关卡正常播
 			break
 		cur = next
+	if flashback_ui != null and not ended:
+		await _flashback_wake()              # 剧本 hold 了却没写 flashback_wake：播完这段自己醒，别停在黑屏上
 	dlg.close_box()
 	if view:
 		await world.treeline_view_out(0.7 if auto == "" else 0.3)
@@ -554,7 +572,10 @@ func _step(st: Dictionary) -> String:
 		"anim":
 			_anim(st)
 		"prop":
-			world.set_prop(str(st.get("id", "")), str(st.get("state", "")))
+			if st.has("glide"):
+				await _prop_glide(st)
+			else:
+				world.set_prop(str(st.get("id", "")), str(st.get("state", "")))
 		"guide":
 			await _guide(st)
 			if not pending_guide.is_empty() and not pending_guide.has("scene"):
@@ -669,6 +690,13 @@ func _step(st: Dictionary) -> String:
 		"barter":
 			var bs: String = await barter.run(st)
 			return bs
+		"flashback":
+			await _flashback(st)
+		"flashback_wake":
+			if st.get("wait", true):
+				await _flashback_wake()
+			else:
+				_flashback_wake()
 		_:
 			_warn_once("不认识的步骤：" + JSON.stringify(st))
 	return ""
@@ -700,6 +728,59 @@ func _fuel_step(st: Dictionary) -> void:
 static func fuel_of(id: String) -> int:
 	var it := Inventory.item(id)
 	return int(it.get("keepsake_burn", it.get("burn", 0)))
+
+
+## 母星闪回（flashback.gd）：自己一层 CanvasLayer（FLASHBACK_LAYER），等它播完；hold 的留着，等 flashback_wake 睁眼
+func _flashback(st: Dictionary) -> void:
+	if ff or free_roam:
+		return
+	if flashback_ui != null:
+		await _flashback_wake()              # 上一次停着没醒的先醒
+	var layer := CanvasLayer.new()
+	layer.name = "Flashback"
+	layer.layer = FLASHBACK_LAYER
+	level.add_child(layer)
+	var n: Control = FLASHBACK_GD.new()
+	layer.add_child(n)
+	dlg.close_box()
+	_enter_scene = false                     # 闪回以后晨醒在别处：不再是「走到边上触发」的那一刻，后面的 walk 照常走（不推人的规矩管不到）
+	cockpit_ui = n                           # 软锁检测：这期间是在等玩家的界面
+	await n.play(self, st)
+	cockpit_ui = null
+	if is_instance_valid(n) and bool(st.get("hold", false)):
+		flashback_ui = n
+
+
+func _flashback_wake() -> void:
+	var n := flashback_ui
+	flashback_ui = null
+	if n != null and is_instance_valid(n):
+		await n.wake()
+
+
+## F8「闪回」按钮跳过来的：节拍跳完以后从闪回前几步开始播（level_forest.gd 的 _ff_done 拿走）；没有 = {}
+func dev_flashback_take() -> Dictionary:
+	if not Engine.has_meta(DEV_FB_META):
+		# 命令行 --fb_dev=N（和 --beat= 一起，headless 测试用；只第一次）：和点 F8 的「闪回 N」一样
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with("--fb_dev=") and not Engine.has_meta(DEV_FB_META + "_cli"):
+				Engine.set_meta(DEV_FB_META + "_cli", true)
+				for d in FLASHBACK_DEV:
+					if int(d["id"]) == int(a.trim_prefix("--fb_dev=")):
+						Engine.set_meta(DEV_FB_META, d)
+	if not Engine.has_meta(DEV_FB_META):
+		return {}
+	var d = Engine.get_meta(DEV_FB_META)
+	Engine.remove_meta(DEV_FB_META)
+	if not d is Dictionary or not scenes.has(str(d.get("scene", ""))):
+		return {}
+	var steps: Array = scenes[str(d["scene"])]
+	var at := 0
+	for i in steps.size():
+		if steps[i] is Dictionary and str(steps[i].get("do", "")) == "flashback":
+			at = i
+			break
+	return {"scene": str(d["scene"]), "index": maxi(0, at - int(d.get("back", 0)))}
 
 
 ## 驾驶舱步骤：建那个界面（挂在对话界面下，按键先到它那里），等它播完；返回要跳去的 scene（"" = 接着播）
@@ -910,9 +991,9 @@ func _lv_walk(n: Node2D, sg: Node2D, to_lv: int, x: float, st := {}) -> void:
 		sp = clampf(path_len / (WALK_WAIT_MAX + 1.0), sp, sp * WALK_HURRY)
 	for e in route:
 		if n == chen:
-			await _chen_walk(float(e["x0"]))
+			await _chen_walk(float(e["x0"]), true)
 			sg.chen_stair = int(e["si"])
-			await _chen_walk(float(e["x1"]))
+			await _chen_walk(float(e["x1"]), true)
 			sg.chen_stair = -1
 			sg.chen_lv = int(e["to"])
 		else:
@@ -968,16 +1049,18 @@ func _deer_moving() -> bool:
 	return deer.is_running()
 
 
-func _chen_walk(x: float) -> void:
+## solo = true（走石阶用）：不为路上的人停步、不等人——走楼梯是一整段路，半路停在楼梯口旁边会被直接接到斜线上（y 一下跳上去 = 闪现），
+## 每帧在「停 / 走」之间来回切又让跑步动画起不来（单脚滑）。11-02 作者：妮芙家第一次上楼闪现、晨没有跑步动画在单脚滑。路上的人自己让（_make_way）。
+func _chen_walk(x: float, solo := false) -> void:
 	var t := 0.0
 	var dir := signf(x - chen.position.x)
 	while dir != 0.0:
-		var d := _chen_no_pass(x, true) - chen.position.x      # 走着走着前面有人站下了：停在他旁边
+		var d := (x if solo else _chen_no_pass(x, true)) - chen.position.x      # 走着走着前面有人站下了：停在他旁边
 		if absf(d) <= 2.0 + chen.stop_distance() or signf(d) != dir:
 			break
 		if level.player_free():
 			break                            # 过场播完了（walk 带 wait:false 的还没走到）：松手，绝不推着玩家走
-		chen.auto_dir = 0.0 if _chen_blocked(dir) else dir     # 前面的人还在走：跟在后面等一下，不撞上去
+		chen.auto_dir = dir if solo else (0.0 if _chen_blocked(dir) else dir)     # 前面的人还在走：跟在后面等一下，不撞上去
 		await get_tree().process_frame
 		t += get_process_delta_time()
 		if t > 20.0:
@@ -1400,7 +1483,12 @@ func _ambient_step(st: Dictionary) -> void:
 	a.attenuation = 1.6
 	a.volume_db = float(st.get("db", 0.0))
 	level.add_child(a)
-	a.global_position = Vector2(float(r.get("x", 0.0)), 200.0)
+	var ax := float(r.get("x", 0.0))
+	var ay := 200.0
+	var rid := str(r.get("room", ""))
+	if world.stages.has(rid):
+		ay = (world.stages[rid] as Node2D).call("ground_y", ax) - 20.0     # 多房间章节的房间不在 y=0 那一行（小镇在 1620 往下）：放到那间房的地面上
+	a.global_position = Vector2(ax, ay)
 	a.finished.connect(a.play)       # 循环（.import 里已经设了 loop 的音效不会发 finished，这句就不起作用，也没关系）
 	a.play()
 	_ambient[key] = a
@@ -1617,6 +1705,7 @@ func _place_residents(room: String) -> void:
 			n.set_meta("pose_z", int(rd["z"]))
 			n.z_index = int(rd["z"])
 		n._set_facing(int(rd.get("face", 1)))
+		n.set_meta("resident", true)          # 住在这儿的人钉在原地：晨走过来不飘开让路（11-02 作者：水母被推离了柜台）
 		n.visible = true
 
 
@@ -2239,6 +2328,28 @@ func _would_progress(s: String, seen: Dictionary) -> bool:
 	return false
 
 
+## 走进 trigger:"enter" 的点能连着播到的 scene（不推人的检查用）：闪回以后的不算（晨晕过去、醒在别处，不再是走到边上的那一刻）
+func _reach_enter(s: String, seen: Dictionary) -> Array:
+	if seen.has(s) or not scenes.has(s):
+		return seen.keys()
+	seen[s] = true
+	for st in scenes[s]:
+		if not st is Dictionary:
+			continue
+		match str(st.get("do", "")):
+			"flashback":
+				break
+			"goto":
+				_reach_enter(str(st.get("scene", "")), seen)
+			"if":
+				_reach_enter(str(st.get("then", "")), seen)
+				_reach_enter(str(st.get("else", "")), seen)
+			"pick", "choice":
+				for o in st.get("options", []):
+					_reach_enter(str(o.get("scene", "")), seen)
+	return seen.keys()
+
+
 ## 从 s 出发 goto / if / pick 能到的所有 scene
 func _reach(s: String, seen: Dictionary) -> Array:
 	if seen.has(s) or not scenes.has(s):
@@ -2341,6 +2452,8 @@ func _process(delta: float) -> void:
 	_update_follow(delta)
 	if _overlap_log and not ff:
 		_check_overlap()
+	if _jump_log and not ff:
+		_check_jumps()
 	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood")):
 		alarm(false)
 	if not ended and not ff and not free_roam:
@@ -2708,6 +2821,27 @@ func validate() -> Array[String]:
 				"journal_strike", "journal_mark":
 					if str(st.get("match", "")) == "":
 						out.append("scene %s：%s 没有 match" % [id, kind])
+				"flashback":
+					var fid := int(st.get("id", 0))
+					if fid < 1 or fid > 4:
+						out.append("scene %s：flashback 的 id 要是 1～4（%s）" % [id, st.get("id")])
+					if not str(st.get("place", "street")) in ["street", "station"]:
+						out.append("scene %s：flashback 的 place 只能是 street / station（都是闪回 1 那条城市街，scenes/city_test.tscn）（%s）" % [id, st.get("place")])
+					if not str(st.get("end", "black")) in ["black", "door", "white", "still"]:
+						out.append("scene %s：flashback 的 end 只能是 black / door / white / still（%s）" % [id, st.get("end")])
+					for l in st.get("lines", []):
+						if not l is Dictionary or str(l.get("zh", "")) == "":
+							out.append("scene %s：flashback 的独白没有 zh" % id)
+					for nm3 in FLASHBACK_GD.SOUNDS:
+						if _sfx_path(nm3) == "":
+							missing_sfx[nm3] = true
+					if bool(st.get("hold", false)):
+						var woke := false
+						for st3 in arr.slice(arr.find(st) + 1):
+							if st3 is Dictionary and str(st3.get("do", "")) == "flashback_wake":
+								woke = true
+						if not woke:
+							out.append("scene %s：flashback %d 写了 hold，后面没有 flashback_wake（会播完这段才醒）" % [id, fid])
 				"elephant_call":
 					var nm2 := "elephant_call_%d" % int(st.get("variant", 1))
 					if _sfx_path(nm2) == "":
@@ -2795,7 +2929,7 @@ func validate() -> Array[String]:
 							out.append("info: scene %s：pick 选项 %s 场景里没有这个物件（用下面一排按钮）" % [id, pid])
 	for h in hotspot_defs:
 		if h is Dictionary and hotspots.is_enter(h) and not bool(h.get("cutscene", false)):
-			for s in _reach(str(h.get("scene", "")), {}):
+			for s in _reach_enter(str(h.get("scene", "")), {}):
 				for st in scenes.get(s, []):
 					if st is Dictionary and str(st.get("do", "")) == "walk" and str(st.get("who", "chen")) == "chen":
 						out.append("scene %s（hotspot %s 走进去触发）：晨的 walk 不执行——不推人，停在看得见的边上" % [s, h.get("id")])
@@ -3127,7 +3261,7 @@ func _update_follow(delta: float) -> void:
 		_make_way(n, _side_gap(n, float(follow[who])), free, delta)
 	# 没在跟着晨、但会飘开让路的（妮芙的鲸鱼壳悬浮着：hover）：晨走过来也让开
 	for n in npcs.values():
-		if follow.has(str(n.get("npc_id"))) or not n.visible or _room_of(n) != world.room or n.has_meta("lv_climbing"):
+		if follow.has(str(n.get("npc_id"))) or not n.visible or _room_of(n) != world.room or n.has_meta("lv_climbing") or n.has_meta("resident"):
 			continue
 		if not (n.get("cur") is Dictionary and float((n.get("cur") as Dictionary).get("hover", 0.0)) > 0.0):
 			continue
@@ -3192,9 +3326,65 @@ func _clear_stair_end(n: Node2D, sg: Node2D, gap: float, delta: float) -> void:
 
 ## 人和人不叠：跟着晨 / 会让路的人待在她现在那一边（晨转身她不从晨身上穿过去），只有被挤到墙边才绕到另一边。
 ## follow = 自由走的时候跟在晨这一边 gap 远；不跟的时候只在晨冲她走过来时让开（弹簧平滑飘开，追不上再硬推）
+## 11-02 作者：「推着 npc 走、和 npc 一起平移一直是个问题……你得开始走，然后 npc 一个 tween 加速，再慢慢跟上」。
+##   跟着走：晨起步以后她先停 FOLLOW_DELAY 秒，再用软弹簧（FOLLOW_W）慢慢加速追上、到了慢慢停——不再和晨焊在一起平移。
+##   晨冲她走过来（她在晨要去的那边）：浮着的（妮芙的鲸鱼壳）不再被顶着往前推，而是从晨头顶划一道弧（SWAP_ARC 高、SWAP_SEC 秒，
+##   smoothstep）飘到晨身后，接着跟。不浮着的照旧让开。
+const FOLLOW_W := 3.0
+const FOLLOW_DELAY := 0.3
+const SWAP_SEC := 0.8
+const SWAP_ARC := 22.0
+
+
+func _is_hover(n: Node2D) -> bool:
+	var c = n.get("cur")
+	return c is Dictionary and float((c as Dictionary).get("hover", 0.0)) > 0.0
+
+
+## 从晨头顶飘到另一边：x 沿 smoothstep 从起点走到「晨身后 gap」（跟着晨现在的位置算），y 是正弦拱
+func _swap_step(n: Node2D, gap: float, delta: float) -> void:
+	var t := float(n.get_meta("swap_t")) + delta
+	var k := clampf(t / SWAP_SEC, 0.0, 1.0)
+	var e := k * k * (3.0 - 2.0 * k)
+	var sd := float(n.get_meta("swap_side"))
+	var w: Vector2 = world.walls(chen.position.x)
+	var tx := clampf(chen.position.x + sd * gap, w.x + 4.0, w.y - 4.0)
+	var x0 := float(n.get_meta("swap_x0"))
+	var x := lerpf(x0, tx, e)
+	n.face(1 if tx > x0 else -1)
+	n.play("walk")
+	n.position.x = round(x)
+	n._snap_y()
+	n.position.y -= round(SWAP_ARC * sin(PI * e))
+	n.set_meta("swap_t", t)
+	if k >= 1.0:
+		n.remove_meta("swap_t")
+		n._x = n.position.x
+		n._vel = chen._vel * signf(chen.facing) if chen._vel > 0.0 else 0.0
+		n.set_meta("f_hold", 0.0)
+
+
 func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
+	if n.has_meta("swap_t"):
+		_swap_step(n, gap, delta)
+		return
 	var dx := n.position.x - chen.position.x
+	# 晨冲她走过来、快挨上了：浮着的从晨头顶飘到身后（不被推着走）
+	if _is_hover(n) and not n.is_walking() and chen._vel > 0.0 and absf(dx) >= 1.0 and signf(chen.facing) == signf(dx) \
+			and absf(dx) < gap + 18.0:
+		var wb: Vector2 = world.walls(chen.position.x)
+		var bx := chen.position.x - signf(chen.facing) * gap
+		if bx > wb.x + 4.0 and bx < wb.y - 4.0:
+			n.set_meta("swap_t", 0.0)
+			n.set_meta("swap_x0", n.position.x)
+			n.set_meta("swap_side", -signf(chen.facing))
+			_swap_step(n, gap, delta)
+			return
 	var side := signf(dx) if absf(dx) >= 1.0 else (-1.0 if chen.facing > 0 else 1.0)
+	# 叠在一起的时候（|dx| 不到半个间距）别每帧重新挑边：上一帧挑哪边就接着往哪边让，不然左右来回翻、一下弹出去（11-02 作者：重叠时光速弹开）
+	if absf(dx) < gap * 0.5 and n.has_meta("mw_side"):
+		side = float(n.get_meta("mw_side"))
+	n.set_meta("mw_side", side)
 	var w: Vector2 = world.walls(chen.position.x)
 	var swap := false
 	if chen.position.x + side * gap < w.x + 4.0 or chen.position.x + side * gap > w.y - 4.0:
@@ -3204,13 +3394,46 @@ func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
 	if follow_on:
 		if absf(tx - n.position.x) < 4.0 and chen._vel <= 0.0:
 			tx = n.position.x
-		n.follow_to(tx, chen.position.x, delta)
+		# 晨刚起步：她先停半拍再追（晨停着的时候记下来，起步那一刻开始数）
+		if chen._vel <= 0.0:
+			n.set_meta("f_idle", true)
+		elif n.get_meta("f_idle", false):
+			n.set_meta("f_idle", false)
+			n.set_meta("f_hold", FOLLOW_DELAY)
+		var hold := float(n.get_meta("f_hold", 0.0))
+		if hold > 0.0:
+			n.set_meta("f_hold", hold - delta)
+			if dx * side >= gap - 0.5:
+				tx = n.position.x
+		n.follow_to(tx, chen.position.x, delta, FOLLOW_W)
 	elif not n.is_walking() and chen._vel > 0.0 and dx * side < gap + 16.0 and signf(chen.facing) == side:
-		n.follow_to(tx, chen.position.x, delta)           # 晨冲她走过来：先飘开
+		n.follow_to(tx, chen.position.x, delta, 4.0 if _is_hover(n) else 6.0)           # 晨冲她走过来：先飘开
+	_keep_in(n, w, delta)
 	# 弹簧追不上（晨跑过来、过场里晨走过她身边）：直接推开，鲸鱼壳不压到晨身上
-	if not swap and not n.is_walking() and dx * side < gap - 0.5 and absf(tx - chen.position.x) >= gap - 0.5:
+	# 浮着的（妮芙）不硬推：她要么从晨头顶飘过去（上面 swap），要么弹簧自己让开——硬推就是「闪现」、被推着倒着走（11-02 作者）
+	if not swap and not _is_hover(n) and not n.is_walking() and dx * side < gap - 0.5 and absf(tx - chen.position.x) >= gap - 0.5:
 		n.position.x = round(tx)
 		n._snap_y()
+
+
+## 让路 / 跟随的人：每秒最多挪 MAKE_WAY_MAX 像素（弹簧离得远时会冲得很快，看着像「光速弹开」），也不出墙
+const MAKE_WAY_MAX := 110.0
+
+func _keep_in(n: Node2D, w: Vector2, delta: float) -> void:
+	if n.is_walking():
+		return
+	var last := float(n.get_meta("mw_x", n.position.x))
+	if absf(n.position.x - last) > 60.0 or str(n.get_meta("mw_room", "")) != world.room:
+		last = n.position.x                  # 剧本把她放到别处了（换房间、show、walk 完）：从新位置算，不往回拽
+	n.set_meta("mw_room", world.room)
+	var x := clampf(n.position.x, last - MAKE_WAY_MAX * delta - 1.0, last + MAKE_WAY_MAX * delta + 1.0)
+	x = clampf(x, w.x + 4.0, w.y - 4.0)
+	if absf(x - n.position.x) >= 0.5:
+		n.position.x = round(x)
+		n._x = n.position.x
+		n._vel = clampf(n._vel, -MAKE_WAY_MAX, MAKE_WAY_MAX)
+		n._snap_y()
+	n.set_meta("mw_x", n.position.x)
 
 
 ## 跟在晨旁边至少隔多远才不叠到晨身上：比人宽的（妮芙的鲸鱼壳 71 宽，锚点到边 36）= 锚点到最远一边 + 晨半个身子 13 + CLEAR_GAP；
@@ -3362,6 +3585,8 @@ func _chen_no_pass(x: float, quiet := false) -> float:
 func _gives_way(n: Node2D) -> bool:
 	if follow.has(str(n.get("npc_id"))):
 		return true
+	if n.has_meta("resident"):
+		return false                         # 住在这儿的（柜台后面的水母）不让：晨停在它旁边
 	var c = n.get("cur")
 	return c is Dictionary and float((c as Dictionary).get("hover", 0.0)) > 0.0
 
@@ -3446,6 +3671,26 @@ func _check_overlap() -> void:
 				_overlap_on[key] = true
 			else:
 				_overlap_on.erase(key)
+
+
+## 调试（--jump_log）：每帧查看得见的人有没有一帧跳很远（「闪现」），打印 JUMP 谁 从哪到哪、scene、房间、层
+var _jump_log := "--jump_log" in OS.get_cmdline_user_args()
+var _last_pos := {}
+
+
+func _check_jumps() -> void:
+	var bodies: Array = [chen]
+	bodies.append_array(npcs.values())
+	for n in bodies:
+		var key := str(n.name)
+		var p: Vector2 = n.global_position
+		var vis: bool = n.visible and n.modulate.a > 0.01
+		if _last_pos.has(key):
+			var o: Dictionary = _last_pos[key]
+			if vis and bool(o["vis"]) and str(o["room"]) == world.room and (p - (o["p"] as Vector2)).length() > 6.0:
+				var sg := _lv_stage()
+				print("JUMP %s (%d,%d)->(%d,%d) scene=%s room=%s lv=%s" % [key, int(o["p"].x), int(o["p"].y), int(p.x), int(p.y), _cur_scene, world.room, str(_lv_of(n, sg)) if sg != null else "-"])
+		_last_pos[key] = {"p": p, "vis": vis, "room": world.room}
 
 
 func _bodies_str() -> String:
@@ -3821,10 +4066,20 @@ func portal_room(pt: Dictionary) -> void:
 
 
 
-## 起飞（河流篇 depart，方案 5.7）：房间里的飞机物件（river_bank_plane）预热 → 反重力竖直升起（smoothstep）→ 往左上加速飞出画面。
-## 和森林起飞一样用 ship_glow.gd 的泛光；没有这个物件就什么都不做（直接淡出）。动画只挪位置，不换帧速。
+## 起飞（河流篇 depart）：11-02 作者「斜着带着地下的土飞走了，学一学第一个场景是怎么起飞的」→ 和森林起飞（level_forest.story_takeoff）同一套：
+##   河岸那架船本来就是 ship_lift.png 第 0 帧（-17°）贴的（tools/river_city_art.py plane_frames，贴在画布 LIFT_AT），
+##   起飞时物件换成 launched（只剩桩和绳），原地换上同一张 ship_lift 精灵，按角度换帧（不旋转图片）：
+##   1. 预热：余火闪两下亮住、1 像素抖越来越密、暖红热光慢慢亮  2. 竖直升（smoothstep），机头从 -17° 摆平到 -4°，热光跟着竖直速度
+##   3. 悬停 1 像素起伏  4. 尾焰两帧交替，机头抬到 9°，沿机头方向 ease-in 加速飞出画面 → 淡到黑。泛光一律第一关的暖红。
 const SHIP_GLOW := preload("res://scripts/ship_glow.gd")
 const TAKEOFF_PLANE := "river_bank_plane"
+const T_LIFT_TEX := preload("res://art/level1/ship_lift.png")
+const T_LIFT_META := "res://art/level1/ship_lift.json"
+const T_LIFT_N := 28
+const T_ANG0 := -17
+const T_FRAME := Vector2i(204, 120)
+const T_LIFT_AT := Vector2(52, 16)          # ship_lift 帧左上角在河岸船物件画布里的位置（70 - 18, 18 - 2）
+const T_ENGINE := Vector2(72, -1)
 
 
 func _stage_takeoff() -> void:
@@ -3833,48 +4088,212 @@ func _stage_takeoff() -> void:
 	if plane == null or not plane.visible or ff:
 		return
 	level.camera_hold_at(level.cam.position)
-	var c: Dictionary = sg.ocfg[TAKEOFF_PLANE]
-	var fw := int(c.get("w", plane.texture.get_width() / plane.hframes))
+	var lift := Sprite2D.new()
+	lift.texture = T_LIFT_TEX
+	lift.hframes = T_LIFT_N
+	lift.vframes = 4
+	lift.centered = false
+	lift.offset = -Vector2(T_FRAME / 2)
+	lift.z_index = plane.z_index
+	lift.material = plane.material
+	plane.get_parent().add_child(lift)
+	var c0 := plane.position + plane.offset + T_LIFT_AT + Vector2(T_FRAME / 2)
+	var hulls := {}
+	var meta = JSON.parse_string(FileAccess.get_file_as_string(T_LIFT_META)) if FileAccess.file_exists(T_LIFT_META) else null
+	if meta is Dictionary:
+		var hd: Dictionary = meta.get("hull", {})
+		for k in hd:
+			var tops := PackedInt32Array()
+			var bots := PackedInt32Array()
+			for v in hd[k].get("top", []):
+				tops.append(int(v) - T_FRAME.y / 2 if int(v) >= 0 else -1)
+			for v in hd[k].get("bot", []):
+				bots.append(int(v) - T_FRAME.y / 2 if int(v) >= 0 else -1)
+			hulls[int(k)] = [tops, bots]
 	var glow: Node2D = SHIP_GLOW.new()
-	plane.add_child(glow)
-	glow.set_from_texture(plane.texture, Vector2.ZERO, Rect2i(plane.frame * fw, 0, fw, int(c.get("h", plane.texture.get_height()))))
-	var p0 := plane.position
+	glow.full_speed = 20.0
+	lift.add_child(glow)
+	glow.heat = 1.0
+	glow.heat_goal = 1.0
+	var st := {"ang": float(T_ANG0), "row": 0, "pos": c0, "hull": 999}
+	var show := func():
+		var ai := clampi(roundi(float(st["ang"])), T_ANG0, T_ANG0 + T_LIFT_N - 1)
+		lift.frame = int(st["row"]) * T_LIFT_N + (ai - T_ANG0)
+		lift.position = (st["pos"] as Vector2).round()
+		if ai != int(st["hull"]) and hulls.has(ai):
+			st["hull"] = ai
+			glow.set_hull(-T_FRAME.x / 2, hulls[ai][0], hulls[ai][1])
+	show.call()
+	world.set_prop(TAKEOFF_PLANE, "launched")          # 同一帧换：画布里的船和 ship_lift 第 0 帧逐像素一样，不跳
+	var pb: Node2D = level.get("puffs_back")
+	# 1. 预热
+	level._sfx("engine_start", -4.0)
 	var t := 0.0
-	# 预热：船底泛光亮起、1 像素抖
-	while t < 1.2:
+	var ign := [0.15, 0.25, 0.4, 0.5, 0.62]
+	while t < 1.5:
+		await get_tree().process_frame
 		var d := get_process_delta_time()
 		t += d
-		glow.strength = 0.3 * clampf(t / 0.8, 0.0, 1.0)
-		glow.dir = 0.0
+		var on := 0
+		for a in ign:
+			if t >= a:
+				on = 1 - on
+		st["row"] = on
+		st["pos"] = c0 + Vector2(randi_range(-1, 1) if randf() < 0.08 + 0.4 * t / 1.5 else 0, 0)
+		glow.strength = 0.55 * smoothstep(0.2, 1.0, t / 1.5)
 		glow.step(d)
-		plane.position = p0 + Vector2(0, -1 if fmod(t, 0.16) < 0.08 and t > 0.6 else 0)
-		await get_tree().process_frame
-	# 竖直升 40 像素
+		show.call()
+	st["row"] = 1
+	glow.hold = 0.55
+	glow.hold_goal = 0.55
+	# 2. 竖直升、机头摆平
 	t = 0.0
-	var prev := p0.y
-	while t < 1.6:
+	var yp := c0.y
+	while t < 2.3:
+		await get_tree().process_frame
 		var d2 := get_process_delta_time()
 		t += d2
-		var k := clampf(t / 1.6, 0.0, 1.0)
-		plane.position.y = round(p0.y - 40.0 * k * k * (3.0 - 2.0 * k))
-		glow.drive((plane.position.y - prev) / maxf(d2, 0.001), d2)
-		prev = plane.position.y
-		await get_tree().process_frame
-	# 往左上加速飞出
+		var k := clampf(t / 2.3, 0.0, 1.0)
+		var y := c0.y - 30.0 * smoothstep(0.0, 1.0, k)
+		st["ang"] = lerpf(float(T_ANG0), -4.0, smoothstep(0.25, 1.0, k))
+		st["pos"] = Vector2(c0.x, y)
+		glow.drive((y - yp) / maxf(d2, 0.001), d2)
+		yp = y
+		show.call()
+	# 3. 悬停
+	var hv: Vector2 = st["pos"]
+	glow.hold_goal = 0.3
 	t = 0.0
-	var p1 := plane.position
-	var fading := false
-	while t < 2.0:
+	while t < 0.7:
+		await get_tree().process_frame
 		var d3 := get_process_delta_time()
 		t += d3
-		plane.position = (p1 + Vector2(-110.0, -45.0) * t * t).round()
-		glow.drive(-90.0 * t, d3)
-		if t > 1.2 and not fading:
+		st["pos"] = Vector2(hv.x, hv.y - roundf(sin(t / 0.7 * PI)))
+		glow.drive(0.0, d3)
+		show.call()
+	st["pos"] = hv
+	# 4. 尾焰、抬头、加速飞走
+	level._sfx("ship_whoosh", -5.0, 0.85)
+	level._sfx("engine_boost", -8.0)
+	var eng := func() -> Vector2: return lift.position + T_ENGINE.rotated(deg_to_rad(float(st["ang"])))
+	if pb != null:
+		pb.add_source("trail", eng.call(), 26.0, pb.PRESETS.trail)
+		pb.add_source("trail_sparks", eng.call(), 6.0, pb.PRESETS.ember)
+	t = 0.0
+	var a0: float = st["ang"]
+	var p: Vector2 = st["pos"]
+	var fading := false
+	while t < 5.0:
+		await get_tree().process_frame
+		var d4 := get_process_delta_time()
+		t += d4
+		st["row"] = 2 + int(t / 0.1) % 2
+		st["ang"] = lerpf(a0, 9.0, smoothstep(0.0, 1.0, t / 1.6))
+		var ar := deg_to_rad(float(st["ang"]))
+		p += Vector2(-cos(ar), -sin(ar)) * 150.0 * t * t * d4
+		st["pos"] = p
+		glow.strength = move_toward(glow.strength, 0.0, 0.5 * d4)
+		glow.step(d4)
+		show.call()
+		if pb != null:
+			pb.set_source_pos("trail", eng.call())
+			pb.set_source_pos("trail_sparks", eng.call())
+		if t > 1.6 and not fading:
 			fading = true
-			level.fade_to_black(0.7)
+			level.fade_to_black(1.2)
+		if lift.global_position.x < level.cam.position.x - 380.0 or lift.global_position.y < level.cam.position.y - 260.0:
+			break
+	if pb != null:
+		pb.remove_source("trail")
+		pb.remove_source("trail_sparks")
+	lift.queue_free()
+
+
+## prop 带 "glide"（秒）：物件换状态不闪现，带着暖红的反重力泛光平滑挪过去（11-02 作者：飞机拖上岸是闪现的，很奇怪）。
+##   {"do": "prop", "id": "river_bank_plane", "state": "beached", "glide": 2.0, "from": [-64, 5]}
+##   from = 新状态那一帧的图，开始时相对它最终位置的偏移（两帧里船画的位置不一样，用它对齐旧帧里的船）。
+##   预热：泛光亮起、旧帧 1 像素抖 → 一边微微抬起一边顺着 smoothstep 挪到位（抬起是正弦拱，最高 LIFT 像素），
+##   开头 35% 旧帧和新帧 4 档交叉淡变 → 到位后泛光慢慢熄。不换帧速，只挪位置。
+const GLIDE_LIFT := 8.0
+
+func _prop_glide(st: Dictionary) -> void:
+	var id := str(st.get("id", ""))
+	var to := str(st.get("state", ""))
+	var sg: Node2D = world.cur_stage() if world.has_method("cur_stage") else null
+	var spr: Sprite2D = sg.object(id) if sg != null else null
+	if spr == null or ff or not spr.visible:
+		world.set_prop(id, to)
+		return
+	var sec := maxf(0.3, float(st.get("glide", 2.0)))
+	var fa: Array = st.get("from", [0, 0])
+	var from := Vector2(float(fa[0]), float(fa[1]))
+	var p0 := spr.position
+	var c: Dictionary = sg.ocfg[id]
+	var fw := int(c.get("w", spr.texture.get_width() / spr.hframes))
+	var fh := int(c.get("h", spr.texture.get_height()))
+	# 旧帧的替身：留在原处跟着一起挪、慢慢淡掉
+	var ghost := Sprite2D.new()
+	ghost.texture = spr.texture
+	ghost.hframes = spr.hframes
+	ghost.frame = spr.frame
+	ghost.centered = spr.centered
+	ghost.offset = spr.offset
+	ghost.flip_h = spr.flip_h
+	ghost.z_index = spr.z_index
+	ghost.material = spr.material
+	ghost.position = p0
+	spr.get_parent().add_child(ghost)
+	world.set_prop(id, to)
+	spr.position = (p0 + from).round()
+	spr.modulate.a = 0.0
+	var glow: Node2D = SHIP_GLOW.new()
+	spr.add_child(glow)
+	glow.set_from_texture(spr.texture, Vector2.ZERO, Rect2i(spr.frame * fw, 0, fw, fh))
+	glow.heat = 1.0
+	glow.heat_goal = 1.0
+	# 预热
+	var t := 0.0
+	while t < 0.6:
+		var d := get_process_delta_time()
+		t += d
+		glow.strength = 0.5 * clampf(t / 0.5, 0.0, 1.0)
+		glow.step(d)
+		ghost.position = p0 + Vector2(0, -1 if fmod(t, 0.16) < 0.08 and t > 0.3 else 0)
+		await get_tree().process_frame
+	# 挪过去
+	t = 0.0
+	var prev := spr.position.y
+	glow.hold_goal = 0.8
+	while t < sec:
+		var d2 := get_process_delta_time()
+		t += d2
+		var k := clampf(t / sec, 0.0, 1.0)
+		var e := k * k * (3.0 - 2.0 * k)
+		var off := from * (1.0 - e) + Vector2(0, -GLIDE_LIFT * sin(PI * e))
+		spr.position = (p0 + off).round()
+		ghost.position = (p0 + off - from).round()
+		var a := floorf(clampf(k / 0.35, 0.0, 1.0) * 4.0) / 4.0
+		spr.modulate.a = a
+		ghost.modulate.a = 1.0 - a
+		glow.heat_goal = 1.0
+		glow.drive((spr.position.y - prev) / maxf(d2, 0.001), d2)
+		prev = spr.position.y
+		await get_tree().process_frame
+	spr.position = p0
+	spr.modulate.a = 1.0
+	ghost.queue_free()
+	# 泛光慢慢熄
+	glow.hold_goal = 0.0
+	t = 0.0
+	while t < 0.8:
+		var d3 := get_process_delta_time()
+		t += d3
+		glow.hold = 0.0
+		glow.strength = move_toward(glow.strength, 0.0, d3 / 0.8)
+		glow.heat_goal = 1.0
+		glow.step(d3)
 		await get_tree().process_frame
 	glow.queue_free()
-	plane.visible = false
 
 
 

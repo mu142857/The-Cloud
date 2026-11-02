@@ -1,7 +1,7 @@
 {
- "_comment": "结局三 · 云层上的风帆小镇。tools/cloud_town_art.py 生成，别手改。天和云是作者 art/cloud/ 的原图（照 scenes/cloud_test.tscn 的视差和漂移），小镇（远塔、塔、地面）在 art/cloud_town/。风车、帆、水车、喷泉的动画由 scripts/cloud_town.gd 挂到层上播（100ms 一帧）。从左到右：木停机台（飞船）→ 石头路（倒了的篮子）→ 湿石台广场（喷泉、水车、大风车、长椅）→ 花圃和龙头 → 晨住的塔（town_room）。",
+ "_comment": "结局三 · 云层上的风帆小镇。tools/cloud_town_art.py 生成，别手改。天和云是作者 art/cloud/ 的原图（照 scenes/cloud_test.tscn 的视差和漂移），小镇（远塔、塔、地面）在 art/cloud_town/。风车、帆、水车、喷泉的动画由 scripts/cloud_town.gd 挂到层上播（100ms 一帧）。从左到右：木停机台（飞船）→ 石头路（倒了的篮子）→ 湿石台广场（喷泉、水车、大风车、长椅）→ 花圃和龙头 → 晨住的塔（town_room）→ 云台（纯云 + 木栈桥，结局三走一圈那天才开放，见 walk_when / cam）。",
  "size": [
-  1760,
+  2240,
   270
  ],
  "origin": [
@@ -101,6 +101,13 @@
    "y": 0
   },
   {
+   "id": "deck_far",
+   "img": "res://art/cloud_town/deck_far.png",
+   "scroll": 0.72,
+   "y": 0,
+   "x": 1346
+  },
+  {
    "id": "cloud_midfar_over",
    "img": "res://art/cloud_town/cloud_midfar_over.png",
    "scroll": 0.8,
@@ -109,10 +116,24 @@
    "drift": -2.0
   },
   {
+   "id": "deck_dim",
+   "img": "res://art/cloud_town/deck_dim.png",
+   "scroll": 1.0,
+   "y": 0,
+   "x": 1760
+  },
+  {
    "id": "town_back",
    "img": "res://art/cloud_town/town_back.png",
    "scroll": 1.0,
    "y": 0
+  },
+  {
+   "id": "deck_back",
+   "img": "res://art/cloud_town/deck_back.png",
+   "scroll": 1.0,
+   "y": 0,
+   "x": 1704
   },
   {
    "id": "cloud_mid_over",
@@ -129,6 +150,13 @@
    "y": 0
   },
   {
+   "id": "deck_main",
+   "img": "res://art/cloud_town/deck_main.png",
+   "scroll": 1.0,
+   "y": 0,
+   "x": 1704
+  },
+  {
    "id": "front",
    "img": "res://art/cloud/front.png",
    "scroll": 1.4,
@@ -142,6 +170,30 @@
   16,
   1744
  ],
+ "cam": [
+  0,
+  1760
+ ],
+ "walk_when": [
+  {
+   "need": [
+    "final_e3_walk"
+   ],
+   "not": [
+    "final_e3_seed_todo",
+    "final_e3_seed_done"
+   ],
+   "walk": [
+    16,
+    2190
+   ],
+   "cam": [
+    0,
+    2240
+   ],
+   "_note": "云台（小镇右边那一屏）只在结局三「走一圈」那天开放：之前和之后晨走不过去、镜头也不往那边看"
+  }
+ ],
  "markers": {
   "town_landing": 262,
   "town_helper": 304,
@@ -153,7 +205,9 @@
   "town_bench": 1181,
   "town_far_side": 1250,
   "town_bed": 1348,
-  "town_lodging": 1508
+  "town_lodging": 1508,
+  "town_deck": 1988,
+  "town_deck_end": 2176
  },
  "objects": {
   "town_ship": {

@@ -12,6 +12,7 @@ extends CanvasLayer
 ##           每章只画这一章第一次出现的房间：前面章节已经有的（终章尾声回到的森林路口、树屋、妮芙家，河流篇最后的驾驶舱）
 ##           不画进地图，放在地图下面一排「回访：」小按钮，点了一样进这一章里的那个房间；这一章的起点房间（终章的驾驶舱）照常画。
 ##           下面：「从头玩」这一章（= 以前节拍页的章节开头，能跨章）；河流篇还有「按烧了蓝色石头 / 通勤卡进」。
+##           「闪回 n」：母星闪回（森林 1、2，河流篇 3，终章 4）：重新载入、跳到闪回前一点接着播（story_runner.gd 的 FLASHBACK_DEV）。
 ##           以后游戏里要加传送石碑（所有场景互相传送），见 docs/forest_chapter.md「开发者模式（F8）」
 ##   2 状态  正在播的 scene 和第几步、晨的 x、在哪、背包；所有 flag 列成按钮，亮的是已设。
 ##           点没亮的 = 从现在接着把剧情瞬间过一遍到它（level.dev_complete：前置的 flag、物品、NPC、房间、目标都补齐，
@@ -245,6 +246,12 @@ func _jump_to(ch: String, after: String) -> void:
 	_reload()
 
 
+## 传送页的「闪回 n」：记下要播的 scene，再跳节拍（level_forest.gd 的 _ff_done 跳完以后接着播）
+func _flashback_go(d: Dictionary) -> void:
+	Engine.set_meta(story.DEV_FB_META, d)
+	_jump_to(str(d["chapter"]), str(d["beat"]))
+
+
 ## 重新载入本场景（剧情播到一半也行：正在 await 的步骤、对话框、点选、小游戏都跟着旧场景一起扔掉）
 func _reload() -> void:
 	level.CHAPTER_GD.hard_reload(level.get_tree())
@@ -397,6 +404,11 @@ func _map_foot_build(ch: String) -> void:
 	t.add_theme_font_size_override("font_size", 12)
 	_map_foot.add_child(t)
 	_map_foot.add_child(_btn("从头玩「%s」" % _chapter_name(ch), _jump_to.bind(ch, ""), ch))
+	# 母星闪回：重新载入这一章、跳到闪回前一点，接着播（story_runner.gd 的 FLASHBACK_DEV）
+	for d in story.FLASHBACK_DEV:
+		if str(d["chapter"]) == ch:
+			_map_foot.add_child(_btn("闪回 %d：%s" % [int(d["id"]), str(d["zh"])], _flashback_go.bind(d),
+				"%s 跳到 %s，从 %s 闪回前几步开始播" % [ch, d["beat"], d["scene"]]))
 	if ch == "river":
 		# 原文 119 摸衣袋：飞行一烧的是蓝色石头还是通勤卡（从别的章直接进河流篇用的 SEED）
 		var card := Engine.has_meta(level.CHAPTER_GD.RIVER_SEED_META) and str(Engine.get_meta(level.CHAPTER_GD.RIVER_SEED_META)) == "card"

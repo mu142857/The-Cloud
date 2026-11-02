@@ -62,7 +62,7 @@
   "repair": "idle",
   "point_log": "idle"
  },
- "keep_clear": true,
+ "turn_fade": 0.5, "keep_clear": true,
  "avoid": [
   {
    "room": "river_bank",

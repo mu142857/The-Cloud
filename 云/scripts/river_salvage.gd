@@ -175,7 +175,9 @@ func run(_level: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 		s = fresh(step)
 		story.mech_save(ID, s)
 		await KIT.lines(story, step, "start")
-	await _place_all(0.0)
+		await _drift_in()
+	else:
+		await _place_all(0.0)
 	while not story.ended and not finished(s):
 		if s["phase"] == "shallows" and not s.get("walked", false):
 			s["walked"] = true
@@ -243,6 +245,36 @@ func _place_all(sec: float) -> void:
 			await _move(id, sec, false)
 	if s["box"]:
 		world.set_prop(str((step.get("box", {}) as Dictionary).get("id", "river_bank_box")), "taken")
+
+
+## 第一次开始：箱子里的东西不是突然冒出来，是从上游一样一样漂进来（11-02 作者：对话完漂浮物突然出现很奇怪）。
+## 每样从它那格再往上游 DRIFT_IN 像素、透明开始，错开 DRIFT_GAP 秒，一边淡入一边顺水漂到位（move_object 是缓起缓停的曲线）。
+const DRIFT_IN := 110.0
+const DRIFT_GAP := 0.35
+const DRIFT_SEC := 2.4
+
+func _drift_in() -> void:
+	if story.ff:
+		await _place_all(0.0)
+		return
+	var up := -signf(_x(1) - _x(0)) if _x(1) != _x(0) else -1.0     # 上游在哪边
+	var i := 0
+	for id in s["items"]:
+		world.set_prop(id, _vis(id))
+		var sg := KIT.stage_of(world, id)
+		if sg == null or sg.object(id) == null:
+			continue
+		var o: Sprite2D = sg.object(id)
+		o.set_meta("hot_follow", true)
+		var goal := Vector2(round(_slot_x(id) - float(o.texture.get_width() / maxi(1, o.hframes)) / 2.0), o.position.y)
+		sg.move_object(id, goal + Vector2(up * (DRIFT_IN + 24.0 * i), 0.0), 0.0)
+		o.modulate.a = 0.0
+		var tw := o.create_tween()
+		tw.tween_interval(DRIFT_GAP * i)
+		tw.tween_callback(sg.move_object.bind(id, goal, DRIFT_SEC))
+		tw.tween_method(func(k: float): o.modulate.a = floorf(k * 4.0) / 4.0, 0.0, 1.0, 0.8)   # 4 档淡入，像素画不糊
+		i += 1
+	await KIT.steps(story, [{"do": "wait", "sec": DRIFT_GAP * maxi(0, i - 1) + DRIFT_SEC}])
 
 
 static func _state_of(st: String) -> String:

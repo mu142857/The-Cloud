@@ -81,6 +81,7 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 		story.mech_save(ID, s)
 		await KIT.steps(story, [{"do": "sfx", "name": "view_click"}])
 		_set_clear(1.0)
+		_flash_full()
 		await KIT.lines(story, step, "aligned")
 	await KIT.lines(story, step, "ask")
 	while not story.ended:
@@ -127,7 +128,18 @@ func _find_spot() -> void:
 	story.free_walk = false
 
 
-## 取景框：有图（会话 C 出的 frame）就用图；没有就画一个色块框 + 灯柱竖线（对上时和场景里的灯柱重合）
+## 取景框（11-02 作者：整屏半透明叠一层「很抽象、视觉效果真混乱」）：
+##   平时 = 右上角一张小照片（影像那一帧缩成 1/4，实框，不透明），像晨举着照片对照；离观察点越近，照片的框越暖。
+##   对上那一刻 = 整屏那一帧淡进来（0.35 秒到 .55）再慢慢淡掉（0.9 秒）——只闪这一下，证明「就是这里」，平时不叠在画面上。
+const THUMB := Vector2(120, 68)
+const THUMB_POS := Vector2(480 - 120 - 10, 34)
+const EDGE_COLD := Color(0.55, 0.62, 0.68)
+const EDGE_WARM := Color(0.95, 0.82, 0.5)
+var _thumb: Control
+var _edge: ColorRect
+var _full: TextureRect
+
+
 func _build_frame() -> void:
 	if story.ff:
 		return
@@ -135,50 +147,62 @@ func _build_frame() -> void:
 	_layer.layer = 5
 	level.add_child(_layer)
 	var p := str(step.get("frame", ""))
-	if p != "" and ResourceLoader.exists(p):
+	var tex: Texture2D = load(p) if p != "" and ResourceLoader.exists(p) else null
+	_thumb = Control.new()
+	_thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_thumb.position = THUMB_POS
+	_edge = ColorRect.new()                                  # 照片的实框（2 像素）
+	_edge.color = EDGE_COLD
+	_edge.position = Vector2(-2, -2)
+	_edge.size = THUMB + Vector2(4, 4)
+	_thumb.add_child(_edge)
+	var bg := ColorRect.new()
+	bg.color = Color(0.06, 0.08, 0.1)
+	bg.size = THUMB
+	_thumb.add_child(bg)
+	if tex != null:
 		var tr := TextureRect.new()
-		tr.texture = load(p)
+		tr.texture = tex
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		tr.size = THUMB
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_frame = tr
-	else:
-		_frame = Control.new()
-		_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_frame.size = Vector2(480, 270)
-		var edge := ReferenceRect.new()
-		edge.border_color = Color(0.8, 0.85, 0.9, 0.6)
-		edge.editor_only = false
-		edge.position = Vector2(40, 30)
-		edge.size = Vector2(400, 190)
-		_frame.add_child(edge)
-		var water := ColorRect.new()                         # 影像里的高水位
-		water.color = Color(0.45, 0.55, 0.62, 0.25)
-		water.position = Vector2(40, 150)
-		water.size = Vector2(400, 70)
-		_frame.add_child(water)
-		var lamp := ColorRect.new()                          # 影像里的灯柱：站在观察点时，场景里的灯柱正好在这条线上
-		lamp.color = Color(0.9, 0.85, 0.6, 0.55)
-		lamp.size = Vector2(2, 90)
-		var spot := KIT.mx(world, str(step.get("spot", "")), 240.0)
-		var lx := KIT.mx(world, str(step.get("frame_lamp", "southbridge_lamp_post")), spot)
-		lamp.position = Vector2(clampf(240.0 + lx - spot, 44.0, 434.0), 60)
-		_frame.add_child(lamp)
-	_layer.add_child(_frame)
+		_thumb.add_child(tr)
+		_full = TextureRect.new()
+		_full.texture = tex
+		_full.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_full.modulate.a = 0.0
+		_layer.add_child(_full)
+	_layer.add_child(_thumb)
+	_thumb.modulate.a = 0.0
+	var tw := _thumb.create_tween()
+	tw.tween_method(func(k: float): _thumb.modulate.a = floorf(k * 4.0) / 4.0, 0.0, 1.0, 0.5)
 	_set_clear(0.0)
 
 
 func _set_clear(k: float) -> void:
-	if _frame != null:
-		_frame.modulate.a = lerpf(0.25, 0.7, k)
+	if _edge != null:
+		_edge.color = EDGE_COLD.lerp(EDGE_WARM, floorf(k * 4.0) / 4.0)
+
+
+## 对上那一下：整屏那一帧闪进来再淡掉
+func _flash_full() -> void:
+	if _full == null:
+		return
+	var tw := _full.create_tween()
+	tw.tween_property(_full, "modulate:a", 0.55, 0.35).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_full, "modulate:a", 0.0, 0.9).set_trans(Tween.TRANS_SINE)
 
 
 func _drop_frame() -> void:
 	if _layer != null:
 		var tw := _layer.create_tween()
-		tw.tween_property(_frame, "modulate:a", 0.0, 0.6)
+		if _thumb != null:
+			tw.tween_property(_thumb, "modulate:a", 0.0, 0.6)
 		tw.tween_callback(_layer.queue_free)
 
 
-## 跳节拍：对好了、点对了（同步、不演）
 func ff(r: Node, st: Dictionary) -> void:
 	r.mech_save(ID, {"aligned": true, "tried": [right_arch(st)]})
 	for f in st.get("sets", []):

@@ -313,12 +313,23 @@ func _blink(c: CanvasItem) -> void:
 	_flash[c] = 0.2
 
 
+## 说明卡（11-02 作者：「看不到全貌了」——原来 196×180 钉在左上 (12, 52)，盖住了托板上一排东西和晨头上的话）：
+##   放到右上（晨在左边、话框在晨头上），宽 CARD_W；底边不低于托板那一排上面 CARD_GAP（高度按内容算，不够就往上顶到 CARD_TOP）。
+const CARD_W := 236.0
+const CARD_TOP := 26.0
+const CARD_GAP := 8.0
+
+func _slots_top() -> float:
+	return (cockpit.floor_y if cockpit != null else 222.0) - 42.0
+
+
 func _card_panel(h: float) -> Panel:
 	var p := Panel.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_theme_stylebox_override("panel", UITheme.box(BG, EDGE, 1))
-	p.position = Vector2(12, 52)
-	p.size = Vector2(196, h)
+	var bottom := _slots_top() - CARD_GAP
+	p.size = Vector2(CARD_W, minf(h, bottom - CARD_TOP))
+	p.position = Vector2(480.0 - 10.0 - CARD_W, maxf(CARD_TOP, bottom - h))
 	add_child(p)
 	return p
 
@@ -328,7 +339,15 @@ func _open_card(id: String) -> void:
 	_card_id = id
 	_style()
 	var it := Inventory.item(id)
-	_card = _card_panel(180)
+	var isz0 := Inventory.icon(id).get_size() * 2.0
+	var dtext: String = str(runner.txt(it.get("desc", "")))
+	var dw := CARD_W - 20.0
+	var lh := UITheme.font().get_height(14) + 1.0
+	var nl := 0
+	for para in dtext.split("\n"):
+		nl += maxi(1, ceili(UITheme.font().get_string_size(para, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x / dw))
+	var btn_y := 18.0 + isz0.y + nl * lh + 6.0
+	_card = _card_panel(btn_y + 22.0)
 	var icon := TextureRect.new()
 	icon.texture = Inventory.icon(id)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -343,8 +362,8 @@ func _open_card(id: String) -> void:
 	_card.add_child(nm)
 	var desc := _label(runner.txt(it.get("desc", "")), Color("#b9c9bf"))
 	desc.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
-	desc.size = Vector2(176, 0)
-	desc.custom_minimum_size = Vector2(176, 0)
+	desc.size = Vector2(dw, 0)
+	desc.custom_minimum_size = Vector2(dw, 0)
 	desc.position = Vector2(10, 18 + isz.y)
 	desc.add_theme_constant_override("line_spacing", 1)
 	_card.add_child(desc)
@@ -356,7 +375,7 @@ func _open_card(id: String) -> void:
 		await _lines(_look_lines(id))
 	if not is_instance_valid(_card):
 		return
-	_buttons([_tx("put_in"), _tx("put_back")], 158)
+	_buttons([_tx("put_in"), _tx("put_back")], minf(btn_y, _card.size.y - 20.0))
 	_mode = "card"
 
 
@@ -381,14 +400,14 @@ func _open_route() -> void:
 	var d := Control.new()
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	d.position = Vector2(0, 30)
-	d.size = Vector2(196, 50)
+	d.size = Vector2(CARD_W, 50)
 	d.draw.connect(_draw_route.bind(d))
 	_card.add_child(d)
 	var a := _label(runner.txt(st["route_from"]) if st.has("route_from") else _tx("from"), UITheme.TEXT_DIM)
 	a.position = Vector2(10, 70)
 	_card.add_child(a)
 	var b := _label(runner.txt(st["route_to"]) if st.has("route_to") else _tx("to"), UITheme.TEXT_DIM)
-	b.position = Vector2(186 - UITheme.font().get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, 70)
+	b.position = Vector2(CARD_W - 10.0 - UITheme.font().get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, 70)
 	_card.add_child(b)
 	var nav_was := ""
 	if cockpit != null:

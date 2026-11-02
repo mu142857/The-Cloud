@@ -3652,6 +3652,11 @@ func _ff_done(flag: String, ok: bool) -> void:
 	chen.visible = chapter != "forest" or not StoryState.has("launched")
 	if state != S.PLAY:
 		_enter_play()
+	var fb: Dictionary = story.dev_flashback_take()    # F8「闪回」按钮：跳完节拍从闪回前几步开始播（story_runner.gd FLASHBACK_DEV）
+	if not fb.is_empty():
+		story.ff_hit_end = false
+		story.ff_resume = ""
+		story.play.call_deferred(str(fb["scene"]), true, int(fb["index"]))
 	if story.ff_hit_end:
 		story.ff_hit_end = false
 		story.play_end()

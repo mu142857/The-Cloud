@@ -1607,9 +1607,9 @@ def states():
         S("wisps", -150, 40, 0)]}
     # clouds：云层整块扫过船（一团团菜花往下掠），变成脚下的云海；后面露出作者云海场景的天和远中近三层云海。
     # 森林的天（forest_bg）不列 → 4 档淡出（被扫过来的云层盖着）；最远两层树梢沉出画面
+    # 11-02 作者：「在外太空怎么撞上树顶」——躲碎石时镜头拉远，沉到画面下面的树梢又露出来、和船叠在一起。树梢一律不列（4 档淡出）
     st["clouds"] = {"blend": 1.8, "bg": BG["clouds"], "layers": [
-        *clouds_at(0, 46)[:2], *forest_at(900, 48, 0, drop=("forest_bg", "forest_midfar", "forest_mid", "forest_main")),
-        *clouds_at(0, 46)[2:], S("wisps", 0, 46, 0)]}
+        *clouds_at(0, 46)[:2], *clouds_at(0, 46)[2:], S("wisps", 0, 46, 0)]}
     # debris_wall：云海上方远处，一条碎石带横在航线上；前面零星几块中号碎石漂过。云海略沉（再爬高一点）
     st["debris_wall"] = {"blend": 2.5, "bg": BG["debris"], "layers": [
         *clouds_at(10, 30)[:4], S("debris_belt", 30, 5, 0), *clouds_at(10, 30)[4:],

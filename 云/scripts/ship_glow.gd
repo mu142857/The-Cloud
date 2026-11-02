@@ -71,8 +71,8 @@ var dir := 0.0                         # 最后一次挪的方向（-1 上 / +1 
 var full_speed := 45.0
 var max_alpha := 0.8
 var reach_scale := 1.0                 # 光照多远 × 这个（船在画面上大的地方调大，比如驾驶舱 1.5；最多 1.5）
-var heat := 0.0                        # 0 青绿 .. 1 暖红（跟着 heat_goal 慢慢走）
-var heat_goal := 0.0
+var heat := 1.0                        # 0 青绿 .. 1 暖红（跟着 heat_goal 慢慢走）。11-02 作者：「飞机所有的泛光都应该是第一关那种红色」→ 默认就是红
+var heat_goal := 1.0
 var hold := 0.0                        # 托底亮度（跟着 hold_goal 慢慢走）
 var hold_goal := 0.0
 var hot_side := 1.0                    # 推进器在哪头：+1 轮廓右头 / -1 左头
@@ -88,6 +88,8 @@ var _cache := {}                       # 轮廓的 hash → [_rings, _row_y0, _r
 var _t := 0.0
 var _mote_acc := 0.0
 var _motes: Array = []                 # {p, v, life, age}（船身坐标）
+var _prev_gt := Transform2D()          # 上一帧船的全局变换：船挪了，已经飘出去的粒子反着挪回来，留在原处（11-02 作者：粒子跟着飞船动很奇怪）
+var _have_gt := false
 var _rng := RandomNumberGenerator.new()
 var _drawn := false
 
@@ -263,8 +265,7 @@ func drive(vy: float, delta: float) -> void:
 	var want := clampf((absf(vy) - DEAD) / maxf(1.0, full_speed - DEAD), 0.0, 1.0)
 	if absf(vy) > 4.0:
 		dir = signf(vy)
-	if want > 0.05 and hold_goal <= 0.0:
-		heat_goal = 0.0                               # 按速度挪（躲碎石）：换回青绿
+	# （原来按速度挪时换回青绿；11-02 作者定：飞船的泛光一律是第一关的暖红，不再换色）
 	want = maxf(want, hold)
 	if want > strength:
 		strength = move_toward(strength, want, RISE * delta)
@@ -287,6 +288,14 @@ func step(delta: float) -> void:
 			_spawn_mote(v)
 	else:
 		_mote_acc = 0.0
+	# 粒子一冒出来就不归船管：船这一帧挪了多少（含缩放），粒子在船身坐标里反着挪多少，画面上它们只按自己的速度飘
+	var gt := get_global_transform()
+	if _have_gt and gt != _prev_gt and not _motes.is_empty():
+		var back := gt.affine_inverse() * _prev_gt
+		for m in _motes:
+			m["p"] = back * ((m["p"] as Vector2) + _origin) - _origin
+	_prev_gt = gt
+	_have_gt = true
 	for k in range(_motes.size() - 1, -1, -1):
 		var m: Dictionary = _motes[k]
 		m["age"] = float(m["age"]) + delta

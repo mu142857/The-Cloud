@@ -1176,18 +1176,15 @@ def sun_shafts(w, seed, x_every=(140, 260), slope=0.45, y0=0, y1=SH):
     return cv
 
 
+# 河岸上的船 = 森林起飞用的那张 art/level1/ship_lift.png 第 0 列（-17°，机头朝左下），不带森林的土（11-02 作者：
+# 「斜着带着地下的土飞走了」——原来用的 ship_wreck.png 里连着坠毁坑的土）。LIFT_IN_WRECK = 这一帧在 ship_wreck.png 里的位置
+# （逐像素比出来的），所以贴到画布上的位置和原来一样，补丁、绳子都不用挪。起飞时引擎换成同一张 ship_lift 按角度换帧（story_runner._stage_takeoff）。
+LIFT_IN_WRECK = (-18, -2)          # ship_lift 帧里 (x, y) → ship_wreck 里 (x - 18, y - 2)
+
+
 def wreck_plane():
-    """河岸上的飞机：用坠毁飞船那张图（art/level1/ship_wreck.png，森林的苔堆、碎点去掉），配色不改（它是晨的船）。"""
-    a = np.array(Image.open(ROOT / "art" / "level1" / "ship_wreck.png").convert("RGBA"))
-    lab = srgb_to_oklab(a[..., :3].reshape(-1, 3)).reshape(a.shape[0], a.shape[1], 3)
-    hue = np.degrees(np.arctan2(lab[..., 2], lab[..., 1])) % 360
-    ch = np.hypot(lab[..., 1], lab[..., 2])
-    green = (hue > 90) & (hue < 170) & (ch > 0.02)
-    a[green] = 0
-    a[:, :, 3][(np.arange(a.shape[0])[:, None] > 60) & (np.arange(a.shape[1])[None, :] < 75)] = \
-        a[:, :, 3][(np.arange(a.shape[0])[:, None] > 60) & (np.arange(a.shape[1])[None, :] < 75)]
-    # 去掉和船身不连着的碎点
-    a[~largest_component(a[..., 3] > 0)] = 0
+    """ship_lift.png 第 0 帧整张（204×120），返回 (Cv, 帧左上角相对 ship_wreck 左上角的偏移)。"""
+    a = np.array(Image.open(ROOT / "art" / "level1" / "ship_lift.png").convert("RGBA"))[0:120, 0:204].copy()
     cv = Cv(a.shape[1], a.shape[0])
     cv.a = a
     return cv
@@ -1200,15 +1197,23 @@ def plane_frames():
     base = wreck_plane()
     W_, H_ = 300, 96
     out = []
+    lx, ly = LIFT_IN_WRECK
     rng = np.random.default_rng(2201)
     rope = C(0.42, 0.03, 70)
     strap = C(0.34, 0.03, 40)
-    for k in range(4):
+    for k in range(5):
         cv = Cv(W_, H_)
         if k == 0:
-            cv.paste(base, 4, H_ - 78 + 6)
-        else:
-            cv.paste(base, 70, H_ - 78)
+            cv.paste(base, 4 + lx, H_ - 78 + 6 + ly)
+        elif k < 4:
+            cv.paste(base, 70 + lx, H_ - 78 + ly)
+        if k == 4:
+            # launched：船飞走了，只剩岸上那根短桩和松下来的绳（起飞以后换这一帧）
+            cv.rect(250, H_ - 16, 254, H_, C(0.26, 0.02, 64))
+            cv.hline(250, 254, H_ - 16, C(0.34, 0.02, 64))
+            cv.line([(251, H_ - 14), (244, H_ - 3), (232, H_ - 2)], rope)
+            out.append(cv)
+            continue
         if k >= 1:
             # 绑机翼的绳：从翼尖斜拉到地上的一根短桩
             cv.rect(250, H_ - 16, 254, H_, C(0.26, 0.02, 64))
@@ -1419,7 +1424,7 @@ def bank():
     r.extra["walk"] = [150, BANK_W - 10]
     # 物件
     pf = plane_frames()
-    r.obj("river_bank_plane", pf, 40, B_WL + 2 - 96 + 6, {"default": 0, "beached": 1, "straps_drying": 2, "fixed": 3})
+    r.obj("river_bank_plane", pf, 40, B_WL + 2 - 96 + 6, {"default": 0, "beached": 1, "straps_drying": 2, "fixed": 3, "launched": 4})
     cf = crates_frames()
     r.obj("river_bank_crates", cf, 420, B_G - cf[0].h, {"default": 2, "tail": [0, 1], "tail_still": 2}, ms=200)
     bf = box_frames()

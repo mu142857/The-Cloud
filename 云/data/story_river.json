@@ -124,16 +124,17 @@
 		{"need": ["river_bell"], "not": ["river_plane_fixed"], "zh": "修飞机", "en": "Fix the ship", "show_fuel": false, "added": true},
 		{"need": ["river_ship_number"], "not": ["river_bell"], "zh": "回去", "en": "Head back", "show_fuel": false, "added": true},
 		{"need": ["river_prints"], "not": ["river_ship_number"], "zh": "顺着水道往里走", "en": "Follow the channel in", "show_fuel": false, "added": true},
-		{"need": ["river_cup_traced"], "not": ["river_prints"], "zh": "穿过旧街去南桥", "en": "Go through Old Street to South Bridge", "show_fuel": false, "added": true},
+		{"need": ["river_cup_traced"], "not": ["river_prints"], "zh": "去南桥，左右走，让半透明的影像画面和桥对上", "en": "At South Bridge, walk until the faded footage lines up with the bridge", "show_fuel": false, "added": true},
 		{"need": ["river_footage_fixed"], "not": ["river_cup_traced"], "zh": "看看来客册干了没有", "en": "See if the guestbook is dry", "show_fuel": false, "added": true},
-		{"need": ["river_back_home"], "not": ["river_footage_fixed"], "zh": "修影像盒", "en": "Fix the footage box", "show_fuel": false, "added": true},
-		{"need": ["river_jam"], "not": ["river_back_home"], "zh": "进水下仓库找读取头", "en": "Find the reading head in the sunken warehouse", "show_fuel": false, "added": true},
+		{"need": ["river_back_home"], "not": ["river_footage_fixed"], "zh": "去妮芙家二楼的播放器那儿修影像盒", "en": "Fix the footage box at the player on the second floor of Niff's house", "show_fuel": false, "added": true},
+		{"need": ["river_got_head"], "not": ["river_back_home"], "zh": "把读取头带回妮芙家", "en": "Bring the reading head back to Niff's house", "show_fuel": false, "added": true},
+		{"need": ["river_jam"], "not": ["river_back_home", "river_got_head"], "zh": "从旧街的仓库入口下水，找读取头", "en": "Dive in at the Old Street warehouse entrance and find the reading head", "show_fuel": false, "added": true},
 		{"need": ["river_sluice_done"], "not": ["river_jam"], "zh": "往旧街里面走", "en": "Go deeper into Old Street", "show_fuel": false, "added": true},
 		{"need": ["river_oldstreet"], "not": ["river_sluice_done"], "zh": "调好旧街的水闸", "en": "Set the floodgates on Old Street", "show_fuel": false, "added": true},
 		{"need": ["river_breather"], "not": ["river_oldstreet"], "zh": "去旧街", "en": "Go to Old Street", "show_fuel": false, "added": true},
 		{"need": ["river_need_head"], "not": ["river_breather"], "zh": "去高处市集借呼吸装置", "en": "Borrow a breathing set at the upper market", "show_fuel": false, "added": true},
 		{"need": ["river_footage_broken"], "not": ["river_need_head"], "zh": "把影像盒拿给阿汀", "en": "Take the footage box to Ting", "show_fuel": false, "added": true},
-		{"need": ["river_book_drying"], "not": ["river_sat_down"], "zh": "等来客册晾干", "en": "Wait for the guestbook to dry", "show_fuel": false, "added": true},
+		{"need": ["river_book_drying"], "not": ["river_sat_down"], "zh": "去妮芙家楼上窗边，看看来客册干了没", "en": "Check the guestbook by the upstairs window in Niff's house", "show_fuel": false, "added": true},
 		{"need": ["river_landed"], "not": ["river_bread"], "zh": "去妮芙家", "en": "Go to Niff's house", "show_fuel": false, "added": true},
 		{"need": ["river_met"], "not": ["river_salvaged"], "zh": "帮妮芙把漂走的东西捞上来", "en": "Help Niff fish out what drifted off", "show_fuel": false, "added": true},
 		{"need": ["river_ashore"], "not": ["river_met"], "zh": "沿着河岸走走", "en": "Walk along the bank", "show_fuel": false, "added": true}
@@ -145,7 +146,7 @@
 		{"need": ["river_prints"], "not": ["river_ship_number"], "lines": [{"zh": "脚印往水道里面去了。", "en": "The footprints lead into the channel.", "added": true}]},
 		{"need": ["river_cup_traced"], "not": ["river_prints"], "lines": [{"zh": "影像里说：往南边去了，桥洞下面。", "en": "The tape said: it went south, under the bridge.", "added": true}, {"zh": "南桥在旧街那头，一直往右走。", "en": "South Bridge is past the far end of Old Street. Keep going right.", "added": true}]},
 		{"need": ["river_footage_fixed"], "not": ["river_cup_traced"], "lines": [{"zh": "窗边的册子，应该干了。", "en": "The book by the window should be dry.", "added": true}]},
-		{"need": ["river_back_home"], "not": ["river_footage_fixed"], "lines": [{"zh": "读取头拿回来了。影像盒在桌上。", "en": "Got the reading head. The footage box is on the table.", "added": true}]},
+		{"need": ["river_back_home"], "not": ["river_footage_fixed"], "lines": [{"zh": "读取头拿回来了。影像盒在二楼的播放器旁边。", "en": "Got the reading head. The footage box is by the player upstairs.", "added": true}]},
 		{"need": ["river_jam"], "not": ["river_back_home"], "lines": [{"zh": "仓库入口在水下。跟着导绳走。", "en": "The warehouse entrance is underwater. Follow the guide rope.", "added": true}]},
 		{"need": ["river_oldstreet"], "not": ["river_sluice_done"], "lines": [{"zh": "先听听哪边还在冒泡。", "en": "Listen for which side is still bubbling.", "added": true}, {"zh": "刻度要先记下来。", "en": "Write down the setting first.", "added": true}]},
 		{"need": ["river_need_head"], "not": ["river_breather"], "lines": [{"zh": "先去高处市集，借呼吸装置。", "en": "Upper market first. Borrow a breathing set.", "added": true}]},
@@ -382,17 +383,13 @@
 			{"say": "niff", "zh": "听着像我要开始收钱了。", "en": "It sounds like I'm about to charge you."},
 			{"say": "chen", "zh": "我叫——", "en": "I'm...", "added": true},
 			{"do": "sfx", "name": "rope_throw"},
-			{"do": "pose", "who": "ting", "dy": 64, "sec": 0, "_note": "10-31 作者「阿汀为什么是突然出现的」：原来只是原地淡入。改成先沉在水下 64 像素（水面那层半透明，挡在他前面），哗啦一声，再顺着正弦曲线慢慢浮上岸"},
-			{"do": "show", "who": "ting", "at": "river_bank_shallow", "fade": 0.4, "_note": "10-31 人和人不叠：阿汀从晨和妮芙中间的浅水里上来（原来在码头桩 872，晨去舱门得从他身上穿过去）。晨先走到舱门，阿汀再跟过去站在 river_bank_ting，妮芙等他站定再过去站在他右边，三个人一路谁也不穿过谁"},
-			{"do": "sfx", "name": "splash"},
-			{"do": "pose", "who": "ting", "dy": 0, "sec": 1.6},
-			{"do": "sfx", "name": "drip"},
+			{"do": "face", "who": "chen", "to": "river_bank_hatch", "_note": "11-02 作者「阿汀的出场好奇怪……不是有移动的动画吗」「等阿汀走到飞船 took forever」：不再从水里浮上来、也不再从妮芙旁边走 700 多像素。绳子丢过来，晨走到舱门，他从画面右边外面走进来，只走一小段（约 3.6 秒，淡入着进画面，他自己的走路动画 100ms 一帧）。晨在舱门 196、他停在 river_bank_ting 360：人不叠、谁也不从谁身上穿过去"},
+			{"do": "walk", "who": "chen", "to": "river_bank_hatch"},
+			{"do": "show", "who": "ting", "at": 560, "fade": 0.4},
+			{"do": "walk", "who": "ting", "to": "river_bank_ting", "speed": 50},
 			{"do": "face", "who": "chen", "to": "ting"},
 			{"say": "ting", "zh": "先把机翼绑住。", "en": "Tie down the wing first.", "added": true},
-			{"do": "walk", "who": "chen", "to": "river_bank_hatch"},
-			{"do": "walk", "who": "ting", "to": "river_bank_ting", "wait": false},
 			{"do": "anim", "who": "chen", "name": "tie"},
-			{"do": "walk", "who": "ting", "to": "river_bank_ting"},
 			{"do": "walk", "who": "niff", "to": "river_bank_ting", "wait": false},
 			{"do": "anim", "who": "ting", "name": "check"},
 			{"say": "ting", "zh": "人没伤着？", "en": "You hurt?"},
@@ -405,7 +402,7 @@
 			{"say": "ting", "zh": "我管修，船各有各的主人，", "en": "I do the fixing. The boats have their own owners."},
 			{"say": "ting", "zh": "坏了找人家去，可别都算我头上。", "en": "If one breaks, go to them. Don't pin it all on me."},
 			{"do": "sfx", "name": "drag_plane"},
-			{"do": "prop", "id": "river_bank_plane", "state": "beached"},
+			{"do": "prop", "id": "river_bank_plane", "state": "beached", "glide": 2.0, "from": [-64, 5], "_note": "11-02 作者：拖上岸不要闪现，带红色泛光挪过去（story_runner._prop_glide）"},
 			{"do": "walk", "who": "chen", "to": "river_bank_toolkit"},
 			{"do": "anim", "who": "chen", "name": "open_toolkit"},
 			{"do": "walk", "who": "ting", "to": "river_bank_ting"},
@@ -479,13 +476,16 @@
 			{"say": "chen", "zh": "……我尽量不落。", "en": "...I'll try not to.", "added": true}
 		],
 		"home_enter": [
-			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "river_home_niff"},
+			{"do": "hide", "who": "niff", "fade": 0.4, "_note": "11-02 作者「妮芙还是闪现进门」：她留在河岸的那个位置在世界坐标里正好叠在妮芙家这一间上，晨一进门就看见她站在那、再一下跳到门口。先跟着屏幕一起淡掉"},
+			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "_note": "11-02 作者：一进门妮芙已经闪现在屋子深处很奇怪。改成晨先进门（妮芙不跟着一起换房间），晨进去拿起罐子以后，妮芙从门口淡入、漂过来"},
 			{"do": "prop", "id": "river_home_labels", "state": "on"},
 			{"say": "chen", "zh": "每样东西都贴着标签。", "en": "Everything has a label.", "added": true},
 			{"do": "walk", "who": "chen", "to": "river_home_jar"},
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"narr": {"zh": "「盐，很咸，尝过了。」", "en": "\"Salt. Very salty. Tasted it.\""}},
+			{"do": "sfx", "name": "door_touch"},
+			{"do": "wait", "sec": 0.3},
+			{"do": "show", "who": "niff", "at": "river_home_labels", "fade": 0.6, "_note": "跟阿汀进门一样：先听见门响，人从门里那一格淡出来、再往里走"},
 			{"do": "walk", "who": "niff", "to": "river_home_jar"},
 			{"do": "anim", "who": "niff", "name": "take"},
 			{"say": "niff", "zh": "那个不要试哦。", "en": "Don't try that one."},
@@ -696,6 +696,10 @@
 			{"say": "niff", "zh": "当时就写下来了？", "en": "Did you write it down right then?"},
 			{"do": "anim", "who": "chen", "name": "shake_head"},
 			{"say": "niff", "zh": "那说这句话的时候，你们在做什么呀？", "en": "Then what were you two doing when she said it?"},
+			{"do": "flashback", "id": 3, "place": "street", "end": "white", "fall": true, "hold": true, "lines": [
+				{"zh": "她说那句话的时候，我们正在——", "en": "When she said it, we were—", "added": true}], "added": true},
+			{"do": "sfx", "name": "bell_soft"},
+			{"do": "flashback_wake"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "show_item", "item": "music_box"},
 			{"do": "wait", "sec": 1.5},
@@ -818,8 +822,12 @@
 			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post"}, "_note": "10-31 作者「阿汀为什么是突然出现的」：阿汀在换地方的同时就站在码头桩，原来是淡入以后才 show"}
 		],
 		"home_in": [
-			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "river_home_niff"}
+			{"do": "hide", "who": "niff", "fade": 0.4},
+			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "_note": "11-02 同 home_enter：晨先进门往里走几步，妮芙再从门口淡入、漂到灶台边（在晨左边，谁也不从谁身上穿过去）"},
+			{"do": "walk", "who": "chen", "to": "river_home_chen"},
+			{"do": "sfx", "name": "door_touch"},
+			{"do": "show", "who": "niff", "at": "river_home_labels", "fade": 0.6},
+			{"do": "walk", "who": "niff", "to": "river_home_kitchen", "wait": false}
 		],
 		"ting_footage": [
 			{"do": "face", "who": "ting", "to": "chen"},
@@ -1135,15 +1143,25 @@
 				"olds_skip": {"at": "warehouse_exit_light", "label": {"zh": "什么都不拿，顺着导绳回去", "en": "Take nothing, follow the rope back"}},
 				"knots": ["warehouse_knot_1", "warehouse_knot_2"],
 				"exit_light": "warehouse_exit_light",
-				"on_head": [{"do": "give", "item": "reading_head"}],
+				"on_head": [{"do": "give", "item": "reading_head"}, {"do": "flag", "set": "river_got_head"}],
 				"on_seal": [{"do": "give", "item": "float_seal"}],
 				"spec": "【小游戏二：水下仓库。玩家利用浮箱改变柜子的受力位置，拉开堵住内门的家具，再按设备标签找到读取头。导绳、出口灯和明确的绳结提供导航，气量不设置紧迫倒计时。完成主目标后，可顺路取回少量旧物和修船零件。】",
 				"lines": {
+					"stuck": [
+						{"narr": {"zh": "拉不动。家具被倒下的柜子斜压着。", "en": "It won't budge. The toppled cabinet is pinning it."}, "added": true},
+						{"do": "face", "who": "niff", "to": "warehouse_float"},
+						{"do": "anim", "who": "niff", "name": "point"},
+						{"narr": {"zh": "左边漂着一只浮箱。拴到柜子上，也许能把压着的那头浮起来。", "en": "A float box drifts to the left. Tied to the cabinet, it might lift the pinned end."}, "added": true}
+					],
+					"look_cabinet": [
+						{"narr": {"zh": "柜子倒下来，柜顶那头正压在家具上。柜顶和柜脚各有一个拴环。", "en": "The cabinet fell; its top end is pressing on the furniture. There's a ring at the top and one at the foot."}, "added": true}
+					],
 					"lift": [
 						{"do": "anim", "who": "niff", "name": "nod"}
 					],
 					"tilt_wrong": [
-						{"do": "anim", "who": "niff", "name": "shake_head"}
+						{"do": "anim", "who": "niff", "name": "shake_head"},
+						{"narr": {"zh": "柜脚浮起来了，压着家具的那头反而更沉。", "en": "The foot floated up. The end on the furniture sank even lower."}, "added": true}
 					],
 					"door_open": [
 						{"do": "walk", "who": "niff", "to": "warehouse_cabinet"}
@@ -1721,11 +1739,17 @@
 			{"say": "chen", "zh": "……饼干在另一边。", "en": "...The biscuits are on the other side.", "added": true},
 			{"do": "prop", "id": "river_bank_plane", "state": "fixed"},
 			{"do": "journal", "zh": "飞机修好了。阿汀给了一袋晾干的浮木。", "en": "The ship's fixed. Ting gave me a bag of dried driftwood.", "added": true},
+			{"do": "face", "who": "niff", "to": "chen", "_note": "11-02 作者：「回妮芙家道别」时妮芙明明就在旁边。改成修好以后她先回家泡茶，晨再去她家道别"},
+			{"say": "niff", "zh": "修好啦？那你等一下再走。", "en": "All fixed? Then wait a bit before you go.", "added": true},
+			{"say": "niff", "zh": "我先回去烧水，你来家里说再见。", "en": "I'll go put the water on. Come say goodbye at my place.", "added": true},
+			{"do": "follow", "who": "niff", "on": false},
+			{"do": "walk", "who": "niff", "to": "river_bank_home_door"},
+			{"do": "hide", "who": "niff", "fade": 0.5},
 			{"do": "flag", "set": "river_plane_fixed"}
 		],
 		"farewell": [
-			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "with": ["niff"]},
-			{"do": "show", "who": "niff", "at": "river_home_table"},
+			{"do": "fade_to", "room": "river_home", "at": "river_home_door"},
+			{"do": "show", "who": "niff", "at": "river_home_table", "fade": 0.4},
 			{"do": "prop", "id": "river_home_table", "state": "two_cups_tea"},
 			{"say": "niff", "zh": "这次先放茶啦。本子上写着。", "en": "Tea first this time. It's in the notebook.", "added": true},
 			{"do": "anim", "who": "chen", "name": "sip"},
