@@ -306,6 +306,19 @@ func narr(text: String, hold: float) -> void:
 	_narr_wait = false
 
 
+## 选项 / 点选一出来，屏幕下面还在慢慢淡的旁白和小提示（「记进了日记」）马上淡掉
+## （夜测 11-01：「预计航程：多了一点。」压在燃料选项底下、「记进了日记」压在来客册选项第三行上，字叠在一起）
+func _fade_narr_now() -> void:
+	if _narr_t > 0.0 and _narr.modulate.a > 0.01:
+		_narr_t = 0.0              # 不再走 _process 里的慢淡出，换成 0.2 秒从现在的亮度平滑淡到 0
+		create_tween().tween_property(_narr, "modulate:a", 0.0, 0.2)
+	if _toast.modulate.a > 0.01:
+		if _toast_tw != null and _toast_tw.is_valid():
+			_toast_tw.kill()
+		_toast_tw = create_tween()
+		_toast_tw.tween_property(_toast, "modulate:a", 0.0, 0.2)
+
+
 func toast(icon: Texture2D, text: String) -> void:
 	if instant:
 		return
@@ -334,6 +347,7 @@ func pick(options: Array, auto_pick := -1) -> int:
 	_pick_age = 0.0
 	_pick_auto = auto_pick
 	_pick_on = true
+	_fade_narr_now()
 	var all_in_scene := true
 	for o in options:
 		var r: Rect2 = (o["rect"] as Callable).call()
@@ -491,6 +505,7 @@ func menu_open() -> bool:
 
 
 func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
+	_fade_narr_now()
 	_menu_kind = kind
 	_menu_opts = opts
 	_menu_sel = 0

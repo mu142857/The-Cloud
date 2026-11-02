@@ -75,6 +75,7 @@ extends Node
 ##                           出来以后、远处树冠晃到一半时也各存一张（ui_choice / ui_items / ui_elephant）
 ##   --beat=<flag>           直接跳到「设这个 flag 的那个 scene 播完」的样子（瞬间把前面的都过一遍：flags、物品、NPC 位置都对）
 ##   --story_check           只检查剧本（引用不到的 marker / scene / item、不支持的步骤……），打印 STORY_CHECK 后退出
+##   --auto_to=<flag>        自动玩遇到点选时，优先选「走下去会设这个 flag」的那个（夜间测试：从森林连着玩到指定结局，如 final_ending_3）
 
 const DEFAULT_STORY := "res://data/story_forest.json"
 const SAMPLE_STORY := "res://data/story_forest_sample.json"
@@ -1720,6 +1721,12 @@ func _loops_back(s: String, here: String) -> bool:
 
 func _auto_pick(st: Dictionary) -> int:
 	var ok := _correct_index(st, _cur_scene)
+	var to := _auto_to()
+	if to != "" and not ff:
+		var opts_to: Array = st.get("options", [])
+		for i in opts_to.size():
+			if _leads_to(str(opts_to[i].get("scene", "")), to):
+				return i
 	if auto == "full" and not ff:
 		var opts: Array = st.get("options", [])
 		for i in opts.size():
@@ -1728,6 +1735,13 @@ func _auto_pick(st: Dictionary) -> int:
 				_wrong_tried[key] = true
 				return i
 	return ok
+
+
+func _auto_to() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--auto_to="):
+			return a.trim_prefix("--auto_to=")
+	return ""
 
 
 var ff_hit_end := false              # 跳节拍时碰到了 end_chapter（跳到 launched：跳完直接播起飞）
@@ -1751,6 +1765,7 @@ func _end_chapter() -> void:
 	var last: bool = (load("res://scripts/chapter_flow.gd") as GDScript).info(str(level.chapter)).get("last_card", false)
 	dlg.end_card(I18n.t("the_end" if last else "to_be_continued"), I18n.t("the_end_sub" if last else "to_be_continued_sub"),
 		level.get_node("Top"), I18n.t("end_any_key") if last else "")
+	print("END_CARD %s" % ("the_end" if last else "to_be_continued"))   # 自测：连着自动玩到最后，确认出的是「全剧终」
 	if last:
 		barter.show_achievements(level.get_node("Top"))     # 成就：只列拿到的（以物易物，data/achievements.json）
 	if auto != "":
@@ -2398,6 +2413,11 @@ func _process(delta: float) -> void:
 			_target = {}
 			trigger(p)
 			return
+	var at_n = h.get("at", 0)
+	var pn: Node2D = npc(str(at_n)) if at_n is String else null
+	if pn != null and pn != chen and npcs.values().has(pn) and not _is_body(pn):
+		# 不占路的人（料理鼠妈）：站到她身子外面说话，别走到她身上（占路的人本来就被 KEEP_CLEAR 推开）
+		tx = pn.position.x + (1.0 if chen.position.x >= pn.position.x else -1.0) * clear_dist(pn)
 	var wl: Vector2 = world.walls(chen.position.x)
 	var stand := clampf(tx, wl.x + 2.0, wl.y - 2.0)
 	if (absf(chen.position.x - stand) <= 4.0 and chen._vel <= 0.0) or _target_t > _target_limit:

@@ -128,6 +128,17 @@ SHIP_MAP = {
     "#33203a": "#93cbec", "#45293f": "#a6cde5",
     "#7a3420": "#cfb34c", "#c06a2c": "#ecc23e",
 }
+# 作者定的「中等深度」（SHIP_TONE = "mid"）：每一档用上面淡色的色相，RGB 按比例压暗，亮度落在作者原色和淡色正中间
+# （同一档淡色的几个原色按像素数取平均亮度）。最深那档 #4a615a 亮度 89，比晨的轮廓色 #702a30（64）浅，晨仍然更显眼。
+# 这些颜色比第十一版深，作者同意只给飞船用（SHIP_OWN）。"pale" = 上面那版淡色。
+SHIP_TONE = "mid"
+SHIP_MID = {
+    "#88b4a7": "#4a615a", "#9ec5b8": "#5e756d", "#acccbd": "#687b72", "#b6d2c0": "#718378", "#c0d8c0": "#7b8a7b",
+    "#cddbd5": "#87908c", "#e4e2cd": "#a8a697",
+    "#7fb8de": "#46657a", "#8cc3e3": "#547588", "#93cbec": "#597b8f", "#a6cde5": "#698291",
+    "#cfb34c": "#917e35", "#ecc23e": "#c3a033",
+}
+SHIP_OWN = set(SHIP_MID.values()) if SHIP_TONE == "mid" else set()
 
 
 def ship_src(recolor=None):
@@ -135,7 +146,8 @@ def ship_src(recolor=None):
     im = im[23:77, 32:174].copy()
     if SHIP_RECOLOR if recolor is None else recolor:
         for y, x in zip(*np.nonzero(im[..., 3])):
-            im[y, x, :3] = hx(SHIP_MAP["#%02x%02x%02x" % tuple(im[y, x, :3])])[:3]
+            c = SHIP_MAP["#%02x%02x%02x" % tuple(im[y, x, :3])]
+            im[y, x, :3] = hx(SHIP_MID[c] if SHIP_TONE == "mid" else c)[:3]
     return im
 
 
@@ -723,6 +735,9 @@ def check(pngs, objs):
     for name, img in pngs.items():
         cols = {"#%02x%02x%02x" % tuple(c[:3]) for c in img.reshape(-1, 4) if c[3] > 0}
         own = cols - ship_cols if name == "ship.png" and not SHIP_RECOLOR else cols
+        if name == "ship.png" and SHIP_OWN:
+            print(f"  ship.png: 作者同意的中等深度 {len(own & SHIP_OWN)} 色（只飞船），最深 {min(lum(c) for c in own & SHIP_OWN):.0f}")
+            own = own - SHIP_OWN
         if name == "sign.png":
             print(f"  sign.png: 作者同意的旧木色 {sorted(own & SIGN_OWN)}（只这一个物件）")
             own = own - SIGN_OWN

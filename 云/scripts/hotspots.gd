@@ -143,7 +143,8 @@ func range_of(h: Dictionary) -> float:
 		return r
 	var at = h.get("at", 0)
 	var n: Node2D = runner.npc(str(at)) if at is String and runner != null else null
-	if n != null and runner._is_body(n) and n != runner.chen:
+	# 不占路的人（pass：料理鼠妈站在小摊后面）也一样：站到身子外面就够得着，不然自动玩 / 鼠标点会让晨走到她身上停下来说话（夜测 11-01）
+	if n != null and n != runner.chen and (runner._is_body(n) or runner.npcs.values().has(n)):
 		r = maxf(r, runner.clear_dist(n) + 8.0)
 	return maxf(r, MIN_RANGE)
 

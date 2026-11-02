@@ -155,8 +155,8 @@
 	],
 	"barter": {"rat_chef": {"_note": "10-31 以物易物（scripts/barter.gd），作者按 docs/以物易物交换表.md 定稿。flag：barter_rat_chef_<id>；recipe 要先换过大嘴鸟的尾羽（森林带过来的 barter_toucan_feather）。", "trades": [{"id": "soup", "want": "mat_driftwood", "get": "soup_flask", "scene": "rat_chef_take_driftwood"}, {"id": "recipe", "want": "toucan_feather", "get": "recipe_card", "scene": "rat_chef_take_feather", "need": ["barter_toucan_feather"]}, {"id": "fire", "want": "glowing_wood", "get": "rice_ball", "scene": "rat_chef_take_wood"}], "react": {"biscuits": "rat_chef_react_biscuits"}, "wrong": "rat_chef_wrong", "none": "rat_chef_none", "done": "rat_chef_done"}},
 	"hotspots": [
-		{"id": "rat_chef_again", "at": "market_rat_chef", "room": "market", "label": {"zh": "料理鼠妈", "en": "Mama Rat"}, "need": ["met_rat_chef"], "not": [], "once": false, "scene": "rat_chef_again"},
-		{"id": "rat_chef_hello", "at": "market_rat_chef", "room": "market", "label": {"zh": "料理鼠妈", "en": "Mama Rat"}, "need": ["river_market"], "not": ["met_rat_chef"], "once": false, "scene": "rat_chef_hello"},
+		{"id": "rat_chef_again", "at": "rat_chef", "room": "market", "label": {"zh": "料理鼠妈", "en": "Mama Rat"}, "need": ["met_rat_chef"], "not": [], "once": false, "scene": "rat_chef_again"},
+		{"id": "rat_chef_hello", "at": "rat_chef", "room": "market", "label": {"zh": "料理鼠妈", "en": "Mama Rat"}, "need": ["river_market"], "not": ["met_rat_chef"], "once": false, "scene": "rat_chef_hello"},
 		{"id": "plane_depart", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_farewell"], "not": ["river_done"], "once": false, "scene": "depart"},
 		{"id": "plane_fix", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_bell"], "not": ["river_plane_fixed"], "once": false, "scene": "plane_fix"},
 		{"id": "plane_parts", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_need_head"], "not": ["river_plane_fixed"], "once": false, "scene": "bank_plane_parts"},
