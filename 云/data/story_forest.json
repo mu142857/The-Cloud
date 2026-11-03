@@ -145,8 +145,10 @@
 	],
 	"hints": [
 		{"need": ["c1_ready"], "not": ["launched"], "lines": [{"zh": "……该走了。", "en": "...Time to go.", "added": true}], "_c1": true},
+		{"need": ["c1_out2"], "not": ["c1_ready"], "lines": [{"zh": "鹿在门口等我。", "en": "The deer's waiting by the door.", "added": true}], "_c1": true},
 		{"need": ["c1_seed"], "not": ["c1_ready"], "lines": [{"zh": "门在左边。", "en": "The door's on the left.", "added": true}, {"zh": "鹿还在外面等我。", "en": "The deer's waiting outside.", "added": true}], "_c1": true},
 		{"need": ["c1_got_wood"], "not": ["c1_fixed"], "lines": [{"zh": "回树屋去。", "en": "Back to the treehouse.", "added": true}], "_c1": true},
+		{"need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "lines": [{"zh": "鹿在门口等我。", "en": "The deer's waiting by the door.", "added": true}], "_c1": true},
 		{"need": ["c1_need_wood"], "not": ["c1_to_rabbit"], "lines": [{"zh": "门在左边。", "en": "The door's on the left.", "added": true}], "_c1": true},
 		{"need": ["c1_got_bag"], "not": ["c1_chase_done"], "lines": [{"zh": "背包里……有什么？", "en": "What's in the backpack...?", "added": true}], "_c1": true},
 		{"need": ["c1_follow"], "not": ["c1_got_bag"], "lines": [{"zh": "鹿往那边跑了。", "en": "The deer ran that way.", "added": true}], "_c1": true},
@@ -179,9 +181,18 @@
 		{"id": "c1_wreck_look", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"}, "need": ["c1_asked_bag"], "not": ["c1_run"], "once": false, "scene": "c1_wreck_look", "bark_y": 62},
 		{"id": "c1_run", "at": "c1_run_go", "room": "forest", "label": {"zh": "", "en": ""}, "need": ["c1_follow"], "not": ["c1_run"], "once": false, "scene": "c1_run", "trigger": "enter", "range": 24, "nolock": true},
 		{"id": "c1_bag", "at": "c1_bag", "room": "forest", "label": {"zh": "背包", "en": "Backpack"}, "need": ["c1_run"], "not": ["c1_got_bag"], "once": false, "scene": "c1_got_bag", "trigger": "enter", "range": 16},
-		{"id": "c1_exit", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_exit"},
+		{"id": "c1_exit", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_need_wood"], "not": ["c1_to_rabbit", "c1_side_open"], "once": false, "scene": "c1_exit"},
+		{"id": "c1_reexit_1", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_reexit"},
+		{"id": "c1_reenter_1", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_reenter"},
+		{"id": "c1_reexit_2", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_reexit"},
+		{"id": "c1_reenter_2", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_reenter"},
 		{"id": "c1_fix", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_got_wood"], "not": ["c1_fixed"], "once": false, "scene": "c1_fix"},
-		{"id": "c1_go_home", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_seed"], "not": ["c1_ready"], "once": false, "scene": "c1_go_home"},
+		{"id": "c1_deer_go", "at": "deer", "room": "forest", "label": {"zh": "鹿", "en": "Deer"}, "need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_deer_go"},
+		{"id": "c1_out2", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_seed"], "not": ["c1_out2"], "once": false, "scene": "c1_out2"},
+		{"id": "c1_go_home", "at": "deer", "room": "forest", "label": {"zh": "鹿：回飞船", "en": "Deer: back to the ship"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_go_home"},
+		{"id": "c1_home_alone", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_home_alone"},
+		{"id": "c1_to_trees", "at": "cloth", "room": "forest", "label": {"zh": "沿着布条走", "en": "Follow the cloth"}, "need": ["c1_side_open"], "not": [], "once": false, "scene": "to_treehouse"},
+		{"id": "c1_to_road", "at": "house_return", "room": "forest", "label": {"zh": "回旧路", "en": "Back to the old road"}, "need": ["c1_side_open"], "not": [], "once": false, "scene": "to_road"},
 		{"id": "c1_launch", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"}, "need": ["c1_ready"], "not": ["launched"], "once": false, "scene": "c1_launch", "range": 120},
 		{"id": "toucan_again", "at": "glade_toucan", "room": "forest", "label": {"zh": "大嘴鸟", "en": "Toucan"}, "need": ["met_toucan"], "not": [], "once": false, "scene": "toucan_again", "retired": true},
 		{"id": "toucan_hello", "at": "glade_toucan", "room": "forest", "label": {"zh": "大嘴鸟", "en": "Toucan"}, "need": ["bridge_built"], "not": ["met_toucan"], "once": false, "scene": "toucan_hello", "retired": true},
@@ -1829,8 +1840,21 @@
 			{"say": "deer", "zh": "我可担心你了……给你的玩偶，你还留着对么……", "en": "I was so worried... You still have the toy I gave you, right..."},
 			{"do": "show_item", "item": "deer_bear", "sec": 1.8},
 			{"do": "wait", "sec": 1.4},
+			{"do": "prop", "id": "log", "state": "moved"},
+			{"do": "prop", "id": "plank", "state": "bridge"},
+			{"do": "flag", "set": "c1_side_open"}
+		],
+		"c1_reenter": [
+			{"do": "fade_to", "room": "treehouse", "at": "room_door", "place": {"miluo": "room_miluo"}}
+		],
+		"c1_reexit": [
+			{"do": "fade_to", "room": "forest", "at": "treehouse"}
+		],
+		"c1_deer_go": [
+			{"do": "face", "who": "deer", "to": "chen"},
 			{"say": "deer", "zh": "我来带你去找永燃之木", "en": "I'll take you to find the Everburning Wood"},
 			{"do": "flag", "set": "c1_to_rabbit"},
+			{"do": "flag", "clear": "c1_side_open"},
 			{"do": "fade_to", "room": "forest", "at": "c1_rabbit_chen", "style": "pixel", "place": {"deer": "c1_rabbit_deer"}},
 			{"do": "goto", "scene": "c1_rabbit"}
 		],
@@ -1864,6 +1888,7 @@
 			{"do": "give", "item": "miluo_letter"},
 			{"do": "mechanic", "id": "ship_repair", "sets": ["c1_fixed"]},
 			{"do": "flag", "set": "c1_fixed"},
+			{"do": "flag", "set": "c1_side_open"},
 			{"do": "goto", "scene": "c1_photo"}
 		],
 		"c1_photo": [
@@ -1878,9 +1903,12 @@
 			{"say": "miluo", "zh": "到了云底下再种。", "en": "Plant it once you're under the clouds.", "added": true},
 			{"do": "flag", "set": "c1_seed"}
 		],
+		"c1_out2": [
+			{"do": "fade_to", "room": "forest", "at": "treehouse", "place": {"deer": "deer_door"}},
+			{"do": "flag", "set": "c1_out2"}
+		],
 		"c1_go_home": [
 			{"do": "camera", "hold": true},
-			{"do": "fade_to", "room": "forest", "at": "treehouse"},
 			{"do": "camera", "at": "house_leave_view", "sec": 1.8, "wait": false},
 			{"do": "walk", "who": "deer", "to": "house_leave_deer", "speed": 90, "wait": false},
 			{"do": "wait", "sec": 0.7},
@@ -1888,6 +1916,14 @@
 			{"do": "show", "who": "deer", "at": "home_enter_deer"},
 			{"do": "walk", "who": "deer", "to": "deer_ship", "speed": 90, "wait": false},
 			{"do": "walk", "who": "chen", "to": "chen_bye", "pace": "walk"},
+			{"do": "goto", "scene": "c1_home_bye"}
+		],
+		"c1_home_alone": [
+			{"do": "show", "who": "deer", "at": "c1_deer_in"},
+			{"do": "walk", "who": "deer", "to": "deer_ship", "speed": 120},
+			{"do": "goto", "scene": "c1_home_bye"}
+		],
+		"c1_home_bye": [
 			{"do": "face", "who": "deer", "to": "chen"},
 			{"do": "face", "who": "chen", "to": "deer"},
 			{"do": "if", "flag": "c1_mom", "then": "c1_bye_mom", "else": "c1_bye_child"}
@@ -1912,5 +1948,6 @@
 	"hide_props": ["luggage", "scrap", "resin", "branch", "wood"],
 	"bag_lock": {"from": "c1_crashed", "until": "c1_got_bag"},
 	"one_way": {"after": "c1_got_bag", "until": "c1_fixed", "wall": "c1_bag_wall", "zh": "你的直觉告诉你，你应该往前探索。", "en": "Your instincts tell you to keep exploring ahead."},
+	"include": "res://data/forest_side_",
 	"item_views": [{"item": "elephant_drawing", "need": ["c1_got_bag"], "not": ["c1_chase_done"], "scene": "c1_drawing"}]
 }

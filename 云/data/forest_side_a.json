@@ -1,0 +1,1574 @@
+{
+ "_comment": "第一关支线 1（老松树的松脂·接松脂）、2a（收音机送回小吃棚·调台）、2b（路标送回空地·按停）、2c（油灯送回小屋·点灯 + 手影），side-a 会话 11-02 写。设计：docs/剧情改动/第一关支线_设计.md；格式：共享笔记 forest-side-schema.md（id 前缀 sa_，森林里的点要 c1_side_open）。要送还的三件在树屋里拿（need c1_need_wood：窗口一出门前、窗口二修好以后）。油灯要松脂当油（支线 1 给的 sa_sap），没有就先去接。小游戏：scripts/side_pine.gd / side_radio.gd / side_sign.gd / side_lamp.gd（共用 side_kit.gd），文件头有玩法和参数。图：art/forest_side/（_src/forest_side_art.py 生成）。老台词（剧情姐原句）没标 added，其余都是补写的。",
+ "speakers": {
+  "pine": {
+   "zh": "老松树",
+   "en": "Old Pine"
+  },
+  "radio": {
+   "zh": "收音机",
+   "en": "Radio"
+  }
+ },
+ "props": {
+  "sa_placed_lamp": {
+   "tex": "placed_lamp.png",
+   "at": "empty_house",
+   "dx": -33,
+   "dy": -26,
+   "size": [
+    6,
+    10
+   ],
+   "color": "#8a7244",
+   "hidden": true,
+   "states": {
+    "placed": {
+     "visible": true
+    }
+   }
+  }
+ },
+ "items": [
+  {
+   "id": "sa_sap",
+   "name": {
+    "en": "Jar of Sap",
+    "zh": "一罐松脂"
+   },
+   "rarity": "uncommon",
+   "burn": 0,
+   "icon": "res://art/forest_story/icon_sap.png",
+   "personal": true,
+   "fuel_kind": "unrelated",
+   "category": "keepsake",
+   "keepsake_burn": 40,
+   "desc": {
+    "zh": "老松树割口里接的，黏得盖子都拧不开。能烧，就是呛。",
+    "en": "Caught from the old pine's cut. So sticky the lid won't turn. It burns, but it's smoky."
+   },
+   "added": true,
+   "_note": "11-02 支线 1，无关燃料。items.json 的 sap 是旧流程修推进器用的（不能烧），这里另起 id。"
+  },
+  {
+   "id": "sa_menu",
+   "name": {
+    "en": "Old Stall Menu",
+    "zh": "小吃棚的旧菜单"
+   },
+   "rarity": "common",
+   "burn": 0,
+   "icon": "res://art/forest_side/icon_menu.png",
+   "personal": true,
+   "fuel_kind": "unrelated",
+   "category": "keepsake",
+   "keepsake_burn": 30,
+   "desc": {
+    "zh": "油渍斑斑。最上面一行还看得清：热汤，一碗。",
+    "en": "Grease-stained. The top line is still legible: hot soup, one bowl."
+   },
+   "added": true,
+   "_note": "11-02 支线 2a，无关燃料。"
+  },
+  {
+   "id": "sa_house_key",
+   "name": {
+    "en": "Key to the Hut",
+    "zh": "小屋的钥匙"
+   },
+   "rarity": "rare",
+   "burn": 0,
+   "icon": "res://art/forest_side/icon_key.png",
+   "personal": true,
+   "fuel_kind": "none",
+   "category": "keepsake",
+   "desc": {
+    "zh": "挂在窗台的钉子上。门早就不锁了，钥匙还一直留着。",
+    "en": "It hung on a nail by the window. The door hasn't been locked in years, but they kept the key."
+   },
+   "added": true,
+   "_note": "11-02 支线 2c，不能烧的纪念品。"
+  }
+ ],
+ "objectives": [
+  {
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sa_got_sap"
+   ],
+   "zh": "给老松树接一罐松脂",
+   "en": "Catch a jar of sap from the old pine",
+   "added": true
+  },
+  {
+   "need": [
+    "c1_side_open",
+    "sa_has_radio"
+   ],
+   "not": [
+    "sa_radio_done"
+   ],
+   "zh": "把收音机送回小吃棚",
+   "en": "Take the radio back to the snack stall",
+   "added": true
+  },
+  {
+   "need": [
+    "c1_side_open",
+    "sa_has_sign"
+   ],
+   "not": [
+    "sa_sign_done"
+   ],
+   "zh": "把路标送回空地",
+   "en": "Take the signpost back to the clearing",
+   "added": true
+  },
+  {
+   "need": [
+    "c1_side_open",
+    "sa_has_lamp",
+    "sa_got_sap"
+   ],
+   "not": [
+    "sa_lamp_done"
+   ],
+   "zh": "把油灯送回林子里的小屋",
+   "en": "Take the lamp back to the hut in the woods",
+   "added": true
+  },
+  {
+   "need": [
+    "c1_side_open",
+    "sa_has_lamp"
+   ],
+   "not": [
+    "sa_lamp_done",
+    "sa_got_sap"
+   ],
+   "zh": "给油灯找点油",
+   "en": "Find some oil for the lamp",
+   "added": true
+  }
+ ],
+ "hotspots": [
+  {
+   "id": "sa_radio_take",
+   "at": "room_radio",
+   "room": "treehouse",
+   "label": {
+    "zh": "收音机",
+    "en": "Radio"
+   },
+   "need": [
+    "c1_need_wood"
+   ],
+   "not": [
+    "sa_has_radio",
+    "sa_radio_done"
+   ],
+   "once": false,
+   "scene": "sa_radio_take"
+  },
+  {
+   "id": "sa_sign_take",
+   "at": "room_sign",
+   "room": "treehouse",
+   "label": {
+    "zh": "路标",
+    "en": "Signpost"
+   },
+   "need": [
+    "c1_need_wood"
+   ],
+   "not": [
+    "sa_has_sign",
+    "sa_sign_done"
+   ],
+   "once": false,
+   "scene": "sa_sign_take"
+  },
+  {
+   "id": "sa_lamp_take",
+   "at": "room_lamp",
+   "room": "treehouse",
+   "label": {
+    "zh": "油灯",
+    "en": "Oil Lamp"
+   },
+   "need": [
+    "c1_need_wood"
+   ],
+   "not": [
+    "sa_has_lamp",
+    "sa_lamp_done"
+   ],
+   "once": false,
+   "scene": "sa_lamp_take"
+  },
+  {
+   "id": "sa_pine",
+   "at": "pine",
+   "room": "forest",
+   "label": {
+    "zh": "老松树",
+    "en": "Old pine"
+   },
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sa_got_sap"
+   ],
+   "once": false,
+   "scene": "sa_pine"
+  },
+  {
+   "id": "sa_pine_after",
+   "at": "pine",
+   "room": "forest",
+   "label": {
+    "zh": "老松树",
+    "en": "Old pine"
+   },
+   "need": [
+    "c1_side_open",
+    "sa_got_sap"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "sa_pine_after"
+  },
+  {
+   "id": "sa_stall",
+   "at": "stall",
+   "room": "forest",
+   "label": {
+    "zh": "小吃棚",
+    "en": "Snack stall"
+   },
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sa_radio_done"
+   ],
+   "once": false,
+   "scene": "sa_stall"
+  },
+  {
+   "id": "sa_stall_after",
+   "at": "stall",
+   "room": "forest",
+   "label": {
+    "zh": "小吃棚",
+    "en": "Snack stall"
+   },
+   "need": [
+    "c1_side_open",
+    "sa_radio_done"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "sa_stall_after"
+  },
+  {
+   "id": "sa_sign_base",
+   "at": "glade_sign_base",
+   "room": "forest",
+   "label": {
+    "zh": "底座",
+    "en": "Sign base"
+   },
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sa_sign_done"
+   ],
+   "once": false,
+   "scene": "sa_sign"
+  },
+  {
+   "id": "sa_sign_after",
+   "at": "glade_sign_base",
+   "room": "forest",
+   "label": {
+    "zh": "路标",
+    "en": "Signpost"
+   },
+   "need": [
+    "c1_side_open",
+    "sa_sign_done"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "sa_sign_after"
+  },
+  {
+   "id": "sa_house",
+   "at": "empty_house",
+   "room": "forest",
+   "label": {
+    "zh": "小屋",
+    "en": "Hut"
+   },
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sa_lamp_done"
+   ],
+   "once": false,
+   "scene": "sa_house"
+  },
+  {
+   "id": "sa_house_after",
+   "at": "empty_house",
+   "room": "forest",
+   "label": {
+    "zh": "小屋",
+    "en": "Hut"
+   },
+   "need": [
+    "c1_side_open",
+    "sa_lamp_done"
+   ],
+   "not": [],
+   "once": false,
+   "scene": "sa_house_after"
+  }
+ ],
+ "scenes": {
+  "sa_pine": [
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "pine"
+   },
+   {
+    "narr": {
+     "zh": "树干上一道旧割口，还在往外渗松脂。根上倒扣着一个空罐子。",
+     "en": "An old cut in the trunk, still oozing sap. An empty jar sits upside down on a root."
+    },
+    "added": true
+   },
+   {
+    "say": "pine",
+    "zh": "又来放血？",
+    "en": "Back to bleed me again?",
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "我是来献血的。",
+      "en": "I'm here to donate blood.",
+      "scene": "sa_pine_donate",
+      "added": true
+     },
+     {
+      "zh": "对不起，我需要你的眼泪。",
+      "en": "I'm sorry. I need your tears.",
+      "scene": "sa_pine_tears",
+      "added": true
+     },
+     {
+      "zh": "我是你的母亲，还不过来孝敬我。",
+      "en": "I'm your mother. Come pay your respects.",
+      "scene": "sa_pine_mom",
+      "added": true,
+      "need": [
+       "c1_mom"
+      ]
+     },
+     {
+      "zh": "爷爷，我饿了。",
+      "en": "Grandpa, I'm hungry.",
+      "scene": "sa_pine_kid",
+      "added": true,
+      "need": [
+       "c1_child"
+      ]
+     }
+    ]
+   }
+  ],
+  "sa_pine_donate": [
+   {
+    "do": "flag",
+    "set": "sa_pine_plain"
+   },
+   {
+    "say": "pine",
+    "zh": "献给一棵树？",
+    "en": "To a tree?",
+    "added": true
+   },
+   {
+    "say": "pine",
+    "zh": "……罐子在那儿，你自己接。",
+    "en": "...The jar's right there. Help yourself.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_pine_catch"
+   }
+  ],
+  "sa_pine_tears": [
+   {
+    "do": "flag",
+    "set": "sa_pine_plain"
+   },
+   {
+    "say": "pine",
+    "zh": "松树不哭。",
+    "en": "Pines don't cry.",
+    "added": true
+   },
+   {
+    "say": "pine",
+    "zh": "那是松脂。……就一罐。",
+    "en": "That's sap. ...One jar.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_pine_catch"
+   }
+  ],
+  "sa_pine_mom": [
+   {
+    "do": "flag",
+    "set": "sa_pine_mom"
+   },
+   {
+    "say": "pine",
+    "zh": "……我四百岁了。",
+    "en": "...I'm four hundred years old.",
+    "added": true
+   },
+   {
+    "say": "pine",
+    "zh": "行吧，妈。孝敬您一罐。",
+    "en": "Fine, Mom. One jar, with respect.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_pine_catch"
+   }
+  ],
+  "sa_pine_kid": [
+   {
+    "do": "flag",
+    "set": "sa_pine_kid"
+   },
+   {
+    "say": "pine",
+    "zh": "我没有会走路的孙子。",
+    "en": "I don't have grandchildren who walk.",
+    "added": true
+   },
+   {
+    "say": "pine",
+    "zh": "……松脂不能吃。接一罐拿去玩吧。",
+    "en": "...Sap isn't food. Catch a jar and go play.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_pine_catch"
+   }
+  ],
+  "sa_pine_catch": [
+   {
+    "do": "give",
+    "item": "jar"
+   },
+   {
+    "do": "mechanic",
+    "id": "side_pine",
+    "sets": [
+     "sa_got_sap"
+    ],
+    "lines": {
+     "spill_1": [
+      {
+       "narr": {
+        "zh": "罐子黏在手上了。甩了两下，甩不掉。",
+        "en": "The jar's stuck to your hand. Two shakes. Still stuck."
+       },
+       "added": true
+      },
+      {
+       "say": "pine",
+       "zh": "贪心。",
+       "en": "Greedy.",
+       "added": true
+      }
+     ],
+     "give": [
+      {
+       "say": "pine",
+       "zh": "行了行了，我自己滴。",
+       "en": "Okay, okay. I'll drip it myself.",
+       "added": true
+      }
+     ]
+    }
+   },
+   {
+    "do": "take",
+    "item": "jar"
+   },
+   {
+    "do": "give",
+    "item": "sa_sap"
+   },
+   {
+    "do": "if",
+    "flag": "sa_pine_mom",
+    "then": "sa_pine_bye_mom"
+   },
+   {
+    "do": "if",
+    "flag": "sa_pine_kid",
+    "then": "sa_pine_bye_kid"
+   },
+   {
+    "do": "if",
+    "flag": "sa_pine_plain",
+    "then": "sa_pine_bye_plain"
+   }
+  ],
+  "sa_pine_bye_mom": [
+   {
+    "say": "pine",
+    "zh": "慢走，妈。",
+    "en": "Take care, Mom.",
+    "added": true
+   }
+  ],
+  "sa_pine_bye_kid": [
+   {
+    "say": "pine",
+    "zh": "拿稳了，孙子。",
+    "en": "Hold it steady, kid.",
+    "added": true
+   }
+  ],
+  "sa_pine_bye_plain": [
+   {
+    "say": "pine",
+    "zh": "下回带个小点的罐子。",
+    "en": "Bring a smaller jar next time.",
+    "added": true
+   }
+  ],
+  "sa_pine_after": [
+   {
+    "say": "chen",
+    "zh": "松脂还在往外渗",
+    "en": "Sap's still seeping out",
+    "bark": true
+   }
+  ],
+  "sa_radio_take": [
+   {
+    "say": "miluo",
+    "zh": "早修好了，在这儿放到现在也没人来听",
+    "en": "Fixed it ages ago. It's sat here ever since, and no one's come to listen"
+   },
+   {
+    "narr": {
+     "zh": "收音机的牌子上写着：小吃棚。",
+     "en": "The radio's tag says: Snack Stall."
+    },
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "我帮你送回去。",
+      "en": "I'll take it back.",
+      "scene": "sa_radio_take_a",
+      "added": true
+     },
+     {
+      "zh": "它还能响吗？",
+      "en": "Does it still play?",
+      "scene": "sa_radio_take_b",
+      "added": true
+     },
+     {
+      "zh": "我是失主。",
+      "en": "I'm the owner.",
+      "scene": "sa_radio_take_c",
+      "added": true
+     }
+    ]
+   }
+  ],
+  "sa_radio_take_a": [
+   {
+    "say": "miluo",
+    "zh": "去吧。送到了也没人听。",
+    "en": "Go on. Nobody's there to listen anyway.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_radio_get"
+   }
+  ],
+  "sa_radio_take_b": [
+   {
+    "say": "miluo",
+    "zh": "能响。就是不知道调在哪个台。",
+    "en": "It plays. Just no telling what station it's on.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_radio_get"
+   }
+  ],
+  "sa_radio_take_c": [
+   {
+    "do": "if",
+    "flag": "c1_mom",
+    "then": "sa_radio_take_c_mom",
+    "else": "sa_radio_take_c_kid"
+   }
+  ],
+  "sa_radio_take_c_mom": [
+   {
+    "say": "miluo",
+    "zh": "你又是小鹿的妈妈，又是小吃棚。你还是什么？",
+    "en": "You're the deer's mother, and now a snack stall. What else are you?",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_radio_get"
+   }
+  ],
+  "sa_radio_take_c_kid": [
+   {
+    "say": "miluo",
+    "zh": "牌子上写的是小吃棚。你是小吃棚？",
+    "en": "The tag says Snack Stall. Are you a snack stall?",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_radio_get"
+   }
+  ],
+  "sa_radio_get": [
+   {
+    "do": "prop",
+    "id": "radio",
+    "state": "hidden"
+   },
+   {
+    "do": "give",
+    "item": "return_radio"
+   },
+   {
+    "do": "flag",
+    "set": "sa_has_radio"
+   }
+  ],
+  "sa_stall": [
+   {
+    "do": "if",
+    "flag": "sa_has_radio",
+    "then": "sa_radio_return",
+    "else": "sa_stall_look"
+   }
+  ],
+  "sa_stall_look": [
+   {
+    "say": "chen",
+    "zh": "棚子倒还撑得住",
+    "en": "The stall's still standing, at least"
+   }
+  ],
+  "sa_radio_return": [
+   {
+    "do": "take",
+    "item": "return_radio"
+   },
+   {
+    "do": "prop",
+    "id": "placed_radio",
+    "state": "placed"
+   },
+   {
+    "do": "sfx",
+    "name": "radio_static"
+   },
+   {
+    "narr": {
+     "zh": "收音机摆回了棚子里。还能响，就是不知道调在哪个台。",
+     "en": "The radio's back in the stall. It still plays. Just no telling what station."
+    },
+    "added": true
+   },
+   {
+    "do": "mechanic",
+    "id": "side_radio",
+    "sets": [
+     "sa_radio_tuned"
+    ],
+    "stations": [
+     {
+      "f": 14,
+      "added": true,
+      "zh": "……雾星今天晴，明天晴，以后也一直晴。这是本台最后一次播报。",
+      "en": "...Fog Star: sunny today, sunny tomorrow, sunny from now on. This is our final broadcast."
+     },
+     {
+      "f": 33,
+      "added": true,
+      "zh": "♪咱～有一对～大大的角～老是勾住～人家的布～♪",
+      "en": "♪I've got~ a pair of~ great big antlers~ always snagging~ on the awning~♪"
+     },
+     {
+      "f": 55,
+      "key": "lost",
+      "need": [
+       "c1_mom"
+      ],
+      "added": true,
+      "zh": "失物招领：一位自称是鹿的母亲的人。有认识的，请来把她领走。",
+      "en": "Lost and found: one person claiming to be a deer's mother. If you know her, please come collect her."
+     },
+     {
+      "f": 55,
+      "key": "lost",
+      "added": true,
+      "zh": "失物招领：一个自称是鹿的孩子的人。鹿说：不用领了，就是咱的。",
+      "en": "Lost and found: one person claiming to be a deer's child. The deer says: no need, that one's mine."
+     },
+     {
+      "f": 74,
+      "added": true,
+      "zh": "现在播报晚饭时间。……现在播报晚饭时间。……有人吗？",
+      "en": "And now, dinnertime. ...And now, dinnertime. ...Anyone there?"
+     },
+     {
+      "f": 90,
+      "final": true,
+      "sfx": "market_bustle",
+      "added": true,
+      "zh": "热乎的——刚出锅的——下雨天，来一碗——",
+      "en": "Piping hot! Fresh out of the pot! Rainy day? Have a bowl!"
+     }
+    ],
+    "lines": {
+     "lost": [
+      {
+       "do": "choice",
+       "options": [
+        {
+         "zh": "换台。",
+         "en": "Change the station.",
+         "scene": "sa_radio_lost_skip",
+         "added": true
+        },
+        {
+         "zh": "……是我。",
+         "en": "...That's me.",
+         "scene": "sa_radio_lost_me",
+         "added": true
+        },
+        {
+         "zh": "认领要带什么？",
+         "en": "What do I need to bring to claim them?",
+         "scene": "sa_radio_lost_claim",
+         "added": true
+        }
+       ]
+      }
+     ],
+     "give": [
+      {
+       "narr": {
+        "zh": "指针自己往右滑了过去，像被什么吸住了。",
+        "en": "The needle slides right on its own, like something's pulling it."
+       },
+       "added": true
+      }
+     ],
+     "done": [
+      {
+       "narr": {
+        "zh": "叫卖声一遍一遍地放。棚子底下好像又挤满了人。",
+        "en": "The vendor's call plays over and over. It sounds like the stall is crowded again."
+       },
+       "added": true
+      }
+     ]
+    }
+   },
+   {
+    "narr": {
+     "zh": "收音机底下压着一张旧菜单。",
+     "en": "There's an old menu tucked under the radio."
+    },
+    "added": true
+   },
+   {
+    "do": "give",
+    "item": "sa_menu"
+   },
+   {
+    "do": "journal",
+    "zh": "小吃棚的收音机调回了老台：热乎的，刚出锅的。菜单上第一行是热汤。",
+    "en": "Tuned the stall's radio back to its old station: piping hot, fresh out of the pot. First line on the menu: hot soup.",
+    "added": true
+   },
+   {
+    "do": "flag",
+    "set": "sa_radio_done"
+   }
+  ],
+  "sa_radio_lost_skip": [
+   {
+    "narr": {
+     "zh": "……沙沙。",
+     "en": "...Static."
+    },
+    "added": true
+   }
+  ],
+  "sa_radio_lost_me": [
+   {
+    "say": "radio",
+    "zh": "请失主带好证件，到小吃棚认领。",
+    "en": "Owner, please bring ID to the snack stall.",
+    "added": true
+   },
+   {
+    "narr": {
+     "zh": "你就在小吃棚。",
+     "en": "You are at the snack stall."
+    },
+    "added": true
+   }
+  ],
+  "sa_radio_lost_claim": [
+   {
+    "say": "radio",
+    "zh": "请携带鹿一只。",
+    "en": "Please bring one deer.",
+    "added": true
+   }
+  ],
+  "sa_stall_after": [
+   {
+    "say": "chen",
+    "zh": "叫卖声还在放",
+    "en": "The vendor's call is still playing",
+    "bark": true,
+    "added": true
+   }
+  ],
+  "sa_sign_take": [
+   {
+    "say": "miluo",
+    "zh": "路标嘛，还没找着方向呢",
+    "en": "It's a signpost. It hasn't found its way yet"
+   },
+   {
+    "say": "miluo",
+    "zh": "让它转呗，你别伸手掰就行",
+    "en": "Let it spin. Just don't grab it"
+   },
+   {
+    "narr": {
+     "zh": "底下的牌子写着：空地。",
+     "en": "The tag underneath says: Clearing."
+    },
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "我送它回空地。",
+      "en": "I'll take it back to the clearing.",
+      "scene": "sa_sign_take_a",
+      "added": true
+     },
+     {
+      "zh": "它会不会也晕？",
+      "en": "Does it get dizzy?",
+      "scene": "sa_sign_take_b",
+      "added": true
+     },
+     {
+      "zh": "（伸手掰）",
+      "en": "(Grab it)",
+      "scene": "sa_sign_take_c",
+      "added": true
+     }
+    ]
+   }
+  ],
+  "sa_sign_take_a": [
+   {
+    "say": "miluo",
+    "zh": "它自己都不知道空地在哪。",
+    "en": "It doesn't know where the clearing is either.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_sign_get"
+   }
+  ],
+  "sa_sign_take_b": [
+   {
+    "say": "miluo",
+    "zh": "晕了就停了。到现在还没停过。",
+    "en": "If it got dizzy, it'd stop. Hasn't stopped yet.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_sign_get"
+   }
+  ],
+  "sa_sign_take_c": [
+   {
+    "do": "sfx",
+    "name": "wood_knock"
+   },
+   {
+    "say": "miluo",
+    "zh": "……我刚说完。",
+    "en": "...I literally just said.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_sign_get"
+   }
+  ],
+  "sa_sign_get": [
+   {
+    "do": "prop",
+    "id": "sign",
+    "state": "hidden"
+   },
+   {
+    "do": "give",
+    "item": "return_sign"
+   },
+   {
+    "do": "flag",
+    "set": "sa_has_sign"
+   }
+  ],
+  "sa_sign": [
+   {
+    "do": "if",
+    "flag": "sa_has_sign",
+    "then": "sa_sign_return",
+    "else": "sa_sign_look"
+   }
+  ],
+  "sa_sign_look": [
+   {
+    "say": "chen",
+    "zh": "这底座空着呢",
+    "en": "The base is empty"
+   }
+  ],
+  "sa_sign_return": [
+   {
+    "do": "take",
+    "item": "return_sign"
+   },
+   {
+    "narr": {
+     "zh": "路标插回了底座。它又自己转了起来。",
+     "en": "The signpost goes back in its base. It starts spinning again."
+    },
+    "added": true
+   },
+   {
+    "do": "mechanic",
+    "id": "side_sign",
+    "sets": [
+     "sa_sign_stopped"
+    ],
+    "follow_scene": "sa_sign_follow",
+    "lines": {
+     "chen": [
+      {
+       "narr": {
+        "zh": "它好像觉得你就是路。",
+        "en": "It seems to think you're the way."
+       },
+       "added": true
+      },
+      {
+       "do": "choice",
+       "options": [
+        {
+         "zh": "我不是路。",
+         "en": "I'm not the way.",
+         "scene": "sa_sign_not",
+         "added": true
+        },
+        {
+         "zh": "……我也在找路。",
+         "en": "...I'm looking for it too.",
+         "scene": "sa_sign_lost",
+         "added": true
+        },
+        {
+         "zh": "那就跟我走吧。",
+         "en": "Then come with me.",
+         "scene": "sa_sign_follow",
+         "added": true,
+         "not": [
+          "c1_mom"
+         ]
+        },
+        {
+         "zh": "乖，跟妈走。",
+         "en": "Come on, follow Mom.",
+         "scene": "sa_sign_follow",
+         "added": true,
+         "need": [
+          "c1_mom"
+         ]
+        }
+       ]
+      }
+     ],
+     "followed": [
+      {
+       "narr": {
+        "zh": "插回去的路标老实了。",
+        "en": "Back in its base, the signpost behaves itself."
+       },
+       "added": true
+      }
+     ],
+     "miss_1": [
+      {
+       "narr": {
+        "zh": "那边不是空地。",
+        "en": "That's not the clearing."
+       },
+       "added": true
+      }
+     ],
+     "give": [
+      {
+       "narr": {
+        "zh": "路标转着转着，自己慢了下来。",
+        "en": "The signpost spins, and spins, and slows down on its own."
+       },
+       "added": true
+      }
+     ],
+     "done": [
+      {
+       "narr": {
+        "zh": "路标停了。指着空地正中间。",
+        "en": "The signpost stops, pointing at the middle of the clearing."
+       },
+       "added": true
+      }
+     ]
+    }
+   },
+   {
+    "do": "prop",
+    "id": "placed_sign",
+    "state": "placed"
+   },
+   {
+    "say": "chen",
+    "zh": "底座旁边，压着半张车票",
+    "en": "Half a ticket, tucked by the base"
+   },
+   {
+    "say": "chen",
+    "zh": "车票终点都泡花了，这可怎么找",
+    "en": "The destination's washed out. No way to know where they went"
+   },
+   {
+    "do": "journal",
+    "zh": "路标归位，指着空地。它之前一直指着我。底座旁有半张车票，终点泡花了。",
+    "en": "Signpost back in place, pointing at the clearing. Before that it kept pointing at me. Half a ticket by the base, the destination washed out.",
+    "added": true
+   },
+   {
+    "do": "flag",
+    "set": "sa_sign_done"
+   }
+  ],
+  "sa_sign_not": [
+   {
+    "narr": {
+     "zh": "路标没理你。",
+     "en": "The signpost ignores you."
+    },
+    "added": true
+   }
+  ],
+  "sa_sign_lost": [
+   {
+    "narr": {
+     "zh": "路标转得慢了一点。",
+     "en": "The signpost spins a little slower."
+    },
+    "added": true
+   }
+  ],
+  "sa_sign_follow": [
+   {
+    "narr": {
+     "zh": "路标从底座里蹦了出来。",
+     "en": "The signpost hops right out of its base."
+    },
+    "added": true
+   }
+  ],
+  "sa_sign_after": [
+   {
+    "say": "chen",
+    "zh": "路标还指着空地",
+    "en": "The signpost still points at the clearing",
+    "bark": true,
+    "added": true
+   }
+  ],
+  "sa_lamp_take": [
+   {
+    "say": "miluo",
+    "zh": "灯芯换好了，就是没油了，想点得自己找",
+    "en": "New wick. No oil, though. Want it lit, find your own"
+   },
+   {
+    "narr": {
+     "zh": "牌子上写着：林子里的小屋。",
+     "en": "The tag says: The Hut in the Woods."
+    },
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "我去给它找点油。",
+      "en": "I'll find it some oil.",
+      "scene": "sa_lamp_take_a",
+      "added": true
+     },
+     {
+      "zh": "屋里的人还会回来吗？",
+      "en": "Will the people who lived there come back?",
+      "scene": "sa_lamp_take_b",
+      "added": true
+     },
+     {
+      "zh": "借我照一下我的过去。",
+      "en": "Lend it to me. I want to light up my past.",
+      "scene": "sa_lamp_take_c",
+      "added": true
+     }
+    ]
+   }
+  ],
+  "sa_lamp_take_a": [
+   {
+    "say": "miluo",
+    "zh": "松脂也能烧，就是呛。",
+    "en": "Sap burns too. Smoky, though.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_lamp_get"
+   }
+  ],
+  "sa_lamp_take_b": [
+   {
+    "say": "miluo",
+    "zh": "灯点着了，说不定。",
+    "en": "Light the lamp and maybe.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_lamp_get"
+   }
+  ],
+  "sa_lamp_take_c": [
+   {
+    "say": "miluo",
+    "zh": "……那得多少油。",
+    "en": "...That'd take a lot of oil.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sa_lamp_get"
+   }
+  ],
+  "sa_lamp_get": [
+   {
+    "do": "prop",
+    "id": "room_lamp",
+    "state": "hidden"
+   },
+   {
+    "do": "give",
+    "item": "return_lamp"
+   },
+   {
+    "do": "flag",
+    "set": "sa_has_lamp"
+   }
+  ],
+  "sa_house": [
+   {
+    "do": "if",
+    "flag": "sa_has_lamp",
+    "then": "sa_house_lamp",
+    "else": "sa_house_look"
+   }
+  ],
+  "sa_house_look": [
+   {
+    "say": "chen",
+    "zh": "门槛上积了这么厚的灰",
+    "en": "So much dust on the doorstep"
+   },
+   {
+    "say": "chen",
+    "zh": "连个脚印都找不着",
+    "en": "Not a single footprint"
+   }
+  ],
+  "sa_house_lamp": [
+   {
+    "do": "if",
+    "flag": "sa_got_sap",
+    "then": "sa_lamp_light",
+    "else": "sa_lamp_dry"
+   }
+  ],
+  "sa_lamp_dry": [
+   {
+    "narr": {
+     "zh": "灯里一滴油也没有。",
+     "en": "Not a drop of oil in the lamp."
+    },
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "去找点油。",
+      "en": "Go find some oil.",
+      "scene": "sa_lamp_dry_a",
+      "added": true
+     },
+     {
+      "zh": "……对着灯芯哈一口气。",
+      "en": "...Breathe on the wick.",
+      "scene": "sa_lamp_dry_b",
+      "added": true
+     },
+     {
+      "zh": "用眼泪。",
+      "en": "Use tears.",
+      "scene": "sa_lamp_dry_c",
+      "added": true
+     }
+    ]
+   }
+  ],
+  "sa_lamp_dry_a": [
+   {
+    "narr": {
+     "zh": "弥洛说过，松脂也能烧。",
+     "en": "Milo said sap burns too."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_dry_b": [
+   {
+    "narr": {
+     "zh": "灯芯更湿了。",
+     "en": "Now the wick's damp."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_dry_c": [
+   {
+    "narr": {
+     "zh": "眼泪不能点灯。老松树那儿倒是有不哭的。",
+     "en": "Tears won't light a lamp. The old pine has the kind that isn't crying."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_light": [
+   {
+    "do": "take",
+    "item": "return_lamp"
+   },
+   {
+    "do": "take",
+    "item": "sa_sap"
+   },
+   {
+    "do": "flag",
+    "set": "sa_sap_used"
+   },
+   {
+    "do": "prop",
+    "id": "sa_placed_lamp",
+    "state": "placed"
+   },
+   {
+    "do": "mechanic",
+    "id": "side_lamp",
+    "sets": [
+     "sa_lamp_lit"
+    ],
+    "fuel": "sa_sap",
+    "gesture": 0,
+    "lines": {
+     "intro": [
+      {
+       "narr": {
+        "zh": "松脂倒进灯里，一屋子松香味。",
+        "en": "The sap goes into the lamp. The whole room smells of pine."
+       },
+       "added": true
+      }
+     ],
+     "wave": [
+      {
+       "narr": {
+        "zh": "墙上多了三个影子。是以前住在这儿的人，他们在挥手。",
+        "en": "Three shadows on the wall. The people who used to live here. They're waving."
+       },
+       "added": true
+      },
+      {
+       "do": "choice",
+       "options": [
+        {
+         "zh": "（挥手）",
+         "en": "(Wave back)",
+         "scene": "sa_lamp_wave_a",
+         "added": true
+        },
+        {
+         "zh": "你们好，我是来还灯的。",
+         "en": "Hello. I came to bring back your lamp.",
+         "scene": "sa_lamp_wave_b",
+         "added": true
+        },
+        {
+         "zh": "请问这儿还出租吗？",
+         "en": "Excuse me, is this place still for rent?",
+         "scene": "sa_lamp_wave_c",
+         "added": true
+        }
+       ]
+      }
+     ],
+     "bag": [
+      {
+       "narr": {
+        "zh": "最小的那个在地上摸来摸去。它比划了一下：一个背包。",
+        "en": "The smallest one feels around on the floor. Then it traces a shape: a backpack."
+       },
+       "added": true
+      },
+      {
+       "do": "choice",
+       "options": [
+        {
+         "zh": "你也在找背包？",
+         "en": "You're looking for a backpack too?",
+         "scene": "sa_lamp_bag_a",
+         "added": true
+        },
+        {
+         "zh": "我的找到了。你的会找到的。",
+         "en": "I found mine. You'll find yours.",
+         "scene": "sa_lamp_bag_b",
+         "added": true
+        },
+        {
+         "zh": "那是我的。",
+         "en": "That one's mine.",
+         "scene": "sa_lamp_bag_c",
+         "added": true,
+         "not": [
+          "c1_mom"
+         ]
+        },
+        {
+         "zh": "孩子，背包妈给你收着呢。",
+         "en": "Sweetie, Mom's keeping your backpack safe.",
+         "scene": "sa_lamp_bag_mom",
+         "added": true,
+         "need": [
+          "c1_mom"
+         ]
+        }
+       ]
+      }
+     ],
+     "gesture": [
+      {
+       "narr": {
+        "zh": "个子最高的那个把手举到灯前。墙上出来一只兔子。",
+        "en": "The tallest one holds a hand up to the lamp. A rabbit appears on the wall."
+       },
+       "added": true
+      }
+     ],
+     "wrong_1": [
+      {
+       "narr": {
+        "zh": "影子歪了歪头。",
+        "en": "The shadow tilts its head."
+       },
+       "added": true
+      }
+     ],
+     "give": [
+      {
+       "narr": {
+        "zh": "你的手自己摆对了。",
+        "en": "Your hands find the shape on their own."
+       },
+       "added": true
+      }
+     ],
+     "done": [
+      {
+       "narr": {
+        "zh": "影子们挥了挥手，慢慢淡掉了。窗台的钉子上挂着一把钥匙。",
+        "en": "The shadows wave, then fade. A key hangs on a nail by the window."
+       },
+       "added": true
+      }
+     ]
+    }
+   },
+   {
+    "do": "give",
+    "item": "sa_house_key"
+   },
+   {
+    "do": "journal",
+    "zh": "林子里的小屋点上了灯。墙上的影子跟我挥手，最小的那个也在找背包。",
+    "en": "Lit the lamp in the hut in the woods. The shadows on the wall waved at me. The smallest one was looking for a backpack too.",
+    "added": true
+   },
+   {
+    "do": "flag",
+    "set": "sa_lamp_done"
+   }
+  ],
+  "sa_lamp_wave_a": [
+   {
+    "narr": {
+     "zh": "最高的那个影子把手举得更高了。",
+     "en": "The tallest shadow waves higher."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_wave_b": [
+   {
+    "narr": {
+     "zh": "影子们点了点头。",
+     "en": "The shadows nod."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_wave_c": [
+   {
+    "narr": {
+     "zh": "影子们对看了一眼。",
+     "en": "The shadows glance at each other."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_bag_a": [
+   {
+    "narr": {
+     "zh": "小影子点点头，又低下头去摸。",
+     "en": "The little shadow nods, and goes back to feeling around."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_bag_b": [
+   {
+    "narr": {
+     "zh": "小影子停下来，看了你一会儿。",
+     "en": "The little shadow stops and looks at you for a while."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_bag_c": [
+   {
+    "narr": {
+     "zh": "小影子把比划出来的背包抱紧了。",
+     "en": "The little shadow hugs its imaginary backpack tighter."
+    },
+    "added": true
+   }
+  ],
+  "sa_lamp_bag_mom": [
+   {
+    "narr": {
+     "zh": "小影子愣了一下，躲到大影子后面去了。",
+     "en": "The little shadow freezes, then hides behind the big one."
+    },
+    "added": true
+   }
+  ],
+  "sa_house_after": [
+   {
+    "say": "chen",
+    "zh": "灯还亮着",
+    "en": "The lamp's still lit",
+    "bark": true,
+    "added": true
+   }
+  ]
+ }
+}

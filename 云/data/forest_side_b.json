@@ -1,0 +1,745 @@
+{
+ "_comment": "第一关支线 3（大嘴鸟·接果子）、4（坡地·鹿的妈妈·雾里跟蹄印），side-b 会话 11-02 写。设计：docs/剧情改动/第一关支线_设计.md；格式：共享笔记 forest-side-schema.md（id 前缀 sb_，hotspot 要 c1_side_open）。小游戏：scripts/side_toucan.gd（接果子 / act huff 合嘴）、scripts/side_slope.gd（雾里跟蹄印），文件头有玩法和参数。图：art/forest_side/（src/side_b_art.py 生成）。台词都是补写的（added）。",
+ "markers": {
+  "sb_slope_start": 4220,
+  "sb_slope_deer": 4480
+ },
+ "objectives": [
+  {
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sb_toucan_done"
+   ],
+   "zh": "陪大嘴鸟接果子",
+   "en": "Catch fruit for the toucan",
+   "added": true
+  },
+  {
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sb_slope_done"
+   ],
+   "zh": "去坡地的雾里看看",
+   "en": "Look into the fog on the slope",
+   "added": true
+  }
+ ],
+ "hotspots": [
+  {
+   "id": "sb_toucan",
+   "at": "glade_toucan",
+   "room": "forest",
+   "label": {
+    "zh": "大嘴鸟",
+    "en": "Toucan"
+   },
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sb_toucan_done"
+   ],
+   "once": false,
+   "scene": "sb_toucan_hello"
+  },
+  {
+   "id": "sb_slope",
+   "at": "sb_slope_start",
+   "room": "forest",
+   "label": {
+    "zh": "雾",
+    "en": "Fog"
+   },
+   "need": [
+    "c1_side_open"
+   ],
+   "not": [
+    "sb_slope_done"
+   ],
+   "once": false,
+   "scene": "sb_slope_go"
+  },
+  {
+   "id": "sb_toucan_bye_mama",
+   "at": "glade_toucan",
+   "room": "forest",
+   "label": {
+    "zh": "大嘴鸟",
+    "en": "Toucan"
+   },
+   "need": [
+    "sb_toucan_done",
+    "sb_toucan_mama"
+   ],
+   "not": [
+    "launched"
+   ],
+   "once": false,
+   "scene": "sb_toucan_bye_mama",
+   "bark_y": 34
+  },
+  {
+   "id": "sb_toucan_bye_mouth",
+   "at": "glade_toucan",
+   "room": "forest",
+   "label": {
+    "zh": "大嘴鸟",
+    "en": "Toucan"
+   },
+   "need": [
+    "sb_toucan_done",
+    "sb_toucan_mouth"
+   ],
+   "not": [
+    "launched"
+   ],
+   "once": false,
+   "scene": "sb_toucan_bye_mouth",
+   "bark_y": 34
+  },
+  {
+   "id": "sb_toucan_bye_no",
+   "at": "glade_toucan",
+   "room": "forest",
+   "label": {
+    "zh": "大嘴鸟",
+    "en": "Toucan"
+   },
+   "need": [
+    "sb_toucan_done",
+    "sb_toucan_no"
+   ],
+   "not": [
+    "launched"
+   ],
+   "once": false,
+   "scene": "sb_toucan_bye_no",
+   "bark_y": 34
+  }
+ ],
+ "scenes": {
+  "sb_toucan_hello": [
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "glade_toucan"
+   },
+   {
+    "say": "toucan",
+    "zh": "哎，会走路的！接得住果子吗？",
+    "en": "Hey, something that walks! Can you catch fruit?",
+    "added": true
+   },
+   {
+    "say": "toucan",
+    "zh": "接住五个，我就跟你换样好东西。",
+    "en": "Catch five and I'll trade you something good.",
+    "added": true
+   },
+   {
+    "do": "mechanic",
+    "id": "side_toucan",
+    "sets": [
+     "sb_toucan_caught"
+    ],
+    "lines": {
+     "miss": [
+      {
+       "say": "toucan",
+       "zh": "掉了掉了。没事，地上的也算我的。",
+       "en": "Dropped it. That's fine, the ground ones are mine too.",
+       "added": true
+      }
+     ],
+     "auto": [
+      {
+       "say": "toucan",
+       "zh": "算了，我直接往你手里扔。",
+       "en": "Never mind. I'll just toss them into your hands.",
+       "added": true
+      }
+     ],
+     "win": [
+      {
+       "say": "toucan",
+       "zh": "接得比我妈还好。",
+       "en": "You catch better than my mom.",
+       "added": true
+      }
+     ]
+    }
+   },
+   {
+    "say": "toucan",
+    "zh": "尾羽给你。不过……",
+    "en": "The tail feather's yours. But...",
+    "added": true
+   },
+   {
+    "do": "if",
+    "flag": "c1_mom",
+    "then": "sb_toucan_ask_mom",
+    "else": "sb_toucan_ask_child"
+   }
+  ],
+  "sb_toucan_ask_mom": [
+   {
+    "say": "toucan",
+    "zh": "听说你给那头鹿当妈妈。那也给我当回孩子，叫我一声妈妈。",
+    "en": "I hear you're that deer's mom. Then be my kid for once. Call me Mom.",
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "妈妈",
+      "en": "Mom",
+      "scene": "sb_toucan_mama"
+     },
+     {
+      "zh": "不",
+      "en": "No",
+      "scene": "sb_toucan_no"
+     },
+     {
+      "zh": "你嘴太大了，当不了妈妈",
+      "en": "Your beak's too big to be a mom",
+      "scene": "sb_toucan_mouth"
+     }
+    ]
+   }
+  ],
+  "sb_toucan_ask_child": [
+   {
+    "say": "toucan",
+    "zh": "听说你管那头鹿叫妈妈。多叫一个也不多，叫我一声妈妈。",
+    "en": "I hear you call that deer Mom. One more won't hurt. Call me Mom.",
+    "added": true
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "妈妈",
+      "en": "Mom",
+      "scene": "sb_toucan_mama"
+     },
+     {
+      "zh": "不",
+      "en": "No",
+      "scene": "sb_toucan_no"
+     },
+     {
+      "zh": "你嘴太大了，当不了妈妈",
+      "en": "Your beak's too big to be a mom",
+      "scene": "sb_toucan_mouth"
+     }
+    ]
+   }
+  ],
+  "sb_toucan_mama": [
+   {
+    "do": "flag",
+    "set": "sb_toucan_mama"
+   },
+   {
+    "say": "toucan",
+    "zh": "……再叫一声。算了，一声够我记很久了。",
+    "en": "...Say it again. No, once is enough. I'll remember it a long time.",
+    "added": true
+   },
+   {
+    "do": "if",
+    "flag": "c1_mom",
+    "then": "sb_toucan_mama_mom",
+    "else": "sb_toucan_mama_child"
+   },
+   {
+    "do": "goto",
+    "scene": "sb_toucan_give"
+   }
+  ],
+  "sb_toucan_mama_mom": [
+   {
+    "say": "toucan",
+    "zh": "那头鹿以后得管我叫外婆了。",
+    "en": "So that deer has to call me Grandma now.",
+    "added": true
+   }
+  ],
+  "sb_toucan_mama_child": [
+   {
+    "say": "toucan",
+    "zh": "鹿那边要是问起来，就说我是你二妈。",
+    "en": "If the deer asks, tell it I'm your other mom.",
+    "added": true
+   }
+  ],
+  "sb_toucan_no": [
+   {
+    "do": "flag",
+    "set": "sb_toucan_no"
+   },
+   {
+    "say": "toucan",
+    "zh": "有骨气。尾羽照给，拿着。",
+    "en": "Good, you've got a spine. You still get the feather. Here.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sb_toucan_give"
+   }
+  ],
+  "sb_toucan_mouth": [
+   {
+    "do": "flag",
+    "set": "sb_toucan_mouth"
+   },
+   {
+    "do": "mechanic",
+    "id": "side_toucan",
+    "act": "huff"
+   },
+   {
+    "say": "toucan",
+    "zh": "嗯嗯。嗯嗯嗯。",
+    "en": "Mm-mm. Mm-mm-mm.",
+    "added": true
+   },
+   {
+    "narr": {
+     "zh": "它嘴闭得太紧，说不出话了。尾羽还是丢了过来。",
+     "en": "It has shut its beak too tight to talk. It tosses the feather over anyway."
+    },
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sb_toucan_give"
+   }
+  ],
+  "sb_toucan_give": [
+   {
+    "do": "reward",
+    "item": "sb_toucan_feather"
+   },
+   {
+    "do": "give",
+    "item": "sb_toucan_feather"
+   },
+   {
+    "do": "flag",
+    "set": "sb_toucan_done"
+   }
+  ],
+  "sb_toucan_bye_mama": [
+   {
+    "say": "toucan",
+    "zh": "乖孩子，路过要回来看妈妈。",
+    "en": "Good kid. Come see your mom when you pass by.",
+    "added": true
+   }
+  ],
+  "sb_toucan_bye_no": [
+   {
+    "say": "toucan",
+    "zh": "果子还多着呢，我又不走。",
+    "en": "Plenty more fruit. I'm not going anywhere.",
+    "added": true
+   }
+  ],
+  "sb_toucan_bye_mouth": [
+   {
+    "say": "toucan",
+    "zh": "嗯嗯嗯。",
+    "en": "Mm-mm-mm.",
+    "added": true
+   }
+  ],
+  "sb_slope_go": [
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "fog_bank"
+   },
+   {
+    "do": "sfx",
+    "name": "wood_knock"
+   },
+   {
+    "say": "chen",
+    "zh": "……鹿？",
+    "en": "...Deer?",
+    "added": true
+   },
+   {
+    "do": "mechanic",
+    "id": "side_slope",
+    "at": "sb_slope_start",
+    "sets": [
+     "sb_slope_followed"
+    ],
+    "lines": {
+     "wrong": [
+      {
+       "narr": {
+        "zh": "雾里有人敲了两下树，在另一边。",
+        "en": "Something in the fog knocks on a tree twice. From the other side."
+       },
+       "added": true
+      }
+     ],
+     "auto": [
+      {
+       "narr": {
+        "zh": "敲树声近了。剩下的蹄印一个接一个亮了起来。",
+        "en": "The knocking comes closer. The rest of the hoofprints light up one by one."
+       },
+       "added": true
+      }
+     ],
+     "win": [
+      {
+       "do": "show",
+       "who": "deer",
+       "at": "sb_slope_deer",
+       "fade": 1.2
+      },
+      {
+       "do": "face",
+       "who": "deer",
+       "to": "chen"
+      },
+      {
+       "do": "face",
+       "who": "chen",
+       "to": "deer"
+      },
+      {
+       "say": "deer",
+       "zh": "你顺着咱的蹄印找来的？",
+       "en": "You followed my hoofprints here?",
+       "added": true
+      },
+      {
+       "do": "anim",
+       "who": "deer",
+       "name": "graze_down"
+      },
+      {
+       "do": "wait",
+       "sec": 1.0
+      },
+      {
+       "do": "anim",
+       "who": "deer",
+       "name": "graze_up"
+      },
+      {
+       "do": "if",
+       "flag": "c1_mom",
+       "then": "sb_slope_mom",
+       "else": "sb_slope_child"
+      }
+     ]
+    }
+   },
+   {
+    "do": "choice",
+    "options": [
+     {
+      "zh": "后来呢？",
+      "en": "And then?",
+      "scene": "sb_slope_then"
+     },
+     {
+      "zh": "那我陪你站一会儿",
+      "en": "Then I'll stand here with you a while",
+      "scene": "sb_slope_stand"
+     },
+     {
+      "zh": "那我现在也指着雾里说：那边有大象",
+      "en": "Then I'm pointing into the fog too: there's an elephant out there",
+      "need": [
+       "c1_mom"
+      ],
+      "scene": "sb_slope_point_mom"
+     },
+     {
+      "zh": "那你捡了我，咱俩扯平了",
+      "en": "Then you picked me up. We're even",
+      "not": [
+       "c1_mom"
+      ],
+      "scene": "sb_slope_even"
+     }
+    ]
+   }
+  ],
+  "sb_slope_mom": [
+   {
+    "say": "deer",
+    "zh": "妈妈，其实咱以前真的有过一个妈妈。",
+    "en": "Mom, I really did have a mom once, before.",
+    "added": true
+   },
+   {
+    "say": "deer",
+    "zh": "她带咱走过这儿，指着雾里说，那边有大象。",
+    "en": "She brought me through here and pointed into the fog. Said there was an elephant out there.",
+    "added": true
+   },
+   {
+    "say": "deer",
+    "zh": "咱个子矮，什么也没看见。就记得她站了好久。",
+    "en": "I was too short to see anything. I just remember her standing there a long time.",
+    "added": true
+   }
+  ],
+  "sb_slope_child": [
+   {
+    "say": "deer",
+    "zh": "孩子，其实咱也是被人捡回来的。",
+    "en": "Kiddo, the truth is, someone found me and took me in too.",
+    "added": true
+   },
+   {
+    "say": "deer",
+    "zh": "捡咱的那位带咱走过这儿，指着雾里说，那边有大象。",
+    "en": "The one who found me brought me through here and pointed into the fog. Said there was an elephant out there.",
+    "added": true
+   },
+   {
+    "say": "deer",
+    "zh": "咱个子矮，什么也没看见。就记得她站了好久。",
+    "en": "I was too short to see anything. I just remember her standing there a long time.",
+    "added": true
+   }
+  ],
+  "sb_slope_then": [
+   {
+    "say": "deer",
+    "zh": "后来就剩咱自己走这条路了。",
+    "en": "After that it was just me, walking this path.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sb_slope_cloth"
+   }
+  ],
+  "sb_slope_stand": [
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "fog_bank"
+   },
+   {
+    "do": "face",
+    "who": "deer",
+    "to": "fog_bank"
+   },
+   {
+    "do": "wait",
+    "sec": 3.0
+   },
+   {
+    "say": "deer",
+    "zh": "……嗯。",
+    "en": "...Mm.",
+    "added": true
+   },
+   {
+    "do": "face",
+    "who": "deer",
+    "to": "chen"
+   },
+   {
+    "do": "goto",
+    "scene": "sb_slope_cloth"
+   }
+  ],
+  "sb_slope_point_mom": [
+   {
+    "do": "flag",
+    "set": "sb_slope_pointed"
+   },
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "fog_bank"
+   },
+   {
+    "do": "wait",
+    "sec": 1.2
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "ear"
+   },
+   {
+    "say": "deer",
+    "zh": "……妈妈说有，那就有。",
+    "en": "...If Mom says there is, then there is.",
+    "added": true
+   },
+   {
+    "do": "face",
+    "who": "chen",
+    "to": "deer"
+   },
+   {
+    "do": "goto",
+    "scene": "sb_slope_cloth"
+   }
+  ],
+  "sb_slope_even": [
+   {
+    "do": "flag",
+    "set": "sb_slope_even"
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "ear"
+   },
+   {
+    "say": "deer",
+    "zh": "扯平了。那咱谁也不欠谁，接着当一家人。",
+    "en": "Even. Then nobody owes anybody. We just keep being family.",
+    "added": true
+   },
+   {
+    "do": "goto",
+    "scene": "sb_slope_cloth"
+   }
+  ],
+  "sb_slope_cloth": [
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "graze_down"
+   },
+   {
+    "do": "sfx",
+    "name": "pickup"
+   },
+   {
+    "do": "wait",
+    "sec": 0.8
+   },
+   {
+    "do": "anim",
+    "who": "deer",
+    "name": "graze_up"
+   },
+   {
+    "say": "deer",
+    "zh": "这布条是她系在咱角上的。给你，雾里好认路。",
+    "en": "She tied this cloth on my antler. Take it. It's easier to find your way in fog.",
+    "added": true
+   },
+   {
+    "do": "reward",
+    "item": "sb_antler_cloth"
+   },
+   {
+    "do": "give",
+    "item": "sb_antler_cloth"
+   },
+   {
+    "do": "flag",
+    "set": "sb_slope_done"
+   },
+   {
+    "say": "deer",
+    "zh": "咱先回去等你。",
+    "en": "I'll head back and wait for you.",
+    "added": true
+   },
+   {
+    "do": "walk",
+    "who": "deer",
+    "to": "fog_bank",
+    "wait": false
+   },
+   {
+    "do": "wait",
+    "sec": 1.0
+   },
+   {
+    "do": "hide",
+    "who": "deer",
+    "fade": 1.0
+   },
+   {
+    "do": "if",
+    "flag": "c1_ready",
+    "then": "sb_slope_deer_back_ship",
+    "else": "sb_slope_deer_back_door"
+   }
+  ],
+  "sb_slope_deer_back_door": [
+   {
+    "do": "show",
+    "who": "deer",
+    "at": "deer_door"
+   }
+  ],
+  "sb_slope_deer_back_ship": [
+   {
+    "do": "show",
+    "who": "deer",
+    "at": "deer_ship"
+   }
+  ]
+ },
+ "items": [
+  {
+   "id": "sb_toucan_feather",
+   "name": {
+    "en": "Toucan's Tail Feather",
+    "zh": "大嘴鸟的尾羽"
+   },
+   "rarity": "uncommon",
+   "burn": 0,
+   "icon": "res://art/forest_side/icon_toucan_feather.png",
+   "personal": true,
+   "fuel_kind": "unrelated",
+   "desc": {
+    "en": "Orange-yellow, a little black at the quill. Won by catching five fruit. The toucan said it was its best one.",
+    "zh": "橙黄色，根上有一点黑。接住五个果子换来的，大嘴鸟说这是它最好的一根。"
+   },
+   "category": "keepsake",
+   "added": true,
+   "_note": "11-02 支线 3，无关燃料。items.json 里的 toucan_feather 是旧以物易物的（图标不在了），这里另起 id。",
+   "keepsake_burn": 50
+  },
+  {
+   "id": "sb_antler_cloth",
+   "name": {
+    "en": "Cloth from the Deer's Antler",
+    "zh": "鹿角上的布条"
+   },
+   "rarity": "rare",
+   "burn": 0,
+   "icon": "res://art/forest_side/icon_antler_cloth.png",
+   "personal": true,
+   "fuel_kind": "none",
+   "desc": {
+    "en": "An old strip of cloth. Someone tied it on the deer's antler, long ago, so it wouldn't get lost in the fog.",
+    "zh": "一条旧布条。很久以前有人把它系在鹿角上，好让它在雾里不走丢。"
+   },
+   "category": "keepsake",
+   "added": true,
+   "_note": "11-02 支线 4，不能烧的纪念品。"
+  }
+ ]
+}

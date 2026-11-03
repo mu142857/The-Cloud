@@ -932,6 +932,20 @@ func _make_house_objects() -> void:
 		_make_prop(id)
 
 
+## 剧本顶层 "props"（第一关支线文件带来的物件，写法同 PROPS：tex 相对 art/forest_story/、at、dx、dy、size、color、hidden、states…）：
+## 只加新的 id；已经存过状态的（换章 / F8 重载）照旧恢复
+func add_props(defs: Dictionary) -> void:
+	for k in defs:
+		var id := str(k)
+		if props.has(id) or PROPS.has(id) or not defs[k] is Dictionary:
+			continue
+		_extra_props[id] = (defs[k] as Dictionary).duplicate(true)
+		_make_prop(id)
+		var saved := str(StoryState.props.get(id, ""))
+		if saved != "":
+			set_prop(id, saved, false)
+
+
 func _base_cfg(id: String) -> Dictionary:
 	if PROPS.has(id):
 		return (PROPS[id] as Dictionary).duplicate(true)

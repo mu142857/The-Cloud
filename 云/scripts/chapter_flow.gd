@@ -36,7 +36,9 @@ const CHAPTERS := {
 		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two"}},
 	# carry_flags：飞行一烧了哪件（燃料柜空的那格）；森林的 returned_all / returned_any / saw_rock（尾声鹿、弥洛的分支）
 	"final": {"story": "res://data/story_final.json", "start": "start_final", "room": "cockpit", "next": "",
-		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "returned_all", "returned_any", "saw_rock", "musicbox_fixed"]
+		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "returned_all", "returned_any", "saw_rock", "musicbox_fixed",
+			"river_cup_traced",             # 11-02 河流篇来客册改成可选：epi_miluo 按它分支
+			"river_n_plain", "river_n_courier", "river_n_bio", "river_n_mom", "river_n_odd"]   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
 			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,
 		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},
 }
@@ -101,6 +103,7 @@ static func info(ch: String) -> Dictionary:
 static func restore(ch: String) -> void:
 	for p in info(ch).get("items_extra", []):
 		register_items(str(p))
+	register_side_items()
 	if ch == "forest":
 		return
 	var carry = Engine.get_meta(CARRY_META) if Engine.has_meta(CARRY_META) else null
@@ -128,6 +131,7 @@ static func restore(ch: String) -> void:
 static func go(tree: SceneTree, ch: String) -> void:
 	for p in info(ch).get("items_extra", []):
 		register_items(str(p))
+	register_side_items()
 	Engine.set_meta(CARRY_META, StoryState.to_dict())
 	Engine.set_meta(CHAPTER_META, ch)
 	Engine.set_meta(PICK_META, true)          # 换章也要压过命令行 --chapter=（不然 --chapter=flight1 --story_chain 演完又回到 flight1 开头）
@@ -196,6 +200,28 @@ static func reset() -> void:
 		Engine.remove_meta(CHAPTER_META)
 	if Engine.has_meta(CARRY_META):
 		Engine.remove_meta(CARRY_META)
+
+
+## 第一关支线文件（data/forest_side_*.json）里的物品：每一章都补进物品表（直接进飞行一 / 后面章节时也认得支线带来的燃料、纪念品）。
+## 标 _side，森林剧本载入时（story_runner._merge_includes）就知道不是和 items.json 重名
+const SIDE_PREFIX := "res://data/forest_side_"
+
+
+static func register_side_items() -> void:
+	var dir := SIDE_PREFIX.get_base_dir()
+	var da := DirAccess.open(dir)
+	if da == null:
+		return
+	for f in da.get_files():
+		if not (f.begins_with(SIDE_PREFIX.get_file()) and f.ends_with(".json")):
+			continue
+		var d = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(f)))
+		if not d is Dictionary:
+			continue
+		for it in d.get("items", []):
+			if it is Dictionary and not Inventory.defined(str(it.get("id", ""))):
+				it["_side"] = f
+				Inventory.register_fallback(it)
 
 
 ## items_later.json 这种「后面章节才有的物品」：items.json 里没有的补进物品表（register_fallback，已有的不动）

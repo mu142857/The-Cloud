@@ -271,7 +271,7 @@ func load_story(p: String) -> void:
 
 
 ## 剧本顶层 "include": "res://data/forest_side_"：同目录下文件名以它开头的 .json（第一关支线，按文件名顺序）合进来。
-## 合并：speakers（主剧本优先）、markers / scenes（只加新的，重名记进 include_errors）、hotspots（标 _side = 文件名）、
+## 合并：speakers（主剧本优先）、markers / scenes / props（只加新的，重名记进 include_errors）、hotspots（标 _side = 文件名）、
 ## objectives（变成「（可选）」那一行：side_objectives）、hints / residents（追加）、items（register_fallback）、barter（同名覆盖）。
 ## 格式说明：共享笔记 forest-side-schema.md；--story_check 会把重名、坏 JSON 列出来。
 var include_files: Array = []
@@ -301,7 +301,7 @@ func _merge_includes(prefix: String) -> void:
 			include_errors.append("%s：JSON 读不了" % fn)
 			continue
 		include_files.append(fn)
-		for k in ["speakers", "markers", "scenes", "barter"]:
+		for k in ["speakers", "markers", "scenes", "barter", "props"]:
 			if not data.has(k):
 				data[k] = {}
 			for key in sd.get(k, {}):
@@ -328,9 +328,26 @@ func _merge_includes(prefix: String) -> void:
 				Inventory.register_fallback(it)
 
 
-## 自动玩去不去支线点：--story_auto=full 或带 --side
+## 跳节拍的目标是支线的 flag（有支线点通得到它）：支线点全都可以去（送还三件：先在树屋拿、再送过去，两步）
+var _side_target_cache := {}
+
+
+func _side_target() -> bool:
+	if _ff_target == "":
+		return false
+	if not _side_target_cache.has(_ff_target):
+		var yes := false
+		for h in hotspot_defs:
+			if h is Dictionary and h.has("_side") and _leads_to(str(h.get("scene", "")), _ff_target):
+				yes = true
+				break
+		_side_target_cache[_ff_target] = yes
+	return bool(_side_target_cache[_ff_target])
+
+
+## 自动玩去不去支线点：默认去，而且先做支线再走主线（F8 节拍「支线·…」接着玩才走得到）；--main_only = 只走主线
 func side_auto() -> bool:
-	return auto == "full" or "--side" in OS.get_cmdline_user_args()
+	return auto != "" and not "--main_only" in OS.get_cmdline_user_args()
 
 
 ## 「（可选）」那一行：支线文件 objectives 里现在满足条件的（Array of {zh, en}）
@@ -361,6 +378,8 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 			if st is Dictionary and str(st.get("do", "")) == "prop" and str(st.get("state", "")) == "shown":
 				shown.append(str(st.get("id", "")))
 	world.setup(lv, data.get("markers", {}), _steam_pipe(), shown)
+	if data.get("props", {}) is Dictionary:
+		world.add_props(data.get("props", {}))      # 支线文件带来的物件（story_world.add_props）
 	if "cockpit" in data.get("rooms", []):
 		world.add_cockpit()                # 驾驶舱（cockpit_room.gd）
 	_collect_npc_names()
@@ -836,6 +855,7 @@ func _fuel_step(st: Dictionary) -> void:
 		# 按背包里实际有的算（第一关支线）：需要 = 现在的燃料 + 这一类（unrelated）全部的燃烧值 + plus
 		# → 无关的先烧完还差 plus，最后一定得烧一件私人物品
 		need = was + held_fuel(str(st["need_held"])) + int(st.get("plus", 100))
+		print("FUEL need_held %s: have=%d held=%d need=%d" % [st["need_held"], was, held_fuel(str(st["need_held"])), need])
 	if st.has("have"):
 		have = int(st["have"])
 	if st.has("burn"):
@@ -2606,15 +2626,15 @@ func plan() -> Dictionary:
 			continue                                   # 刚才够不着
 		var prog := is_progress_hotspot(h)
 		var to_target := ff and _ff_target != "" and _leads_to(str(h.get("scene", "")), _ff_target)
-		if h.has("_side") and not to_target and not (side_auto() and not ff):
-			continue                                   # 支线点：自动玩主线不去（--story_auto=full / --side 才去）
+		if h.has("_side") and not to_target and not (side_auto() and not ff) and not (ff and _side_target()):
+			continue                                   # 支线点：--main_only 时自动玩不去；跳节拍只去通向目标的
 		if to_target:
 			prog = true
 		if not prog:
 			if auto != "full" or ff or _visited.has(id):
 				continue
 		cands.append({"kind": "hotspot", "x": float(p["x"]), "p": p, "exit": _exits(str(h.get("scene", ""))) and not to_target, "prog": prog,
-			"target": to_target})
+			"target": to_target, "side": h.has("_side") and (not ff or _side_target())})
 	if not world.stages.is_empty():
 		var stay := false
 		for c in cands:
@@ -2631,6 +2651,8 @@ func plan() -> Dictionary:
 	cands.sort_custom(func(a, b):
 		if a.get("target", false) != b.get("target", false):
 			return a.get("target", false)
+		if a.get("side", false) != b.get("side", false):
+			return a.get("side", false)                # 支线先做（不然主线一推进，窗口就关了）
 		if a["exit"] != b["exit"]:
 			return not a["exit"]
 		# full：同一片先把闲聊都听一遍，再去推进剧情的点
@@ -3024,10 +3046,10 @@ func validate() -> Array[String]:
 					if not st.has("set") or not st.has("flags"):
 						out.append("scene %s：count 要有 flags 和 set" % id)
 				"fuel":
-					var known := ["do", "have", "need", "burn", "add", "sub", "added", "_comment"]
+					var known := ["do", "have", "need", "burn", "add", "sub", "need_held", "plus", "added", "_comment"]
 					for k3 in st:
 						if not str(k3) in known:
-							out.append("scene %s：fuel 不认识 %s（有 have / need / burn / add / sub）" % [id, k3])
+							out.append("scene %s：fuel 不认识 %s（有 have / need / burn / add / sub / need_held / plus）" % [id, k3])
 					if st.has("burn") and (not Inventory.defined(str(st["burn"])) or fuel_of(str(st["burn"])) <= 0):
 						out.append("scene %s：fuel 的 burn %s 不在物品表或没有 keepsake_burn / burn" % [id, st["burn"]])
 				"journal_strike", "journal_mark":
@@ -4249,6 +4271,7 @@ func _burn_held(st: Dictionary) -> void:
 	if total <= 0:
 		return
 	_fuel_step({"add": total})
+	print("FUEL burn_held %s: +%d → %d/%d" % [",".join(list), total, StoryState.fuel(), StoryState.fuel_need()])
 	if not ff:
 		dlg.toast(Inventory.icon(first), I18n.t("gave_item") % "、".join(names))
 		await _wait(0.6)
@@ -4839,6 +4862,8 @@ func _multi_plan() -> Dictionary:
 			var h: Dictionary = p["h"]
 			if hotspots.is_enter(h) and not bool(h.get("cutscene", false)):
 				continue
+			if h.has("_side") and not (side_auto() and not ff):
+				continue                       # 支线点不算「这个房间有事做」（不然多房间章节自动玩会在两个支线房间之间来回走）
 			var sc := str(h.get("scene", ""))
 			var to := _dest_room(sc, str(r))
 			var id := str(h.get("id", ""))

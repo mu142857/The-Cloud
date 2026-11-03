@@ -8,8 +8,16 @@
 			{"zh": "拿回背包", "after": "c1_run"},
 			{"zh": "大象的画·追逐", "after": "c1_got_bag"},
 			{"zh": "出门找永燃之木", "after": "c1_need_wood"},
+			{"zh": "支线窗口一（鹿在门口等）", "after": "c1_side_open"},
 			{"zh": "回树屋修船", "after": "c1_got_wood"},
 			{"zh": "出门回飞船", "after": "c1_seed"},
+			{"zh": "支线窗口二（修好以后）", "after": "c1_out2"},
+			{"zh": "支线·大嘴鸟（做完）", "after": "sb_toucan_done"},
+			{"zh": "支线·坡地蹄印（做完）", "after": "sb_slope_done"},
+			{"zh": "支线·老松树的松脂（做完）", "after": "sa_got_sap"},
+			{"zh": "支线·油灯送回小屋（做完）", "after": "sa_lamp_done"},
+			{"zh": "支线·收音机送回小吃棚（做完）", "after": "sa_radio_done"},
+			{"zh": "支线·路标送回空地（做完）", "after": "sa_sign_done"},
 			{"zh": "道别、起飞", "after": "c1_ready"}
 		],
 		"flight1": [
@@ -34,6 +42,14 @@
 		]
 	},
 	"flags": {
+		"sa_got_sap": "支线·接到松脂",
+		"sa_lamp_done": "支线·油灯送回小屋",
+		"sa_radio_done": "支线·收音机送回小吃棚",
+		"sa_sign_done": "支线·路标送回空地",
+		"sb_toucan_done": "支线·大嘴鸟做完",
+		"sb_slope_done": "支线·坡地蹄印做完",
+		"c1_side_open": "新版·支线开着（窗口一 / 二）",
+		"c1_out2": "新版·修好后出门（鹿在门口）",
 		"c1_crashed": "新版·坠毁了",
 		"c1_saw_bag": "新版·看见背包",
 		"c1_mom": "新版·鹿叫晨妈妈",
@@ -494,6 +510,12 @@
 		"CINE": "过场"
 	},
 	"scenes": {
+		"c1_reenter": "新版·支线窗口里回树屋",
+		"c1_reexit": "新版·支线窗口里出树屋",
+		"c1_deer_go": "新版·跟鹿去兔子那",
+		"c1_out2": "新版·修好后出门",
+		"c1_home_alone": "新版·自己走回飞船",
+		"c1_home_bye": "新版·鹿道别",
 		"c1_crash": "新版·坠机、看见背包、鹿来",
 		"c1_mom": "新版·选：我是你母亲",
 		"c1_child": "新版·选：我也不知道我是谁",

@@ -413,8 +413,8 @@ func _ready() -> void:
 	StoryState.reset()
 	_free_pick()
 	chapter = CHAPTER_GD.current(_story_path)
-	if chapter != "forest" and _story_path == "":
-		_story_path = str(CHAPTER_GD.info(chapter)["story"])
+	if chapter != "forest" and (_story_path == "" or Engine.has_meta(CHAPTER_GD.PICK_META)):
+		_story_path = str(CHAPTER_GD.info(chapter)["story"])   # 换章 / F8 跳章：用那一章的剧本（命令行 --story= 只管起头那一章）
 	CHAPTER_GD.restore(chapter)
 	# 光柱照到晨身上（lite 档光柱关了就是 0；树屋室内没有光柱）
 	chen.set_env("forest", func(c):
