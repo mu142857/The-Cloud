@@ -1,2 +1,7 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalize detected text files to LF in Git and in working copies.
+# This keeps Windows and macOS checkouts consistent with Godot.
+* text=auto eol=lf
+
+# Windows command scripts require CRLF working copies.
+*.bat text eol=crlf
+*.cmd text eol=crlf
