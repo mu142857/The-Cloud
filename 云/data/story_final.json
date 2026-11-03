@@ -291,7 +291,7 @@
 			{"narr": {"zh": "燃料不足。纸质物品可用。", "en": "Fuel low. Paper items usable."}, "added": true},
 			{"do": "show_item", "item": "journal"},
 			{"say": "chen", "zh": "……日记也算纸。", "en": "...The journal counts as paper.", "added": true},
-			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）", "spec_journal_rule": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
+			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）", "spec_journal_rule": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
 			{"do": "flag", "set": "final_fuel_done"},
 			{"do": "goto", "scene": "final_approach"}
 		],
@@ -571,8 +571,7 @@
 			{"do": "prop", "id": "cockpit_phone", "state": "face_down"},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
 			{"say": "chen", "zh": "这些我也舍不得，得再想想。", "en": "I can't let go of these either. I need to think."},
-			{"do": "flashback", "id": 4, "place": "street", "end": "still", "hold": true, "lines": [
-				{"zh": "可大象就算在那儿，她也不一定回我啊。", "en": "But even if the elephant's there, she might not write back."}], "added": true},
+			{"do": "flashback", "id": 4, "place": "street", "end": "still", "hold": true, "lines": [{"zh": "可大象就算在那儿，她也不一定回我啊。", "en": "But even if the elephant's there, she might not write back."}], "added": true},
 			{"do": "flashback_wake", "wait": false},
 			{"do": "if", "flag": "burned_copper_bell", "then": "approach_rope", "else": "approach_bell"}
 		],
@@ -593,7 +592,7 @@
 		],
 		"final_descend": [
 			{"do": "flag", "set": "final_descend"},
-			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
+			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
 			{"do": "sfx", "name": "cloud_part"},
 			{"narr": {"zh": "地面信号恢复。", "en": "Ground signal restored."}, "added": true},
 			{"do": "wait", "sec": 1.0},
@@ -1876,6 +1875,62 @@
 			{"do": "wait", "sec": 1.0},
 			{"say": "chen", "zh": "……照鼠妈的菜谱煮过一锅。", "en": "...I made a pot from Mama Rat's recipe once.", "added": true},
 			{"say": "chen", "zh": "没煮好。火太大了。", "en": "It didn't turn out. The fire was too high.", "added": true}
+		],
+		"look_family_photo": [
+			{"do": "show_item", "item": "family_photo"},
+			{"say": "chen", "zh": "这些脸，我好像快想起来了。", "en": "These faces... I almost remember.", "added": true}
+		],
+		"burn_family_photo": [
+			{"do": "take", "item": "family_photo"},
+			{"do": "flag", "set": "burned_family_photo"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "……我记住了。", "en": "...I'll remember them.", "added": true}
+		],
+		"look_deer_bear": [
+			{"do": "show_item", "item": "deer_bear"},
+			{"say": "chen", "zh": "小鹿的熊，还是软的。", "en": "The deer's bear. Still soft.", "added": true}
+		],
+		"burn_deer_bear": [
+			{"do": "take", "item": "deer_bear"},
+			{"do": "flag", "set": "burned_deer_bear"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "替我跟小鹿说声对不起。", "en": "Tell the deer I'm sorry.", "added": true}
+		],
+		"look_miluo_letter": [
+			{"do": "show_item", "item": "miluo_letter"},
+			{"say": "chen", "zh": "她到底写给谁的？", "en": "Who was she writing to?", "added": true}
+		],
+		"burn_miluo_letter": [
+			{"do": "take", "item": "miluo_letter"},
+			{"do": "flag", "set": "burned_miluo_letter"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "她不会知道的。", "en": "She'll never know.", "added": true}
+		],
+		"look_rabbit_fur": [
+			{"do": "show_item", "item": "rabbit_fur"},
+			{"say": "chen", "zh": "兔子的毛，还没掉光。", "en": "The rabbit's fur. Not all gone yet.", "added": true}
+		],
+		"burn_rabbit_fur": [
+			{"do": "take", "item": "rabbit_fur"},
+			{"do": "flag", "set": "burned_rabbit_fur"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "烧起来是暖的。", "en": "It burns warm.", "added": true}
+		],
+		"look_floorboard": [
+			{"do": "show_item", "item": "floorboard"},
+			{"say": "chen", "zh": "从弥洛家地上撬下来的。", "en": "Pried up from Milo's floor.", "added": true}
+		],
+		"burn_floorboard": [
+			{"do": "take", "item": "floorboard"},
+			{"do": "take", "item": "floorboard"},
+			{"do": "flag", "set": "burned_floorboard"},
+			{"do": "sfx", "name": "convert"},
+			{"do": "wait", "sec": 1.0},
+			{"say": "chen", "zh": "两块一起，烧得很快。", "en": "Both at once. Gone fast.", "added": true}
 		]
 	}
 }

@@ -21,35 +21,36 @@ const PICK_META := "the_cloud_chapter_pick"            # F8 跳节拍换了章�
 ## 以物易物设的 flag（scripts/barter.gd，docs/以物易物交换表.md）：森林的大嘴鸟、河流的鼠妈；后面章节的 if 看这些
 const BARTER_FOREST := ["barter_any", "barter_toucan", "barter_toucan_feather", "barter_toucan_whistle", "barter_toucan_rain"]
 const BARTER_RIVER := ["barter_rat_chef", "barter_rat_chef_soup", "barter_rat_chef_recipe", "barter_rat_chef_fire"]
+## 第一关新版（11-02）：亲情关系（鹿叫晨妈妈 / 孩子）和飞行一烧掉的新物品；后面章节的 if 可以看这些
+const C1_FLAGS := ["c1_mom", "c1_child", "c1_bear_given", "burned_family_photo", "burned_deer_bear", "burned_miluo_letter",
+	"burned_rabbit_fur", "burned_floorboard"]
 
 const CHAPTERS := {
 	"forest": {"story": "res://data/story_forest.json", "next": "flight1"},
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
-		"carry_flags": BARTER_FOREST, "items_extra": ["res://data/items_later.json"],
+		"carry_flags": BARTER_FOREST + C1_FLAGS, "items_extra": ["res://data/items_later.json"],
 		"end_card": {"zh": "第一章　完", "en": "End of Chapter One"}},
 	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "final",
-		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass"] + BARTER_FOREST, "hud_fuel": false,
+		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass"] + BARTER_FOREST + C1_FLAGS, "hud_fuel": false,
 		"items_extra": ["res://data/items_later.json"],
 		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two"}},
 	# carry_flags：飞行一烧了哪件（燃料柜空的那格）；森林的 returned_all / returned_any / saw_rock（尾声鹿、弥洛的分支）
 	"final": {"story": "res://data/story_final.json", "start": "start_final", "room": "cockpit", "next": "",
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "returned_all", "returned_any", "saw_rock", "musicbox_fixed"]
-			+ BARTER_FOREST + BARTER_RIVER,
+			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,
 		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},
 }
 
-## 森林自动玩（--story_auto）到 launched 时的样子（10-29）；剧本改了以后这里不一定完全一样，只是直接进 flight1 时的起点
+## 森林自动玩（--story_auto）到 launched 时的样子；剧本改了以后这里不一定完全一样，只是直接进 flight1 时的起点。
+## 11-02 第一关新版（c1_*）跑出来的：旧流程的行李（蓝色石头、通勤卡、音乐盒……）新流程不再给，所以这里也没有；
+## 河流篇 / 终章里看旧 flag 的分支（burned_blue_stone 这些）照旧由 SEED_FLIGHT1 给。
 const SEED := {
-	"flags": ["crashed", "got_luggage", "got_wood", "got_resin", "got_branch", "fuel_full", "got_scrap", "deer_met", "road_1",
-		"road_stall", "log_started", "branch_a", "branch_b", "log_cleared", "fog_on", "seen_hollow", "went_wrong", "at_treehouse",
-		"met_miluo", "tea_done", "parts_needed", "asked_return", "took_radio", "took_lamp", "took_sign", "got_spring",
-		"spring_from_clock", "got_plank", "got_sap", "plank_hint", "bridge_built", "saw_rock", "returned_sign", "returned_any",
-		"got_valve", "parts_all", "returned_lamp", "returned_radio", "returned_all", "tools_started", "tools_ok", "ship_fixed",
-		"musicbox_fixed", "gramophone_talk", "pump_trip", "pump_placed", "shop_done", "slope_talked", "revisit_done",
-		"farewell_done", "ready_to_launch", "launched"],
-	"owned": ["elephant_drawing", "journal", "species_query", "commute_card", "home_photo", "music_box", "blue_stone", "travel_map",
-		"glowing_wood", "mat_resin", "mat_branch", "mat_scrap", "clear_seed", "miluo_note", "postcard", "communicator"],
-	"journal": [{"zh": "大象：四条腿，长鼻子，两只耳朵。", "en": "Elephant: four legs, a long trunk, two ears.", "tag": "elephant"}],
+	"flags": ["crashed", "c1_crashed", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
+		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_danced", "c1_got_wood",
+		"c1_fixed", "c1_seed", "c1_ready", "launched"],
+	"owned": ["elephant_drawing", "journal", "communicator", "family_photo", "deer_bear", "rabbit_fur", "floorboard", "floorboard",
+		"miluo_letter", "clear_seed", "miluo_note"],
+	"journal": [],
 }
 
 

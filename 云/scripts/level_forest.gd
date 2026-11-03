@@ -221,6 +221,12 @@ var _obj_key := "-"
 var _bars: Array[ColorRect] = []
 var _skip_label: Label
 var _keys_hint: Label
+var _key_prompt: Label                  # 剧本 key_prompt 那一行
+var _kp_until := ""                     # run / bag / ""：做到了就淡掉
+var _kp_left := 0.0                     # 还剩几秒
+var _kp_done := 0.0                     # 已经做到了多久（跑起来要持续一下才算）
+var _pixel_fx: Control                  # 像素块溶解（fade_to style pixel）
+var _zoom_tw: Tween
 var _burn_pop: Control
 var _burn_pop_num: Label
 var _burn_pop_sub: Label
@@ -477,6 +483,8 @@ func _build_story() -> void:
 			return Rect2()
 		return Rect2(wreck.position + wreck.offset + Vector2(20, 20), wreck.texture.get_size() - Vector2(40, 20))
 	story.world.on_pseudo = _on_pseudo_prop
+	if "wood" in story.data.get("hide_props", []) and chapter == "forest":
+		wood.visible = false                   # 第一关新版：地上没有发光木头（永燃之木是兔子给的）
 	if _story_auto != "" or _beat != "":
 		for l in story.validate():
 			if not l.begins_with("info:"):
@@ -701,6 +709,14 @@ func _build_ui() -> void:
 	_bag_btn.mouse_entered.connect(func(): _bag_btn.self_modulate = Color(1.3, 1.3, 1.3))
 	_bag_btn.mouse_exited.connect(func(): _bag_btn.self_modulate = Color.WHITE)
 	root.add_child(_bag_btn)
+
+	# ---- 剧本的按键提示（key_prompt：「按住 Shift 奔跑」「按 Tab 打开背包」），屏幕下方居中
+	_key_prompt = _label("", 14, UITheme.TEXT)
+	_key_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_key_prompt.size = Vector2(480, 16)
+	_key_prompt.position = Vector2(0, 228)
+	_key_prompt.modulate.a = 0.0
+	root.add_child(_key_prompt)
 
 	# ---- 「← →」提示（晨脚下，很淡）
 	_keys_hint = _label("←  →", 14, UITheme.TEXT)
@@ -1142,8 +1158,8 @@ func _bag_refresh() -> void:
 		var use: Button = _bag_w["use"]
 		use.text = I18n.t("use")
 		use.visible = iid != "journal" and state == S.PLAY
-		if iid == story.phone.ITEM_ID:
-			use.text = story.phone.t("view")        # 通讯器：「查看」打开聊天界面
+		if iid == story.phone.ITEM_ID or story.item_view(iid) != "":
+			use.text = story.phone.t("view")        # 通讯器：「查看」打开聊天界面；剧本 item_views（大象的画）：「查看」播那段
 	else:
 		big.texture = null
 		_bag_w["name"].text = ""
@@ -1175,6 +1191,10 @@ func _item_parts(it: Dictionary) -> Array:
 		base = story.txt(it["desc_fixed"])
 	if base != "":
 		out.append({"text": base, "color": DESC_C})
+	var bk = it.get("back", null)
+	if bk is Dictionary and StoryState.has(str(bk.get("after", ""))):
+		# 双面纸（大象的画）：翻过来看过以后，描述接上背面（「地图」）
+		out.append({"text": story.txt(bk.get("name", "")) + ("：" if I18n.is_zh() else ": ") + story.txt(bk.get("desc", "")), "color": DESC_C})
 	if it.has("desc_from_tag"):
 		var tag := str(it["desc_from_tag"])
 		for e in StoryState.journal:
@@ -1210,6 +1230,10 @@ func _on_use_item() -> void:
 		story.phone.open_browse()                     # 通讯器：开在背包上面，关掉回到背包
 		return
 	_close_panels()
+	var vs: String = story.item_view(id)
+	if vs != "":
+		story.play(vs)                                # 剧本 item_views：大象的画 → 全屏看画 → 闪回
+		return
 	story.use_item(id)
 
 
@@ -1994,7 +2018,7 @@ func _enter_play() -> void:
 	_hint_wait = 0.0
 	_gear.visible = true
 	create_tween().tween_property(_gear, "modulate:a", 0.6, 0.8)
-	if not Inventory.owned.is_empty() and free_roam == "":       # 自由探索：背包、燃料不出来
+	if not Inventory.owned.is_empty() and free_roam == "" and not story.bag_locked():       # 自由探索：背包、燃料不出来；第一关新版：背包还没拿回来
 		_bag_btn.visible = true
 		create_tween().tween_property(_bag_btn, "modulate:a", 1.0, 0.5)
 		create_tween().tween_property(_hud_burn, "modulate:a", 1.0, 0.5)
@@ -2239,7 +2263,7 @@ func _toggle_bag() -> void:
 	if _bag.visible:
 		_close_panels()
 		return
-	if state != S.PLAY or Inventory.owned.is_empty():
+	if state != S.PLAY or Inventory.owned.is_empty() or story.bag_locked():
 		return
 	_close_panels()
 	_sfx("ui_click", -10.0)
@@ -2348,6 +2372,11 @@ func _input(event: InputEvent) -> void:
 			_handled()
 			story.phone.open_browse()
 			return
+		if _bag.visible and k in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and _bag_sel < Inventory.owned.size() \
+				and story.item_view(Inventory.owned[_bag_sel]) != "":
+			_handled()
+			_on_use_item()                            # 剧本 item_views：E / 空格 = 「查看」
+			return
 	if _settings.visible or _bag.visible:
 		return
 	var confirm: bool = event.is_action_pressed("ui_accept") or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT)
@@ -2446,6 +2475,7 @@ func _process(delta: float) -> void:
 	_update_world(delta)
 	_update_dialogue(delta)
 	_update_hints(delta)
+	_update_key_prompt(delta)
 	var cc := cam.get_screen_center_position()
 	story.world.update(delta, cc)
 	_update_room_mask(cc)
@@ -3019,7 +3049,7 @@ func bars_on() -> bool:
 
 
 func cam_left() -> Vector2:
-	return cam.get_screen_center_position() - Vector2(240, 135)
+	return cam.get_screen_center_position() - Vector2(240, 135) / cam.zoom.x     # 拉近时看到的世界小一圈
 
 
 func free_play() -> bool:
@@ -3112,7 +3142,7 @@ func ff_take_wood() -> void:
 ## 背包变了：HUD、背包图标、燃烧值够了设 fuel_full
 func on_inventory_changed() -> void:
 	_update_hud()
-	if not Inventory.owned.is_empty():
+	if not Inventory.owned.is_empty() and not story.bag_locked():
 		_bag_btn.visible = true
 		_bag_btn.modulate.a = 1.0
 	if Inventory.burn_total() > Inventory.base_burn and _seq.is_empty():
@@ -3133,6 +3163,93 @@ func bag_bump() -> void:
 	create_tween().tween_property(_bag_btn, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
+## 剧本 key_prompt：屏幕下方一行提示，不锁人。until = run（按住 Shift 跑起来一会儿）/ bag（打开背包）/ ""（只看时间）
+func key_prompt(text: String, until: String, sec: float) -> void:
+	_key_prompt.text = text
+	_kp_until = until
+	_kp_left = sec
+	_kp_done = 0.0
+
+
+func _update_key_prompt(delta: float) -> void:
+	var on := _kp_left > 0.0
+	if on:
+		_kp_left -= delta
+		var did := false
+		match _kp_until:
+			"run":
+				did = chen._vel > CHEN_GD.RUN_SPEED * 1.1 or (_story_auto != "" and chen._vel > 0.0)
+			"bag":
+				did = _bag.visible or (_story_auto != "" and _kp_left < 12.0)
+		_kp_done = _kp_done + delta if did else 0.0
+		if _kp_done > (0.6 if _kp_until == "run" else 0.0):
+			_kp_left = 0.0
+	var show: bool = _kp_left > 0.0 and not _settings.visible and not story.dlg.is_open()
+	var target := (0.75 + 0.15 * sin(_t * 3.0)) if show else 0.0
+	_key_prompt.modulate.a = move_toward(_key_prompt.modulate.a, target, delta * (2.5 if show else 1.5))
+
+
+## 八比特转场（fade_to style pixel）：屏幕分成 16 像素的格子，按打乱的顺序一格一格盖黑（100ms 一档，8 档）；
+## 盖满以后换成平常的黑幕，揭开时反过来。
+const PIXEL_CELL := 16
+const PIXEL_STEPS := 8
+
+
+func pixel_to_black(sec: float) -> void:
+	await _pixel_run(sec, true)
+	fade.color.a = 1.0
+	_pixel_fx.queue_free()
+	_pixel_fx = null
+
+
+func pixel_from_black(sec: float) -> void:
+	fade.color.a = 0.0
+	await _pixel_run(sec, false)
+	_pixel_fx.queue_free()
+	_pixel_fx = null
+
+
+func _pixel_run(sec: float, cover: bool) -> void:
+	if _pixel_fx != null and is_instance_valid(_pixel_fx):
+		_pixel_fx.queue_free()
+	_pixel_fx = Control.new()
+	_pixel_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pixel_fx.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fade.get_parent().add_child(_pixel_fx)
+	fade.get_parent().move_child(_pixel_fx, fade.get_index() + 1)
+	var fx := _pixel_fx
+	fx.set_meta("k", 0 if cover else PIXEL_STEPS)
+	fx.draw.connect(func():
+		var k: int = fx.get_meta("k")
+		var cols := int(ceil(480.0 / PIXEL_CELL))
+		var rows := int(ceil(270.0 / PIXEL_CELL)) + 1
+		for cy in rows:
+			for cx in cols:
+				var h := absi(hash(Vector2i(cx, cy))) % PIXEL_STEPS     # 每格第几档盖上（同一格永远同一档）
+				if h < k:
+					fx.draw_rect(Rect2(cx * PIXEL_CELL, cy * PIXEL_CELL, PIXEL_CELL, PIXEL_CELL), Color.BLACK))
+	fx.queue_redraw()
+	var per := sec / float(PIXEL_STEPS)
+	for i in PIXEL_STEPS:
+		await get_tree().create_timer(per).timeout
+		if not is_instance_valid(fx):
+			return
+		fx.set_meta("k", (i + 1) if cover else (PIXEL_STEPS - 1 - i))
+		fx.queue_redraw()
+
+
+## 镜头拉近 / 拉回（剧本 camera zoom；奔跑片头、玩具熊那一下）。换房间时回到 1。
+func camera_zoom(z: float, sec: float) -> void:
+	if _zoom_tw != null and _zoom_tw.is_valid():
+		_zoom_tw.kill()
+	if sec <= 0.0:
+		cam.zoom = Vector2(z, z)
+		return
+	_zoom_tw = create_tween()
+	_zoom_tw.tween_property(cam, "zoom", Vector2(z, z), sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await _zoom_tw.finished
+
+
 func fade_to_black(sec: float) -> void:
 	var tw := create_tween()
 	tw.tween_property(fade, "color:a", 1.0, sec).set_trans(Tween.TRANS_SINE)
@@ -3147,6 +3264,8 @@ func fade_from_black(sec: float) -> void:
 
 ## 换了位置：黑屏换地方时镜头直接跳过去、雾直接到位（进出屋不黑屏，镜头照常跟）；屋里雨声小一点
 func on_room_changed(snap := true) -> void:
+	if snap and cam.zoom.x != 1.0:
+		camera_zoom(1.0, 0.0)
 	_walk_target = NAN
 	_walk_goal = NAN
 	_pending_hs = {}
@@ -3891,7 +4010,7 @@ func _free_exits() -> Array:
 	var w: Node2D = story.world
 	var out: Array = []
 	var seen := {}
-	for h in story.hotspot_defs:
+	for h in story.all_hotspot_defs:            # 旧流程退休的点（retired）也算：自由探索照旧能进出树屋、回旧路
 		if not h is Dictionary or story.hotspots.is_enter(h) or h.get("at") == null:
 			continue
 		var f := _first_fade(str(h.get("scene", "")), {})

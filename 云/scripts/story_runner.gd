@@ -75,6 +75,23 @@ extends Node
 ##                           出来以后、远处树冠晃到一半时也各存一张（ui_choice / ui_items / ui_elephant）
 ##   --beat=<flag>           直接跳到「设这个 flag 的那个 scene 播完」的样子（瞬间把前面的都过一遍：flags、物品、NPC 位置都对）
 ##   --story_check           只检查剧本（引用不到的 marker / scene / item、不支持的步骤……），打印 STORY_CHECK 后退出
+## 第一关新版（11-02，docs/剧情改动/第一关新版_实现规格.md）：
+##   {"do": "inner", "zh", "en", "style": "drift"|"fade"|"spin", "sec"?, "wait"?: true} / {"do": "inner", "clear": true}：潜意识字
+##     （scripts/inner_voice.gd 的 say / clear；没有那个脚本就打印一行 INNER 接着播）。wait = 等 sec 秒再下一步。
+##   {"do": "key_prompt", "zh", "en", "until": "run"|"bag"|"", "sec"?}：屏幕下方一行按键提示，不锁人；按住 Shift 跑起来 / 打开背包 / sec 秒后淡掉。
+##   {"do": "blackout", "on": true/false}：闪回停在黑屏上时换成低一层的黑，好在黑里看纸、云星闪、潜意识字（_blackout_step）。
+##   {"do": "reward", "item"? | "tex" + "region"?}：拾到好东西的奖励动画（东西升到晨头顶放大、一圈光点转一下），不进背包（进背包另写 give）。
+##   {"do": "mechanic", ..., "wait": false}：不等小游戏播完（奔跑时的制作人员字幕）。
+##   {"do": "camera", "zoom": 1.2, "sec": n, "wait"?}：镜头慢慢拉近 / 拉回（1 = 原样）；换房间时自动回到 1。
+##   fade_to 加 "style": "pixel"：像素块溶解（八比特转场），不是平滑变黑。
+##   choice 的选项可带 "need" / "not"（按亲情关系 c1_mom / c1_child 显示不同回答）。give：背包还没拿回来（剧本顶层 bag_lock）时，
+##     东西不飞进背包，晨举一下（show_item）。
+##   hotspot 的 scene 全是 bark 台词 = 只在那个点上方浮一句（"bark_y" 离地多高，默认 46），不停游戏、不锁人。
+##   hotspot 写 "nolock": true = 走进去以后不锁人、不黑边，步骤边跑边播（只放 flag / inner / mechanic wait:false / camera wait:false 这类不等的）。
+##   剧本顶层 "one_way": {"after", "until", "wall", "zh", "en"}：after 设了、until 没设时，旧路段左墙挪到 wall 那个 marker；
+##     顶着往回走浮出潜意识字（每次间隔 ONE_WAY_EVERY 秒）。"item_views": [{"item", "need", "not", "scene"}]：背包里选中这件按「查看」播 scene
+##     （自动玩 / 跳节拍：条件满足就直接播）。"bag_lock": {"from", "until"}：这期间背包按钮、Tab 都不出来。"hide_props": [物件…]：一开始就藏起来
+##     （wood = 关卡的发光木头）。"retired": true 的 hotspot（旧流程）整个不加载。
 ## 母星闪回（11-02）：{"do": "flashback", "id", "place", "end", "lines", "fall", "hold"} / {"do": "flashback_wake", "wait"}，
 ##   玩法和参数见 scripts/flashback.gd 文件头；四次在哪、F8 怎么看见 docs/闪回_实现说明.md。
 ##   --fb_dev=N              和 --beat=（FLASHBACK_DEV 里那一行的 beat）一起：跳完节拍从第 N 次闪回前几步开始播（= F8「闪回 N」）
@@ -91,7 +108,8 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup",   # 后六个：多房间章节（docs/river_rooms_contract.md）
 	"pose",   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
 	"barter",   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
-	"flashback", "flashback_wake"]   # 母星闪回（scripts/flashback.gd）
+	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
+	"inner", "key_prompt", "reward", "blackout"]   # 第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
@@ -132,8 +150,8 @@ const FLASHBACK_GD := preload("res://scripts/flashback.gd")   # 母星闪回（4
 const FLASHBACK_LAYER := 55                                     # 闪回那一层：盖在黑幕（Top 50）上面、F8 面板（60）下面
 ## F8 传送页的「闪回」按钮（dev_panel.gd）：重新载入那一章、跳节拍到 beat，再从 scene 里闪回那一步往前 back 步开始播
 const FLASHBACK_DEV := [
-	{"id": 1, "chapter": "forest", "beat": "fog_on", "scene": "went_wrong_first", "back": 3, "zh": "森林迷雾"},
-	{"id": 2, "chapter": "forest", "beat": "slope_talked", "scene": "slope_b", "back": 1, "zh": "森林坡地"},
+	{"id": 1, "chapter": "forest", "beat": "c1_got_bag", "scene": "c1_drawing", "back": 1, "zh": "大象的画·追逐"},   # 第一关新版（11-02）
+	{"id": 2, "chapter": "forest", "beat": "c1_got_wood", "scene": "c1_fix", "back": 99, "zh": "修好·全家福"},
 	{"id": 3, "chapter": "river", "beat": "river_deer_msg", "scene": "home_wait_talk", "back": 4, "zh": "妮芙家"},
 	{"id": 4, "chapter": "final", "beat": "final_fuel_done", "scene": "approach_page", "back": 99, "zh": "燃料柜"},
 ]
@@ -145,6 +163,7 @@ var data := {}
 var scenes := {}
 var speakers := {}
 var hotspot_defs: Array = []
+var all_hotspot_defs: Array = []         # 连 retired 的旧点也在（自由探索找进出口用）
 var world: Node2D
 var hotspots: Node2D
 var dlg: Control
@@ -235,7 +254,11 @@ func load_story(p: String) -> void:
 	data = d if d is Dictionary else {}
 	scenes = data.get("scenes", {})
 	speakers = data.get("speakers", {})
-	hotspot_defs = data.get("hotspots", [])
+	all_hotspot_defs = data.get("hotspots", [])
+	hotspot_defs = []
+	for h in all_hotspot_defs:
+		if not (h is Dictionary and h.get("retired", false)):
+			hotspot_defs.append(h)          # "retired": true = 旧流程的点（第一关新版不再触发；scene 留着不删）
 	for it in data.get("items", []):
 		if it is Dictionary:
 			Inventory.register_fallback(it)
@@ -299,6 +322,10 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	if not tm.is_empty() and not tm.has("desc_from_tag"):
 		tm["desc_from_tag"] = "on_travel_map"     # 日记烧掉以后写在航图背面的（_journal_holder）；航图是第一章的物品（items.json）
 	_place_residents(world.room)            # 剧本顶层 residents（森林空地尽头的大嘴鸟）
+	world.one_way = data.get("one_way", {}) if data.get("one_way", {}) is Dictionary else {}
+	for pid in data.get("hide_props", []):
+		if str(pid) != "wood":
+			world.set_prop(str(pid), "hidden", false)      # 第一关新版：开场行李、三样材料都不在了（wood 由关卡藏）
 
 
 ## 管道那个点选里「对的」那段（细白汽冒在它上面）
@@ -415,6 +442,9 @@ func play(id: String, manage := true, from_index := 0) -> void:
 		return
 	busy = true
 	hotspots.active = false
+	if not is_nan(_bark_at):
+		_bark_at = NAN                         # 飞船上方那句还没散：剧情开始了就收掉
+		bark.clear()
 	if manage and not ff:
 		level.story_begin(_wants_bars(id))
 		dlg.top_limit = level.BAR_H + 4.0 if level.bars_on() else 4.0
@@ -697,6 +727,15 @@ func _step(st: Dictionary) -> String:
 				await _flashback_wake()
 			else:
 				_flashback_wake()
+		"inner":
+			await _inner(st)
+		"blackout":
+			_blackout_step(bool(st.get("on", true)))
+		"key_prompt":
+			if not ff and not free_roam:
+				level.key_prompt(txt(st), str(st.get("until", "")), float(st.get("sec", 14.0)))
+		"reward":
+			await _reward(st)
 		_:
 			_warn_once("不认识的步骤：" + JSON.stringify(st))
 	return ""
@@ -837,10 +876,13 @@ func _anchor(who: String) -> Vector2:
 	if world.treeline_view_shown():
 		return TREELINE_VIEW_ANCHOR             # 树冠缺口那一屏：框放在画面下方居中，不挡凹口
 	var left: Vector2 = level.cam_left()
+	var zk: float = level.cam.zoom.x            # 镜头拉近时世界坐标 → 屏幕要乘上
+	if who == "chen" and not is_nan(_bark_at) and not busy:
+		return (Vector2(_bark_at, chen.position.y - _bark_y) - left) * zk    # hotspot 上方浮的那一句（飞船）
 	var n := npc(who)
 	if n != null and n.visible:
 		var hd := float(n.head) if npcs.values().has(n) else float(HEAD.get(who, 50.0))
-		return n.position - left + Vector2(0, -hd)
+		return (n.position - left + Vector2(0, -hd)) * zk
 	# 画面外的声音：树屋在屏幕里就从门那边来（屋里的人隔着门说话），不然屏幕上方中间
 	if not world.in_room() and world.stages.is_empty():
 		var dx: float = float(world.house["door"]) - left.x
@@ -1348,6 +1390,10 @@ func _give(id: String) -> void:
 	var it := Inventory.item(id)
 	var icon := Inventory.icon(id)
 	dlg.toast(icon, I18n.t("got_item") % txt(it.get("name", id)))
+	if bag_locked():
+		_show_item({"item": id, "sec": 1.6})     # 背包还没拿回来：不往背包飞，晨举一下
+		await _wait(0.6)
+		return
 	await _fly_to_bag(icon, chen.position + Vector2(0, -36) - level.cam_left())
 
 
@@ -1534,7 +1580,7 @@ func _update_item_show(delta: float) -> void:
 	_item_show.set_meta("t", t)
 	var sz := _item_show.texture.get_size()
 	var left: Vector2 = level.cam_left()
-	var head: Vector2 = chen.position - left + Vector2(chen.facing * 12.0, -34.0)
+	var head: Vector2 = (chen.position - left + Vector2(chen.facing * 12.0, -34.0)) * level.cam.zoom.x
 	var lift := minf(t / 0.2, 1.0) * 6.0
 	_item_show.position = (head - Vector2(sz.x / 2.0, sz.y + lift)).round()
 
@@ -1584,7 +1630,11 @@ func _fade_to(st: Dictionary) -> void:
 		if lr["ok"]:
 			out_sec = 0.8
 			chen.auto_dir = signf(float(lr["x"]) - chen.position.x)
-	await level.fade_to_black(out_sec)
+	_pixel = str(st.get("style", "")) == "pixel"
+	if _pixel:
+		await level.pixel_to_black(maxf(out_sec, 0.8))   # 八比特转场：像素块一格一格盖上
+	else:
+		await level.fade_to_black(out_sec)
 	chen.auto_dir = 0.0
 	_teleport(room, x, st.get("with", []), true)
 	_fade_place(st)
@@ -1595,7 +1645,7 @@ func _fade_to(st: Dictionary) -> void:
 			level.camera_hold_at(Vector2(float(cr["x"]), world_cam_y(room)))
 	await _wait(0.25)
 	if is_nan(arrive) or _enter_scene:
-		await level.fade_from_black(0.5)
+		await _from_black(0.5)
 		return
 	# "arrive": marker（10-29）：淡入的同时晨从 at 走几步到这里（到达，不是凭空站在那）；停稳了才往下播。
 	# 只走一小段，走路的速度（level_forest.gd 的 stroll_to），不是过场里把人推着跑
@@ -1608,9 +1658,20 @@ func _arrive_walk(to: float) -> void:
 		chen._set_facing(1 if to > chen.position.x else -1)
 		level._snap_camera()
 	level.stroll_to(to)
-	await level.fade_from_black(0.5)
+	await _from_black(0.5)
 	while level.strolling() or chen._vel > 0.0:
 		await get_tree().process_frame
+
+
+var _pixel := false                  # 这次 fade_to 是像素块溶解
+
+
+func _from_black(sec: float) -> void:
+	if _pixel:
+		_pixel = false
+		await level.pixel_from_black(maxf(sec, 0.8))
+	else:
+		await level.fade_from_black(sec)
 
 
 ## 镜头（10-29）：{"do": "camera", "hold": true} 停在现在的位置不跟晨（让人走出画面）；
@@ -1618,6 +1679,13 @@ func _arrive_walk(to: float) -> void:
 ## scene 播完、鹿带路放手让晨走的时候都会自动放开。跳节拍时不动镜头。
 func _camera(st: Dictionary) -> void:
 	if ff:
+		return
+	if st.has("zoom"):
+		var zs := float(st.get("sec", 1.0))
+		if st.get("wait", true) and zs > 0.0:
+			await level.camera_zoom(float(st["zoom"]), zs)
+		else:
+			level.camera_zoom(float(st["zoom"]), zs)
 		return
 	if st.get("release", false):
 		level.camera_release()
@@ -1955,6 +2023,30 @@ func trigger(p: Dictionary) -> void:
 		await quick.pickup(p)           # 走过去就捡：不锁人
 		return
 	var id := str(h.get("id", ""))
+	var barks := _bark_only(str(h.get("scene", "")))
+	if not barks.is_empty():
+		# 只浮一句（飞船上方）：不锁人、不停游戏
+		_visited[id] = StoryState.progress()
+		hotspots_used += 1
+		_on_scene(str(h.get("scene", "")))
+		if not ff:
+			hotspots.pressed(p)
+			_bark_at = float(p["x"])
+			_bark_y = float(h.get("bark_y", 46.0))
+			for b in barks:
+				_say(b)
+		return
+	if h.get("nolock", false):
+		# 走进去不锁人：边跑边播（奔跑片头：字幕、潜意识字、镜头拉近）
+		StoryState.mark_used(id)
+		_visited[id] = StoryState.progress()
+		hotspots_used += 1
+		var ns := str(h.get("scene", ""))
+		_on_scene(ns)
+		for st0 in scenes.get(ns, []):
+			if st0 is Dictionary:
+				await _step(st0)
+		return
 	if h.get("once", false):
 		StoryState.mark_used(id)
 	_visited[id] = StoryState.progress()
@@ -2124,7 +2216,10 @@ func _auto_item_index(acc: Dictionary) -> int:
 
 ## 对话选项：晨把选中的那句说出来，再跳到它的 scene
 func _choice(st: Dictionary) -> String:
-	var opts: Array = st.get("options", [])
+	var opts: Array = []
+	for o0 in st.get("options", []):
+		if o0 is Dictionary and StoryState.all_of(o0.get("need", [])) and StoryState.none_of(o0.get("not", [])):
+			opts.append(o0)                  # 选项带 need / not：按 flag 显示（第一关：按亲情关系）
 	if opts.is_empty():
 		return ""
 	var lines: Array = []
@@ -2145,6 +2240,12 @@ func _choice(st: Dictionary) -> String:
 				if not _wrong_tried.has(key) and not played.has(str(opts[i].get("scene", ""))):
 					_wrong_tried[key] = true
 					ai = i
+					break
+		var to := _auto_to()
+		if to != "" and not ff:
+			for i in opts.size():
+				if _leads_to(str(opts[i].get("scene", "")), to):
+					ai = i                       # --auto_to=：对话选项也挑走下去会设这个 flag 的那句（第一关：c1_child）
 					break
 	_ui_shot("choice", 0.35)
 	var i: int = await dlg.choose_line(lines, ai)
@@ -2396,6 +2497,9 @@ func _exits(s: String, seen := {}) -> bool:
 # ======================================================================= 自动玩 / 跳节拍
 ## 下一个该去的地方：{kind: "wood"|"hotspot", x, p}；空 = 没有
 func plan() -> Dictionary:
+	var vw := pending_view()
+	if not vw.is_empty():
+		return {"kind": "view", "x": chen.position.x, "scene": vw["scene"], "exit": false}   # 背包里该看的东西（大象的画）：直接看
 	var cands: Array = []
 	if level.wood_available():
 		cands.append({"kind": "wood", "x": level.WOOD_X, "exit": false})
@@ -2454,8 +2558,11 @@ func _process(delta: float) -> void:
 		_check_overlap()
 	if _jump_log and not ff:
 		_check_jumps()
-	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood")):
+	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood") or StoryState.has("c1_run")):
 		alarm(false)
+	if not is_nan(_bark_at) and not bark.busy():
+		_bark_at = NAN
+	_update_one_way(delta)
 	if not ended and not ff and not free_roam:
 		_update_nudge(delta)
 		if guide_ready() and level.free_play():
@@ -2482,6 +2589,11 @@ func _process(delta: float) -> void:
 	if _target.is_empty():
 		_target = plan()
 		_target_t = 0.0
+		if not _target.is_empty() and _target["kind"] == "view":
+			var vs := str(_target["scene"])
+			_target = {}
+			play(vs)
+			return
 		if not _target.is_empty():
 			_target_limit = 8.0 + absf(float(_target["x"]) - chen.position.x) / 90.0
 		if not _target.is_empty():
@@ -2576,6 +2688,8 @@ func fast_forward(target: String) -> bool:
 			break
 		if c["kind"] == "wood":
 			await level.ff_take_wood()
+		elif c["kind"] == "view":
+			await play(str(c["scene"]))
 		else:
 			var p: Dictionary = c["p"]
 			if _ff_log:
@@ -2878,8 +2992,8 @@ func validate() -> Array[String]:
 				"camera":
 					if st.has("at") and not world.has_marker(str(st["at"])) and not str(st["at"]).is_valid_float():
 						out.append("scene %s：camera 的 at 找不到 %s" % [id, st["at"]])
-					if not (st.has("at") or st.get("hold", false) or st.get("release", false)):
-						out.append("scene %s：camera 要有 at / hold / release" % id)
+					if not (st.has("at") or st.has("zoom") or st.get("hold", false) or st.get("release", false)):
+						out.append("scene %s：camera 要有 at / zoom / hold / release" % id)
 				"anim":
 					var who := str(st.get("who", ""))
 					var key := "miluo" if npc(who) == miluo else who
@@ -2933,6 +3047,43 @@ func validate() -> Array[String]:
 				for st in scenes.get(s, []):
 					if st is Dictionary and str(st.get("do", "")) == "walk" and str(st.get("who", "chen")) == "chen":
 						out.append("scene %s（hotspot %s 走进去触发）：晨的 walk 不执行——不推人，停在看得见的边上" % [s, h.get("id")])
+	# 第一关新版的剧本顶层（见文件头）
+	for v in data.get("item_views", []):
+		var vs := str(v.get("scene", "")) if v is Dictionary else ""
+		refs[vs] = true
+		if not scenes.has(vs):
+			out.append("item_views：scene %s 不存在" % vs)
+		if v is Dictionary and not Inventory.defined(str(v.get("item", ""))):
+			out.append("item_views：物品 %s 不在物品表" % v.get("item"))
+	var ow = data.get("one_way", {})
+	if ow is Dictionary and not ow.is_empty():
+		if not world.has_marker(str(ow.get("wall", ""))):
+			out.append("one_way：wall 找不到 marker %s" % ow.get("wall"))
+		for k2 in ["after", "until"]:
+			if not set_flags.has(str(ow.get(k2, ""))):
+				out.append("one_way：%s 的 flag %s 没有地方设" % [k2, ow.get(k2)])
+	for pid in data.get("hide_props", []):
+		if str(pid) != "wood" and not world.props.has(str(pid)):
+			out.append("hide_props：没有物件 %s" % pid)
+	for id in scenes:
+		for st in scenes[id]:
+			if st is Dictionary and str(st.get("do", "")) == "reward":
+				if st.has("item") and not Inventory.defined(str(st["item"])):
+					out.append("scene %s：reward 的物品 %s 不在物品表" % [id, st["item"]])
+				elif not st.has("item") and not ResourceLoader.exists(str(st.get("tex", ""))):
+					out.append("scene %s：reward 的图 %s 不存在" % [id, st.get("tex")])
+			if st is Dictionary and str(st.get("do", "")) == "inner" and not st.get("clear", false) and str(st.get("zh", "")) == "":
+				out.append("scene %s：inner 没有 zh" % id)
+			if st is Dictionary and str(st.get("do", "")) == "fade_to" and st.has("style") and str(st["style"]) != "pixel":
+				out.append("scene %s：fade_to 的 style 只认 pixel（%s）" % [id, st["style"]])
+	if not ResourceLoader.exists(INNER_GD):
+		var n_inner := 0
+		for id in scenes:
+			for st in scenes[id]:
+				if st is Dictionary and str(st.get("do", "")) == "inner":
+					n_inner += 1
+		if n_inner > 0:
+			out.append("info: 潜意识字脚本 %s 还没有（%d 处 inner 先打印出来）" % [INNER_GD, n_inner])
 	for id in scenes:
 		if not refs.has(id):
 			out.append("info: scene %s 没有任何 hotspot / goto / pick / if 引用到（播不到）" % id)
@@ -3864,6 +4015,201 @@ func _walk_fade(room: String, x: float, with: Array, st: Dictionary, arrive: flo
 	await _arrive_walk(to)
 
 
+# ----------------------------------------------------------------------- 第一关新版（11-02，见文件头）
+const INNER_GD := "res://scripts/inner_voice.gd"
+const ONE_WAY_EVERY := 6.0           # 往回走的潜意识字：两次之间至少隔几秒
+const REWARD_SEC := 1.5              # 奖励动画多长
+var _bark_at := NAN                  # 这一句 bark 浮在哪个 x 上（飞船）；NAN = 晨头顶
+var _bark_y := 46.0
+var _one_way_t := 99.0
+
+
+## 潜意识字：scripts/inner_voice.gd（ch1-fx 做；静态入口 say / clear / node，自己挂一个 CanvasLayer 52 在当前场景下）。
+## 脚本还没有 / 编译不过：打印 INNER 接着播。闪回停在黑屏上（hold）、又没 blackout 时，临时把字抬到闪回那一层上面。
+func _inner(st: Dictionary) -> void:
+	if ff or free_roam:
+		return
+	var gd := _inner_gd()
+	if st.get("clear", false):
+		if gd != null:
+			gd.call("clear")
+		return
+	var sec := float(st.get("sec", 0.0))
+	var total := sec
+	if gd != null:
+		var r = gd.call("say", str(st.get("zh", "")), str(st.get("en", "")), str(st.get("style", "drift")), sec)
+		if (r is float or r is int) and str(st.get("style", "drift")) != "drift":
+			total = maxf(float(r), sec)      # fade / spin：say 返回到完全消失的总秒数
+		var n = gd.call("node")
+		if n is CanvasLayer:
+			(n as CanvasLayer).layer = FLASHBACK_LAYER + 1 if flashback_ui != null and _blackout == null else 52
+	else:
+		print("INNER %s: %s" % [str(st.get("style", "drift")), txt(st)])
+	if st.get("wait", false) and total > 0.0:
+		await _wait(total * (0.5 if auto != "" else 1.0))
+
+
+func _inner_gd() -> GDScript:
+	if not ResourceLoader.exists(INNER_GD):
+		return null
+	var gd := load(INNER_GD) as GDScript
+	if gd == null or not gd.can_instantiate():
+		_warn_once("inner：%s 编译不过，只打印" % INNER_GD)
+		return null
+	return gd
+
+
+## {"do": "blackout", "on": true / false}：闪回停在黑屏上（hold）时，换成关卡 UI 上面一层自己的黑（BLACKOUT_LAYER，
+## 在纸 / 字幕 / 潜意识字下面），闪回那层先藏起来——这样黑着的时候还能看纸（paper_view 40）、云星闪（51）、潜意识字（52）；
+## on: false = 闪回那层露回来（还是黑的），自己的黑去掉，接着 flashback_wake 睁眼。
+const BLACKOUT_LAYER := 35
+var _blackout: CanvasLayer = null
+
+
+func _blackout_step(on: bool) -> void:
+	if ff or free_roam:
+		return
+	var fl: CanvasLayer = flashback_ui.get_parent() as CanvasLayer if flashback_ui != null and is_instance_valid(flashback_ui) else null
+	if on:
+		if _blackout == null:
+			_blackout = CanvasLayer.new()
+			_blackout.name = "Blackout"
+			_blackout.layer = BLACKOUT_LAYER
+			var r := ColorRect.new()
+			r.color = Color.BLACK
+			r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			r.size = Vector2(4000, 4000)
+			r.position = Vector2(-1000, -1000)
+			_blackout.add_child(r)
+			level.add_child(_blackout)
+		if fl != null:
+			fl.visible = false
+	else:
+		if fl != null:
+			fl.visible = true
+		if _blackout != null and is_instance_valid(_blackout):
+			_blackout.queue_free()
+		_blackout = null
+
+
+## hotspot 的 scene 只有 bark 台词：返回那几句（不然 []）
+func _bark_only(sid: String) -> Array:
+	var out: Array = []
+	for st in scenes.get(sid, []):
+		if not (st is Dictionary and st.has("say") and st.get("bark", false)):
+			return []
+		out.append(st)
+	return out
+
+
+## 剧本顶层 one_way（拿回背包以后不能回头）：world.walls 按它挪左墙；顶着往回走浮出潜意识字
+func one_way_on() -> bool:
+	var ow = data.get("one_way", {})
+	return ow is Dictionary and not ow.is_empty() and StoryState.has(str(ow.get("after", ""))) \
+		and not StoryState.has(str(ow.get("until", "")))
+
+
+func _update_one_way(delta: float) -> void:
+	_one_way_t += delta
+	if ff or free_roam or busy or world.room != "forest" or not one_way_on() or _one_way_t < ONE_WAY_EVERY:
+		return
+	var w: Vector2 = world.walls(chen.position.x)
+	if chen.position.x > w.x + 24.0 or chen.facing > 0:
+		return
+	if chen._vel > 0.0 or level._wall_block:
+		_one_way_t = 0.0
+		var ow: Dictionary = data["one_way"]
+		_inner({"zh": ow.get("zh", ""), "en": ow.get("en", ""), "style": "fade", "sec": 3.0})
+
+
+## 背包查看（剧本顶层 item_views）：这件东西现在按「查看」播哪段；"" = 没有
+func item_view(id: String) -> String:
+	for v in data.get("item_views", []):
+		if v is Dictionary and str(v.get("item", "")) == id and scenes.has(str(v.get("scene", ""))) \
+				and StoryState.all_of(v.get("need", [])) and StoryState.none_of(v.get("not", [])):
+			return str(v["scene"])
+	return ""
+
+
+## 自动玩 / 跳节拍：背包里有、现在能看的那件（{item, scene}；没有 = {}）
+func pending_view() -> Dictionary:
+	if busy:
+		return {}
+	for v in data.get("item_views", []):
+		if v is Dictionary and Inventory.has(str(v.get("item", ""))):
+			var sc := item_view(str(v["item"]))
+			if sc != "" and not played.has(sc):
+				return {"item": str(v["item"]), "scene": sc}
+	return {}
+
+
+## 剧本顶层 bag_lock {from, until}：背包还没拿回来（背包按钮、Tab 都不出来）
+func bag_locked() -> bool:
+	var bl = data.get("bag_lock", {})
+	return bl is Dictionary and not bl.is_empty() and StoryState.has(str(bl.get("from", ""))) \
+		and not StoryState.has(str(bl.get("until", "")))
+
+
+## 奖励动画：东西从晨手里升到头顶、放大成两倍，一圈光点转一圈，停一下再淡掉（图 = 物品图标，或 tex + region 截一块）
+func _reward(st: Dictionary) -> void:
+	if ff or free_roam:
+		return
+	var tex: Texture2D = null
+	if st.has("item"):
+		tex = Inventory.icon(str(st["item"]))
+	elif ResourceLoader.exists(str(st.get("tex", ""))):
+		tex = load(str(st["tex"]))
+		var rg = st.get("region", null)
+		if rg is Array and rg.size() == 4:
+			var at := AtlasTexture.new()
+			at.atlas = tex
+			at.region = Rect2(float(rg[0]), float(rg[1]), float(rg[2]), float(rg[3]))
+			tex = at
+	if tex == null:
+		return
+	_sfx({"name": str(st.get("sfx", "reward")), "db": -4.0})
+	var fx := Control.new()
+	fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx.set_meta("t", 0.0)
+	dlg.add_child(fx)
+	var sz := tex.get_size()
+	var dur := REWARD_SEC * (0.6 if auto != "" else 1.0)
+	fx.draw.connect(func():
+		var t: float = fx.get_meta("t")
+		var k := clampf(t / 0.35, 0.0, 1.0)
+		var rise := 1.0 - pow(1.0 - k, 3.0)                   # 先快后慢升上去
+		var left: Vector2 = level.cam_left()
+		var zk: float = level.cam.zoom.x
+		var hand: Vector2 = (chen.position - left + Vector2(chen.facing * 6.0, -24.0)) * zk
+		var c := (hand + Vector2(0, -34.0 * rise)).round()
+		var big := 1 if k < 1.0 else 2                       # 整数倍放大：到顶那一下变两倍
+		var fade := clampf((dur - t) / 0.3, 0.0, 1.0)
+		var step := floorf(t / 0.1)                           # 光点 100ms 一格转
+		if k >= 1.0:
+			var ring := clampf((t - 0.35) / 0.3, 0.0, 1.0)
+			if ring < 1.0:
+				fx.draw_arc(c, 6.0 + ring * 18.0, 0.0, TAU, 24, Color(1.0, 0.95, 0.75, (1.0 - ring) * 0.8), 1.0)
+			for i in 8:
+				var a := TAU * (float(i) / 8.0) + step * 0.2
+				var r := 15.0 + (2.0 if int(step + i) % 2 == 0 else 0.0)
+				var q := (c + Vector2(cos(a), sin(a)) * r).round()
+				var col := Color(1.0, 0.93, 0.62, 0.9 * fade)
+				fx.draw_rect(Rect2(q, Vector2(1, 1)), col)
+				if (int(step) + i) % 3 == 0:
+					fx.draw_rect(Rect2(q + Vector2(-1, 0), Vector2(3, 1)), col)
+					fx.draw_rect(Rect2(q + Vector2(0, -1), Vector2(1, 3)), col)
+		var d := sz * big
+		fx.draw_texture_rect(tex, Rect2((c - d / 2.0).round(), d), false, Color(1, 1, 1, fade)))
+	var t0 := 0.0
+	while t0 < dur and is_instance_valid(fx):
+		await get_tree().process_frame
+		t0 += get_process_delta_time()
+		fx.set_meta("t", t0)
+		fx.queue_redraw()
+	if is_instance_valid(fx):
+		fx.queue_free()
+
+
 # ----------------------------------------------------------------------- 小游戏 {"do": "mechanic"}
 func _mechanic(st: Dictionary) -> void:
 	var mid := str(st.get("id", ""))
@@ -3883,6 +4229,9 @@ func _mechanic(st: Dictionary) -> void:
 			m.ff(self, st)
 		_mech_done(mid)
 		return
+	if not st.get("wait", true):
+		_mech_bg(m, mid, st)                 # 不等（奔跑时的字幕）：边播边往下走
+		return
 	print("MECH %s start" % mid)
 	mech_running = mid
 	if auto != "":
@@ -3893,6 +4242,18 @@ func _mechanic(st: Dictionary) -> void:
 	elif m.has_method("run"):
 		await m.run(level, world, self, st)
 	mech_running = ""
+	_mech_done(mid)
+	print("MECH %s returned" % mid)
+
+
+func _mech_bg(m, mid: String, st: Dictionary) -> void:
+	print("MECH %s start (wait:false)" % mid)
+	if auto != "" and m.has_method("auto"):
+		await m.auto(level, world, self, st)
+	elif auto != "" and m.has_method("ff"):
+		m.ff(self, st)
+	elif m.has_method("run"):
+		await m.run(level, world, self, st)
 	_mech_done(mid)
 	print("MECH %s returned" % mid)
 
@@ -3999,7 +4360,7 @@ func _validate_room_step(id: String, kind: String, st: Dictionary, refs: Diction
 		"mechanic":
 			var path := "res://scripts/%s.gd" % str(st.get("id", ""))
 			if not ResourceLoader.exists(path):
-				out.append("scene %s：mechanic 的脚本 %s 不存在" % [id, path])
+				out.append("info: scene %s：mechanic 的脚本 %s 还没有（播到这里当它玩完了）" % [id, path])
 			elif not (load(path) as GDScript).can_instantiate():
 				out.append("scene %s：mechanic 的脚本 %s 编译不过" % [id, path])
 			else:
@@ -4009,7 +4370,11 @@ func _validate_room_step(id: String, kind: String, st: Dictionary, refs: Diction
 						out.append("scene %s：mechanic %s 没有 %s()" % [id, st.get("id"), fn])
 				if m.has_method("check"):
 					for l in m.check(self, st):
-						out.append("scene %s：mechanic %s：%s" % [id, st.get("id"), l])
+						var ls := str(l)
+						if ls.begins_with("info:"):
+							out.append("info: scene %s：mechanic %s：%s" % [id, st.get("id"), ls.trim_prefix("info:").strip_edges()])
+						else:
+							out.append("scene %s：mechanic %s：%s" % [id, st.get("id"), ls])
 		"form":
 			var n := npc(str(st.get("who", "")))
 			if n == null or not n.has_method("set_form"):

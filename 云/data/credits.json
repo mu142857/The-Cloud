@@ -1,0 +1,15 @@
+{
+ "_说明": "第一关奔跑片头的制作人员字幕（scripts/run_credits.gd 读）。下面的名单全是占位，等作者改：每条一个 role（职务）+ names（一个或几个名字）。时间单位秒。placeholder 改成 false 就不再在日志里提醒。",
+ "placeholder": true,
+ "start_delay": 0.6,
+ "fade_in": 0.9,
+ "hold": 2.4,
+ "fade_out": 0.9,
+ "gap": 0.5,
+ "music": "res://audio/music/theme.ogg",
+ "entries": [
+  {"role": {"zh": "制作", "en": "Made by"}, "names": ["嘉木"]},
+  {"role": {"zh": "剧情", "en": "Story"}, "names": ["本2兔"]},
+  {"role": {"zh": "美术", "en": "Art"}, "names": ["奥斯卡", "梧桐"]}
+ ]
+}

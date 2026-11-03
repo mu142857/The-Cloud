@@ -103,6 +103,8 @@ const EDGE_FADE_SHADER := "shader_type canvas_item;\nuniform float fade = 0.12;\
 ## frames = 横排几帧；anim = 自己循环播（ms / 帧）；hidden = 一开始藏着；layer = fog 放在雾那一层（主层后面）；sink = 往地里压几像素
 const PROPS := {
 	"luggage": {"tex": "luggage.png", "at": "luggage", "size": [40, 18], "color": "#5b5244"},
+	# 第一关新版（11-02）：背包 = 开场行李图里中间那只背包（luggage.png 的 15,5 起 15×13；本2兔：「原有的开场行李的背包 sprite 就是新的背包帧」）
+	"c1_bag": {"tex": "luggage.png", "region": [15, 5, 15, 13], "at": "c1_bag", "size": [15, 13], "color": "#3a3a2e"},
 	"scrap": {"tex": "mat_scrap.png", "at": "scrap", "size": [14, 10], "color": "#6c716e"},
 	"resin": {"tex": "mat_resin.png", "at": "resin", "size": [14, 10], "color": "#8c6f36"},
 	"branch": {"tex": "mat_branch.png", "at": "branch", "size": [14, 10], "color": "#5e4b35"},
@@ -217,6 +219,7 @@ var _script_markers := {}
 var _room_relative := false          # 剧本的 room_* 是相对树屋锚点的 x（第四版）
 var _start_hidden := {}              # 剧本里给过 shown 状态的物件：一开始藏着
 var _lit_t := 0.0                    # fog:lit：雾里被照亮一下
+var one_way := {}                    # 剧本顶层 one_way（第一关新版：拿回背包以后左墙挪到背包左边；story_runner.one_way_on 判断开没开）
 
 
 func setup(lv: Node2D, script_markers: Dictionary, steam_at := "", shown_ids: Array = []) -> void:
@@ -417,7 +420,11 @@ func walls(x: float) -> Vector2:
 			r = minf(r, mx("hollow") - HOLLOW_EDGE)
 		if prop_state("log") != "moved" and not StoryState.has("log_cleared"):
 			r = minf(r, mx("log") + LOG_BLOCK)
-		return Vector2(mx("wall_left"), r)
+		var l := mx("wall_left")
+		if not one_way.is_empty() and markers.has(str(one_way.get("wall", ""))) and StoryState.has(str(one_way.get("after", ""))) \
+				and not StoryState.has(str(one_way.get("until", ""))):
+			l = maxf(l, mx(str(one_way["wall"])))      # 拿回背包以后不能回头（第一关新版）
+		return Vector2(l, r)
 	return Vector2(b_start(), mx("wall_right"))
 
 
@@ -535,6 +542,12 @@ func _apply_look(id: String, c: Dictionary) -> void:
 	var frames := int(c.get("frames", 1))
 	if ResourceLoader.exists(path):
 		s.texture = load(path)
+		var rg = c.get("region", null)
+		if rg is Array and rg.size() == 4:
+			var at := AtlasTexture.new()          # 只用图里的一块（c1_bag：行李图里的背包）
+			at.atlas = s.texture
+			at.region = Rect2(float(rg[0]), float(rg[1]), float(rg[2]), float(rg[3]))
+			s.texture = at
 		s.hframes = maxi(1, frames)
 		s.set_meta("placeholder", false)
 	else:

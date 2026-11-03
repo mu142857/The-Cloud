@@ -1,0 +1,145 @@
+{
+ "_comment": "兔子：占位图（tools/rabbit_art.py 生成），等作者的美术来换。和鹿同一条暖棕色阶。画的是朝右；舞步 dance_left / dance_right 是按画面方向（朝右站时）画的，朝左站时 rabbit_dance.gd 会换成镜像那一段。每一步 0.6 秒（100ms 一帧，不加速）。",
+ "frame": [
+  44,
+  52
+ ],
+ "sheet": "rabbit.png",
+ "anchor": [
+  22,
+  50
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": true,
+ "head": 46,
+ "speed": 34,
+ "color": "#f0a98c",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    2,
+    2,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "loop": true
+  },
+  "dance_left": {
+   "frames": [
+    3,
+    4,
+    4,
+    4,
+    4,
+    3
+   ],
+   "loop": false
+  },
+  "dance_up": {
+   "frames": [
+    5,
+    6,
+    6,
+    6,
+    6,
+    5
+   ],
+   "loop": false
+  },
+  "dance_right": {
+   "frames": [
+    7,
+    8,
+    8,
+    8,
+    8,
+    7
+   ],
+   "loop": false
+  },
+  "dance_down": {
+   "frames": [
+    9,
+    10,
+    10,
+    10,
+    10,
+    9
+   ],
+   "loop": false
+  },
+  "shrug": {
+   "frames": [
+    11,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    11
+   ],
+   "loop": false
+  },
+  "bow": {
+   "frames": [
+    13,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    14,
+    13
+   ],
+   "loop": false
+  }
+ },
+ "alias": {
+  "talk": "idle",
+  "walk": "idle",
+  "nod": "dance_down",
+  "laugh": "dance_up",
+  "give": "idle",
+  "hand": "idle",
+  "point": "dance_right"
+ }
+}
