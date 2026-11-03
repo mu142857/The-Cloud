@@ -209,6 +209,8 @@ var _title_sub: Label         # 标题下面另一种语言的名字（英文版
 var _title_lines: Array[ColorRect] = []   # 副标题两边的细线
 var _start_btn: Button
 var _start_marks: Array[ColorRect] = []   # 「开始」两边悬停时伸出来的小横线
+var _credits_btn: Button         # 「开始」下面的「制作人员」（更小、更暗）
+var _credits_page = null         # 打开着的制作人员页（scripts/credits_page.gd）
 var _gear: TextureButton
 var _lang_corner: HBoxContainer   # 标题界面左下角的「EN / 中文」，跟着标题一起出现、消失
 var _lang_btns := {}
@@ -216,6 +218,7 @@ var _bag_btn: TextureButton
 var _hud_burn: HBoxContainer
 var _hud_burn_label: Label
 var _hud_obj: Label
+var _hud_side: Label                    # 「（可选）」支线那一行
 var _hud_flame: TextureRect
 var _obj_key := "-"
 var _bars: Array[ColorRect] = []
@@ -641,6 +644,21 @@ func _build_ui() -> void:
 		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_title_root.add_child(m)
 		_start_marks.append(m)
+	_credits_btn = Button.new()
+	UITheme.flat_button(_credits_btn)
+	_credits_btn.add_theme_font_override("font", UITheme.spaced_font(START_SPACING))
+	_credits_btn.add_theme_font_size_override("font_size", 12)
+	for k in ["font_color", "font_pressed_color"]:
+		_credits_btn.add_theme_color_override(k, SUB_COLOR)
+	for k in ["font_hover_color", "font_focus_color", "font_hover_pressed_color"]:
+		_credits_btn.add_theme_color_override(k, START_HOT)
+	_credits_btn.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.5))
+	_credits_btn.add_theme_constant_override("shadow_offset_x", 0)
+	_credits_btn.add_theme_constant_override("shadow_offset_y", 1)
+	_credits_btn.pressed.connect(_open_credits)
+	_credits_btn.mouse_entered.connect(_sfx_soft)
+	_credits_btn.focus_entered.connect(_sfx_soft)
+	_title_root.add_child(_credits_btn)
 
 	# ---- 右下角设置齿轮（标题和自由走的时候都在）
 	_gear = TextureButton.new()
@@ -687,6 +705,14 @@ func _build_ui() -> void:
 	_hud_obj.add_theme_constant_override("shadow_offset_y", 1)
 	_hud_obj.visible = false
 	_hud_burn.add_child(_hud_obj)
+	# 支线（第一关）：主目标下面一行、暗一点，「（可选）…」；挂在目标那行底下，跟着它淡入淡出
+	_hud_side = _label("", 14, UITheme.TEXT_DIM)
+	_hud_side.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.6))
+	_hud_side.add_theme_constant_override("shadow_offset_x", 0)
+	_hud_side.add_theme_constant_override("shadow_offset_y", 1)
+	_hud_side.position = Vector2(0, 17)
+	_hud_side.modulate.a = 0.75
+	_hud_obj.add_child(_hud_side)
 	var fl := TextureRect.new()
 	fl.texture = TEX_FLAME
 	fl.stretch_mode = TextureRect.STRETCH_KEEP
@@ -921,6 +947,12 @@ func _build_settings(root: Control) -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 2)
 	v.add_child(gap)
+	var cr := Button.new()
+	cr.custom_minimum_size = Vector2(80, 18)
+	cr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	cr.pressed.connect(_open_credits)
+	v.add_child(cr)
+	_settings_widgets["credits"] = cr
 	var close := Button.new()
 	close.custom_minimum_size = Vector2(80, 18)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1324,6 +1356,7 @@ func _retext() -> void:
 		w[pre + "_a"].text = I18n.t(keys[0])
 		w[pre + "_b"].text = I18n.t(keys[1])
 	w["close"].text = I18n.t("close")
+	w["credits"].text = I18n.t("credits")
 	if _dlg_on and _dlg.has_meta("key"):
 		_dlg_name.text = I18n.t(_dlg.get_meta("who"))
 		_dlg_text.text = I18n.t(_dlg.get_meta("key"))
@@ -1348,6 +1381,10 @@ func _layout_title() -> void:
 	var bw := _center_x(_start_btn, UITheme.spaced_font(START_SPACING), _start_btn.text, 14, START_SPACING)
 	_start_btn.size = Vector2(bw + START_SPACING, 20)
 	_start_btn.position.y = START_Y
+	_credits_btn.text = I18n.t("credits")
+	var cw := _center_x(_credits_btn, UITheme.spaced_font(START_SPACING), _credits_btn.text, 12, START_SPACING)
+	_credits_btn.size = Vector2(cw + START_SPACING, 18)
+	_credits_btn.position.y = START_Y + 24.0
 
 
 ## 中文标题只有一个字，字距没用；英文拉开 3 像素（= 42 号字的 1 格）
@@ -1424,7 +1461,17 @@ func _update_objective() -> void:
 	if state in [S.HEADPHONES, S.INTRO, S.TITLE, S.CRASH] or not StoryState.has("crashed"):
 		return
 	var o: Dictionary = story.objective()
+	var side_txt: Array = []
+	for so in story.side_objectives():
+		side_txt.append(story.txt(so))
+	var side_line := "" if side_txt.is_empty() else I18n.pick({"zh": "（可选）", "en": "(Optional) "}) + ("　" if I18n.is_zh() else " / ").join(side_txt)
 	var key := "" if o.is_empty() else str(o.get("zh", "")) + "|" + str(o.get("show_fuel", false))
+	if _hud_side.text != side_line:
+		_hud_side.text = side_line
+		if side_line != "" and not _hud_side.visible:
+			_hud_side.modulate.a = 0.0
+			create_tween().tween_property(_hud_side, "modulate:a", 0.75, 0.6)
+		_hud_side.visible = side_line != ""
 	if key == _obj_key:
 		return
 	var first := _obj_key == "-"
@@ -1515,6 +1562,7 @@ func _show_title() -> void:
 	_title_label.modulate.a = 0.0
 	_title_sub.modulate.a = 0.0
 	_start_btn.modulate.a = 0.0
+	_credits_btn.modulate.a = 0.0
 	_lang_corner.modulate.a = 0.0
 	for ln in _title_lines:
 		ln.modulate.a = 0.0
@@ -1525,6 +1573,7 @@ func _show_title() -> void:
 	tw.parallel().tween_property(_title_lines[0], "modulate:a", 1.0, 1.6).set_delay(0.8)
 	tw.parallel().tween_property(_title_lines[1], "modulate:a", 1.0, 1.6).set_delay(0.8)
 	tw.parallel().tween_property(_start_btn, "modulate:a", 1.0, 1.2).set_delay(1.6)
+	tw.parallel().tween_property(_credits_btn, "modulate:a", 0.85, 1.2).set_delay(2.0)
 	tw.parallel().tween_property(_gear, "modulate:a", GEAR_A, 1.2).set_delay(1.6)
 	tw.parallel().tween_property(_lang_corner, "modulate:a", 1.0, 1.2).set_delay(1.6)
 	# 不抢焦点：不然「开始」一出来就是高亮的。Enter / 空格照样能开始（见 _input），按方向键才聚焦。
@@ -1543,12 +1592,36 @@ func _skip_to_title() -> void:
 	for ln in _title_lines:
 		ln.modulate.a = 1.0
 	_start_btn.modulate.a = 1.0
+	_credits_btn.modulate.a = 0.85
 	_lang_corner.modulate.a = 1.0
 	_gear.modulate.a = GEAR_A
 
 
+func _open_credits() -> void:
+	if _credits_page != null or state in [S.HEADPHONES, S.INTRO, S.CRASH, S.CINE]:
+		return
+	var back: Control = _credits_btn if state == S.TITLE else _settings_widgets["credits"]
+	_settings.visible = false
+	_bag.visible = false
+	_dim.visible = false
+	_sfx("ui_click", -10.0)
+	chen.input_enabled = false
+	_credits_page = (load("res://scripts/credits_page.gd") as GDScript).new()
+	_settings.get_parent().add_child(_credits_page)
+	_credits_page.closed.connect(func():
+		_credits_page = null
+		_sfx("ui_click", -12.0, 0.85)
+		if state == S.PLAY:
+			chen.input_enabled = true
+		if back == _credits_btn:
+			if get_viewport().gui_get_focus_owner() != null:
+				_credits_btn.grab_focus()
+		else:
+			_open_settings())
+
+
 func _on_start() -> void:
-	if state != S.TITLE or _settings.visible or _state_t < 0.3:
+	if state != S.TITLE or _settings.visible or _credits_page != null or _state_t < 0.3:
 		return
 	_sfx("ui_click", -8.0)
 	_start_crash()
@@ -2317,6 +2390,11 @@ func _input(event: InputEvent) -> void:
 	# F8：开发者面板（只在 debug 构建）
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and OS.is_debug_build():
 		toggle_dev()
+		_handled()
+		return
+	# 制作人员页开着：按键 / 点击都给它（任意键关）
+	if _credits_page != null:
+		_credits_page.handle(event)
 		_handled()
 		return
 	# 章节结束卡：3 秒以后按任意键回标题

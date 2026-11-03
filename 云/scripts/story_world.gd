@@ -103,8 +103,8 @@ const EDGE_FADE_SHADER := "shader_type canvas_item;\nuniform float fade = 0.12;\
 ## frames = 横排几帧；anim = 自己循环播（ms / 帧）；hidden = 一开始藏着；layer = fog 放在雾那一层（主层后面）；sink = 往地里压几像素
 const PROPS := {
 	"luggage": {"tex": "luggage.png", "at": "luggage", "size": [40, 18], "color": "#5b5244"},
-	# 第一关新版（11-02）：背包 = 开场行李图里中间那只背包（luggage.png 的 15,5 起 15×13；本2兔：「原有的开场行李的背包 sprite 就是新的背包帧」）
-	"c1_bag": {"tex": "luggage.png", "region": [15, 5, 15, 13], "at": "c1_bag", "size": [15, 13], "color": "#3a3a2e"},
+	# 第一关新版（11-02）：背包（ch1-fx 重画的 c1_bag.png，和 bag_burst 的背包特写同一个设计）
+	"c1_bag": {"tex": "c1_bag.png", "at": "c1_bag", "size": [15, 13], "color": "#8f6745"},
 	"scrap": {"tex": "mat_scrap.png", "at": "scrap", "size": [14, 10], "color": "#6c716e"},
 	"resin": {"tex": "mat_resin.png", "at": "resin", "size": [14, 10], "color": "#8c6f36"},
 	"branch": {"tex": "mat_branch.png", "at": "branch", "size": [14, 10], "color": "#5e4b35"},
@@ -540,8 +540,9 @@ func _apply_look(id: String, c: Dictionary) -> void:
 	s.set_meta("ground_row", int(c.get("ground_row", 0)))
 	var path := ART + str(c.get("tex", ""))
 	var frames := int(c.get("frames", 1))
-	if ResourceLoader.exists(path):
-		s.texture = load(path)
+	var raw := _raw_png(path)
+	if ResourceLoader.exists(path) or raw != null:
+		s.texture = load(path) if ResourceLoader.exists(path) else raw
 		var rg = c.get("region", null)
 		if rg is Array and rg.size() == 4:
 			var at := AtlasTexture.new()          # 只用图里的一块（c1_bag：行李图里的背包）
@@ -573,6 +574,14 @@ func _apply_look(id: String, c: Dictionary) -> void:
 
 
 ## 地面贴片按列画：精灵本身不画（self_modulate 透明），子节点每列一条、各自对齐到那一列的地面
+## 新放进来、编辑器还没导入的 png：直接读文件（导入过的走 load）
+static func _raw_png(path: String) -> Texture2D:
+	if ResourceLoader.exists(path) or not FileAccess.file_exists(path):
+		return null
+	var img := Image.load_from_file(ProjectSettings.globalize_path(path))
+	return ImageTexture.create_from_image(img) if img != null else null
+
+
 func _column_draw(s: Sprite2D, on: bool) -> void:
 	var cols: Node2D = s.get_node_or_null("Cols")
 	if not on:

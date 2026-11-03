@@ -160,8 +160,12 @@ func _ribbon(text: String) -> Array:
 		l.autowrap_mode = TextServer.AUTOWRAP_OFF
 		add_child(l)
 		l.reset_size()
-		out.append({"node": l, "lag": gap})
-		gap += l.get_combined_minimum_size().x + 1.0
+		var w := l.get_combined_minimum_size().x + 1.0
+		out.append({"node": l, "lag": gap, "w": w})
+		gap += w
+	# 带子从左往右飘，走在最前面的（lag 最小）必须是最后一个字，不然读出来是反的
+	for c in out:
+		c["lag"] = gap - float(c["lag"]) - float(c["w"])
 	return out
 
 

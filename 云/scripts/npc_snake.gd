@@ -5,7 +5,7 @@ extends Node2D
 ## 节点：根 Node2D 的 x = 身体中线，y 不用管（_ready 里按晨的地面函数贴地：y = 地面那一行 + 1，和晨、npc_alien 一样）。
 ## 精灵在 _ready 里现搭，场景里不存帧。场景里放一个 Node2D、挂这个脚本、设 position.x 就行；
 ## 晨不叫 "../Chen" 的话改 watch_path。
-## 滑行（剧本用：森林章节里她是弥洛）：glide_to(x) 按 GLIDE_SPEED 滑过去（起步、停下各 GLIDE_EASE 秒匀加减速），idle 照常播（蛇滑行），朝向跟着移动方向；
+## 滑行（剧本用：森林章节里她是弥洛）：glide_to(x) 按 GLIDE_SPEED 滑过去（起步、停下各 GLIDE_EASE 秒匀加减速），播走路动画（先展开尾巴再循环，停下回待机），朝向跟着移动方向；
 ## is_gliding() 问还在不在滑。不调它的时候和以前完全一样。
 ## 光：和晨用同一个 scripts/chen_light.gdshader、同一套 chen.gd 的 ENVS[env] 参数（乘 ENV_K 弱一点）；
 ## 她本来比晨亮（奶白蛇尾 L≈0.96、金发 0.7），整体乘 TINT（偏一点森林的冷绿）压一档，晨的白发还是全屏最亮。
@@ -18,6 +18,15 @@ const FOOT := Vector2i(17, 45)          # x = 身体中线（脖子到竖直蛇�
 const ART_FACES := 1                    # 美术朝右（脸和眼睛偏右，马尾在左后）
 const ANIMS := {
 	"idle": {"frames": [0, 1, 2, 3, 4, 5, 6, 7], "ms": 200},   # 原图就是 200ms 一帧（作者同意待机慢一点，别改快）
+}
+## 走路（滑行）：作者 11-02 画的 9 帧（tools/snake_walk_from_gif.py 生成），150ms 一帧（作者原图的节奏）。
+## 帧 0~2 从盘着到展开（walk_start，播一次），帧 3~8 滑行循环（walk）。每帧画的位置不一样，锚点按帧给（头下面的身体中线）。
+const WALK_SHEET_PATH := "res://art/characters/snake/snake_walk.png"   # 不用 preload：编辑器还没导入新图时脚本也能编译（退回直接读 png）
+const WALK_FRAME := Vector2i(48, 48)
+const WALK_FOOT_X := [16, 24, 30, 36, 37, 36, 37, 36, 37]
+const WALK_ANIMS := {
+	"walk_start": {"frames": [0, 1, 2], "ms": 150, "loop": false},
+	"walk": {"frames": [3, 4, 5, 6, 7, 8], "ms": 150},
 }
 # =====================================================================
 
@@ -71,6 +80,11 @@ func _ready() -> void:
 	_apply_env()
 	spr.play(&"idle")
 	spr.frame = 2                       # 别和别的什么同一拍起步
+	spr.frame_changed.connect(_place_sprite)
+	spr.animation_changed.connect(_place_sprite)
+	spr.animation_finished.connect(func():
+		if spr.animation == &"walk_start":
+			spr.play(&"walk"))
 	_snap()
 	_set_facing(_want() if _watch != null else facing)
 
@@ -90,7 +104,42 @@ func _build_frames() -> SpriteFrames:
 			t.region = Rect2(int(frames[i]) * FRAME_SIZE.x, 0, FRAME_SIZE.x, FRAME_SIZE.y)
 			var ms: float = a["ms"][i] if a["ms"] is Array else a["ms"]
 			sf.add_frame(name, t, ms)
+	var walk_tex := _walk_sheet()
+	for name in WALK_ANIMS:
+		if walk_tex == null:
+			break
+		var a: Dictionary = WALK_ANIMS[name]
+		sf.add_animation(name)
+		sf.set_animation_speed(name, 1000.0)
+		sf.set_animation_loop(name, a.get("loop", true))
+		for fi in a["frames"]:
+			var t := AtlasTexture.new()
+			t.atlas = walk_tex
+			t.region = Rect2(int(fi) * WALK_FRAME.x, 0, WALK_FRAME.x, WALK_FRAME.y)
+			sf.add_frame(name, t, float(a["ms"]))
 	return sf
+
+
+func _walk_sheet() -> Texture2D:
+	if ResourceLoader.exists(WALK_SHEET_PATH):
+		return load(WALK_SHEET_PATH) as Texture2D
+	var img := Image.load_from_file(ProjectSettings.globalize_path(WALK_SHEET_PATH))
+	return ImageTexture.create_from_image(img) if img != null and not img.is_empty() else null
+
+
+## 这一帧的 [帧宽, 锚点 x（美术朝右时）]：待机一张图一个锚点，走路每帧一个
+func _frame_anchor() -> Array:
+	if String(spr.animation).begins_with("walk"):
+		var fi: int = WALK_ANIMS[String(spr.animation)]["frames"][clampi(spr.frame, 0, WALK_ANIMS[String(spr.animation)]["frames"].size() - 1)]
+		return [WALK_FRAME.x, WALK_FOOT_X[fi]]
+	return [FRAME_SIZE.x, FOOT.x]
+
+
+## 按当前帧放精灵：身体中线对着节点 x、尾巴着地那行对着地面（换帧、换动画、翻转都调）
+func _place_sprite() -> void:
+	var fa := _frame_anchor()
+	var fx: int = int(fa[0]) - int(fa[1]) if spr.flip_h else int(fa[1])
+	spr.offset = Vector2(-fx, -(FOOT.y + 1))
 
 
 func _apply_env() -> void:
@@ -115,8 +164,7 @@ func _set_facing(f: int) -> void:
 	facing = f
 	spr.flip_h = f != ART_FACES
 	# 翻转是在帧的矩形里左右镜像，锚点 x 跟着镜像，身体中线不跳；offset 都是整数，翻完还是对齐像素
-	var fx := FRAME_SIZE.x - FOOT.x if spr.flip_h else FOOT.x
-	spr.offset = Vector2(-fx, -(FOOT.y + 1))
+	_place_sprite()
 	var d := Vector2(CHEN_GD.ENVS.get(env, {}).get("dir", Vector2(0, -1)))
 	if spr.flip_h:
 		d.x = -d.x
@@ -135,6 +183,8 @@ func glide_to(x: float, speed := GLIDE_SPEED) -> void:
 		return
 	if not _gliding or signf(x - position.x) != signf(_glide_x - _gx):
 		_glide_cur = 0.0                # 新起步（或者掉头）从 0 加速；同方向改目标就接着现在的速度
+		if not String(spr.animation).begins_with("walk") and spr.sprite_frames.has_animation(&"walk_start"):
+			spr.play(&"walk_start")     # 先展开尾巴，再滑
 	_gliding = true
 	_glide_x = x
 	_glide_v = speed
@@ -150,8 +200,14 @@ func is_gliding() -> bool:
 func place(x: float) -> void:
 	_gliding = false
 	_glide_cur = 0.0
+	_stop_walk()
 	position.x = round(x)
 	_snap()
+
+
+func _stop_walk() -> void:
+	if String(spr.animation).begins_with("walk"):
+		spr.play(&"idle")
 
 
 func _process(delta: float) -> void:
@@ -165,6 +221,7 @@ func _process(delta: float) -> void:
 			_gx = _glide_x
 			_gliding = false
 			_glide_cur = 0.0
+			_stop_walk()
 		else:
 			_gx += signf(_glide_x - _gx) * step
 		position.x = round(_gx)

@@ -1749,7 +1749,7 @@
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"do": "wait", "sec": 0.3},
 			{"do": "prop", "id": "c1_bag", "state": "hidden"},
-			{"do": "reward", "tex": "res://art/forest_story/luggage.png", "region": [15, 5, 15, 13]},
+			{"do": "reward", "tex": "res://art/forest_story/c1_bag.png"},
 			{"do": "flag", "set": "c1_got_bag"},
 			{"do": "give", "items": ["elephant_drawing", "journal", "communicator", "family_photo"], "toast": "got_items"},
 			{"do": "key_prompt", "zh": "按 Tab 打开背包", "en": "Press Tab to open the backpack", "until": "bag", "sec": 16.0, "delay": 9.0}

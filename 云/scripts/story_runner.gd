@@ -80,7 +80,8 @@ extends Node
 ##     （scripts/inner_voice.gd 的 say / clear；没有那个脚本就打印一行 INNER 接着播）。wait = 等 sec 秒再下一步。
 ##   {"do": "key_prompt", "zh", "en", "until": "run"|"bag"|"", "sec"?, "delay"?}：屏幕下方一行按键提示，不锁人；按住 Shift 跑起来 / 打开背包 / sec 秒后淡掉；
 ##     delay = 晚几秒再出（这期间已经做到了就不出）。
-##   {"do": "burn_held", "items": [id…]}：飞行段一口气烧掉背包里有的这些（同一件写两次 = 烧两份），一次加燃料、一条提示，
+##   {"do": "fuel", "need_held": "unrelated", "plus": 100}：需要的量 = 现在的燃料 + 背包里这类（物品 fuel_kind）全部燃烧值 + plus。
+##   {"do": "burn_held", "kind": "unrelated"} 或 "items": [id…]：飞行段一口气烧掉背包里有的这些（同一件写两次 = 烧两份），一次加燃料、一条提示，
 ##     每件设 burned_<id>；没有的跳过。--story_check 算燃料时当它们在纪念品二选一之前都烧了（第一关新版：无关的东西先烧，再逼着选私人物品）。
 ##   {"do": "blackout", "on": true/false}：闪回停在黑屏上时换成低一层的黑，好在黑里看纸、云星闪、潜意识字（_blackout_step）。
 ##   {"do": "reward", "item"? | "tex" + "region"?}：拾到好东西的奖励动画（东西升到晨头顶放大、一圈光点转一下），不进背包（进背包另写 give）。
@@ -255,6 +256,8 @@ func load_story(p: String) -> void:
 			path = SAMPLE_STORY
 			d = JSON.parse_string(FileAccess.get_file_as_string(path))
 	data = d if d is Dictionary else {}
+	if str(data.get("include", "")) != "":
+		_merge_includes(str(data["include"]))
 	scenes = data.get("scenes", {})
 	speakers = data.get("speakers", {})
 	all_hotspot_defs = data.get("hotspots", [])
@@ -265,6 +268,78 @@ func load_story(p: String) -> void:
 	for it in data.get("items", []):
 		if it is Dictionary:
 			Inventory.register_fallback(it)
+
+
+## 剧本顶层 "include": "res://data/forest_side_"：同目录下文件名以它开头的 .json（第一关支线，按文件名顺序）合进来。
+## 合并：speakers（主剧本优先）、markers / scenes（只加新的，重名记进 include_errors）、hotspots（标 _side = 文件名）、
+## objectives（变成「（可选）」那一行：side_objectives）、hints / residents（追加）、items（register_fallback）、barter（同名覆盖）。
+## 格式说明：共享笔记 forest-side-schema.md；--story_check 会把重名、坏 JSON 列出来。
+var include_files: Array = []
+var include_errors: Array = []
+
+
+static func side_files(prefix: String) -> Array:
+	var dir := prefix.get_base_dir()
+	var head := prefix.get_file()
+	var out: Array = []
+	var da := DirAccess.open(dir)
+	if da == null:
+		return out
+	for f in da.get_files():
+		if f.begins_with(head) and f.ends_with(".json"):
+			out.append(dir.path_join(f))
+	out.sort()
+	return out
+
+
+func _merge_includes(prefix: String) -> void:
+	data["side_objectives"] = []
+	for f in side_files(prefix):
+		var sd = JSON.parse_string(FileAccess.get_file_as_string(f))
+		var fn := str(f).get_file()
+		if not sd is Dictionary:
+			include_errors.append("%s：JSON 读不了" % fn)
+			continue
+		include_files.append(fn)
+		for k in ["speakers", "markers", "scenes", "barter"]:
+			if not data.has(k):
+				data[k] = {}
+			for key in sd.get(k, {}):
+				if data[k].has(key) and k != "barter":
+					if k != "speakers":
+						include_errors.append("%s：%s 里的 %s 和已有的重名（没合进来）" % [fn, k, key])
+					continue
+				data[k][key] = sd[k][key]
+		for h in sd.get("hotspots", []):
+			if h is Dictionary:
+				h["_side"] = fn
+				data["hotspots"].append(h)
+		for k2 in ["hints", "residents"]:
+			if not data.has(k2):
+				data[k2] = []
+			data[k2].append_array(sd.get(k2, []))
+		data["side_objectives"].append_array(sd.get("objectives", []))
+		for it in sd.get("items", []):
+			if it is Dictionary:
+				if Inventory.defined(str(it.get("id", ""))) and not Inventory.item(str(it["id"])).has("_side"):
+					include_errors.append("%s：物品 %s 和 items.json 重名" % [fn, it.get("id")])
+					continue
+				it["_side"] = fn
+				Inventory.register_fallback(it)
+
+
+## 自动玩去不去支线点：--story_auto=full 或带 --side
+func side_auto() -> bool:
+	return auto == "full" or "--side" in OS.get_cmdline_user_args()
+
+
+## 「（可选）」那一行：支线文件 objectives 里现在满足条件的（Array of {zh, en}）
+func side_objectives() -> Array:
+	var out: Array = []
+	for o in data.get("side_objectives", []):
+		if o is Dictionary and StoryState.all_of(o.get("need", [])) and StoryState.none_of(o.get("not", [])):
+			out.append(o)
+	return out
 
 
 static func _exists(p: String) -> bool:
@@ -757,6 +832,10 @@ func _fuel_step(st: Dictionary) -> void:
 	var need := -1
 	if st.has("need"):
 		need = int(st["need"])
+	if st.has("need_held"):
+		# 按背包里实际有的算（第一关支线）：需要 = 现在的燃料 + 这一类（unrelated）全部的燃烧值 + plus
+		# → 无关的先烧完还差 plus，最后一定得烧一件私人物品
+		need = was + held_fuel(str(st["need_held"])) + int(st.get("plus", 100))
 	if st.has("have"):
 		have = int(st["have"])
 	if st.has("burn"):
@@ -766,6 +845,15 @@ func _fuel_step(st: Dictionary) -> void:
 		need = maxi(have, 0)
 	StoryState.set_fuel(have, need)
 	level.fuel_changed(was, need_was)
+
+
+## 背包里某一类（物品的 fuel_kind）全部加起来的燃烧值（同一件有两份算两份）
+static func held_fuel(kind: String) -> int:
+	var t := 0
+	for id in Inventory.owned:
+		if str(Inventory.item(id).get("fuel_kind", "")) == kind:
+			t += fuel_of(id)
+	return t
 
 
 ## 一件东西放进转化装置给多少燃料（纪念品 keepsake_burn，材料 burn）
@@ -1963,8 +2051,8 @@ func main_target() -> Dictionary:
 	var bk := INF
 	for p in hotspots.available():
 		var h: Dictionary = p["h"]
-		if hotspots.is_enter(h) or not is_progress_hotspot(h):
-			continue
+		if hotspots.is_enter(h) or not is_progress_hotspot(h) or h.has("_side"):
+			continue                                   # 支线不算主线下一步（不画屏幕边的小箭头）
 		var k := absf(float(p["x"]) - chen.position.x) + (5000.0 if _exits(str(h.get("scene", ""))) else 0.0)
 		if k < bk:
 			bk = k
@@ -2518,6 +2606,8 @@ func plan() -> Dictionary:
 			continue                                   # 刚才够不着
 		var prog := is_progress_hotspot(h)
 		var to_target := ff and _ff_target != "" and _leads_to(str(h.get("scene", "")), _ff_target)
+		if h.has("_side") and not to_target and not (side_auto() and not ff):
+			continue                                   # 支线点：自动玩主线不去（--story_auto=full / --side 才去）
 		if to_target:
 			prog = true
 		if not prog:
@@ -3055,6 +3145,24 @@ func validate() -> Array[String]:
 				for st in scenes.get(s, []):
 					if st is Dictionary and str(st.get("do", "")) == "walk" and str(st.get("who", "chen")) == "chen":
 						out.append("scene %s（hotspot %s 走进去触发）：晨的 walk 不执行——不推人，停在看得见的边上" % [s, h.get("id")])
+	# 第一关支线（include）
+	for e in include_errors:
+		out.append("include：" + str(e))
+	if not include_files.is_empty():
+		out.append("info: 合进来的支线文件：" + ", ".join(include_files))
+	for iid in Inventory._db:
+		var it2: Dictionary = Inventory._db[iid]
+		if it2.has("fuel_kind"):
+			var fk := str(it2["fuel_kind"])
+			if not fk in ["unrelated", "personal", "none"]:
+				out.append("物品 %s：fuel_kind 只认 unrelated / personal / none（%s）" % [iid, fk])
+			elif fk == "unrelated" and int(it2.get("keepsake_burn", 0)) <= 0:
+				out.append("物品 %s：fuel_kind unrelated 要写 keepsake_burn（飞行一先烧掉它加多少）" % iid)
+	for o2 in data.get("side_objectives", []):
+		if o2 is Dictionary:
+			for f8 in o2.get("need", []) + o2.get("not", []):
+				if not set_flags.has(str(f8)):
+					out.append("（可选）目标：flag %s 没有地方设" % f8)
 	# 第一关新版的剧本顶层（见文件头）
 	for v in data.get("item_views", []):
 		var vs := str(v.get("scene", "")) if v is Dictionary else ""
@@ -3078,7 +3186,7 @@ func validate() -> Array[String]:
 			if st is Dictionary and str(st.get("do", "")) == "reward":
 				if st.has("item") and not Inventory.defined(str(st["item"])):
 					out.append("scene %s：reward 的物品 %s 不在物品表" % [id, st["item"]])
-				elif not st.has("item") and not ResourceLoader.exists(str(st.get("tex", ""))):
+				elif not st.has("item") and not ResourceLoader.exists(str(st.get("tex", ""))) and not FileAccess.file_exists(str(st.get("tex", ""))):
 					out.append("scene %s：reward 的图 %s 不存在" % [id, st.get("tex")])
 			if st is Dictionary and str(st.get("do", "")) == "burn_held":
 				for it1 in st.get("items", []):
@@ -3178,6 +3286,7 @@ func _validate_fuel() -> Array[String]:
 	var need := 0
 	var loss := 0
 	var pre := 0
+	var dyn := -1                     # fuel need_held：放一件私人物品要补得上的那一截（plus）
 	var any := false
 	for id in scenes:
 		for st in scenes[id]:
@@ -3193,6 +3302,8 @@ func _validate_fuel() -> Array[String]:
 					have = int(st["have"])
 				if st.has("need"):
 					need = maxi(need, int(st["need"]))
+				if st.has("need_held"):
+					dyn = int(st.get("plus", 100))
 			elif d == "debris_steer" and int(st.get("fuel_per_bump", 0)) > 0:
 				if not st.has("fuel_max_loss"):
 					out.append("scene %s：debris_steer 扣燃料要写 fuel_max_loss（最多扣多少），不然放一件纪念品可能补不上" % id)
@@ -3217,6 +3328,9 @@ func _validate_fuel() -> Array[String]:
 							gain += fuel_of(str(s2["burn"])) if s2.has("burn") else int(s2.get("add", 0))
 				if gain <= 0:
 					out.append("scene %s：keepsake_choice 放 %s 以后没有 fuel 步骤加燃料（燃料表不会涨）" % [id, it])
+				elif dyn >= 0:
+					if gain < dyn:
+						out.append("scene %s：放 %s（%d）补不上无关东西烧完以后差的 %d" % [id, it, gain, dyn])
 				elif have - loss + pre + gain < need:
 					out.append("scene %s：放 %s 补不上燃料：起飞 %d − 撞碎石最多 %d + 先烧的 %d + %d < 需要 %d" % [id, it, have, loss, pre, gain, need])
 				elif pre > 0 and have + pre >= need:
@@ -4114,7 +4228,12 @@ func _burn_held(st: Dictionary) -> void:
 	var total := 0
 	var names: Array = []
 	var first := ""
-	for it in st.get("items", []):
+	var list: Array = st.get("items", []).duplicate()
+	if st.has("kind"):
+		for id0 in Inventory.owned:
+			if str(Inventory.item(id0).get("fuel_kind", "")) == str(st["kind"]):
+				list.append(id0)          # "kind": "unrelated" = 背包里所有这一类的（支线带来的也算）
+	for it in list:
 		var id := str(it)
 		if not Inventory.has(id):
 			continue
@@ -4200,8 +4319,8 @@ func _reward(st: Dictionary) -> void:
 	var tex: Texture2D = null
 	if st.has("item"):
 		tex = Inventory.icon(str(st["item"]))
-	elif ResourceLoader.exists(str(st.get("tex", ""))):
-		tex = load(str(st["tex"]))
+	elif ResourceLoader.exists(str(st.get("tex", ""))) or FileAccess.file_exists(str(st.get("tex", ""))):
+		tex = load(str(st["tex"])) if ResourceLoader.exists(str(st["tex"])) else WORLD_GD._raw_png(str(st["tex"]))
 		var rg = st.get("region", null)
 		if rg is Array and rg.size() == 4:
 			var at := AtlasTexture.new()
