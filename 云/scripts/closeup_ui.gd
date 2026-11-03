@@ -31,8 +31,7 @@ var _hint: Label
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	size = Vector2(480, 270)
+	set_anchors_preset(Control.PRESET_FULL_RECT)     # 铺满父节点（480×270）；不再另设 size，不然 Godot 每次都警告「anchors 会覆盖 size」
 	visible = false
 	_hint = Label.new()
 	_hint.add_theme_font_size_override("font_size", 14)

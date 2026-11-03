@@ -110,7 +110,7 @@ func _process(delta: float) -> void:
 
 ## level_forest 的 _input 把事件先交给这里；返回 true = 吃掉了
 func handle(event: InputEvent) -> bool:
-	var press := (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
+	var press: bool = (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
 	if press and _t > 0.4:
 		close()
 	return true

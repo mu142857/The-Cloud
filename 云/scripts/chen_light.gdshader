@@ -29,16 +29,12 @@ const float INNER = 0.25;     // 往里第二个像素的受光边是第一个�
 
 float lum(vec3 c) { return dot(c, vec3(0.3, 0.59, 0.11)); }
 
-float clear_at(sampler2D tex, vec2 px, vec2 uv, vec2 d) {
-	return step(texture(tex, uv + d * px).a, 0.5);
-}
+// 用宏、不用函数：把 TEXTURE 当参数传进自定义函数，Godot 4.7 每次编译都报一行
+// 「custom_samplers.has(...tex_builtin)」的错（不影响画面，但调试器里一直是红的）。宏展开在 fragment 里，结果一模一样。
+#define CLEAR_AT(d) step(texture(TEXTURE, UV + (d) * TEXTURE_PIXEL_SIZE).a, 0.5)
 
 // 这个像素在方向 d（整像素）上是不是「边」：邻居透明 = 1；邻居不透明但再往外一格透明 = 0.5（往里半档）
-float edge(sampler2D tex, vec2 px, vec2 uv, vec2 d) {
-	float e1 = clear_at(tex, px, uv, d);
-	float e2 = clear_at(tex, px, uv, d * 2.0);
-	return max(e1, INNER * e2);
-}
+#define EDGE(d) max(CLEAR_AT(d), INNER * CLEAR_AT((d) * 2.0))
 
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
@@ -57,11 +53,11 @@ void fragment() {
 		vec2 d = rim_dir;
 		float r = 0.0;
 		float wx = abs(d.x), wy = abs(d.y);
-		if (wx > 0.15) r += wx * edge(TEXTURE, TEXTURE_PIXEL_SIZE, UV, vec2(sign(d.x), 0.0));
-		if (wy > 0.15) r += wy * edge(TEXTURE, TEXTURE_PIXEL_SIZE, UV, vec2(0.0, sign(d.y)));
-		if (wx > 0.15 && wy > 0.15) r = max(r, 0.8 * edge(TEXTURE, TEXTURE_PIXEL_SIZE, UV, sign(d)) * min(wx + wy, 1.0));
+		if (wx > 0.15) r += wx * EDGE(vec2(sign(d.x), 0.0));
+		if (wy > 0.15) r += wy * EDGE(vec2(0.0, sign(d.y)));
+		if (wx > 0.15 && wy > 0.15) r = max(r, 0.8 * EDGE(sign(d)) * min(wx + wy, 1.0));
 		if (rim_back > 0.0) {
-			float side = max(clear_at(TEXTURE, TEXTURE_PIXEL_SIZE, UV, vec2(1.0, 0.0)), clear_at(TEXTURE, TEXTURE_PIXEL_SIZE, UV, vec2(-1.0, 0.0)));
+			float side = max(CLEAR_AT(vec2(1.0, 0.0)), CLEAR_AT(vec2(-1.0, 0.0)));
 			// 背光只亮上半身的两侧（越往下越淡）：帧在图集里是一行横排，UV.y 就是帧里的高度 0..1
 			r = max(r, rim_back * side * (1.0 - smoothstep(0.3, 0.85, UV.y)));
 		}

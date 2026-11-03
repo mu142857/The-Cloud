@@ -38,25 +38,22 @@ float steps(float k, vec2 px) {
 	return (f + step(bayer(px), q - f)) / 4.0;
 }
 
-vec3 sample_blur(sampler2D tex, vec2 uv) {
-	vec3 c = texture(tex, uv).rgb;
-	if (blur < 0.05) {
-		return c;
-	}
-	c *= 2.0;
-	float w = 2.0;
-	for (int i = 0; i < 12; i++) {
-		float ring = i < 6 ? 0.5 : 1.0;
-		float a = float(i) * 1.0472 + (i < 6 ? 0.0 : 0.5236);
-		vec2 off = vec2(cos(a), sin(a)) * blur * ring / BASE;
-		c += texture(tex, uv + off).rgb;
-		w += 1.0;
-	}
-	return c / w;
-}
-
 void fragment() {
-	vec3 col = sample_blur(TEXTURE, UV);
+	// 糊（原来是 sample_blur(TEXTURE, UV) 函数；把 TEXTURE 传进自定义函数 Godot 4.7 每次编译都报
+	// 「custom_samplers.has(...tex_builtin)」，所以直接写在 fragment 里，结果一样）
+	vec3 col = texture(TEXTURE, UV).rgb;
+	if (blur >= 0.05) {
+		col *= 2.0;
+		float w = 2.0;
+		for (int i = 0; i < 12; i++) {
+			float ring = i < 6 ? 0.5 : 1.0;
+			float a = float(i) * 1.0472 + (i < 6 ? 0.0 : 0.5236);
+			vec2 off = vec2(cos(a), sin(a)) * blur * ring / BASE;
+			col += texture(TEXTURE, UV + off).rgb;
+			w += 1.0;
+		}
+		col /= w;
+	}
 	vec2 px = floor(UV * BASE);
 	float x = px.x;
 	// 前沿的起伏（两条慢正弦叠在一起，竖着看是一条软软的、会动的边）
