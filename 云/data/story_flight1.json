@@ -1,5 +1,5 @@
 {
-	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。 11-02 第一关新版：燃料二选一先摆新物品（全家福 / 玩具熊 / 告白信 / 兔子皮毛 / 地板，只摆背包里有的；地板两块一起放 = 100），每件一句 look、一句 burn（burn_<id>），日志 flight1_log_pick 按 burned_<id> 分；旧的蓝色石头 / 通勤卡 / 雨玻璃分支不删。",
+	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。 11-02 第一关新版：燃料二选一先摆新物品（全家福 / 玩具熊 / 告白信 / 兔子皮毛 / 地板，只摆背包里有的；地板两块一起放 = 100），每件一句 look、一句 burn（burn_<id>），日志 flight1_log_pick 按 burned_<id> 分；旧的蓝色石头 / 通勤卡 / 雨玻璃分支不删。 11-02 二改（作者：选项太多）：flight1_materials 先 burn_held 一口气烧掉无关的（两块地板、兔子皮毛、告白信，共 275），改航线需要 570（= 200 − 5 + 275 + 100），烧完还差约 100；二选一只剩玩具熊 / 全家福。",
 	"speakers": {
 		"chen": {
 			"zh": "晨",
@@ -117,13 +117,8 @@
 			],
 			"lines": [
 				{
-					"zh": "……右边，在漏。",
-					"en": "...The right side. It's leaking.",
-					"added": true
-				},
-				{
-					"zh": "那股白汽。",
-					"en": "That white steam.",
+					"zh": "右边那股白汽，在漏气。",
+					"en": "That white steam on the right. It's leaking.",
 					"added": true
 				}
 			]
@@ -137,8 +132,8 @@
 			],
 			"lines": [
 				{
-					"zh": "修好了。回座位上去。",
-					"en": "Fixed. Back to the seat.",
+					"zh": "回座位上去。",
+					"en": "Back to the seat.",
 					"added": true
 				}
 			]
@@ -152,18 +147,8 @@
 			],
 			"lines": [
 				{
-					"zh": "……还差一截。",
-					"en": "...Still a bit short.",
-					"added": true
-				},
-				{
-					"zh": "蓝色石头，还是通勤卡。",
-					"en": "The Blue Stone, or the Commuter Card.",
-					"added": true
-				},
-				{
-					"zh": "不急。再看看。",
-					"en": "No rush. Look again.",
+					"zh": "玩具熊，还是全家福。",
+					"en": "The teddy bear, or the family photo.",
 					"added": true
 				}
 			]
@@ -177,13 +162,8 @@
 			],
 			"lines": [
 				{
-					"zh": "绕远了。",
-					"en": "It's the long way around.",
-					"added": true
-				},
-				{
-					"zh": "……先把材料放进去。",
-					"en": "...Put the materials in first.",
+					"zh": "先把材料放进去。",
+					"en": "Put the materials in first.",
 					"added": true
 				}
 			]
@@ -197,8 +177,8 @@
 			],
 			"lines": [
 				{
-					"zh": "……该看得见了吧。",
-					"en": "...Should be able to see it by now.",
+					"zh": "看看窗外。",
+					"en": "Look out the window.",
 					"added": true
 				}
 			]
@@ -459,13 +439,8 @@
 			},
 			{
 				"say": "chen",
-				"zh": "这次不错。",
-				"en": "Not bad this time."
-			},
-			{
-				"say": "chen",
-				"zh": "保持住，别刚夸完就出事。",
-				"en": "Keep it up. Don't break the second I say that."
+				"zh": "这次不错。别刚夸完就出事。",
+				"en": "Not bad this time. Don't break the second I say that."
 			},
 			{
 				"do": "prop",
@@ -656,20 +631,13 @@
 				"sec": 1.5
 			},
 			{
-				"narr": {
-					"zh": "重新计算航线……",
-					"en": "Recalculating route..."
-				},
-				"added": true
-			},
-			{
 				"do": "prop",
 				"id": "cockpit_nav",
 				"state": "detour"
 			},
 			{
 				"do": "fuel",
-				"need": 255
+				"need": 570
 			},
 			{
 				"narr": {
@@ -720,12 +688,6 @@
 				"state": "detour"
 			},
 			{
-				"say": "chen",
-				"zh": "……还是这么远。",
-				"en": "...Still that far.",
-				"added": true
-			},
-			{
 				"do": "anim",
 				"who": "chen",
 				"name": "adjust_console"
@@ -748,24 +710,6 @@
 				"name": "switch_off"
 			},
 			{
-				"narr": {
-					"zh": "预计航程增加",
-					"en": "Estimated distance increased"
-				},
-				"added": true
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
-			},
-			{
-				"narr": {
-					"zh": "距河流星球：还差一段",
-					"en": "River planet: still a way to go"
-				},
-				"added": true
-			},
-			{
 				"do": "goto",
 				"scene": "flight1_materials"
 			}
@@ -782,20 +726,21 @@
 				"state": "burn"
 			},
 			{
+				"do": "burn_held",
+				"items": [
+					"floorboard",
+					"floorboard",
+					"rabbit_fur",
+					"miluo_letter"
+				]
+			},
+			{
 				"do": "sfx",
 				"name": "converter_burn"
 			},
 			{
 				"do": "wait",
 				"sec": 1.5
-			},
-			{
-				"do": "sfx",
-				"name": "converter_burn"
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
 			},
 			{
 				"do": "prop",
@@ -812,33 +757,14 @@
 				"sec": 1.0
 			},
 			{
-				"do": "anim",
-				"who": "chen",
-				"name": "shake_bag"
-			},
-			{
-				"do": "sfx",
-				"name": "crumbs"
-			},
-			{
-				"do": "wait",
-				"sec": 1.2
-			},
-			{
 				"say": "chen",
-				"zh": "这点都不收，还挺挑。",
-				"en": "Won't even take this. Picky."
+				"zh": "这些都烧了，还是不够。",
+				"en": "Burned all of it. Still not enough.",
+				"added": true
 			},
 			{
 				"do": "flag",
 				"set": "flight1_fuel_low"
-			},
-			{
-				"narr": {
-					"zh": "可转化：纪念品",
-					"en": "Can convert: keepsakes"
-				},
-				"added": true
 			},
 			{
 				"do": "goto",
@@ -854,70 +780,23 @@
 				"added": true
 			},
 			{
-				"do": "if",
-				"flag": "barter_toucan_rain",
-				"then": "flight1_fuel_choice_glass"
-			},
-			{
 				"do": "keepsake_choice",
 				"id": "flight1_choice",
 				"items": [
-					"family_photo",
 					"deer_bear",
-					"miluo_letter",
-					"rabbit_fur",
-					"floorboard",
-					"blue_stone",
-					"commute_card"
+					"family_photo"
 				],
 				"route": true,
 				"scenes": {
-					"blue_stone": "burn_blue_stone",
-					"commute_card": "burn_commute_card",
-					"family_photo": "burn_family_photo",
 					"deer_bear": "burn_deer_bear",
-					"miluo_letter": "burn_miluo_letter",
-					"rabbit_fur": "burn_rabbit_fur",
-					"floorboard": "burn_floorboard"
+					"family_photo": "burn_family_photo"
 				},
 				"look": {
-					"blue_stone": [
+					"deer_bear": [
 						{
 							"say": "chen",
-							"zh": "拇指放上去，还是正好。",
-							"en": "My thumb still fits it just right.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "给人看过，说根本不会亮。",
-							"en": "I showed someone once. They said it never glows.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "……沾了水才亮一点。",
-							"en": "...It only glows a little when it's wet.",
-							"added": true
-						}
-					],
-					"commute_card": [
-						{
-							"say": "chen",
-							"zh": "几百次，都是同一个站。",
-							"en": "Hundreds of times. Always the same station.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "为了等下午的太阳，坐过了站。",
-							"en": "Missed my stop once, waiting for the afternoon sun.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "最后一天没有刷。",
-							"en": "Didn't tap it on the last day.",
+							"zh": "小鹿塞给我的。",
+							"en": "The deer pushed this into my hands.",
 							"added": true
 						}
 					],
@@ -928,48 +807,9 @@
 							"en": "I still can't place the faces.",
 							"added": true
 						}
-					],
-					"deer_bear": [
-						{
-							"say": "chen",
-							"zh": "小鹿塞给我的。",
-							"en": "The deer pushed this into my hands.",
-							"added": true
-						}
-					],
-					"miluo_letter": [
-						{
-							"say": "chen",
-							"zh": "她没寄出去的信。",
-							"en": "The letter she never sent.",
-							"added": true
-						}
-					],
-					"rabbit_fur": [
-						{
-							"say": "chen",
-							"zh": "跳舞的时候甩下来的。",
-							"en": "It came off during the dance.",
-							"added": true
-						}
-					],
-					"floorboard": [
-						{
-							"say": "chen",
-							"zh": "她家的地板，两块。",
-							"en": "Two boards from her floor.",
-							"added": true
-						}
 					]
 				},
-				"put_back": [
-					{
-						"say": "chen",
-						"zh": "……再看看。",
-						"en": "...Let me think.",
-						"added": true
-					}
-				],
+				"put_back": [],
 				"route_look": [
 					{
 						"say": "chen",
@@ -978,7 +818,7 @@
 						"added": true
 					}
 				],
-				"_c1": "11-02 第一关新版：前五件是新物品（只摆背包里有的）；blue_stone / commute_card 是旧流程留下的分支"
+				"_c1": "11-02 二改：无关的东西在 flight1_materials 里已经烧掉（burn_held），这里只剩私人物品；蓝色石头 / 通勤卡 / 雨玻璃的分支（burn_blue_stone、flight1_fuel_choice_glass…）留在文件里，不再走到"
 			}
 		],
 		"burn_blue_stone": [
@@ -1487,19 +1327,8 @@
 			},
 			{
 				"say": "chen",
-				"zh": "以前坐这儿的人，修完总要先问一句：",
-				"en": "The one who used to sit here always asked after a fix:",
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "「这回真修好了？」",
-				"en": "\"Is it really fixed this time?\""
-			},
-			{
-				"say": "chen",
-				"zh": "……现在没人问了。",
-				"en": "...No one asks now.",
+				"zh": "以前坐这儿的人，修完总要问一句：「这回真修好了？」",
+				"en": "Whoever sat here always asked after a fix: \"Is it really fixed this time?\"",
 				"added": true
 			}
 		],
@@ -1514,39 +1343,21 @@
 				"zh": "还是空着。",
 				"en": "Still empty.",
 				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "快到了。你也看着点。",
-				"en": "Almost there. You keep an eye out too.",
-				"added": true
 			}
 		],
 		"repair_log_look": [
 			{
 				"say": "chen",
-				"zh": "右侧接口，一个勾。",
-				"en": "Right-side joint. One check mark.",
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "……两个也不算多。",
-				"en": "...Two isn't that many.",
+				"zh": "右侧接口，又一个勾。",
+				"en": "Right-side joint. Another tick.",
 				"added": true
 			}
 		],
 		"toolbox_look": [
 			{
 				"say": "chen",
-				"zh": "弥洛给的工具。",
-				"en": "Tools from Milo.",
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "用完放回原处，不然她要骂人。",
-				"en": "Put them back after, or she'll yell.",
+				"zh": "弥洛的工具，用完得放回原处，不然她要骂人。",
+				"en": "Milo's tools. Put them back or she'll yell.",
 				"added": true
 			}
 		],
@@ -1556,21 +1367,9 @@
 				"zh": "烧东西的地方。",
 				"en": "Where things get burned.",
 				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "……别盯着它看了。",
-				"en": "...Stop staring at it.",
-				"added": true
 			}
 		],
 		"converter_look_late": [
-			{
-				"say": "chen",
-				"zh": "盖子关着。",
-				"en": "The lid's shut.",
-				"added": true
-			},
 			{
 				"say": "chen",
 				"zh": "里面已经没有了。",
@@ -1583,12 +1382,6 @@
 				"do": "face",
 				"who": "chen",
 				"to": "cockpit_window"
-			},
-			{
-				"say": "chen",
-				"zh": "全是云。",
-				"en": "Nothing but clouds.",
-				"added": true
 			},
 			{
 				"say": "chen",
@@ -1611,12 +1404,6 @@
 				"say": "chen",
 				"zh": "没说你。",
 				"en": "Wasn't talking about you.",
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "……保持住。",
-				"en": "...Keep it up.",
 				"added": true
 			}
 		],
@@ -1687,8 +1474,8 @@
 			},
 			{
 				"do": "journal",
-				"zh": "右侧接口：松开螺丝，重新对准。漏气停了。",
-				"en": "Right-side joint: loosened the screws, lined it back up. Leak stopped.",
+				"zh": "右侧接口：松开螺丝，重新对准，漏气停了。",
+				"en": "Right-side joint: loosened the screws, lined it back up, leak stopped.",
 				"added": true
 			}
 		],
@@ -1706,8 +1493,8 @@
 				"do": "phone_msg",
 				"id": "f1_msg_miluo",
 				"from": "miluo",
-				"zh": "飞起来了？右边接头再听一遍，响就停稳了拧。你那两下拍得我到现在还记着。",
-				"en": "In the air? Listen to the right joint again. If it hisses, hold steady, then tighten. I still remember those two smacks you gave it.",
+				"zh": "飞起来了？右边接头再听一遍，响就停稳了拧。",
+				"en": "In the air? Listen to the right joint again. If it hisses, hold steady, then tighten.",
 				"reply": {
 					"zh": "这回用的扳手，已经好了。",
 					"en": "Used the wrench this time. It's fixed."
@@ -1806,7 +1593,8 @@
 						"en": "Just this last stretch.",
 						"added": true
 					}
-				]
+				],
+				"retired": true
 			}
 		],
 		"burn_rain_glass": [
@@ -1980,13 +1768,6 @@
 				"burn": "family_photo"
 			},
 			{
-				"narr": {
-					"zh": "航程增加",
-					"en": "Range extended"
-				},
-				"added": true
-			},
-			{
 				"say": "chen",
 				"zh": "……我会记起来的。",
 				"en": "...I'll remember.",
@@ -2008,8 +1789,8 @@
 		"flight1_log_family_photo": [
 			{
 				"do": "journal",
-				"zh": "烧掉了全家福。换成了燃料。",
-				"en": "Burned the family photo. It became fuel.",
+				"zh": "烧掉了全家福，换成了燃料。",
+				"en": "Burned the family photo for fuel.",
 				"added": true
 			},
 			{
@@ -2058,13 +1839,6 @@
 				"burn": "deer_bear"
 			},
 			{
-				"narr": {
-					"zh": "航程增加",
-					"en": "Range extended"
-				},
-				"added": true
-			},
-			{
 				"say": "chen",
 				"zh": "对不起。",
 				"en": "I'm sorry.",
@@ -2086,250 +1860,8 @@
 		"flight1_log_deer_bear": [
 			{
 				"do": "journal",
-				"zh": "烧掉了小鹿的玩具熊。换成了燃料。",
-				"en": "Burned the deer's teddy bear. It became fuel.",
-				"added": true
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_log_done"
-			}
-		],
-		"burn_miluo_letter": [
-			{
-				"do": "walk",
-				"who": "chen",
-				"to": "cockpit_converter"
-			},
-			{
-				"do": "show_item",
-				"item": "miluo_letter"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "glow"
-			},
-			{
-				"do": "wait",
-				"sec": 1.2
-			},
-			{
-				"do": "take",
-				"item": "miluo_letter"
-			},
-			{
-				"do": "sfx",
-				"name": "drop_in"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "closed"
-			},
-			{
-				"do": "sfx",
-				"name": "converter_burn"
-			},
-			{
-				"do": "fuel",
-				"burn": "miluo_letter"
-			},
-			{
-				"narr": {
-					"zh": "航程增加",
-					"en": "Range extended"
-				},
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "烧掉也好，她说的。",
-				"en": "Better burned, she said.",
-				"added": true
-			},
-			{
-				"do": "flag",
-				"set": "burned_miluo_letter"
-			},
-			{
-				"do": "flag",
-				"set": "flight1_burned"
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_after_burn"
-			}
-		],
-		"flight1_log_miluo_letter": [
-			{
-				"do": "journal",
-				"zh": "烧掉了弥洛的告白信。换成了燃料。",
-				"en": "Burned Milo's love letter. It became fuel.",
-				"added": true
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_log_done"
-			}
-		],
-		"burn_rabbit_fur": [
-			{
-				"do": "walk",
-				"who": "chen",
-				"to": "cockpit_converter"
-			},
-			{
-				"do": "show_item",
-				"item": "rabbit_fur"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "glow"
-			},
-			{
-				"do": "wait",
-				"sec": 1.2
-			},
-			{
-				"do": "take",
-				"item": "rabbit_fur"
-			},
-			{
-				"do": "sfx",
-				"name": "drop_in"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "closed"
-			},
-			{
-				"do": "sfx",
-				"name": "converter_burn"
-			},
-			{
-				"do": "fuel",
-				"burn": "rabbit_fur"
-			},
-			{
-				"narr": {
-					"zh": "航程增加",
-					"en": "Range extended"
-				},
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "还有一点兔子的味道。",
-				"en": "It still smells a little like the rabbit.",
-				"added": true
-			},
-			{
-				"do": "flag",
-				"set": "burned_rabbit_fur"
-			},
-			{
-				"do": "flag",
-				"set": "flight1_burned"
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_after_burn"
-			}
-		],
-		"flight1_log_rabbit_fur": [
-			{
-				"do": "journal",
-				"zh": "烧掉了兔子的皮毛。换成了燃料。",
-				"en": "Burned the rabbit fur. It became fuel.",
-				"added": true
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_log_done"
-			}
-		],
-		"burn_floorboard": [
-			{
-				"do": "walk",
-				"who": "chen",
-				"to": "cockpit_converter"
-			},
-			{
-				"do": "show_item",
-				"item": "floorboard"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "glow"
-			},
-			{
-				"do": "wait",
-				"sec": 1.2
-			},
-			{
-				"do": "take",
-				"item": "floorboard"
-			},
-			{
-				"do": "take",
-				"item": "floorboard"
-			},
-			{
-				"do": "sfx",
-				"name": "drop_in"
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "closed"
-			},
-			{
-				"do": "sfx",
-				"name": "converter_burn"
-			},
-			{
-				"do": "fuel",
-				"burn": "floorboard"
-			},
-			{
-				"do": "fuel",
-				"burn": "floorboard"
-			},
-			{
-				"narr": {
-					"zh": "航程增加",
-					"en": "Range extended"
-				},
-				"added": true
-			},
-			{
-				"say": "chen",
-				"zh": "她家现在漏风了吧。",
-				"en": "Her house must be drafty now.",
-				"added": true
-			},
-			{
-				"do": "flag",
-				"set": "burned_floorboard"
-			},
-			{
-				"do": "flag",
-				"set": "flight1_burned"
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_after_burn"
-			}
-		],
-		"flight1_log_floorboard": [
-			{
-				"do": "journal",
-				"zh": "烧掉了弥洛家的两块地板。换成了燃料。",
-				"en": "Burned the two floorboards. They became fuel.",
+				"zh": "烧掉了小鹿的玩具熊，换成了燃料。",
+				"en": "Burned the deer's teddy bear for fuel.",
 				"added": true
 			},
 			{
@@ -2347,21 +1879,6 @@
 				"do": "if",
 				"flag": "burned_deer_bear",
 				"then": "flight1_log_deer_bear"
-			},
-			{
-				"do": "if",
-				"flag": "burned_miluo_letter",
-				"then": "flight1_log_miluo_letter"
-			},
-			{
-				"do": "if",
-				"flag": "burned_rabbit_fur",
-				"then": "flight1_log_rabbit_fur"
-			},
-			{
-				"do": "if",
-				"flag": "burned_floorboard",
-				"then": "flight1_log_floorboard"
 			},
 			{
 				"do": "if",

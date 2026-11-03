@@ -1,15 +1,18 @@
 {
- "_说明": "第一关奔跑片头的制作人员字幕（scripts/run_credits.gd 读）。下面的名单全是占位，等作者改：每条一个 role（职务）+ names（一个或几个名字）。时间单位秒。placeholder 改成 false 就不再在日志里提醒。",
- "placeholder": true,
- "start_delay": 0.6,
- "fade_in": 0.9,
- "hold": 2.4,
- "fade_out": 0.9,
- "gap": 0.5,
+ "_说明": "第一关奔跑片头的制作人员（scripts/run_credits.gd 读）。每人一个小场景，挂在森林里晨前方的某处：萤火虫聚成名字、雾里用光写出名字、落叶落成名字、一束光一个像素一个像素地画出名字、最后特别感谢像星星一样出现在天上。名字和顺序是作者定的；role（职务）是猜的（role_guess: true），等作者改。",
+ "_字段": "name / role：{zh, en}，按游戏语言显示一种。style：fireflies / mist / leaves / light / sky。color：名字的颜色（Linger / Oscar Rush 里各人的颜色）。depth：景深（0 = 钉在屏幕上，1 = 和晨脚下一样快；越小在屏幕上走得越慢、停得越久）。dx：轮到它时放在镜头中心右边多少像素（屏幕像素）；也可以写 x 固定在世界坐标。y：世界 y（地面约 228，屏幕中间 135）；sky 用 screen_y。start：从开始跑算起第几秒出现（不写 = 第几个 × gap）。hold：完整停留几秒。",
+ "gap": 2.4,
  "music": "res://audio/music/theme.ogg",
  "entries": [
-  {"role": {"zh": "制作", "en": "Made by"}, "names": ["嘉木"]},
-  {"role": {"zh": "剧情", "en": "Story"}, "names": ["本2兔"]},
-  {"role": {"zh": "美术", "en": "Art"}, "names": ["奥斯卡", "梧桐"]}
+  {"id": "mumu", "style": "fireflies", "name": {"zh": "木木", "en": "Mumu"}, "role": {"zh": "制作", "en": "Created by"}, "role_guess": true,
+   "color": "39e47a", "depth": 0.18, "dx": 80, "y": 104, "hold": 2.0},
+  {"id": "bentootoo", "style": "mist", "name": {"zh": "本2兔", "en": "Bentootoo"}, "role": {"zh": "剧情", "en": "Story"}, "role_guess": true,
+   "color": "3bbcc8", "depth": 0.18, "dx": 70, "y": 154, "hold": 1.8},
+  {"id": "wutong", "style": "leaves", "name": {"zh": "梧桐", "en": "Wutong"}, "role": {"zh": "美术", "en": "Art"}, "role_guess": true,
+   "color": "e08638", "depth": 0.3, "dx": -120, "y": 196, "hold": 1.8},
+  {"id": "oscar", "style": "light", "name": {"zh": "奥斯卡", "en": "Zpbrqols"}, "role": {"zh": "美术", "en": "Art"}, "role_guess": true,
+   "color": "c8b83b", "depth": 0.3, "dx": 90, "y": 128, "hold": 2.0},
+  {"id": "sothere456", "style": "sky", "name": {"zh": "Sothere456", "en": "Sothere456"}, "role": {"zh": "特别感谢", "en": "Special Thanks"},
+   "note": "剧情姐", "color": "d8d4cc", "screen_y": 40, "hold": 3.6}
  ]
 }

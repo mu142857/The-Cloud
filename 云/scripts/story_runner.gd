@@ -78,7 +78,10 @@ extends Node
 ## 第一关新版（11-02，docs/剧情改动/第一关新版_实现规格.md）：
 ##   {"do": "inner", "zh", "en", "style": "drift"|"fade"|"spin", "sec"?, "wait"?: true} / {"do": "inner", "clear": true}：潜意识字
 ##     （scripts/inner_voice.gd 的 say / clear；没有那个脚本就打印一行 INNER 接着播）。wait = 等 sec 秒再下一步。
-##   {"do": "key_prompt", "zh", "en", "until": "run"|"bag"|"", "sec"?}：屏幕下方一行按键提示，不锁人；按住 Shift 跑起来 / 打开背包 / sec 秒后淡掉。
+##   {"do": "key_prompt", "zh", "en", "until": "run"|"bag"|"", "sec"?, "delay"?}：屏幕下方一行按键提示，不锁人；按住 Shift 跑起来 / 打开背包 / sec 秒后淡掉；
+##     delay = 晚几秒再出（这期间已经做到了就不出）。
+##   {"do": "burn_held", "items": [id…]}：飞行段一口气烧掉背包里有的这些（同一件写两次 = 烧两份），一次加燃料、一条提示，
+##     每件设 burned_<id>；没有的跳过。--story_check 算燃料时当它们在纪念品二选一之前都烧了（第一关新版：无关的东西先烧，再逼着选私人物品）。
 ##   {"do": "blackout", "on": true/false}：闪回停在黑屏上时换成低一层的黑，好在黑里看纸、云星闪、潜意识字（_blackout_step）。
 ##   {"do": "reward", "item"? | "tex" + "region"?}：拾到好东西的奖励动画（东西升到晨头顶放大、一圈光点转一下），不进背包（进背包另写 give）。
 ##   {"do": "mechanic", ..., "wait": false}：不等小游戏播完（奔跑时的制作人员字幕）。
@@ -109,7 +112,7 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"pose",   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
 	"barter",   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
 	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
-	"inner", "key_prompt", "reward", "blackout"]   # 第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
+	"inner", "key_prompt", "reward", "blackout", "burn_held"]   # 第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
@@ -731,9 +734,11 @@ func _step(st: Dictionary) -> String:
 			await _inner(st)
 		"blackout":
 			_blackout_step(bool(st.get("on", true)))
+		"burn_held":
+			await _burn_held(st)
 		"key_prompt":
 			if not ff and not free_roam:
-				level.key_prompt(txt(st), str(st.get("until", "")), float(st.get("sec", 14.0)))
+				level.key_prompt(txt(st), str(st.get("until", "")), float(st.get("sec", 14.0)), float(st.get("delay", 0.0)))
 		"reward":
 			await _reward(st)
 		_:
@@ -2804,6 +2809,9 @@ func validate() -> Array[String]:
 		for st in scenes[id]:
 			if st is Dictionary and str(st.get("do", "")) in ["flag", "count"] and st.has("set"):
 				set_flags[str(st["set"])] = true
+			if st is Dictionary and str(st.get("do", "")) == "burn_held":
+				for f7 in st.get("items", []):
+					set_flags["burned_" + str(f7)] = true
 			if st is Dictionary and str(st.get("do", "")) == "phone_draft" and str(st.get("flag", "")) != "":
 				set_flags[str(st["flag"])] = true
 			if st is Dictionary and str(st.get("do", "")) == "mechanic":
@@ -3072,6 +3080,10 @@ func validate() -> Array[String]:
 					out.append("scene %s：reward 的物品 %s 不在物品表" % [id, st["item"]])
 				elif not st.has("item") and not ResourceLoader.exists(str(st.get("tex", ""))):
 					out.append("scene %s：reward 的图 %s 不存在" % [id, st.get("tex")])
+			if st is Dictionary and str(st.get("do", "")) == "burn_held":
+				for it1 in st.get("items", []):
+					if not Inventory.defined(str(it1)):
+						out.append("scene %s：burn_held 的物品 %s 不在物品表" % [id, it1])
 			if st is Dictionary and str(st.get("do", "")) == "inner" and not st.get("clear", false) and str(st.get("zh", "")) == "":
 				out.append("scene %s：inner 没有 zh" % id)
 			if st is Dictionary and str(st.get("do", "")) == "fade_to" and st.has("style") and str(st["style"]) != "pixel":
@@ -3165,12 +3177,16 @@ func _validate_fuel() -> Array[String]:
 	var have := -1
 	var need := 0
 	var loss := 0
+	var pre := 0
 	var any := false
 	for id in scenes:
 		for st in scenes[id]:
 			if not st is Dictionary:
 				continue
 			var d := str(st.get("do", ""))
+			if d == "burn_held":
+				for it0 in st.get("items", []):
+					pre += fuel_of(str(it0))           # 二选一之前先烧掉的无关东西
 			if d == "fuel":
 				any = true
 				if st.has("have") and have < 0:
@@ -3190,8 +3206,8 @@ func _validate_fuel() -> Array[String]:
 		for st in scenes[id]:
 			if not st is Dictionary or str(st.get("do", "")) != "keepsake_choice":
 				continue
-			if bool(st.get("multi", false)):
-				continue                       # 多选版：界面自己按 keepsake_burn 加燃料、一直放到够（不用「放一件就补得上」）
+			if bool(st.get("multi", false)) or bool(st.get("retired", false)):
+				continue                       # 多选版：界面自己按 keepsake_burn 加燃料、一直放到够（不用「放一件就补得上」）；retired = 旧流程留下、走不到的
 			var sc: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}
 			for it in st.get("items", []):
 				var gain := 0
@@ -3201,8 +3217,10 @@ func _validate_fuel() -> Array[String]:
 							gain += fuel_of(str(s2["burn"])) if s2.has("burn") else int(s2.get("add", 0))
 				if gain <= 0:
 					out.append("scene %s：keepsake_choice 放 %s 以后没有 fuel 步骤加燃料（燃料表不会涨）" % [id, it])
-				elif have - loss + gain < need:
-					out.append("scene %s：放 %s 补不上燃料：起飞 %d − 撞碎石最多 %d + %d < 需要 %d" % [id, it, have, loss, gain, need])
+				elif have - loss + pre + gain < need:
+					out.append("scene %s：放 %s 补不上燃料：起飞 %d − 撞碎石最多 %d + 先烧的 %d + %d < 需要 %d" % [id, it, have, loss, pre, gain, need])
+				elif pre > 0 and have + pre >= need:
+					out.append("scene %s：先烧的无关东西（%d）就够了，不用选 %s（需要 %d）" % [id, pre, it, need])
 	return out
 
 
@@ -4090,6 +4108,31 @@ func _blackout_step(on: bool) -> void:
 		if _blackout != null and is_instance_valid(_blackout):
 			_blackout.queue_free()
 		_blackout = null
+
+
+func _burn_held(st: Dictionary) -> void:
+	var total := 0
+	var names: Array = []
+	var first := ""
+	for it in st.get("items", []):
+		var id := str(it)
+		if not Inventory.has(id):
+			continue
+		Inventory.remove(id)
+		total += fuel_of(id)
+		StoryState.set_flag("burned_" + id)
+		if first == "":
+			first = id
+		var nm := txt(Inventory.item(id).get("name", id))
+		if not names.has(nm):
+			names.append(nm)
+	level.on_inventory_changed()
+	if total <= 0:
+		return
+	_fuel_step({"add": total})
+	if not ff:
+		dlg.toast(Inventory.icon(first), I18n.t("gave_item") % "、".join(names))
+		await _wait(0.6)
 
 
 ## hotspot 的 scene 只有 bark 台词：返回那几句（不然 []）

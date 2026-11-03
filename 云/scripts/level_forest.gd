@@ -225,6 +225,7 @@ var _key_prompt: Label                  # 剧本 key_prompt 那一行
 var _kp_until := ""                     # run / bag / ""：做到了就淡掉
 var _kp_left := 0.0                     # 还剩几秒
 var _kp_done := 0.0                     # 已经做到了多久（跑起来要持续一下才算）
+var _kp_delay := 0.0                    # 还有几秒才出
 var _pixel_fx: Control                  # 像素块溶解（fade_to style pixel）
 var _zoom_tw: Tween
 var _burn_pop: Control
@@ -3164,15 +3165,22 @@ func bag_bump() -> void:
 
 
 ## 剧本 key_prompt：屏幕下方一行提示，不锁人。until = run（按住 Shift 跑起来一会儿）/ bag（打开背包）/ ""（只看时间）
-func key_prompt(text: String, until: String, sec: float) -> void:
+func key_prompt(text: String, until: String, sec: float, delay := 0.0) -> void:
 	_key_prompt.text = text
 	_kp_until = until
 	_kp_left = sec
 	_kp_done = 0.0
+	_kp_delay = delay              # 晚几秒再出（「按 Tab 打开背包」：先让奔跑的片头字幕播完）；这期间已经做到了就不出
 
 
 func _update_key_prompt(delta: float) -> void:
 	var on := _kp_left > 0.0
+	if on and _kp_delay > 0.0:
+		_kp_delay -= delta
+		if (_kp_until == "bag" and _bag.visible) or (_kp_until == "run" and chen._vel > CHEN_GD.RUN_SPEED * 1.1):
+			_kp_left = 0.0
+		_key_prompt.modulate.a = move_toward(_key_prompt.modulate.a, 0.0, delta * 1.5)
+		return
 	if on:
 		_kp_left -= delta
 		var did := false
