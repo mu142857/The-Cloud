@@ -5,18 +5,18 @@ extends CanvasLayer
 ##
 ## 怎么调（story_runner.gd 里，不用 class_name，preload 进来用静态函数）：
 ##   const InnerVoice := preload("res://scripts/inner_voice.gd")
-##   var t: float = InnerVoice.say("我是……谁？", "", "drift")        # 返回秒数：drift = 淡入要多久；fade / spin = 到完全消失要多久
+##   var t: float = InnerVoice.say("我是……谁？", "", "drift")        # 返回秒数：返回到完全消失的总秒数
 ##   InnerVoice.say("好熟悉的感觉……", "", "fade", 3.0)                 # sec = 停留秒数（0 = 按字数算）
-##   InnerVoice.say("快去找到背包……", "", "spin")                      # sec = 飘过去用几秒（0 = 按字数算）
+##   InnerVoice.say("快去找到背包……", "", "spin")                      # sec = 显示总时长（0 = 按字数算）
 ##   InnerVoice.clear()                                                 # 现在挂着的都淡掉
 ##   剧本：{"do": "inner", "zh": "...", "en": "", "style": "drift", "sec": 0, "wait": false}
 ##     wait 交给 runner：要等就 await get_tree().create_timer(t).timeout；ff 时别调（或调 clear(0.0)）。
 ##   第一次调用时自己建在 current_scene（关卡）下面；换场景跟着关卡一起释放，下次再建。想挂在指定节点下：InnerVoice.attach(level)。
 ##
 ## 三种样子：
-##   drift：在天上慢慢飘（水平、竖直两条慢正弦，周期不同，像浮在水面上），一直挂着，直到下一句 / clear()；sec > 0 = 挂这么久自己淡掉。
+##   drift：逐字排成波浪，从屏幕左外较快飘到右外，只播放一次；sec > 0 可指定飘过时长。
 ##   fade ：淡入、停一会儿（一边往上浮 4 像素）、淡出。
-##   spin ：一个字一个字排成一条带子，沿着「往前走 + 绕一圈」的曲线（摆线）从左往右飘过天空，两头淡入淡出。
+##   spin ：固定在屏幕上方居中，逐字持续轻颤，淡入、停留、淡出一次，不平移。
 ## 新的一句出来时，上一句（不管哪种）先淡掉。中文先写，en 空着就用中文。
 
 const LAYER := 52
@@ -25,6 +25,11 @@ const COL := Color("#eef3ee")             # 发白、偏一点点暖：和对话
 const GLOW := Color(0.62, 0.82, 0.78, 0.22)   # 很淡的青绿光晕（字的 outline），亮天空上压一圈
 const ALPHA := 0.9                        # 字最实的时候也不全实，像隔着一层
 const SKY_Y := 52.0                       # 天空区：字的中线大概在这一行
+const WAVE_HEIGHT := 6.0                  # 每个字沿波浪上下起伏的幅度
+const WAVE_LENGTH := 110.0                # 波长（屏幕像素）
+const DRIFT_SPEED := 84.0                 # 平均前进速度，像素 / 秒（运动有缓入缓出）
+const CHAR_GAP := 4.0                     # 字间留白更明显
+const SPACE_WIDTH := 12.0                 # 英文空格和全角空格至少留出的宽度
 const WRAP := 300.0
 const FADE_IN := 1.2
 const FADE_OUT := 0.9
@@ -76,6 +81,7 @@ static func auto_sec(text: String, style: String) -> float:
 # ======================================================================= 节点
 func _ready() -> void:
 	layer = LAYER
+	follow_viewport_enabled = false            # 屏幕坐标，镜头平移和缩放不带着字走
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
@@ -88,24 +94,23 @@ func show_line(zh: String, en: String, style: String, sec: float) -> float:
 		push_warning("InnerVoice: 没有 style %s，当 drift" % style)
 		style = "drift"
 	var it := {"style": style, "t": 0.0, "out": -1.0, "out_len": FADE_OUT, "dead": false}
-	if style == "spin":
-		var dur := sec if sec > 0.0 else auto_sec(text, "spin")
-		it["dur"] = dur
+	if style in ["drift", "spin"]:
 		it["chars"] = _ribbon(text)
+		var width := 0.0
+		for c in it["chars"]:
+			width += float(c["w"])
+		it["width"] = width
+		it["dur"] = sec if sec > 0.0 else (FADE_IN + auto_sec(text, "fade") + FADE_OUT if style == "spin" else (528.0 + width) / DRIFT_SPEED)
 		_items.append(it)
-		return dur
+		_place(it)
+		return float(it["dur"])
 	var l := _label(text)
 	l.custom_minimum_size = Vector2(WRAP, 0)
 	add_child(l)
 	l.reset_size()
 	var h := l.get_combined_minimum_size().y
-	# drift 每句换一个落点（不总在正中）：按句子算，不随机，同一句每次都在同一处
-	var off := 0.0
-	if style == "drift":
-		off = float(absi(text.hash()) % 61 - 30)
 	it["node"] = l
-	it["base"] = Vector2(round(240.0 - WRAP / 2.0 + off), round(SKY_Y - h / 2.0))
-	it["phase"] = float(absi(text.hash()) % 100) / 100.0 * TAU
+	it["base"] = Vector2(round(240.0 - WRAP / 2.0), round(SKY_Y - h / 2.0))
 	if style == "fade":
 		var hold := sec if sec > 0.0 else auto_sec(text, "fade")
 		it["out"] = FADE_IN + hold
@@ -151,7 +156,7 @@ func _label(text: String) -> Label:
 	return l
 
 
-## spin：一个字一个 Label（宽字 14、半角 7），排成带子
+## 波浪文字：一个字一个 Label，按实际字宽排成带子，保持阅读顺序
 func _ribbon(text: String) -> Array:
 	var out: Array = []
 	var gap := 0.0
@@ -160,7 +165,10 @@ func _ribbon(text: String) -> Array:
 		l.autowrap_mode = TextServer.AUTOWRAP_OFF
 		add_child(l)
 		l.reset_size()
-		var w := l.get_combined_minimum_size().x + 1.0
+		var glyph_width := l.get_combined_minimum_size().x
+		if ch.strip_edges().is_empty() or ch == "　":
+			glyph_width = maxf(glyph_width, SPACE_WIDTH)
+		var w := glyph_width + CHAR_GAP
 		out.append({"node": l, "lag": gap, "w": w})
 		gap += w
 	# 带子从左往右飘，走在最前面的（lag 最小）必须是最后一个字，不然读出来是反的
@@ -183,7 +191,7 @@ func _process(dt: float) -> void:
 func _alpha(it: Dictionary) -> float:
 	var t: float = it["t"]
 	var a := ALPHA * _ease(clampf(t / FADE_IN, 0.0, 1.0))
-	if it["style"] == "spin":
+	if it["style"] in ["drift", "spin"]:
 		var dur: float = it["dur"]
 		a = ALPHA * _ease(clampf(t / FADE_IN, 0.0, 1.0)) * _ease(clampf((dur - t) / FADE_OUT, 0.0, 1.0))
 	var o: float = it["out"]
@@ -199,37 +207,36 @@ func _place(it: Dictionary) -> void:
 	var o: float = it["out"]
 	var gone := o >= 0.0 and t >= o + float(it["out_len"])
 	match str(it["style"]):
-		"drift":
-			var ph: float = it["phase"]
-			# 两条慢正弦，周期 11 秒 / 7 秒：一直在动，但慢得像浮着
-			var p: Vector2 = it["base"] + Vector2(6.0 * sin(t * TAU / 11.0 + ph), 3.0 * sin(t * TAU / 7.0 + ph * 1.7))
-			_put(it["node"], p, a)
 		"fade":
 			var up := 4.0 * _ease(clampf(t / (float(it["out"]) + FADE_OUT), 0.0, 1.0))
 			_put(it["node"], it["base"] - Vector2(0, up), a)
-		"spin":
+		"drift", "spin":
 			var dur: float = it["dur"]
 			gone = gone or t >= dur
 			for c in it["chars"]:
 				var u := t / dur
-				_put(c["node"], _loop(u, float(c["lag"])), a)
+				var p := _shiver(float(c["lag"]), float(c["w"]), float(it["width"]), t) if it["style"] == "spin" else _wave(u, float(c["lag"]), float(it["width"]), t)
+				_put(c["node"], p, a)
 	if gone:
 		_kill(it)
 
 
-## spin 的曲线：从左往右走过天空，中途绕一圈（摆线：前进 + 一个圆；圆半径大于每圈前进的 1/2π，所以真的绕回来）。
-## lag = 这个字在带子里落后头多少像素：按弧长往回退，带子不散。
-func _loop(u: float, lag: float) -> Vector2:
-	var travel := 480.0 + 160.0                  # 从屏幕左外 -80 走到右外 560
-	var s := u * travel - lag
-	var k := clampf(s / travel, 0.0, 1.0)
-	var r := 22.0
-	# 圈画在中间那一段：k 0.35..0.65 之间转一整圈，两头是平缓的下弧 / 上弧
-	var w := clampf((k - 0.35) / 0.3, 0.0, 1.0)
-	var ang := _ease(w) * TAU
-	var x := -80.0 + k * travel - r * sin(ang)
-	var y := SKY_Y + 10.0 * sin(k * PI) - r * (1.0 - cos(ang)) - 6.0
+## 整句从左侧完全离屏处移到右侧完全离屏处；水平不回摆，每个字按所在位置形成波浪。
+func _wave(u: float, lag: float, width: float, t: float) -> Vector2:
+	var x := -24.0 + _ease(clampf(u, 0.0, 1.0)) * (528.0 + width) - lag
+	var y := SKY_Y + WAVE_HEIGHT * sin(x * TAU / WAVE_LENGTH - t * 1.4)
 	return Vector2(x, y)
+
+
+## 全程轻颤：每秒 12 档、约 1～2 像素；各字相位错开，让字一直不安地抖，保持可读。
+## 整句固定居中，只有微小颤抖；位置与播放进度、镜头移动无关。
+func _shiver(lag: float, glyph_width: float, width: float, t: float) -> Vector2:
+	var x := 240.0 + width / 2.0 - lag - glyph_width
+	var tick := floorf(t * 12.0) / 12.0
+	var phase := lag * 0.71
+	var dx := 0.85 * sin(tick * 37.0 + phase) + 0.45 * sin(tick * 61.0 + phase * 1.3)
+	var dy := 1.4 * sin(tick * 43.0 + phase * 1.7) + 0.6 * sin(tick * 71.0 + phase)
+	return Vector2(x + dx, SKY_Y + dy)
 
 
 func _put(n: Control, p: Vector2, a: float) -> void:

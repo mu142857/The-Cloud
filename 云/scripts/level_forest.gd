@@ -46,11 +46,11 @@ extends Node2D
 ##                      剧情的某一步停了 20 秒以上、又没有对话框 / 点选 / 带路在等人 → STUCK_SCENE。结束打印 FUZZ_DONE。
 ##                      可以和 --beat 一起用（从某个节拍开始乱玩）
 ##   --hide=节点名,节点名  把这几个节点藏起来（查画面上某一层是谁用）
-##   --dev [--dev_tab=0..3]（0 传送 1 状态 2 开关 3 探索）  一开始就打开 F8 面板（截图 / 测面板用）
-##   F8（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
+##   --dev [--dev_tab=0..3]（0 传送 1 状态 2 开关 3 探索）  一开始就打开 F12 面板（截图 / 测面板用）
+##   F12（只在 debug 构建）：开发者面板（跳节拍、传送、状态、快走 / 跳过对话 / 显示范围 / 雾 / 前景层开关、重开本章……），
 ##                      见 scripts/dev_panel.gd 和 docs/forest_chapter.md 末尾
 ##   --chen_x=x         （和 --beat 一起）跳完以后让晨站到这个 x（截互动提示用）
-##   --free=forest|river|reeds 直接进自由探索（F8 第 5 页「探索」同一套）。不播开场、剧情、对话、目标、卡关提示，剧情的墙不算，NPC 藏着；
+##   --free=forest|river|reeds 直接进自由探索（F12 第 5 页「探索」同一套）。不播开场、剧情、对话、目标、卡关提示，剧情的墙不算，NPC 藏着；
 ##                      换地方的交互照常（E / 点击：进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥，走到边上的出口），不看剧情 flag。
 ##                      拍截图也可以直接给房间名（treehouse / cockpit / river_home / market / oldstreet / warehouse / southbridge），
 ##                      和 --chen_x=x|left|mid|right、--shot= 一起用（面板不开；要开加 --dev）
@@ -88,12 +88,12 @@ const STRUCK_C := Color("#6f877b")
 const KEEPSAKE_C := Color("#dcc39a")         # 背包里纪念品名字的暖色
 const DEV_BEAT_META := "level_forest_dev_beat"
 const DEV_STAGE_META := "level_forest_dev_stage"
-const DEV_FREE_META := "level_forest_dev_free"   # F8「探索」：自由探索哪个场景（跨重新载入一直留着，退出探索时清掉）
-const DEV_FREE_CH_META := "level_forest_dev_free_ch"   # F8 传送页的地图：在哪一章自由探索（有它就不查 FREE_ROOMS，哪章哪个房间都行）
+const DEV_FREE_META := "level_forest_dev_free"   # F12「探索」：自由探索哪个场景（跨重新载入一直留着，退出探索时清掉）
+const DEV_FREE_CH_META := "level_forest_dev_free_ch"   # F12 传送页的地图：在哪一章自由探索（有它就不查 FREE_ROOMS，哪章哪个房间都行）
 const FREE_CLI_META := "level_forest_free_cli"   # --free= 只在第一次载入时用（退出探索重开本章时不再进去）
 ## 自由探索能去的场景：id → 章节（id 就是房间名；river_home 是河岸里的小屋，treehouse 是森林里的树屋）
 ## 面板给 forest、river、reeds 三个入口（river = 从河岸起）；别的房间名只给命令行拍截图用
-## reeds = 云层星的芦苇地：第三章（final）剧本里的 reed_field 房间，在终章的世界里进（F8 地图也是终章那张）
+## reeds = 云层星的芦苇地：第三章（final）剧本里的 reed_field 房间，在终章的世界里进（F12 地图也是终章那张）
 const FREE_ROOMS := {"forest": "forest", "river": "river", "treehouse": "forest", "cockpit": "flight1", "river_bank": "river",
 	"river_home": "river", "market": "river", "stairwell": "river", "oldstreet": "river", "warehouse": "river", "southbridge": "river",
 	"reeds": "final", "reed_field": "final"}
@@ -108,13 +108,14 @@ const GETUP_KNEEL_AT := 0.3       # chen.gd 里 getup 每帧 100ms：第 3 帧�
 const GETUP_STAND_AT := 0.6       # 第 6 帧（站直）
 const GETUP_TIME := 0.7
 
-## 调试场景浏览（只在 debug 构建、标题界面）：F1~F5
+## 调试场景浏览（只在 debug 构建、标题界面）：F1~F5；F7 兔子舞步 demo
 const TEST_SCENES := {
 	KEY_F1: "res://scenes/forest_test.tscn",
 	KEY_F2: "res://scenes/river_test.tscn",
 	KEY_F3: "res://scenes/underwater_test.tscn",
 	KEY_F4: "res://scenes/cloud_test.tscn",
 	KEY_F5: "res://scenes/flight_test.tscn",
+	KEY_F7: "res://scenes/rabbit_dance_demo.tscn",
 }
 const SELF_SCENE := "res://scenes/level_forest.tscn"
 
@@ -247,6 +248,7 @@ var _settings_widgets := {}
 var _bag: Panel
 var _bag_slots: Array[Button] = []
 var _bag_sel := 0
+var _bag_after_story := false             # 拾取背包特写结束后，剧情收尾时自动打开背包
 var _bag_w := {}
 var _panel_prev_focus: Control
 
@@ -274,7 +276,7 @@ var _fuzz_xmax := -INF
 var _lock_t := 0.0
 var _lock_reported := false
 var softlocks := 0
-var _dev: Node                    # F8 开发者面板（scripts/dev_panel.gd）
+var _dev: Node                    # F12 开发者面板（scripts/dev_panel.gd）
 var _dev_tab := 0
 var _dbg_hide: PackedStringArray = []
 var _dbg_chen_x := NAN
@@ -414,7 +416,7 @@ func _ready() -> void:
 	_free_pick()
 	chapter = CHAPTER_GD.current(_story_path)
 	if chapter != "forest" and (_story_path == "" or Engine.has_meta(CHAPTER_GD.PICK_META)):
-		_story_path = str(CHAPTER_GD.info(chapter)["story"])   # 换章 / F8 跳章：用那一章的剧本（命令行 --story= 只管起头那一章）
+		_story_path = str(CHAPTER_GD.info(chapter)["story"])   # 换章 / F12 跳章：用那一章的剧本（命令行 --story= 只管起头那一章）
 	CHAPTER_GD.restore(chapter)
 	# 光柱照到晨身上（lite 档光柱关了就是 0；树屋室内没有光柱）
 	chen.set_env("forest", func(c):
@@ -438,7 +440,7 @@ func _ready() -> void:
 		print("STORY_CHECK done: %s, %d scenes, %d hotspots" % [story.path, story.scenes.size(), story.hotspot_defs.size()])
 		get_tree().quit()
 		return
-	# F8 面板「跳节拍 / 重开本章」：重新载入本场景，再在这里接着跳（和 --beat / --stage 同一套）
+	# F12 面板「跳节拍 / 重开本章」：重新载入本场景，再在这里接着跳（和 --beat / --stage 同一套）
 	if Engine.has_meta(DEV_BEAT_META):
 		_beat = str(Engine.get_meta(DEV_BEAT_META))
 		_debug_stage = ""                   # 面板说的算（命令行的 --stage 重新载入后还在）
@@ -459,7 +461,7 @@ func _ready() -> void:
 			_jump(_debug_stage)
 		if _beat != "":
 			_jump_beat.call_deferred(_beat)
-	# 面板一开始就建好（藏着）：F8 由面板自己先接（剧情里小游戏 / 点选会吃掉按键，关卡的 _input 收不到）
+	# 面板一开始就建好（藏着）：F12 由面板自己先接（剧情里小游戏 / 点选会吃掉按键，关卡的 _input 收不到）
 	if OS.is_debug_build():
 		_make_dev(Engine.has_meta(DEV_OPEN_META))
 	if Engine.has_meta(DEV_OPEN_META):
@@ -1190,7 +1192,7 @@ func _bag_refresh() -> void:
 		_desc_marks()
 		var use: Button = _bag_w["use"]
 		use.text = I18n.t("use")
-		use.visible = iid != "journal" and state == S.PLAY
+		use.visible = iid not in ["journal", "deer_bear"] and state == S.PLAY
 		if iid == story.phone.ITEM_ID or story.item_view(iid) != "":
 			use.text = story.phone.t("view")        # 通讯器：「查看」打开聊天界面；剧本 item_views（大象的画）：「查看」播那段
 	else:
@@ -1259,6 +1261,8 @@ func _on_use_item() -> void:
 	if _bag_sel >= Inventory.owned.size():
 		return
 	var id := Inventory.owned[_bag_sel]
+	if id == "deer_bear":
+		return
 	if id == story.phone.ITEM_ID:
 		story.phone.open_browse()                     # 通讯器：开在背包上面，关掉回到背包
 		return
@@ -1460,6 +1464,11 @@ func _set_fuel_shown(v: float) -> void:
 func _update_objective() -> void:
 	if state in [S.HEADPHONES, S.INTRO, S.TITLE, S.CRASH] or not StoryState.has("crashed"):
 		return
+	# 新版开场：先看演出和想法，问完小鹿背包的事才给任务；不提前露出旧版燃料目标。
+	var opening := chapter == "forest" and StoryState.has("c1_crashed") and not StoryState.has("c1_asked_bag") and not StoryState.has("c1_got_bag")
+	_hud_burn.visible = not opening
+	if opening:
+		return
 	var o: Dictionary = story.objective()
 	var side_txt: Array = []
 	for so in story.side_objectives():
@@ -1508,11 +1517,17 @@ func _tw() -> Tween:
 
 
 func _kill_cine() -> void:
+	if is_instance_valid(_getup_qte):
+		_getup_qte.cancel()
+	_getup_qte = null
 	_seq.clear()
 	for tw in _tweens:
 		if tw.is_valid():
 			tw.kill()
 	_tweens.clear()
+	if is_instance_valid(_crash_bag):
+		_crash_bag.queue_free()
+	_crash_bag = null
 
 
 func _set_state(s: S) -> void:
@@ -1654,8 +1669,7 @@ func _start_crash() -> void:
 		[2.75 + SHIP_TIME, _impact],
 		[2.75 + SHIP_TIME + ALIEN_THROW_DELAY, _alien_thrown if ALIEN_IN_FOREST else func(): pass],
 		[ALIEN_GETUP_AT, _alien_get_up if ALIEN_IN_FOREST else func(): pass],
-		[8.4, _chen_get_up],
-		[8.4 + (GETUP_TIME + 0.2 if _has_getup else 1.7), _crash_done],
+		[2.75 + SHIP_TIME + THROW_T + THROW_SETTLE + 0.25, _begin_getup_qte],
 	])
 
 
@@ -1732,6 +1746,9 @@ func _ship_step(k: float) -> void:
 	puffs_back.set_source_pos("trail_sparks", ship.position + SHIP_ENGINE)
 
 
+var _crash_bag: Sprite2D                  # 撞击时甩出的背包，跳过演出时一起清理
+
+
 func _impact() -> void:
 	ship.visible = false
 	puffs_back.remove_source("trail")
@@ -1753,6 +1770,7 @@ func _impact() -> void:
 	tw.tween_property(self, "_impact_k", 1.0, 0.03)
 	tw.tween_property(self, "_impact_k", 0.0, 0.4)
 	_chen_thrown()
+	preload("res://scripts/bag_burst.gd").launch(self, story.world)
 
 
 func _show_wreck() -> void:
@@ -1978,6 +1996,21 @@ func _alien_stand() -> void:
 	if not ALIEN_IN_FOREST:
 		return
 	alien.stand(ALIEN_X, _ground(ALIEN_X) + 1)
+
+
+var _getup_qte: Node
+
+
+func _begin_getup_qte() -> void:
+	if state != S.CRASH or is_instance_valid(_getup_qte):
+		return
+	_getup_qte = preload("res://scripts/getup_qte.gd").new()
+	_getup_qte.name = "GetupQTE"
+	_getup_qte.level = self
+	_getup_qte.completed.connect(func():
+		_getup_qte = null
+		_crash_done())
+	add_child(_getup_qte)
 
 
 func _chen_get_up() -> void:
@@ -2387,8 +2420,8 @@ func _input(event: InputEvent) -> void:
 		story.hotspots.use_mouse = true
 	elif event is InputEventKey and event.pressed:
 		story.hotspots.use_mouse = false
-	# F8：开发者面板（只在 debug 构建）
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 and OS.is_debug_build():
+	# F12：开发者面板（只在 debug 构建）
+	if DEV_GD.is_toggle_event(event) and OS.is_debug_build():
 		toggle_dev()
 		_handled()
 		return
@@ -3094,6 +3127,10 @@ func story_end() -> void:
 		_bars_out(0.5)
 	_story_bars = false
 	_enter_play()
+	if _bag_after_story:
+		_bag_after_story = false
+		_bag_sel = maxi(0, Inventory.owned.find("elephant_drawing"))
+		_toggle_bag()
 
 
 ## 树冠缺口那一屏（story_world.gd 的 treeline_view_in / out 调）：左上角的目标 / 燃料和右上角的背包淡出，
@@ -3242,11 +3279,11 @@ func bag_bump() -> void:
 	create_tween().tween_property(_bag_btn, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## 剧本 key_prompt：屏幕下方一行提示，不锁人。until = run（按住 Shift 跑起来一会儿）/ bag（打开背包）/ ""（只看时间）
+## 剧本 key_prompt：屏幕下方一行提示，不锁人。until = run（按住 Shift 跑起来一会儿）/ bag（打开背包）/ photo（查看背包照片）/ ""（只看时间）
 func key_prompt(text: String, until: String, sec: float, delay := 0.0) -> void:
 	_key_prompt.text = text
 	_kp_until = until
-	_kp_left = sec
+	_kp_left = INF if sec <= 0.0 and until != "" else sec
 	_kp_done = 0.0
 	_kp_delay = delay              # 晚几秒再出（「按 Tab 打开背包」：先让奔跑的片头字幕播完）；这期间已经做到了就不出
 
@@ -3267,10 +3304,12 @@ func _update_key_prompt(delta: float) -> void:
 				did = chen._vel > CHEN_GD.RUN_SPEED * 1.1 or (_story_auto != "" and chen._vel > 0.0)
 			"bag":
 				did = _bag.visible or (_story_auto != "" and _kp_left < 12.0)
+			"photo":
+				did = story.played.has("c1_drawing")
 		_kp_done = _kp_done + delta if did else 0.0
 		if _kp_done > (0.6 if _kp_until == "run" else 0.0):
 			_kp_left = 0.0
-	var show: bool = _kp_left > 0.0 and not _settings.visible and not story.dlg.is_open()
+	var show: bool = _kp_left > 0.0 and not _settings.visible and not _bag.visible and not story.dlg.is_open()
 	var target := (0.75 + 0.15 * sin(_t * 3.0)) if show else 0.0
 	_key_prompt.modulate.a = move_toward(_key_prompt.modulate.a, target, delta * (2.5 if show else 1.5))
 
@@ -3830,7 +3869,7 @@ func _start_chapter(play: bool) -> void:
 		story.play.call_deferred(start)
 
 
-## F8「状态」页点一个还没设的 flag：从现在的样子接着把剧情瞬间过一遍到它（和 --beat 同一套 fast_forward，
+## F12「状态」页点一个还没设的 flag：从现在的样子接着把剧情瞬间过一遍到它（和 --beat 同一套 fast_forward，
 ## 前置的 flag、给 / 收的物品、NPC 位置、房间、桥、雾、当前目标都是真播出来的）。剧情在播、不能自由走、或者从现在走不到 → false
 func dev_complete(flag: String) -> bool:
 	if story.busy or not free_play() or StoryState.has(flag) or story.mech_wait:
@@ -3857,7 +3896,7 @@ func _ff_done(flag: String, ok: bool) -> void:
 	chen.visible = chapter != "forest" or not StoryState.has("launched")
 	if state != S.PLAY:
 		_enter_play()
-	var fb: Dictionary = story.dev_flashback_take()    # F8「闪回」按钮：跳完节拍从闪回前几步开始播（story_runner.gd FLASHBACK_DEV）
+	var fb: Dictionary = story.dev_flashback_take()    # F12「闪回」按钮：跳完节拍从闪回前几步开始播（story_runner.gd FLASHBACK_DEV）
 	if not fb.is_empty():
 		story.ff_hit_end = false
 		story.ff_resume = ""
@@ -3996,7 +4035,7 @@ func dev_teleport(name: String) -> void:
 	_walk_target = NAN
 
 
-# ======================================================================= 调试：自由探索（F8「探索」/ --free=）
+# ======================================================================= 调试：自由探索（F12「探索」/ --free=）
 ## 进哪个场景：面板选的（DEV_FREE_META，重新载入后还在）> 命令行 --free=（只第一次）。章节跟着场景走（CHAPTER_META + PICK_META）
 func _free_pick() -> void:
 	if not OS.is_debug_build():
