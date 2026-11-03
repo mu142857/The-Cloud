@@ -161,7 +161,7 @@
 			{"do": "sfx", "name": "bag_open"},
 			{"do": "anim", "who": "chen", "name": "eat"},
 			{"do": "sfx", "name": "bell_soft"},
-			{"do": "sfx", "name": "musicbox_open"},
+			{"do": "if", "flag": "musicbox_fixed", "then": "start_musicbox_sfx"},
 			{"do": "anim", "who": "chen", "name": "hum"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "sfx", "name": "hum_wrong"},
@@ -211,7 +211,7 @@
 		],
 		"cab_count": [
 			{"do": "anim", "who": "chen", "name": "write"},
-			{"do": "journal", "zh": "燃料柜：河水、种子、音乐盒、铜铃……", "en": "Fuel locker: river water, seed, music box, copper bell...", "added": true},
+			{"do": "journal", "zh": "燃料柜：河水、种子、铜铃……", "en": "Fuel locker: river water, seed, copper bell...", "added": true},
 			{"do": "wait", "sec": 1.0},
 			{"do": "wait", "sec": 1.5},
 			{"do": "journal", "zh": "影像。", "en": "Footage.", "added": true},
@@ -225,7 +225,9 @@
 			{"do": "goto", "scene": "cab_think"}
 		],
 		"cab_burned_card": [
-			{"do": "journal", "zh": "已经烧掉的：通勤卡。", "en": "Already burned: Commuter Card.", "added": true},
+			{"do": "if", "flag": "burned_deer_bear", "then": "cab_burned_bear"},
+			{"do": "if", "flag": "burned_family_photo", "then": "cab_burned_photo"},
+			{"do": "if", "flag": "burned_commute_card", "then": "cab_burned_card_old"},
 			{"do": "goto", "scene": "cab_think"}
 		],
 		"cab_think": [
@@ -269,7 +271,7 @@
 			{"do": "goto", "scene": "final_paper"}
 		],
 		"final_paper": [
-			{"narr": {"zh": "燃料不足。纸质物品可用。", "en": "Fuel low. Paper items usable."}, "added": true},
+			{"narr": {"zh": "仪表盘：燃料不足。纸质物品可用。", "en": "Gauge: fuel low. Paper items can be burned."}, "added": true},
 			{"do": "show_item", "item": "journal"},
 			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "niff_biography", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard", "niff_biography": "burn_niff_biography"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard", "niff_biography": "look_niff_biography"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）", "spec_journal_rule": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
 			{"do": "flag", "set": "final_fuel_done"},
@@ -281,14 +283,14 @@
 			{"do": "if", "flag": "river_n_courier", "then": "look_river_water_c"}
 		],
 		"look_river_water_p": [
-			{"narr": {"zh": "晨来过的那条河", "en": "The river Chen came to"}}
+			{"narr": {"zh": "瓶子上的标签：「晨来过的那条河」", "en": "The label on the bottle: \"The river Chen came to\""}}
 		],
 		"look_river_water_c": [
-			{"narr": {"zh": "寄件人：妮芙小姐", "en": "Sender: Miss Niff"}, "added": true}
+			{"narr": {"zh": "瓶子上的标签：「寄件人：妮芙小姐」", "en": "The label on the bottle: \"Sender: Miss Niff\""}, "added": true}
 		],
 		"look_niff_biography": [
 			{"do": "show_item", "item": "niff_biography"},
-			{"narr": {"zh": "「第一章：妮芙小姐掉了一箱东西。」后面都还空着。", "en": "\"Chapter One: Miss Niff Drops a Crate.\" The rest is blank."}, "added": true}
+			{"narr": {"zh": "传记第一页：「第一章：妮芙小姐掉了一箱东西。」后面都还空着。", "en": "First page of the biography: \"Chapter One: Miss Niff dropped a box of things.\" The rest is blank."}, "added": true}
 		],
 		"burn_niff_biography": [
 			{"do": "take", "item": "niff_biography"},
@@ -313,7 +315,7 @@
 			{"do": "show_item", "item": "miluo_note"},
 			{"do": "prop", "id": "cockpit_note", "state": "flipped"},
 			{"do": "wait", "sec": 1.0},
-			{"narr": {"zh": "没长出来不一定是你的问题。", "en": "If nothing comes up, it might not be your fault."}},
+			{"narr": {"zh": "纸条背面：「没长出来不一定是你的问题。」", "en": "On the back of the note: \"If it doesn't sprout, it isn't necessarily your fault.\""}},
 			{"do": "wait", "sec": 2.0},
 			{"do": "show_item", "item": "clear_seed"}
 		],
@@ -376,7 +378,7 @@
 		"look_copper_bell": [
 			{"do": "show_item", "item": "copper_bell"},
 			{"do": "sfx", "name": "bell_soft"},
-			{"narr": {"zh": "已经送给晨，不用还", "en": "Given to Chen. No need to return"}}
+			{"narr": {"zh": "铃上的标签：「已经送给晨，不用还」", "en": "The tag on the bell: \"Given to Chen. No need to return it.\""}}
 		],
 		"burn_copper_bell": [
 			{"do": "anim", "who": "chen", "name": "untie"},
@@ -401,7 +403,7 @@
 		"burn_journal": [
 			{"do": "anim", "who": "chen", "name": "untie"},
 			{"do": "prop", "id": "cockpit_journal", "state": "first_page_out"},
-			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"narr": {"zh": "第一页：「我一定要找到大象，因为」", "en": "The first page: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 2.5},
 			{"do": "take", "item": "journal"},
 			{"do": "give", "item": "journal_first_page"},
@@ -479,10 +481,10 @@
 			{"do": "prop", "id": "cockpit_window", "state": "cloud_low"},
 			{"do": "sfx", "name": "beacon_slow"},
 			{"do": "wait", "sec": 1.0},
-			{"narr": {"zh": "下降仍需更多燃料。", "en": "More fuel needed to descend."}, "added": true},
+			{"narr": {"zh": "仪表盘：下降仍需更多燃料。", "en": "Gauge: more fuel needed for descent."}, "added": true},
 			{"do": "fuel", "need": 360},
-			{"do": "show_item", "item": "travel_map"},
-			{"narr": {"zh": "下次一起去看看云层里的大象", "en": "Next time, let's go see the elephant in the clouds together"}},
+			{"do": "show_item", "item": "elephant_drawing"},
+			{"narr": {"zh": "画背面写着：「下次一起去看看云层里的大象」", "en": "On the back of the drawing: \"Next time, let's go see the elephant in the clouds together\""}},
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "chen", "name": "smooth_paper"},
 			{"do": "prop", "id": "cockpit_map", "state": "line_pressed"},
@@ -493,7 +495,7 @@
 			{"do": "show_item", "item": "elephant_drawing"},
 			{"do": "prop", "id": "cockpit_drawing", "state": "open"},
 			{"do": "wait", "sec": 1.5},
-			{"say": "chen", "zh": "我以前老觉得，找到大象，再收到她的消息，前面这些就都好说了。", "en": "I used to think that once I found the elephant and heard from her, everything before would sort itself out."},
+			{"say": "chen", "zh": "我一直觉得，找到大象，再收到她的消息，前面这些就都好说了。", "en": "I always thought that once I found the elephant and heard from her, everything before would sort itself out."},
 			{"do": "face", "who": "chen", "to": "cockpit_cabinet"},
 			{"do": "if", "flag": "burned_journal", "then": "approach_page_loose", "else": "approach_page_journal"}
 		],
@@ -506,7 +508,7 @@
 			{"do": "goto", "scene": "approach_page"}
 		],
 		"approach_page": [
-			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"narr": {"zh": "第一页：「我一定要找到大象，因为」", "en": "The first page: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 2.5},
 			{"do": "prop", "id": "cockpit_phone", "state": "screen_on"},
 			{"do": "wait", "sec": 2.0},
@@ -540,9 +542,9 @@
 			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "niff_biography", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard", "niff_biography": "burn_niff_biography"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard", "niff_biography": "look_niff_biography"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
 			{"do": "sfx", "name": "cloud_part"},
 			{"do": "wait", "sec": 1.0},
-			{"narr": {"zh": "西侧：旧货场。运输船号对上了。", "en": "West: old freight yard. Transport ship number matches."}, "added": true},
+			{"narr": {"zh": "导航屏：西侧旧货场，运输船号对上了。", "en": "Nav screen: old freight yard to the west. The cargo ship number matches."}, "added": true},
 			{"do": "sfx", "name": "elephant_low_call", "pan": 0.8},
-			{"narr": {"zh": "东侧：低鸣。声源无法确定。", "en": "East: low rumble. Source unknown."}, "added": true},
+			{"narr": {"zh": "导航屏：东侧有低鸣，声源无法确定。", "en": "Nav screen: a low rumble to the east. Source unknown."}, "added": true},
 			{"say": "broadcast", "zh": "广场附近有大型动物停留，请居民注意避让。", "en": "A large animal is lingering near the plaza. Residents, please keep clear.", "added": true},
 			{"do": "wait", "sec": 1.0},
 			{"do": "anim", "who": "chen", "name": "check"},
@@ -654,7 +656,7 @@
 			{"do": "anim", "who": "elephant", "name": "trunk_up"},
 			{"do": "anim", "who": "chen", "name": "step_back"},
 			{"say": "chen", "zh": "这个不行。最后一点了。", "en": "Not this. It's the last of it."},
-			{"do": "choice", "options": [{"zh": "原来你吃东西这么响。", "en": "So you're this loud when you eat.", "scene": "e1_ch_a"}, {"zh": "能让我再看一会儿吗？", "en": "Can I watch you a little longer?", "scene": "e1_ch_b"}, {"zh": "我还以为，见到你以后会有很多话。", "en": "I thought I'd have so much to say when I met you.", "scene": "e1_ch_c"}]}
+			{"do": "choice", "options": [{"zh": "原来你吃东西这么响。", "en": "So you're this loud when you eat.", "scene": "e1_ch_a"}, {"zh": "能让我再看一会儿吗？", "en": "Can I watch you a little longer?", "scene": "e1_ch_b"}, {"zh": "我还以为，见到你以后会有很多话。", "en": "I thought I'd have so much to say when I met you.", "scene": "e1_ch_c"}, {"zh": "我是你妈妈。", "en": "I'm your mom.", "need": ["c1_mom"], "scene": "e1_ch_mom", "added": true}, {"zh": "你认识一只鹿吗？它管我叫孩子。", "en": "Do you know a deer? It calls me its kid.", "need": ["c1_child"], "scene": "e1_ch_kid", "added": true}]}
 		],
 		"e1_ch_a": [
 			{"do": "sfx", "name": "chewing"},
@@ -687,7 +689,7 @@
 			{"do": "anim", "who": "chen", "name": "draw"},
 			{"do": "anim", "who": "elephant", "name": "tug_grass"},
 			{"do": "wait", "sec": 1.5},
-			{"say": "chen", "zh": "我以前以为，找到它以后，我一定会高兴得不得了。", "en": "I used to think that when I found it, I'd be over the moon."},
+			{"say": "chen", "zh": "我一直以为，找到它以后，我一定会高兴得不得了。", "en": "I always thought that once I found it, I'd be over the moon."},
 			{"say": "chen", "zh": "刚才确实挺高兴。现在腿有点麻，还有点饿。", "en": "And I was, just now. Now my legs are asleep, and I'm a bit hungry."},
 			{"do": "anim", "who": "passerby", "name": "laugh"},
 			{"say": "passerby", "zh": "吃的话，往那边走，有个小摊。", "en": "If you want food, there's a stall that way.", "added": true},
@@ -707,7 +709,7 @@
 		"e1_note": [
 			{"do": "show_item", "item": "miluo_note"},
 			{"do": "wait", "sec": 2.0},
-			{"say": "chen", "zh": "回去以后，照实告诉她。", "en": "When I get back, I'll tell her the truth.", "added": true},
+			{"say": "chen", "zh": "回去以后，照实告诉弥洛。", "en": "When I get back, I'll tell Milo straight.", "added": true},
 			{"do": "flag", "set": "final_e1_seed_done"}
 		],
 		"e1_plant_ask": [
@@ -753,14 +755,14 @@
 		],
 		"e1_paper_get": [
 			{"do": "give", "item": "borrowed_paper"},
-			{"say": "chen", "zh": "日记烧了，记在借来的纸上。", "en": "The journal's gone. I'll write on borrowed paper.", "added": true},
+			{"say": "chen", "zh": "日记烧了，跟路过的人借了张纸。", "en": "The journal's gone. Borrowed a sheet from the passerby.", "added": true},
 			{"do": "goto", "scene": "e1_write"}
 		],
 		"e1_write": [
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "journal", "zh": "今天找到大象了：左耳有缺口，吃草很响，会翻袋子。", "en": "Found the elephant today: notch in the left ear, loud when it eats grass, goes through bags."},
 			{"do": "wait", "sec": 1.5},
-			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"narr": {"zh": "第一页上还是那句：「我一定要找到大象，因为」", "en": "The first page still says: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 2.5},
 			{"do": "goto", "scene": "e1_phone"}
 		],
@@ -807,12 +809,7 @@
 			{"do": "face", "who": "chen", "to": "elephant"},
 			{"say": "chen", "zh": "那边，大象。", "en": "Over there. The elephant.", "added": true},
 			{"say": "resident", "zh": "……那边什么也没有呀。", "en": "...There's nothing over there.", "added": true},
-			{"do": "anim", "who": "chen", "name": "step_aside"},
-			{"do": "wait", "sec": 1.5},
-			{"do": "show", "who": "crowd", "at": "east_crowd"},
-			{"do": "sfx", "name": "elephant_low_call", "pan": 0.4},
-			{"do": "flag", "set": "final_e2_seen"},
-			{"do": "if", "flag": "burned_elephant_footage", "then": "e2_explain", "else": "e2_footage"}
+			{"do": "choice", "options": [{"zh": "它灰色的，比房子还大。", "en": "It's grey. Bigger than a house.", "scene": "e2_see_a", "added": true}, {"zh": "你们是不是都基因突变了？", "en": "Did you all get some kind of mutation?", "scene": "e2_see_b", "added": true}, {"zh": "那你看得见我吗？", "en": "Can you see me, then?", "scene": "e2_see_c", "added": true}]}
 		],
 		"e2_footage": [
 			{"do": "show_item", "item": "elephant_footage"},
@@ -877,7 +874,7 @@
 			{"say": "chen", "zh": "只有我看得见，也还在。", "en": "Only I can see it. It's still there.", "added": true}
 		],
 		"e2_cup": [
-			{"say": "chen", "zh": "他留下的水。", "en": "The water he left.", "added": true}
+			{"say": "chen", "zh": "那个居民留下的水。", "en": "The water the resident left.", "added": true}
 		],
 		"e2_record": [
 			{"do": "goto", "scene": "e2_paper"}
@@ -887,7 +884,7 @@
 		],
 		"e2_paper_get": [
 			{"do": "give", "item": "borrowed_paper"},
-			{"say": "chen", "zh": "日记烧了，记在借来的纸上。", "en": "The journal's gone. I'll write on borrowed paper.", "added": true},
+			{"say": "chen", "zh": "日记烧了，跟那个居民借了张纸。", "en": "The journal's gone. Borrowed a sheet from the resident.", "added": true},
 			{"do": "goto", "scene": "e2_write"}
 		],
 		"e2_write": [
@@ -995,13 +992,7 @@
 			{"say": "chen", "zh": "哪里？", "en": "Where?", "added": true},
 			{"do": "anim", "who": "chen", "name": "look_around"},
 			{"say": "townsfolk", "zh": "顺着我的手看。", "en": "Follow my hand.", "added": true},
-			{"do": "wait", "sec": 1.5},
-			{"do": "anim", "who": "chen", "name": "look_around"},
-			{"do": "wait", "sec": 1.5},
-			{"do": "anim", "who": "chen", "name": "look_around"},
-			{"do": "wait", "sec": 1.5},
-			{"do": "sfx", "name": "plaza_noise"},
-			{"do": "if", "flag": "burned_elephant_footage", "then": "e3_show_drawing", "else": "e3_show_footage"}
+			{"do": "choice", "options": [{"zh": "看见了！……是你的手。", "en": "I see it! ...It's your hand.", "scene": "e3_pl_a", "added": true}, {"zh": "我是它妈妈，叫一声它就过来了。", "en": "I'm its mom. It'll come if I call.", "need": ["c1_mom"], "scene": "e3_pl_b", "added": true}, {"zh": "你们是不是在拿我开玩笑？", "en": "Are you all pulling my leg?", "scene": "e3_pl_c", "added": true}]}
 		],
 		"e3_show_footage": [
 			{"do": "show_item", "item": "elephant_footage"},
@@ -1026,6 +1017,7 @@
 			{"do": "show", "who": "crowd", "at": "town_crowd"},
 			{"do": "anim", "who": "chen", "name": "reach"},
 			{"say": "townsfolk", "zh": "对，就是那里。", "en": "Yes, right there."},
+			{"say": "crowd", "zh": "它在舔你的手！", "en": "It's licking your hand!", "added": true},
 			{"do": "sfx", "name": "crowd_cheer"},
 			{"do": "anim", "who": "chen", "name": "hand_still"},
 			{"do": "wait", "sec": 2.5},
@@ -1040,7 +1032,7 @@
 		],
 		"e3_paper_get": [
 			{"do": "give", "item": "borrowed_paper"},
-			{"say": "chen", "zh": "日记烧了，记在借来的纸上。", "en": "The journal's gone. I'll write on borrowed paper.", "added": true},
+			{"say": "chen", "zh": "日记烧了，跟住处的人借了几张纸。", "en": "The journal's gone. Borrowed a few sheets from the lodging.", "added": true},
 			{"do": "goto", "scene": "e3_write1"}
 		],
 		"e3_write1": [
@@ -1049,7 +1041,7 @@
 			{"do": "journal", "zh": "至少他们都这么说", "en": "At least, that's what they all say"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "journal", "zh": "？", "en": "?", "added": true},
-			{"say": "townsfolk", "zh": "今天它跟你可亲了！", "en": "It really took to you today!", "added": true},
+			{"narr": {"zh": "门外有人喊：「今天它跟你可亲了！」", "en": "Someone calls from outside the door: \"It was so sweet on you today!\""}, "added": true},
 			{"do": "anim", "who": "chen", "name": "sit"},
 			{"do": "wait", "sec": 3.0},
 			{"do": "flag", "set": "final_e3_touched"}
@@ -1066,6 +1058,7 @@
 		"e3_listen": [
 			{"do": "sfx", "name": "fountain"},
 			{"do": "wait", "sec": 2.0},
+			{"say": "crowd", "zh": "它在甩鼻子呢！", "en": "It's swinging its trunk!", "added": true},
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "journal", "zh": "他们说它正在甩鼻子", "en": "They say it's swinging its nose"},
 			{"do": "show", "who": "townsfolk", "at": "town_crowd"},
@@ -1128,7 +1121,7 @@
 		],
 		"e3_seedless": [
 			{"do": "show_item", "item": "miluo_note"},
-			{"say": "chen", "zh": "能再借我几张纸吗？有些消息要带回去。", "en": "Could I borrow a few more sheets? There's news I need to take back.", "added": true},
+			{"say": "chen", "zh": "能借我几张纸吗？有些话要带回去给弥洛。", "en": "Could I borrow a few sheets? There's something I need to take back to Milo.", "added": true},
 			{"do": "flag", "set": "final_e3_seed_done"}
 		],
 		"e3_plant": [
@@ -1173,7 +1166,7 @@
 			{"do": "wait", "sec": 1.5},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "put_back"},
 			{"do": "anim", "who": "chen", "name": "check"},
-			{"narr": {"zh": "预计抵达时间：待定", "en": "Estimated arrival: TBD"}, "added": true},
+			{"narr": {"zh": "导航屏：预计抵达时间待定。", "en": "Nav screen: arrival time to be determined."}, "added": true},
 			{"do": "wait", "sec": 2.0},
 			{"say": "chen", "zh": "我还是想下去，也还是想收到她的消息。", "en": "I still want to go down. I still want to hear from her."},
 			{"do": "if", "flag": "burned_copper_bell", "then": "e4_rope", "else": "e4_bell"}
@@ -1232,7 +1225,7 @@
 			{"do": "wait", "sec": 2.0},
 			{"do": "face", "who": "chen", "to": "cockpit_panel"},
 			{"do": "sfx", "name": "tighten"},
-			{"do": "if", "flag": "burned_music_box", "then": "e4_hum", "else": "e4_musicbox"}
+			{"do": "if", "flag": "musicbox_fixed", "then": "e4_musicbox_q", "else": "e4_hum"}
 		],
 		"e4_musicbox": [
 			{"do": "sfx", "name": "musicbox_play"},
@@ -1275,7 +1268,7 @@
 			{"do": "goto", "scene": "e4_write"}
 		],
 		"e4_write": [
-			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"narr": {"zh": "第一页：「我一定要找到大象，因为」", "en": "The first page: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 2.0},
 			{"do": "anim", "who": "chen", "name": "pen_hover"},
 			{"do": "wait", "sec": 2.5},
@@ -1307,10 +1300,10 @@
 			{"do": "fade_to", "room": "forest", "at": "forest_crossroad"},
 			{"do": "show", "who": "deer", "at": "forest_deer"},
 			{"do": "face", "who": "deer", "to": "chen"},
-			{"say": "deer", "zh": "回来啦。外头的路，难走不？", "en": "You're back. Rough out there?", "added": true},
-			{"do": "show_item", "item": "travel_map"},
+			{"do": "if", "flag": "c1_mom", "then": "epi_hi_mom", "else": "epi_hi_child"},
+			{"do": "show_item", "item": "elephant_drawing"},
 			{"do": "anim", "who": "deer", "name": "lean"},
-			{"say": "deer", "zh": "那这块得改。后面要是还有人来，咱可不能再照着带。", "en": "Then this part needs fixing. If anyone else comes, I can't lead them by this anymore."},
+			{"say": "deer", "zh": "这地图得改改吧？后面要是还有人来，咱可不能再照着带。", "en": "This map needs fixing, doesn't it? If anyone else comes through, I can't go leading them by it."},
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "prop", "id": "forest_map", "state": "corrected"},
 			{"say": "deer", "zh": "那大象呢？", "en": "And the elephant?", "added": true},
@@ -1338,7 +1331,7 @@
 		"epi_deer_e3": [
 			{"say": "chen", "zh": "他们都说它在那儿，可我眼前一直是空地。", "en": "They all said it was there. All I ever saw was empty ground.", "added": true},
 			{"do": "wait", "sec": 1.5},
-			{"say": "deer", "zh": "那你就说看不见。咱以前就是没这么说。", "en": "Then say you can't see it. That's what I never said, back then.", "added": true},
+			{"say": "deer", "zh": "那你就说看不见。看不见又不丢人。", "en": "Then say you can't see it. Not seeing it's nothing to be ashamed of.", "added": true},
 			{"do": "goto", "scene": "epi_deer_drawing"}
 		],
 		"epi_deer_e4": [
@@ -1383,7 +1376,7 @@
 		"epi_miluo_cup": [
 			{"do": "anim", "who": "chen", "name": "open_map_fold"},
 			{"do": "show_item", "item": "cup_tracing"},
-			{"say": "chen", "zh": "来客册里抄的。那个人寄过信，可北岸的邮箱被水冲走了。", "en": "Copied from the guestbook. They did send letters, but the north-bank mailbox washed away.", "added": true},
+			{"say": "chen", "zh": "来客册里抄的。你那位朋友到过河流城市，寄过信，可北岸的邮箱被水冲走了。", "en": "Copied from the guestbook. Your friend came through the river city and sent letters, but the north-bank mailbox washed away.", "added": true},
 			{"do": "take", "item": "cup_tracing"},
 			{"do": "anim", "who": "miluo", "name": "read"},
 			{"do": "wait", "sec": 2.5},
@@ -1449,7 +1442,10 @@
 			{"do": "anim", "who": "chen", "name": "wait"},
 			{"do": "anim", "who": "niff", "name": "read"},
 			{"do": "wait", "sec": 2.5},
-			{"say": "niff", "zh": "晨！要去云层星找大象的晨！", "en": "Chen! Chen who's going to the cloud planet to find the elephant!", "added": true},
+			{"do": "if", "flag": "river_n_courier", "then": "epi_niff_name_c"},
+			{"do": "if", "flag": "river_n_bio", "then": "epi_niff_name_b"},
+			{"do": "if", "flag": "river_n_mom", "then": "epi_niff_name_m"},
+			{"do": "if", "flag": "!river_n_odd", "then": "epi_niff_name_p"},
 			{"do": "if", "flag": "final_ending_1", "then": "epi_niff_e1", "else": "epi_niff_q2"}
 		],
 		"epi_niff_q2": [
@@ -1501,7 +1497,7 @@
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "niff", "name": "read"},
 			{"do": "wait", "sec": 2.0},
-			{"say": "niff", "zh": "这里空着，是忘了吗？", "en": "This bit's blank. Did you forget?", "added": true},
+			{"say": "niff", "zh": "你本子第一页这里空着，是忘了吗？", "en": "The first page of your notebook's blank here. Did you forget?", "added": true},
 			{"do": "anim", "who": "chen", "name": "check"},
 			{"say": "chen", "zh": "这一段，我也不知道。", "en": "I don't know this part either.", "added": true},
 			{"do": "anim", "who": "niff", "name": "write"},
@@ -1530,6 +1526,8 @@
 			{"do": "face", "who": "chen", "to": "train_seat"},
 			{"do": "wait", "sec": 2.0},
 			{"do": "if", "flag": "barter_rat_chef_recipe", "then": "epi_home_recipe"},
+			{"do": "if", "flag": "c1_mom", "then": "epi_home_phone"},
+			{"do": "if", "flag": "c1_child", "then": "epi_home_phone"},
 			{"do": "if", "flag": "burned_seat_chart", "then": "epi_home_phone", "else": "epi_home_chart"}
 		],
 		"epi_home_chart": [
@@ -1567,7 +1565,7 @@
 			{"do": "goto", "scene": "epi_home_end"}
 		],
 		"epi_home_end": [
-			{"narr": {"zh": "我一定要找到大象，因为", "en": "I have to find the elephant, because"}},
+			{"narr": {"zh": "第一页：「我一定要找到大象，因为」", "en": "The first page: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 3.0},
 			{"do": "flag", "set": "final_done"},
 			{"do": "end_chapter"}
@@ -1725,13 +1723,96 @@
 		],
 		"look_floorboard": [
 			{"do": "show_item", "item": "floorboard"},
-			{"say": "chen", "zh": "从弥洛家地上撬下来的。", "en": "Pried up from Milo's floor.", "added": true}
+			{"say": "chen", "zh": "弥洛从自己家地上撬下来的。", "en": "Milo pried it up from her own floor.", "added": true}
 		],
 		"burn_floorboard": [
 			{"do": "take", "item": "floorboard"},
 			{"do": "take", "item": "floorboard"},
 			{"do": "flag", "set": "burned_floorboard"},
 			{"do": "sfx", "name": "convert"}
+		],
+		"start_musicbox_sfx": [
+			{"do": "sfx", "name": "musicbox_open"}
+		],
+		"cab_burned_bear": [
+			{"do": "journal", "zh": "已经烧掉的：小鹿的玩具熊。", "en": "Already burned: the deer's teddy bear.", "added": true}
+		],
+		"cab_burned_photo": [
+			{"do": "journal", "zh": "已经烧掉的：全家福。", "en": "Already burned: the family photo.", "added": true}
+		],
+		"cab_burned_card_old": [
+			{"do": "journal", "zh": "已经烧掉的：通勤卡。", "en": "Already burned: Commuter Card.", "added": true}
+		],
+		"e4_musicbox_q": [
+			{"do": "if", "flag": "burned_music_box", "then": "e4_hum", "else": "e4_musicbox"}
+		],
+		"e1_ch_mom": [
+			{"do": "anim", "who": "elephant", "name": "trunk_up"},
+			{"say": "passerby", "zh": "上一个这么跟它说的，被喷了一身水。", "en": "The last person who told it that got hosed down.", "added": true},
+			{"do": "goto", "scene": "e1_sit"}
+		],
+		"e1_ch_kid": [
+			{"say": "passerby", "zh": "……这附近的动物，认亲都挺随便的。", "en": "...Animals round here aren't too fussy about family.", "added": true},
+			{"do": "goto", "scene": "e1_sit"}
+		],
+		"e2_see_a": [
+			{"say": "resident", "zh": "灰色的、比房子还大……你说的是那块石头吧？它在那儿三十年了。", "en": "Grey, bigger than a house... You mean that rock? It's been there thirty years.", "added": true},
+			{"do": "goto", "scene": "e2_see_rest"}
+		],
+		"e2_see_b": [
+			{"say": "resident", "zh": "……我回去问问我妈。", "en": "...I'll go ask my mom.", "added": true},
+			{"do": "goto", "scene": "e2_see_rest"}
+		],
+		"e2_see_c": [
+			{"say": "resident", "zh": "看得见。你脸上有灰。", "en": "I can. You've got dirt on your face.", "added": true},
+			{"do": "goto", "scene": "e2_see_rest"}
+		],
+		"e2_see_rest": [
+			{"do": "anim", "who": "chen", "name": "step_aside"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "show", "who": "crowd", "at": "east_crowd"},
+			{"do": "sfx", "name": "elephant_low_call", "pan": 0.4},
+			{"do": "flag", "set": "final_e2_seen"},
+			{"do": "if", "flag": "burned_elephant_footage", "then": "e2_explain", "else": "e2_footage"}
+		],
+		"e3_pl_a": [
+			{"say": "townsfolk", "zh": "……看手指头前面。", "en": "...Look past the finger.", "added": true},
+			{"do": "goto", "scene": "e3_plaza_rest"}
+		],
+		"e3_pl_b": [
+			{"say": "crowd", "zh": "那您快叫！它刚把李婶的帽子吃了。", "en": "Then call it, quick! It just ate Auntie Li's hat.", "added": true},
+			{"do": "goto", "scene": "e3_plaza_rest"}
+		],
+		"e3_pl_c": [
+			{"say": "townsfolk", "zh": "开这种玩笑，我们图什么呀？", "en": "What would we get out of a joke like that?", "added": true},
+			{"do": "goto", "scene": "e3_plaza_rest"}
+		],
+		"e3_plaza_rest": [
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "look_around"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "anim", "who": "chen", "name": "look_around"},
+			{"do": "wait", "sec": 1.5},
+			{"do": "sfx", "name": "plaza_noise"},
+			{"do": "if", "flag": "burned_elephant_footage", "then": "e3_show_drawing", "else": "e3_show_footage"}
+		],
+		"epi_hi_mom": [
+			{"say": "deer", "zh": "妈妈！你不在的时候，咱天天孝敬你，给你的飞机坑浇水。", "en": "Mama! While you were gone I honored you every day. I watered your crash crater.", "added": true}
+		],
+		"epi_hi_child": [
+			{"say": "deer", "zh": "孩子，回来啦。外头的路，难走不？", "en": "You're back, kid. Rough out there?", "added": true}
+		],
+		"epi_niff_name_p": [
+			{"say": "niff", "zh": "晨！要去云层星找大象的晨！", "en": "Chen! Chen who's going to the cloud planet to find the elephant!", "added": true}
+		],
+		"epi_niff_name_c": [
+			{"say": "niff", "zh": "取件员晨！你的件我还没找到，再等等。", "en": "Chen the courier! I still haven't found your package. Hang on.", "added": true}
+		],
+		"epi_niff_name_b": [
+			{"say": "niff", "zh": "传记作者晨！第二章写好了吗？", "en": "Chen the biographer! Is chapter two done yet?", "added": true}
+		],
+		"epi_niff_name_m": [
+			{"say": "niff", "zh": "冒牌妈妈晨！本子上写着：「别信这个人，但可以请吃面包。」", "en": "Chen the fake mom! My notebook says: \"Don't trust this one, but bread is fine.\"", "added": true}
 		]
 	}
 }

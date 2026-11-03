@@ -1190,13 +1190,13 @@
 				"name": "take_phone"
 			},
 			{
+				"do": "phone_open",
+				"contact": "friend"
+			},
+			{
 				"say": "chen",
 				"zh": "等我找到，给你拍张清楚的，正面侧面都拍。",
 				"en": "When I find it, I'll take a clear photo for you. Front and side."
-			},
-			{
-				"do": "phone_open",
-				"contact": "friend"
 			},
 			{
 				"do": "wait",
@@ -1323,8 +1323,8 @@
 			},
 			{
 				"say": "chen",
-				"zh": "以前坐这儿的人，修完总要问一句：「这回真修好了？」",
-				"en": "Whoever sat here always asked after a fix: \"Is it really fixed this time?\"",
+				"zh": "总觉得以前有人坐这儿，修完老问：「这回真修好了？」",
+				"en": "I keep feeling someone used to sit here and ask after every fix: \"Is it really fixed this time?\"",
 				"added": true
 			}
 		],
@@ -1489,8 +1489,8 @@
 				"do": "phone_msg",
 				"id": "f1_msg_miluo",
 				"from": "miluo",
-				"zh": "飞起来了？右边接头再听一遍，响就停稳了拧。",
-				"en": "In the air? Listen to the right joint again. If it hisses, hold steady, then tighten.",
+				"zh": "飞起来了？右边接头再听一遍，响就停稳了拧，别再拿锤子敲。",
+				"en": "In the air? Listen to the right joint again. If it hisses, hold steady, then tighten. And stop hitting it with the hammer.",
 				"reply": {
 					"zh": "这回用的扳手，已经好了。",
 					"en": "Used the wrench this time. It's fixed."

@@ -368,7 +368,7 @@
 		],
 		"bank_cup": [
 			{"do": "anim", "who": "niff", "name": "turn_cup"},
-			{"say": "niff", "zh": "借给妮芙，下次来拿。", "en": "Lent to Niff. Will pick up next time."},
+			{"narr": {"zh": "杯底贴着一张旧纸条：「借给妮芙，下次来拿。」", "en": "An old note is stuck under the cup: \"Lent to Niff. Will come back for it.\""}, "added": true},
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"do": "anim", "who": "niff", "name": "turn_cup"},
 			{"do": "if", "flag": "river_n_courier", "then": "n_name_c"},
@@ -382,7 +382,8 @@
 			{"do": "show", "who": "ting", "at": 560, "fade": 0.4},
 			{"do": "walk", "who": "ting", "to": "river_bank_ting"},
 			{"do": "face", "who": "chen", "to": "ting"},
-			{"say": "ting", "zh": "先把机翼绑住。", "en": "Tie down the wing first.", "added": true},
+			{"say": "ting", "zh": "站住。河岸条例第一条：飞机不许掉进河里。", "en": "Halt. Riverbank Regulation One: no planes in the river.", "added": true},
+			{"say": "ting", "zh": "第二条：已经掉了的，先把机翼绑住。", "en": "Regulation Two: if it's already in, tie the wings down first.", "added": true},
 			{"do": "if", "flag": "river_n_mom", "then": "n_ting_mom"},
 			{"do": "anim", "who": "chen", "name": "tie"},
 			{"do": "walk", "who": "niff", "to": "river_bank_ting", "wait": false},
@@ -397,7 +398,7 @@
 			{"do": "walk", "who": "ting", "to": "river_bank_ting"},
 			{"do": "anim", "who": "ting", "name": "hold_shell"},
 			{"do": "sfx", "name": "drip"},
-			{"say": "ting", "zh": "先晾。你现在拆，里面外面一起湿。", "en": "Let it dry. Open it now and it's wet inside and out."},
+			{"say": "ting", "zh": "第四条：湿的东西不许拆。你现在拆，里面外面一起湿。", "en": "Regulation Four: nothing wet gets taken apart. Open it now and it's wet inside and out.", "added": true},
 			{"do": "wait", "sec": 0.9},
 			{"do": "anim", "who": "chen", "name": "close_toolkit"},
 			{"do": "anim", "who": "chen", "name": "pickup"},
@@ -408,10 +409,10 @@
 			{"do": "flag", "set": "river_landed"}
 		],
 		"n_ting_mom": [
-			{"say": "ting", "zh": "她又认了个妈？", "en": "She's adopted another mom?", "added": true}
+			{"say": "ting", "zh": "第三条：不许随便给妮芙当妈。……这条刚加的。", "en": "Regulation Three: no one gets to be Niff's mom on a whim. ...That one's new.", "added": true}
 		],
 		"n_name_p": [
-			{"say": "niff", "zh": "我就是妮芙。你叫妮芙就好，叫‘小姐’听着像我要开始收钱了。", "en": "That's me, Niff. Just Niff. 'Miss Niff' sounds like I'm about to charge you."}
+			{"say": "niff", "zh": "我就是妮芙。叫我妮芙就好，叫‘小姐’听着像我要开始收钱了。", "en": "That's me, Niff. Just Niff. 'Miss Niff' sounds like I'm about to charge you."}
 		],
 		"n_name_c": [
 			{"say": "niff", "zh": "我就是妮芙。取件员，叫我妮芙就好，叫‘小姐’听着像我要收钱了。", "en": "That's me, Niff. Just Niff, courier. 'Miss' makes it sound like I'm charging you.", "added": true}
@@ -447,17 +448,17 @@
 			{"say": "chen", "bark": true, "zh": "零件还差一点。", "en": "Still a few parts short.", "added": true}
 		],
 		"ting_chat_1": [
-			{"say": "ting", "bark": true, "zh": "飞机晾着呢，别老去摸。", "en": "The ship's drying. Stop touching it.", "added": true}
+			{"say": "ting", "bark": true, "zh": "第五条：别摸晾着的飞机。它害羞。", "en": "Regulation Five: don't touch the drying plane. It's shy.", "added": true}
 		],
 		"ting_chat_2": [
-			{"say": "ting", "bark": true, "zh": "退水以后再下去。事项写齐了没有？", "en": "Don't go under till the water drops. Got your list written?", "added": true}
+			{"say": "ting", "bark": true, "zh": "第七条：退水以后再下水。事项写齐了没有？", "en": "Regulation Seven: no diving till the water drops. Is your list done?", "added": true}
 		],
 		"ting_chat_3": [
 			{"do": "face", "who": "ting", "to": "chen"},
 			{"do": "anim", "who": "ting", "name": "count"}
 		],
 		"ting_chat_4": [
-			{"say": "ting", "bark": true, "zh": "浮筒我看过了。下回落水，挑深点的地方。", "en": "I checked the floats. Next time you crash, pick deeper water.", "added": true}
+			{"say": "ting", "bark": true, "zh": "第二十条：下回落水，挑深点的地方。浮筒我看过了。", "en": "Regulation Twenty: next time you crash, pick deeper water. I checked the floats.", "added": true}
 		],
 		"home_enter": [
 			{"do": "hide", "who": "niff", "fade": 0.4, "_note": "11-02 作者「妮芙还是闪现进门」：她留在河岸的那个位置在世界坐标里正好叠在妮芙家这一间上，晨一进门就看见她站在那、再一下跳到门口。先跟着屏幕一起淡掉"},
@@ -465,7 +466,7 @@
 			{"do": "prop", "id": "river_home_labels", "state": "on"},
 			{"do": "walk", "who": "chen", "to": "river_home_jar"},
 			{"do": "anim", "who": "chen", "name": "pickup"},
-			{"narr": {"zh": "「盐，很咸，尝过了。」", "en": "\"Salt. Very salty. Tasted it.\""}},
+			{"narr": {"zh": "罐子上贴着妮芙的标签：「盐，很咸，尝过了。」", "en": "Niff's label on the jar: \"Salt. Very salty. Tasted it.\""}, "added": true},
 			{"do": "sfx", "name": "door_touch"},
 			{"do": "wait", "sec": 0.3},
 			{"do": "show", "who": "niff", "at": "river_home_labels", "fade": 0.6, "_note": "跟阿汀进门一样：先听见门响，人从门里那一格淡出来、再往里走"},
@@ -473,7 +474,7 @@
 			{"do": "anim", "who": "niff", "name": "take"},
 			{"do": "walk", "who": "chen", "to": "river_home_table"},
 			{"do": "prop", "id": "niff_notebook", "state": "page1"},
-			{"narr": {"zh": "「你叫妮芙。这是你的家。先看桌上的本子，再出门。」", "en": "\"You are Niff. This is your home. Read the notebook on the table before you go out.\""}},
+			{"narr": {"zh": "桌上摊着一个本子，第一页是妮芙写给自己的：「你叫妮芙。这是你的家。先看这个本子，再出门。」", "en": "A notebook lies open on the table. On the first page, Niff has written to herself: \"You are Niff. This is your home. Read this notebook before you go out.\""}, "added": true},
 			{"do": "prop", "id": "niff_notebook", "state": "page1_circled"},
 			{"do": "wait", "sec": 0.6},
 			{"do": "sfx", "name": "kitchen_timer"},
@@ -558,14 +559,29 @@
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"do": "wait", "sec": 0.5},
 			{"do": "anim", "who": "niff", "name": "search_notebook"},
-			{"say": "chen", "zh": "我叫晨！飞机掉河里了，刚才帮你捞了杯子，还吃了面包——", "en": "I'm Chen! My ship fell in the river, I helped you fish out the cup, I ate bread—", "added": true},
+			{"say": "niff", "zh": "……咦，你是谁呀？", "en": "...Huh? Who are you?", "added": true},
+			{"do": "choice", "options": [{"zh": "我叫晨，刚才帮你捞了杯子。", "en": "I'm Chen. I just fished your cup out.", "scene": "rb_who_a"}, {"zh": "我是这房子的主人。", "en": "I own this house.", "scene": "rb_who_b"}, {"zh": "我是来收面包钱的。", "en": "I'm here to collect for the bread.", "scene": "rb_who_c"}], "added": true}
+		],
+		"rb_who_a": [
+			{"say": "niff", "zh": "等一下哦，你说得比我看得快。", "en": "Wait, you're talking faster than I can read.", "added": true},
+			{"do": "goto", "scene": "home_bread_b"}
+		],
+		"rb_who_b": [
+			{"say": "niff", "zh": "本子第一页写着，这是我的家。……你是来抢房子的客人吗？", "en": "Page one says this is my house. ...Are you the kind of guest who steals houses?", "added": true},
+			{"say": "niff", "zh": "那先把面包吃完再抢。", "en": "Then finish your bread first, then steal it.", "added": true},
+			{"do": "goto", "scene": "home_bread_b"}
+		],
+		"rb_who_c": [
+			{"say": "niff", "zh": "本子上写着，面包是请客的。……你就是刚才吃得最快的那个吧。", "en": "It says the bread was a treat. ...You're the one who ate fastest, aren't you.", "added": true},
+			{"do": "goto", "scene": "home_bread_b"}
+		],
+		"home_bread_b": [
 			{"do": "anim", "who": "niff", "name": "press_page"},
-			{"say": "niff", "zh": "等一下哦，你说得比我看得快。", "en": "Wait, you're talking faster than I can read."},
 			{"do": "wait", "sec": 0.9},
 			{"do": "anim", "who": "niff", "name": "read_notebook"},
 			{"do": "anim", "who": "niff", "name": "write"},
 			{"do": "prop", "id": "niff_notebook", "state": "plane_on_shore"},
-			{"say": "niff", "zh": "飞机在岸上。喜欢面包的脆边。", "en": "Ship's on the shore. Likes the crusty edge."},
+			{"say": "niff", "zh": "……写着呢：晨，捞杯子的，喜欢面包的脆边。", "en": "Ship's on the shore. Likes the crusty edge."},
 			{"do": "face", "who": "niff", "to": "river_home_table"},
 			{"do": "anim", "who": "niff", "name": "push_plate"},
 			{"do": "wait", "sec": 0.5},
@@ -577,10 +593,8 @@
 			{"do": "goto", "scene": "home_postcard"}
 		],
 		"home_postcard": [
-			{"do": "show_item", "item": "postcard"},
 			{"do": "anim", "who": "niff", "name": "look_close"},
 			{"do": "face", "who": "niff", "to": "river_home_window"},
-			{"say": "niff", "zh": "这个窗子……是我家以前的窗子呀。", "en": "This window... it's my house's old window.", "added": true},
 			{"do": "prop", "id": "guestbook", "state": "drying"},
 			{"say": "niff", "zh": "来客册泡过水，在窗边晾着，干了才能翻。你瞪着它也不会快啦，我试过。", "en": "The guestbook got soaked. It's drying by the window; you can't open it till it's dry. Staring won't speed it up, I've tried.", "added": true},
 			{"do": "flag", "set": "river_book_drying"},
@@ -619,7 +633,7 @@
 		],
 		"home_deer_msg": [
 			{"do": "wait", "sec": 0.6},
-			{"do": "phone_msg", "id": "river_msg_deer", "from": "miluo", "zh": "鹿借用：倒树旁那条岔路也通了，回来叫咱带你走，下回画咱的角记得画大点。", "en": "Deer borrowing: the side path by the fallen tree is open now, so call me when you're back and I'll show you, and draw my antlers bigger next time.", "reply": {"zh": "记下了，回去找你带路。", "en": "Got it. I'll find you when I'm back."}},
+			{"do": "if", "flag": "c1_mom", "then": "deer_msg_m", "else": "deer_msg_c"},
 			{"do": "anim", "who": "chen", "name": "flip_pages"},
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "chen", "name": "draw"},
@@ -628,6 +642,12 @@
 			{"do": "prop", "id": "river_home_table", "state": "phone_corner"},
 			{"do": "flag", "set": "river_deer_msg"},
 			{"do": "goto", "scene": "home_wait_talk"}
+		],
+		"deer_msg_m": [
+			{"do": "phone_msg", "id": "river_msg_deer", "from": "miluo", "zh": "鹿借用：妈妈，到了没？今天没人让咱孝敬，有点不习惯。", "en": "Deer borrowing: Mom, you there yet? Nobody to wait on today. Feels weird.", "reply": {"zh": "到了。你乖。", "en": "Here. Be good."}, "added": true}
+		],
+		"deer_msg_c": [
+			{"do": "phone_msg", "id": "river_msg_deer", "from": "miluo", "zh": "鹿借用：孩子，到了没？到了回一句，咱好睡觉。", "en": "Deer borrowing: kid, you there yet? Send one word so I can sleep.", "reply": {"zh": "到了。你睡吧。", "en": "Here. Go to sleep."}, "added": true}
 		],
 		"home_wait_talk": [
 			{"do": "face", "who": "chen", "to": "niff"},
@@ -643,8 +663,6 @@
 			{"do": "sfx", "name": "bell_soft"},
 			{"do": "flashback_wake"},
 			{"do": "wait", "sec": 0.9},
-			{"do": "show_item", "item": "music_box"},
-			{"do": "wait", "sec": 0.9},
 			{"do": "anim", "who": "chen", "name": "flip_pages"},
 			{"do": "prop", "id": "chen_journal", "state": "memory_page"},
 			{"do": "wait", "sec": 0.7},
@@ -655,7 +673,22 @@
 		"home_drawing": [
 			{"do": "walk", "who": "niff", "to": "river_home_window"},
 			{"do": "anim", "who": "niff", "name": "peek_journal"},
-			{"say": "chen", "zh": "大象。很大，长鼻子。", "en": "An elephant. Huge, with a long trunk.", "added": true},
+			{"say": "niff", "zh": "你本子上画的是……水壶？", "en": "What's that in your notebook... a kettle?", "added": true},
+			{"do": "choice", "options": [{"zh": "是大象。", "en": "It's an elephant.", "scene": "dr_el"}, {"zh": "是我妈。", "en": "It's my mom.", "scene": "dr_mom"}, {"zh": "对，是水壶。", "en": "Yep. A kettle.", "scene": "dr_kettle"}], "added": true}
+		],
+		"dr_el": [
+			{"say": "niff", "zh": "大象呀……我好像在哪儿见过很大的东西。", "en": "An elephant... I think I've seen something huge somewhere.", "added": true},
+			{"do": "goto", "scene": "home_drawing_b"}
+		],
+		"dr_mom": [
+			{"say": "niff", "zh": "你妈妈鼻子好长呀。……我也见过一个鼻子这么长的，等等！", "en": "Your mom has a really long nose. ...I've seen a nose that long too. Wait!", "added": true},
+			{"do": "goto", "scene": "home_drawing_b"}
+		],
+		"dr_kettle": [
+			{"say": "niff", "zh": "画得真好！……水壶为什么有耳朵？我好像见过有耳朵的水壶，等等！", "en": "It's lovely! ...Why does the kettle have ears? I think I've seen a kettle with ears. Wait!", "added": true},
+			{"do": "goto", "scene": "home_drawing_b"}
+		],
+		"home_drawing_b": [
 			{"do": "anim", "who": "niff", "name": "stand_up"},
 			{"do": "walk", "who": "niff", "to": "river_home_cabinet", "wait": false},
 			{"do": "walk", "who": "chen", "to": "river_home_cabinet"},
@@ -703,7 +736,7 @@
 			{"do": "goto", "scene": "home_tape_wrap"}
 		],
 		"ch_tape_fix": [
-			{"say": "niff", "zh": "有呀。", "en": "There is.", "added": true},
+			{"say": "niff", "zh": "有呀。就是我。……先把它包起来。", "en": "There is. Me. ...Let's wrap it up first.", "added": true},
 			{"do": "goto", "scene": "home_tape_wrap"}
 		],
 		"ch_tape_wait": [
@@ -776,12 +809,12 @@
 			{"do": "anim", "who": "chen", "name": "hand_box"},
 			{"do": "anim", "who": "ting", "name": "open_shell"},
 			{"do": "wait", "sec": 0.9},
-			{"say": "ting", "zh": "读取头得换。旧型号存在旧仓库一层，那层现在整个泡在水下。", "en": "The reading head needs replacing. The old model's kept on the warehouse ground floor, and that floor's underwater now.", "added": true},
+			{"say": "ting", "zh": "第十一条：旧型号读取头，只在旧仓库一层有。那一层整个泡在水里。", "en": "Regulation Eleven: old-model reading heads are only on the warehouse ground floor. That whole floor is underwater.", "added": true},
 			{"do": "face", "who": "ting", "to": "river_bank_shallow"},
 			{"do": "wait", "sec": 0.6},
 			{"do": "show_item", "item": "waterproof_board"},
 			{"do": "anim", "who": "ting", "name": "hand_board"},
-			{"say": "ting", "zh": "出门的事项写齐：绳子，气瓶，回程水位，一样别少。", "en": "Write it all down before you go: rope, air tank, water level for the way back. Don't skip one."},
+			{"say": "ting", "zh": "第十二条：绳子、气瓶、回程水位，少一样，罚你陪妮芙喝淡茶。", "en": "Regulation Twelve: rope, air tank, return water level. Miss one and you're sentenced to weak tea with Niff.", "added": true},
 			{"do": "anim", "who": "niff", "name": "write"},
 			{"do": "mechanic", "id": "river_explore_order",
 				"rows": [{"k": "rope", "zh": "绳子", "en": "Rope", "done": "river_roped", "added": true}, {"k": "tank", "zh": "气瓶", "en": "Air tank", "done": "river_breather", "added": true}, {"k": "level", "zh": "回程水位", "en": "Water level for the way back", "done": "river_sluice_done", "added": true}],
@@ -995,7 +1028,7 @@
 			{"do": "give", "item": "waterproof_board"},
 			{"do": "mechanic", "id": "river_explore_order", "mode": "add", "rows": [{"k": "names", "zh": "晨　妮芙", "en": "Chen, Niff", "added": true}, {"k": "fetch", "zh": "来取：读取头", "en": "Here for: the reading head", "done": "river_back_home", "added": true}, {"k": "back", "zh": "回去：往出口灯那边", "en": "Way back: toward the exit light", "added": true}, {"k": "follow", "zh": "跟着导绳走", "en": "Follow the guide rope", "added": true}]},
 			{"do": "anim", "who": "niff", "name": "point_board"},
-			{"say": "niff", "zh": "我看着像要乱走的时候，就给我看这个。", "en": "If I look like I'm wandering off, show me this."},
+			{"say": "niff", "zh": "我要是看着像要乱走，就把这块板子给我看。", "en": "If I look like I'm wandering off, show me this board.", "added": true},
 			{"do": "anim", "who": "chen", "name": "tie_rope"},
 			{"do": "wait", "sec": 0.5},
 			{"do": "anim", "who": "chen", "name": "untie_rope"},
@@ -1010,7 +1043,7 @@
 		],
 		"warehouse_in": [
 			{"do": "flag", "set": "river_wh_in"},
-			{"narr": {"zh": "「借来的」「还不知道是谁的，先放好」", "en": "\"Borrowed.\" \"Don't know whose yet. Keep it safe.\""}},
+			{"narr": {"zh": "箱子上贴着妮芙的标签：「借来的」「还不知道是谁的，先放好」", "en": "Niff's labels on the crates: \"Borrowed.\" \"Don't know whose yet. Keep safe.\""}, "added": true},
 			{"do": "walk", "who": "niff", "to": "warehouse_broken_box"},
 			{"do": "prop", "id": "warehouse_broken_box", "state": "spilled"},
 			{"do": "anim", "who": "niff", "name": "stop"},
@@ -1065,7 +1098,7 @@
 			{"do": "walk", "who": "chen", "to": "warehouse_sluice_door"},
 			{"do": "prop", "id": "warehouse_sluice_door", "state": "log"},
 			{"narr": {"zh": "泄水门的操作记录。最后一次开闸，签名是妮芙。", "en": "The sluice gate log. The last time it was opened, Niff signed it."}, "added": true},
-			{"narr": {"zh": "「再看一遍。阿汀已经确认，船上还有人。」", "en": "\"Read it again. Ting has confirmed there are still people on the boat.\""}},
+			{"narr": {"zh": "记录背面是妮芙的字：「再看一遍。阿汀已经确认，船上还有人。」", "en": "Niff's handwriting on the back: \"Check again. Ting confirmed: people still on the boat.\""}, "added": true},
 			{"do": "walk", "who": "niff", "to": "warehouse_sluice_door"},
 			{"do": "anim", "who": "niff", "name": "read_slow"},
 			{"narr": {"zh": "「箱子拿不完。不要为了回来拿箱子，再把闸关上。」", "en": "\"We can't take all the crates. Don't come back for them and close the gate again.\""}},
@@ -1090,7 +1123,7 @@
 		],
 		"warehouse_boxes": [
 			{"do": "face", "who": "chen", "to": "warehouse_boxes"},
-			{"narr": {"zh": "「借来的」", "en": "\"Borrowed\""}},
+			{"narr": {"zh": "又是妮芙的标签：「借来的」", "en": "Another of Niff's labels: \"Borrowed.\""}, "added": true},
 			{"do": "anim", "who": "chen", "name": "look_close"}
 		],
 		"home_coat": [
@@ -1116,6 +1149,7 @@
 			{"say": "niff", "zh": "那你为什么一直说是来不及搬？", "en": "Then why did you always say there wasn't time to move things?"},
 			{"do": "anim", "who": "ting", "name": "coat_on_chair"},
 			{"say": "ting", "zh": "怕你又下去找。", "en": "I was afraid you'd go back down looking.", "added": true},
+			{"say": "ting", "zh": "……这条不在条例里。", "en": "...That one's not in the regulations.", "added": true},
 			{"do": "anim", "who": "niff", "name": "press_photo"},
 			{"do": "anim", "who": "ting", "name": "look_down"},
 			{"do": "prop", "id": "river_home_table", "state": "old_pages"},
@@ -1157,13 +1191,11 @@
 			{"do": "sfx", "name": "bell_soft"},
 			{"do": "anim", "who": "niff", "name": "search_notebook"},
 			{"do": "wait", "sec": 0.6},
-			{"say": "niff", "zh": "这个……是我开的？", "en": "This... I opened it?", "added": true},
 			{"do": "anim", "who": "chen", "name": "stop"},
 			{"do": "anim", "who": "chen", "name": "flip_to_page"},
 			{"do": "anim", "who": "niff", "name": "read_notebook"},
 			{"do": "wait", "sec": 0.7},
 			{"do": "prop", "id": "niff_notebook", "state": "record_behind_photo"},
-			{"narr": {"zh": "封面写着：「不要替我收走」", "en": "The cover says: \"Don't put this away for me\""}, "added": true},
 			{"do": "anim", "who": "chen", "name": "dry_sleeves"},
 			{"do": "prop", "id": "river_home_table", "state": "sleeves_drying"},
 			{"do": "walk", "who": "niff", "to": "river_home_kitchen", "wait": false},
@@ -1455,15 +1487,12 @@
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "chen", "name": "flip"},
 			{"do": "wait", "sec": 0.9},
-			{"say": "chen", "zh": "我一开始只想赶紧找到，好让那个人回我一句。", "en": "At first I just wanted to find it fast, so that person would answer me."},
-			{"say": "chen", "zh": "现在还想看看，大象到那边以后住哪儿。", "en": "Now I also want to see where it lives over there."},
 			{"do": "anim", "who": "niff", "name": "sit"},
 			{"do": "anim", "who": "niff", "name": "swing_feet"},
-			{"say": "niff", "zh": "那就多看一会儿嘛，不要刚找到就急着拍完走掉。", "en": "Then look a little longer. Don't snap a photo and run the moment you find it."},
+			{"say": "niff", "zh": "找到啦？那就多看一会儿嘛，不要刚找到就急着走。", "en": "Found it? Then look a little longer. Don't rush off the moment you find it.", "added": true},
 			{"do": "anim", "who": "chen", "name": "nod"},
 			{"do": "wait", "sec": 0.9},
 			{"do": "journal", "zh": "货台旧照片上它在上坡板，左耳缺了一角，背面船号和航线图终点对得上。", "en": "In the old dock photo it's on the ramp, a notch in its left ear, and the boat number on the back matches the route map.", "tag": "elephant", "added": true},
-			{"narr": {"zh": "日记前面，最初那句还在：「找到以后拍给她看」", "en": "Further back in the journal, the old line is still there: \"Take a photo for her when I find it\""}, "added": true},
 			{"do": "journal", "zh": "它现在住在哪里？", "en": "Where does it live now?", "tag": "elephant"},
 			{"do": "journal", "zh": "这里的人后来还见过它吗？", "en": "Did anyone here ever see it again?", "tag": "elephant"},
 			{"do": "flag", "set": "river_ship_number"}
@@ -1532,7 +1561,7 @@
 			{"do": "anim", "who": "chen", "name": "flip_to_page"},
 			{"do": "anim", "who": "niff", "name": "write"},
 			{"do": "face", "who": "niff", "to": "chen"},
-			{"say": "niff", "zh": "能给我留一样东西吗？", "en": "Could you leave me something?", "added": true},
+			{"say": "niff", "zh": "在我本子上留点什么吧，画什么都行。", "en": "Leave something in my notebook. Draw anything.", "added": true},
 			{"do": "anim", "who": "chen", "name": "draw"},
 			{"do": "wait", "sec": 0.7},
 			{"do": "anim", "who": "chen", "name": "draw"},
@@ -1552,7 +1581,7 @@
 			{"do": "if", "flag": "river_n_mom", "then": "n_gift_m"},
 			{"do": "anim", "who": "niff", "name": "hand_bag"},
 			{"do": "give", "item": "mat_driftwood"},
-			{"say": "niff", "zh": "阿汀给你晾的浮木，烧的。别把吃的也混进去。", "en": "Ting dried this driftwood for you. It's for burning. Don't mix your food in.", "added": true},
+			{"say": "niff", "zh": "阿汀给你晾的浮木。他说第三十条：吃的不许混进去烧。", "en": "Ting dried this driftwood for you. He says Regulation Thirty: no food goes in the fire.", "added": true},
 			{"do": "journal", "zh": "阿汀托妮芙给了一袋晾干的浮木，可以烧。", "en": "Ting sent a bag of dried driftwood through Niff, for burning.", "added": true},
 			{"do": "choice", "options": [{"zh": "我会把看到的慢慢写。", "en": "I'll write down what I see, a little at a time.", "scene": "ch_bye_write"}, {"zh": "画得不好，你也得认出来。", "en": "Even if it's badly drawn, you have to recognize it.", "scene": "ch_bye_draw"}, {"zh": "下次别先把我写成湿湿的人。", "en": "Next time, don't write me down as the soggy one.", "scene": "ch_bye_wet"}]}
 		],
@@ -1596,7 +1625,7 @@
 			{"do": "anim", "who": "chen", "name": "draw"},
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "niff", "name": "laugh"},
-			{"say": "niff", "zh": "现在像水壶。", "en": "Now it looks like a kettle.", "added": true},
+			{"say": "niff", "zh": "你画的这个……还是像水壶。", "en": "What you drew... still looks like a kettle.", "added": true},
 			{"do": "show_item", "item": "elephant_drawing"},
 			{"say": "chen", "zh": "不是水壶。鼻子本来就是这么长。", "en": "It's not a kettle. The nose is supposed to be that long.", "added": true},
 			{"say": "niff", "zh": "嗯嗯。像大象的水壶。", "en": "Mm-hm. Like an elephant kettle.", "added": true},

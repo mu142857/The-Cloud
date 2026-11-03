@@ -38,15 +38,28 @@ func _len() -> float:
 	return cars * (car_len + 2.0)
 
 
+## 屏幕左右两边在这一层里的 x（本地坐标）。这一层是 Parallax2D repeat（每 960 重复一份），
+## 以前车从本地 x=-10 出发、开过 area_w 就收：重复的那一份正好在屏幕中间，整列车会凭空出现、凭空消失。
+## 现在从屏幕外一点出发、整列开出屏幕外才收；重复的几份离得比屏幕宽 + 车长还远，看不见。
+func _view_x() -> Vector2:
+	var inv := get_global_transform_with_canvas().affine_inverse()
+	var w := get_viewport_rect().size.x
+	var a := (inv * Vector2(0.0, 0.0)).x
+	var b := (inv * Vector2(w, 0.0)).x
+	return Vector2(minf(a, b), maxf(a, b))
+
+
 func _start() -> void:
 	_run = true
-	_x = -10.0 if dir > 0 else area_w + 10.0
+	var v := _view_x()
+	_x = v.x - 10.0 if dir > 0 else v.y + 10.0
 
 
 func _process(delta: float) -> void:
 	if _run:
 		_x += dir * speed * delta
-		if (dir > 0 and _x - _len() > area_w) or (dir < 0 and _x + _len() < 0.0):
+		var v := _view_x()
+		if (dir > 0 and _x - _len() > v.y + 10.0) or (dir < 0 and _x + _len() < v.x - 10.0):
 			_run = false
 			_wait = _rng.randf_range(interval.x, interval.y)
 	else:
