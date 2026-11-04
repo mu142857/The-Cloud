@@ -188,7 +188,7 @@ var _lock := false                # 涌进来、回头看的这一秒多：不�
 var _surge := false               # 触手正在涌进来（tween 管它的位置）
 var _front := -9999.0             # 触手尖（最前面那条）的世界 x
 var _tv := V_BASE                 # 触手现在的速度（平滑地追目标速度）
-var _vc := 0.0                    # 晨平时的速度（实测：她这一帧挪了多少，减掉冲出去的那股，平滑过）
+var _vc := V_BASE                 # 晨平时的速度（实测：她这一帧挪了多少，减掉冲出去的那股，平滑过）
 var _last_x := NAN
 var _tail := -99999.0             # 第四次过去时触手的尾巴（世界 x），压暗那一片的后沿
 var _tmode := ""                  # "" 追 / grab 卷住 / back 缩回去 / hover 停在她身边 / pass 从身边过去
@@ -620,7 +620,7 @@ func _run_step(dt: float) -> void:
 		_chase_t += dt
 	# 触手：基础速度跟着她平时的速度（实测，chen.gd 取整会让她比 150 + 50 快一点），再快一点（慢慢加）；
 	# 她冲远了就平滑地追上来。第四次她站着，触手慢慢挪
-	if not is_nan(_last_x) and dt > 0.0:
+	if run and vel >= 149.0 and not is_nan(_last_x) and dt > 0.0:   # 起步那 0.3 秒不算（不然触手开头会落回去）
 		_vc = lerpf(_vc, maxf(0.0, (_chen.position.x - _last_x) / dt - _boost), 1.0 - exp(-4.0 * dt))
 	_last_x = _chen.position.x
 	var gap := _chen.position.x - _front

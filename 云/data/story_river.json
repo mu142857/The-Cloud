@@ -644,10 +644,10 @@
 			{"do": "goto", "scene": "home_wait_talk"}
 		],
 		"deer_msg_m": [
-			{"do": "phone_msg", "id": "river_msg_deer", "from": "miluo", "zh": "鹿借用：妈妈，到了没？今天没人让咱孝敬，有点不习惯。", "en": "Deer borrowing: Mom, you there yet? Nobody to wait on today. Feels weird.", "reply": {"zh": "到了。你乖。", "en": "Here. Be good."}, "added": true}
+			{"do": "phone_msg", "id": "river_msg_deer_m", "from": "miluo", "zh": "鹿借用：妈妈，到了没？今天没人让咱孝敬，有点不习惯。", "en": "Deer borrowing: Mom, you there yet? Nobody to wait on today. Feels weird.", "reply": {"zh": "到了。你乖。", "en": "Here. Be good."}, "added": true}
 		],
 		"deer_msg_c": [
-			{"do": "phone_msg", "id": "river_msg_deer", "from": "miluo", "zh": "鹿借用：孩子，到了没？到了回一句，咱好睡觉。", "en": "Deer borrowing: kid, you there yet? Send one word so I can sleep.", "reply": {"zh": "到了。你睡吧。", "en": "Here. Go to sleep."}, "added": true}
+			{"do": "phone_msg", "id": "river_msg_deer_c", "from": "miluo", "zh": "鹿借用：孩子，到了没？到了回一句，咱好睡觉。", "en": "Deer borrowing: kid, you there yet? Send one word so I can sleep.", "reply": {"zh": "到了。你睡吧。", "en": "Here. Go to sleep."}, "added": true}
 		],
 		"home_wait_talk": [
 			{"do": "face", "who": "chen", "to": "niff"},

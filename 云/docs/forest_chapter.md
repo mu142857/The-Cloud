@@ -143,11 +143,15 @@ scene 里的步骤（引擎全部要支持，剧本只用这些）：
 | `{"do": "show_item", "item", "sec"?}` | 晨把一件物品举起来给人看：物品图标出现在晨头顶前方，直到下一句说完或 sec 秒 |
 | `{"do": "if", "flag", "then": scene, "else": scene}` | 条件分支（`flag` 可以是 `"!名字"` 表示没有）|
 
-## 开发者模式（F8）
+## 开发者模式（F12）
 
-只在 debug 构建 / 编辑器里运行时有效（导出的正式版按 F8 没反应）。代码在 `scripts/dev_panel.gd`。
+快捷键已由 F8 改为 F12，避免与 Godot 编辑器的“停止运行（F8）”冲突。
 
-- **开关**：F8 打开 / 关上右边的小面板。游戏照常跑；面板不抢晨的移动键——用鼠标点，或者按 1~4 / Tab 切换页签（面板开着时 Tab 不开背包）。
+兔子舞步独立 demo：debug 构建 / 编辑器运行时，在标题界面按 **F7** 进入。先看兔子示范，再用方向键 / WASD 复现；共三轮（3、4、5 步），不计时，累计错三次后自动完成。**R** 随时重玩，**Esc** 返回标题。也可直接运行 `scenes/rabbit_dance_demo.tscn`。demo 复用 `rabbit_dance.gd`，进度只存在场景内，不设置剧情 flag、不发放奖励。
+
+只在 debug 构建 / 编辑器里运行时有效（导出的正式版按 F12 没反应）。代码在 `scripts/dev_panel.gd`。
+
+- **开关**：F12 打开 / 关上右边的小面板。游戏照常跑；面板不抢晨的移动键——用鼠标点，或者按 1~4 / Tab 切换页签（面板开着时 Tab 不开背包）。
 - （10-31 作者：「节拍完全没必要」，**节拍页删了**。大节点还留在 `data/dev_names.json` 的 `beats` 里给自测跳；命令行 `--beat=` 照旧。跨章跳到章节开头用地图下面的「从头玩」。）
 - **1 传送（地图）**：面板这一页加宽（`MAP_W` = 380）。上面小页签换章：森林 / 飞行一 / 河流篇 / 终章（`chapter_flow.gd` 的 `CHAPTERS` 里有几章就有几个，以后的芦苇地也会自己出来）。每个房间一个带名字的方块，**按真实的位置关系摆，全从数据自动生成**（`_map_geo` / `_map_layout`），以后新加的房间不用登记：
   - 室外房间：`room.json` 的 `origin` / `size`（没写用 `room_stage.gd` 的 `DEFAULT`）。每 270 高一行（市集、楼梯间在河岸那行上面，仓库在旧街下面），横着按比例（最左到最右铺满地图宽）。森林 = `wall_left`..`wall_right` 一长条。
@@ -162,7 +166,7 @@ scene 里的步骤（引擎全部要支持，剧本只用这些）：
 - **2 状态**：正在播的 scene id 和第几步、晨的 x、在屋里还是屋外、现在的状态、背包；下面是所有 flag，亮的是已设，点一下设上 / 去掉。
 - **3 开关**：快走（只把晨的移动 ×3，动画帧速不变）、跳过对话（每句 0.15 秒自动推进）、显示范围（marker 竖线 + 名字、能用的 hotspot 的互动范围，红色竖线 = 现在这一段的左右边）、雾开 / 关、前景层开 / 关、补写台词标蓝（剧本里带 `"added": true` 的台词正文用柔和的蓝色 #8fb8e0，剧情姐原句保持原色；debug 构建默认开，导出的正式版默认关）；按钮：重开本章（从坠毁之后开始）、给齐本章所有物品、燃料加满。
 - **4 探索（自由探索，看美术用）**：两个入口——**森林**（坠毁现场起）、**河流**（河岸起）。进去以后**不播剧情、对话**，没有目标、卡关提示、背包按钮，`trigger:"enter"` 不触发，**剧情加的墙不算**（`walk_when`、小游戏改的范围、导绳、倒木、塌陷口）。**换地方照常靠 E / 点击**，而且不看剧情 flag：进出树屋、妮芙家，妮芙家上下楼（楼梯口「E 上楼 / 下楼」，键盘 ↑ / ↓ 也行），河岸 ↔ 高处市集 ↔ 旧街 ↔ 南桥、旧街下水进仓库、从仓库回旧街，走到房间边上的出口（room.json `portals` 的 edge），森林旧路段 ↔ 树屋段的入口。提示只显示这些进出口（「E 妮芙家」「E 高处市集」），别的剧情 hotspot 都不出来——进出口是从剧本里会 `fade_to` 到别处的 hotspot、room.json 带 `x` 的 portal、多层小屋的楼梯自动找出来的（`level_forest.gd` 的 `_free_exits`），按了直接用剧本的 `fade_to` 转场换过去，不播那段剧情。小按钮：「角色」（路人照常走，本章剧本里的角色排在晨右边）、「退出探索」（= 重开本章）；按住 Shift 跑快（×3，只改移动速度，动画还是 100ms 一帧）。探索时状态页点 flag = 只设 / 去掉那一个。命令行：`-- --free=forest|river [--dev]`；拍截图还可以直接给房间名 `--free=market --chen_x=left|mid|right|x --shot=… --shot_at=2`；`-- --free=river --free_check [--free_shots=目录]` 自测按进出口走一遍（河岸 → 妮芙家 → 上楼 ×2 → 下楼 ×2 → 出门 → 市集 → 旧街 → 仓库 → 旧街 → 南桥 → 顶左边回旧街；森林 → 树屋段 → 树屋 → 出来 → 回旧路），打印 `FREE_TOUR` / `FREE_CHECK`。
-- 自测：`-- --dev_test` 把每个开关、按钮、传送点点一遍，每章地图排一遍（房间一个不少、不出界）、本章地图的方块挨个点（晨到没到），挨个跳所有大节点（每个跳完自动玩到下一个大节点），再在对话 / 点选 / 小游戏 / 驾驶舱小游戏进行中真的按 F8 点地图的方块跳走（进那个房间的自由探索），打印 `DEV_TEST_DONE`。
+- 自测：`-- --dev_test` 把每个开关、按钮、传送点点一遍，每章地图排一遍（房间一个不少、不出界）、本章地图的方块挨个点（晨到没到），挨个跳所有大节点（每个跳完自动玩到下一个大节点），再在对话 / 点选 / 小游戏 / 驾驶舱小游戏进行中真的按 F12 点地图的方块跳走（进那个房间的自由探索），打印 `DEV_TEST_DONE`。
 
 ## 不推人（作者的规矩，引擎和剧本都要守）
 
@@ -280,7 +284,7 @@ scene 里的步骤（引擎全部要支持，剧本只用这些）：
 
 ## 换章 + 驾驶舱（第一次飞行 flight1，10-29）
 
-约定：`docs/phone_and_cockpit_contract.md`「驾驶舱」。引擎还是 `scenes/level_forest.tscn` 这一个关卡（背包、设置、HUD、F8、测试模式全复用），按「章节」切：
+约定：`docs/phone_and_cockpit_contract.md`「驾驶舱」。引擎还是 `scenes/level_forest.tscn` 这一个关卡（背包、设置、HUD、F12、测试模式全复用），按「章节」切：
 
 - `scripts/chapter_flow.gd`：章节表（forest → flight1）、带状态换章、直接进 flight1 时的起点 SEED（森林自动玩到 launched 时的 flags + 背包）。
   森林剧本 `end_chapter`：照旧播起飞，黑屏以后 `CHAPTER forest → flight1`，`StoryState.to_dict()`（flags、日记、物件状态、背包、通讯器）存进 Engine meta，重新载入关卡、恢复，直接进驾驶舱播 `start_flight1`（不播耳机 / 标题 / 坠毁）。flight1 的 `end_chapter`：淡到黑、「未完待续」卡；卡出来 3 秒后按键 = 回标题、新游戏（清掉章节和带过来的状态）。
@@ -303,14 +307,14 @@ scene 里的步骤（引擎全部要支持，剧本只用这些）：
 - flight1：加 `--chapter=flight1`（或 `--story=res://data/story_flight1.json`），其余一样：
   `-- --chapter=flight1 --story_check`、`--story_auto`（放第一件：蓝色石头）、`--story_auto=full`（先看第一件、放回去、看航线，再放最后一件：通勤卡）、`--story_fuzz=150 --seed=n`、`--dev_test`、`--beat=flight1_burned`。
 - 连起来：`-- --story_auto --story_chain` 森林自动玩到起飞 → 换章 → flight1 自动玩到「未完待续」（打两份 STORY_DONE）。
-- F8「1 节拍」页按章列大节点，「飞行一 · 碎石带（开场）」= 进驾驶舱（森林已经起飞就带着真实状态，不然用 SEED）；「森林 · 坠毁（开场）」= 新游戏。「重开本章」在 flight1 = 从 start_flight1 重来。
+- F12「1 节拍」页按章列大节点，「飞行一 · 碎石带（开场）」= 进驾驶舱（森林已经起飞就带着真实状态，不然用 SEED）；「森林 · 坠毁（开场）」= 新游戏。「重开本章」在 flight1 = 从 start_flight1 重来。
 - 输出：`COCKPIT debris_steer …: bumps=n`、`COCKPIT keepsake_choice …: 物品`、`CHAPTER forest → flight1`、`MISSING_ANIM 名字`。
 
 ## 第六版：通讯器 + 开头捡东西提速（2026-10-29）
 
 - **通讯器**：步骤 `phone_add` / `phone_msg` / `phone_send` / `phone_open` / `phone_draft`，数据 `data/phone.json`，约定全在 `docs/phone_and_cockpit_contract.md`。
   引擎：`scripts/phone_ui.gd`（界面 + 步骤 + `--story_check` 校验）、`scripts/phone_state.gd`（状态，跟 StoryState 一起 reset / 存档）。
-  `phone_msg` 正文里的换行 = 几条连续气泡；没有 `reply` 的只有「收起」。背包里选通讯器按「查看」（或 E / 空格 / 回车 / Z）打开；F8「开关」页有「打开通讯器」「模拟一条消息」。
+  `phone_msg` 正文里的换行 = 几条连续气泡；没有 `reply` 的只有「收起」。背包里选通讯器按「查看」（或 E / 空格 / 回车 / Z）打开；F12「开关」页有「打开通讯器」「模拟一条消息」。
 - **give 数组**：`{"do": "give", "items": [..], "toast": "luggage_items"}`：一起飞进背包（错开 0.07 秒，约 1 秒），提示合成一条（I18n key，默认 `got_items`）。
 - **bark**：`{"say": "chen", "zh": "…", "bark": true}`：晨头顶的小气泡（`scripts/story_bark.gd`），不等、不锁人、几秒后自己淡掉，多句排队；
   对话框 / 点选 / 通讯器 / 背包开着时先藏着、计时停住。

@@ -4226,8 +4226,8 @@ func _inner(st: Dictionary) -> void:
 	var total := sec
 	if gd != null:
 		var r = gd.call("say", str(st.get("zh", "")), str(st.get("en", "")), str(st.get("style", "drift")), sec)
-		if (r is float or r is int) and str(st.get("style", "drift")) != "drift":
-			total = maxf(float(r), sec)      # fade / spin：say 返回到完全消失的总秒数
+		if r is float or r is int:
+			total = maxf(float(r), sec)      # say 返回到完全消失的总秒数（包括只飘过一次的 drift）
 		var n = gd.call("node")
 		if n is CanvasLayer:
 			(n as CanvasLayer).layer = FLASHBACK_LAYER + 1 if flashback_ui != null and _blackout == null else 52

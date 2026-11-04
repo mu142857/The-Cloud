@@ -50,7 +50,7 @@ const SEED := {
 	"flags": ["crashed", "c1_crashed", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
 		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_danced", "c1_got_wood",
 		"c1_fixed", "c1_seed", "c1_ready", "launched"],
-	"owned": ["elephant_drawing", "journal", "communicator", "family_photo", "deer_bear", "rabbit_fur", "floorboard", "floorboard",
+	"owned": ["elephant_drawing", "deer_bear", "rabbit_fur", "floorboard", "floorboard",
 		"miluo_letter", "clear_seed", "miluo_note"],
 	"journal": [],
 }

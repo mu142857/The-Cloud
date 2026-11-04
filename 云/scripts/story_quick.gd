@@ -34,7 +34,7 @@ func give_many(st: Dictionary) -> void:
 		Inventory.add(id)
 		got.append(id)
 	r.level.on_inventory_changed()
-	if r.ff or got.is_empty():
+	if r.ff or got.is_empty() or st.get("silent", false):
 		return
 	var key := str(st.get("toast", "got_items"))
 	r.dlg.toast(Inventory.icon(str(got[0])), I18n.t(key) % got.size())

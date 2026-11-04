@@ -1,5 +1,5 @@
 extends CanvasLayer
-## 开发者面板（F8，只在 debug 构建 / 编辑器里运行时有；导出的正式版 level_forest.gd 不建它）。
+## 开发者面板（F12，只在 debug 构建 / 编辑器里运行时有；导出的正式版 level_forest.gd 不建它）。
 ## 右边一条半透明的小面板，游戏照常跑；面板不抢晨的移动键：用鼠标点，或者 1~4 / Tab 切换页签（开着面板时 Tab 不开背包）。
 ## 页签：
 ##   1 传送  每章一张简略地图（上面的小页签换章：森林 / 飞行一 / 河流篇 / 终章……，CHAPTERS 里有的都有）。面板这一页加宽到 MAP_W。
@@ -13,7 +13,7 @@ extends CanvasLayer
 ##           不画进地图，放在地图下面一排「回访：」小按钮，点了一样进这一章里的那个房间；这一章的起点房间（终章的驾驶舱）照常画。
 ##           下面：「从头玩」这一章（= 以前节拍页的章节开头，能跨章）；河流篇还有「按烧了蓝色石头 / 通勤卡进」。
 ##           「闪回 n」：母星闪回（森林 1、2，河流篇 3，终章 4）：重新载入、跳到闪回前一点接着播（story_runner.gd 的 FLASHBACK_DEV）。
-##           以后游戏里要加传送石碑（所有场景互相传送），见 docs/forest_chapter.md「开发者模式（F8）」
+##           以后游戏里要加传送石碑（所有场景互相传送），见 docs/forest_chapter.md「开发者模式（F12）」
 ##   2 状态  正在播的 scene 和第几步、晨的 x、在哪、背包；所有 flag 列成按钮，亮的是已设。
 ##           点没亮的 = 从现在接着把剧情瞬间过一遍到它（level.dev_complete：前置的 flag、物品、NPC、房间、目标都补齐，
 ##           不会只设一个 flag 卡在前置上）；从现在走不到（剧情在播 / 走了别的分支）就重新载入本章跳节拍。点亮的 = 只去掉这一个
@@ -27,12 +27,12 @@ extends CanvasLayer
 ##           探索时状态页点 flag = 直接设 / 去掉这一个（不补剧情）
 ## 面板上的字统一中文：flag / marker / scene / 房间 / 状态的中文名在 data/dev_names.json（没写的回退显示原 id），
 ##   原 id 放在按钮的 tooltip 里（鼠标停上去看）；状态页那段文字的 tooltip 是原始 id。背包显示物品的 name.zh。
-## 用法也写在 docs/forest_chapter.md 末尾「开发者模式（F8）」。
+## 用法也写在 docs/forest_chapter.md 末尾「开发者模式（F12）」。
 ## 自测：-- --dev_test   每个开关点两下、每个按钮点一下、传送到每个 marker、每章地图排一遍（房间一个不少）、
 ##        点本章地图的每个方块（晨到没到那个房间）、点掉一个 flag；
 ##        再挨个跳所有大节点（节拍页删了，大节点还在 data/dev_names.json 的 beats，_jump_to 照旧），每个跳完自动玩，
 ##        能走到本章下一个大节点（最后一个 = 章节结尾）= 没被前置卡住；
-##        再在对话 / 点选 / 小游戏 / 驾驶舱小游戏进行中真的按 F8、点地图的方块跳走（INTERRUPTS：进那个房间的自由探索）；
+##        再在对话 / 点选 / 小游戏 / 驾驶舱小游戏进行中真的按 F12、点地图的方块跳走（INTERRUPTS：进那个房间的自由探索）；
 ##        最后抽查状态页（SAMPLES：从本章开头原地补齐到中后段的 flag 再接着玩）。全部过了打印 DEV_TEST_DONE 后退出。
 
 const W := 206.0
@@ -42,7 +42,7 @@ const SAMPLES := {
 	"forest": ["bridge_built", "parts_all", "launched"],
 	"flight1": ["flight1_leak_fixed", "flight1_miluo_msg"],
 }
-## 自测打断：剧情播到这种时候按 F8 点地图的方块跳走（进那个房间的自由探索）。[什么时候, 从哪段开始 [章, after], 点哪个方块 [章, 房间]]
+## 自测打断：剧情播到这种时候按 F12 点地图的方块跳走（进那个房间的自由探索）。[什么时候, 从哪段开始 [章, after], 点哪个方块 [章, 房间]]
 const INTERRUPTS := [
 	["对话", ["forest", "fuel_full"], ["forest", "treehouse"]],
 	["点选", ["forest", "parts_all"], ["flight1", "cockpit"]],
@@ -1133,7 +1133,7 @@ func _in_state(kind: String) -> bool:
 	return false
 
 
-## 剧情播到 INTERRUPTS 那种时候：真的按 F8、真的点地图的方块（从 viewport 进输入，和作者手点一样），看能不能干净地跳走
+## 剧情播到 INTERRUPTS 那种时候：真的按 F12、真的点地图的方块（从 viewport 进输入，和作者手点一样），看能不能干净地跳走
 func _test_interrupt(d: Dictionary) -> void:
 	var it: Array = INTERRUPTS[int(d["i"])]
 	if d["stage"] == "from":
@@ -1147,8 +1147,8 @@ func _test_interrupt(d: Dictionary) -> void:
 				_cockpit_skip()
 		d["hit"] = _in_state(str(it[0]))
 		d["scene"] = str(story._cur_scene) if story.busy else "-"
-		_push(_key(KEY_F8, true))
-		_push(_key(KEY_F8, false))
+		_push(_key(KEY_F12, true))
+		_push(_key(KEY_F12, false))
 		await get_tree().process_frame
 		d["open"] = visible
 		d["stage"] = "to"
@@ -1180,7 +1180,7 @@ func _test_interrupt(d: Dictionary) -> void:
 	visible = false
 	var to: Array = it[2]
 	var reached: bool = level.chapter == str(to[0]) and level.free_roam == str(to[1]) and str(story.world.room) == str(to[1])
-	print("DEV_TEST interrupt %s（%s scene=%s，F8 开面板=%s）→ 地图 %s · %s（自由探索）: %s" % [it[0],
+	print("DEV_TEST interrupt %s（%s scene=%s，F12 开面板=%s）→ 地图 %s · %s（自由探索）: %s" % [it[0],
 		"打断时正在" if d["hit"] else "没等到这种时候 NOT_HIT", d["scene"], d["open"], _chapter_name(str(to[0])),
 		_nm("rooms", str(to[1])), "ok" if reached else "MISSING（在 %s · %s）" % [level.chapter, story.world.room]])
 	d["i"] = int(d["i"]) + 1
@@ -1244,10 +1244,16 @@ func _check_sample(d: Dictionary) -> void:
 
 # ======================================================================= 每帧
 ## 面板自己先接输入（它总排在关卡子节点的最后，_input 倒着叫，它最先拿到）：
-## F8 开关面板；面板上的鼠标点击 / 滚轮在这里自己处理掉。不这样的话剧情播着的时候对话框、点选、小游戏的 _input
+## F12 开关面板；面板上的鼠标点击 / 滚轮在这里自己处理掉。不这样的话剧情播着的时候对话框、点选、小游戏的 _input
 ## 会先把点击吃了，按钮收不到（「剧情的时候不能跳」）
+## F8 会被 Godot 编辑器当作停止运行；用无修饰键的 F12，避开 Ctrl / Shift + F12 编辑器操作。
+static func is_toggle_event(e: InputEvent) -> bool:
+	return e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12 \
+		and not (e.ctrl_pressed or e.shift_pressed or e.alt_pressed or e.meta_pressed)
+
+
 func _input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F8:
+	if is_toggle_event(e):
 		get_viewport().set_input_as_handled()
 		toggle()
 		return
