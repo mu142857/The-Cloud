@@ -1701,6 +1701,7 @@
 		"c1_crash": [
 			{"do": "mechanic", "id": "bag_burst"},
 			{"do": "inner", "zh": "我是……谁？", "en": "Who... am I?", "style": "drift"},
+			{"do": "music", "track": "forest", "fade": 4.0},
 			{"do": "flag", "set": "c1_crashed"},
 			{"do": "wait", "sec": 1.4},
 			{"do": "prop", "id": "c1_bag", "state": "shown"},
@@ -1751,6 +1752,7 @@
 		],
 		"c1_run": [
 			{"do": "flag", "set": "c1_run"},
+			{"do": "music", "track": "theme", "fade": 0.8},
 			{"do": "mechanic", "id": "run_credits", "wait": false},
 			{"do": "inner", "zh": "好熟悉的感觉……", "en": "This feels so familiar...", "style": "fade", "sec": 3.5},
 			{"do": "camera", "zoom": 1.25, "sec": 3.0, "wait": false}
@@ -1766,14 +1768,18 @@
 			{"do": "key_prompt", "zh": "按 Tab 打开背包", "en": "Press Tab to open the backpack", "until": "bag", "sec": 16.0, "delay": 9.0}
 		],
 		"c1_drawing": [
+			{"do": "music", "stop": true, "fade": 1.5},
 			{"do": "mechanic", "id": "paper_view", "flip": false, "sec": 2.5},
 			{"do": "flashback", "id": 1, "place": "street", "end": "black", "hold": true, "lines": []},
 			{"do": "blackout", "on": true},
 			{"do": "mechanic", "id": "paper_view", "reveal": true},
 			{"do": "flag", "set": "c1_got_map"},
 			{"do": "mechanic", "id": "signal_glitch"},
+			{"do": "sfx", "name": "heartbeat", "db": -6},
 			{"do": "inner", "zh": "我是……晨", "en": "I am... Chen", "style": "fade", "sec": 2.6, "wait": true},
+			{"do": "sfx", "name": "heartbeat", "db": -9},
 			{"do": "inner", "zh": "我想要……找到大象", "en": "I want... to find the elephant", "style": "fade", "sec": 2.6, "wait": true},
+			{"do": "sfx", "name": "heartbeat", "db": -12},
 			{"do": "inner", "zh": "为什么……", "en": "Why...", "style": "fade", "sec": 2.6, "wait": true},
 			{"do": "flag", "set": "c1_chase_done"},
 			{"do": "fade_to", "room": "treehouse", "at": "room_chen_bench", "place": {"miluo": "room_miluo"}},
@@ -1782,6 +1788,7 @@
 			{"do": "goto", "scene": "c1_woke"}
 		],
 		"c1_woke": [
+			{"do": "music", "track": "forest", "fade": 3.0},
 			{"do": "face", "who": "miluo", "to": "chen"},
 			{"say": "miluo", "zh": "你可真行啊，就这样去欺骗小鹿。", "en": "Impressive. Lying to the little deer like that."},
 			{"say": "miluo", "zh": "可怜的失忆者啊，你应该庆幸是小鹿找到的你。", "en": "Poor amnesiac. You should be glad it was the deer who found you."},
@@ -1861,7 +1868,9 @@
 		"c1_rabbit": [
 			{"do": "face", "who": "chen", "to": "c1_rabbit"},
 			{"do": "face", "who": "deer", "to": "c1_rabbit"},
+			{"do": "music", "track": "rabbit_beat", "fade": 0.8},
 			{"do": "mechanic", "id": "rabbit_dance", "at": "c1_rabbit", "chen_at": "c1_rabbit_chen", "sets": ["c1_danced"]},
+			{"do": "music", "track": "forest", "fade": 2.5},
 			{"do": "flag", "set": "c1_danced"},
 			{"do": "reward", "item": "glowing_wood"},
 			{"do": "give", "items": ["glowing_wood", "rabbit_fur"], "toast": "got_items"},
@@ -1947,7 +1956,7 @@
 	"hooks": {"crash": "c1_crash"},
 	"hide_props": ["luggage", "scrap", "resin", "branch", "wood"],
 	"bag_lock": {"from": "c1_crashed", "until": "c1_got_bag"},
-	"one_way": {"after": "c1_got_bag", "until": "c1_fixed", "wall": "c1_bag_wall", "zh": "你的直觉告诉你，你应该往前探索。", "en": "Your instincts tell you to keep exploring ahead."},
+	"one_way": {"after": "c1_got_bag", "until": "c1_woke", "_note": "11-04 作者「这里还有空气墙」：只在拿到背包到看大象画、闪回这一小段不许回头；在弥洛家醒来以后左边就放开（支线要来回走）", "wall": "c1_bag_wall", "zh": "你的直觉告诉你，你应该往前探索。", "en": "Your instincts tell you to keep exploring ahead."},
 	"include": "res://data/forest_side_",
 	"item_views": [{"item": "elephant_drawing", "need": ["c1_got_bag"], "not": ["c1_chase_done"], "scene": "c1_drawing"}]
 }

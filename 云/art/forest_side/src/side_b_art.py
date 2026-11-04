@@ -201,13 +201,94 @@ def preview(path):
     out.save(path)
 
 
+# ---------------------------------------------------------------- 雾里的蹄印（11-04 改：大一点、亮一点，作者看不清原来那串）
+# hoof_trail.png：13×5 三格。0 = 踩过的（暖色、不动）、1 = 下一个（更亮，代码里让它一明一暗地呼吸）、2 = 还没轮到的（暗，备用）
+# hoof_glow.png：下一个蹄印上方那团光（41×10，底边贴地的半个椭圆，三圈），画在雾上面，代码里 4 档透明度一明一暗
+HOOF_BIG = [
+    "..aAa...aAa..",
+    ".aBBBa.aBBBa.",
+    ".BBBBB.BBBBB.",
+    "..bBb...bBb..",
+    "...b.....b...",
+]
+HOOF_LIT = {"a": (236, 196, 128), "A": (255, 226, 160), "B": (206, 148, 78), "b": (150, 98, 52)}
+HOOF_NEXT = {"a": (255, 240, 200), "A": (255, 252, 232), "B": (250, 208, 132), "b": (212, 150, 84)}
+HOOF_DIM = {"a": (96, 108, 92), "A": (112, 124, 106), "B": (70, 82, 70), "b": (52, 62, 54)}
+
+
+def trail_sheet():
+    sheet = Image.new("RGBA", (39, 5), (0, 0, 0, 0))
+    for i, pal in enumerate([HOOF_LIT, HOOF_NEXT, HOOF_DIM]):
+        sheet.alpha_composite(ascii_img(HOOF_BIG, pal), (i * 13, 0))
+    sheet.save(OUT / "hoof_trail.png")
+    # 光：从地面往上冒的半个椭圆（底边贴地），里圈暖白、外圈接近雾色，看着是雾里透出来的一团光，不是一块盘子
+    w, h = 41, 10
+    glow = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for y in range(h):
+        for x in range(w):
+            dx = (x - (w - 1) / 2) / (w / 2)
+            dy = (h - 1 - y) / h
+            r = dx * dx + dy * dy
+            if r <= 0.22:
+                glow.putpixel((x, y), (250, 232, 186, 255))
+            elif r <= 0.55:
+                glow.putpixel((x, y), (214, 204, 164, 255))
+            elif r <= 1.0:
+                glow.putpixel((x, y), (168, 178, 150, 255))
+    glow.save(OUT / "hoof_glow.png")
+
+
+def trail_mock(path, chen_x=4310, nxt=4):
+    """游戏尺寸的示意：坡地主层地面 + 雾（晨身边一圈）+ 踩过的蹄印 + 下一个发光的蹄印 + 晨。只是摆位预览，不是截图。"""
+    main = Image.open(ROOT / "art/forest/main.png").convert("RGBA")
+    chen_sheet = Image.open(ROOT / "art/characters/chen/chen_oscar.png").convert("RGBA")
+    trail_img = Image.open(OUT / "hoof_trail.png").convert("RGBA")
+    glow_img = Image.open(OUT / "hoof_glow.png").convert("RGBA")
+    x0w = chen_x - 240
+    scr = Image.new("RGBA", (480, 270), (127, 152, 140, 255))
+    for sx in range(480):
+        mx = (x0w + sx) % 960
+        scr.paste(main.crop((mx, 0, mx + 1, 270)), (sx, 0), main.crop((mx, 0, mx + 1, 270)))
+    G = 228
+    start, offs = 4220, [0, 34, 70, 50, 90, 130, 172, 212]
+    def put(img, wx, y):
+        scr.alpha_composite(img, (wx - x0w - img.width // 2, y))
+    hoof = lambda c: trail_img.crop((c * 13, 0, c * 13 + 13, 5))
+    for o in offs[:nxt + 1]:
+        put(hoof(0), start + o, G - 1)
+    # 晨（待机第一帧，脚底大约在帧的 (28, 57)）
+    fr = chen_sheet.crop((7 * 68, 0, 8 * 68, 60))
+    scr.alpha_composite(fr, (chen_x - x0w - 28, G + 1 - 57))
+    # 雾：圈外浓、圈里淡（分档）
+    fog = Image.new("RGBA", (480, 270), (0, 0, 0, 0))
+    cx, cy = 240, G - 24
+    for y in range(270):
+        for x in range(480):
+            d = (((x - cx) ** 2 + ((y - cy) * 1.35) ** 2) ** 0.5)
+            e = min(max((d - 64) / 44, 0), 1)
+            a = 0.85 * (0.14 + (0.84 - 0.14) * e)
+            a = round(a * 10) / 10
+            fog.putpixel((x, y), (127, 152, 140, int(a * 255)))
+    scr.alpha_composite(fog)
+    # 下一个：光和蹄印画在雾上面
+    nx = start + offs[nxt + 1]
+    g = glow_img.copy()
+    g.putalpha(g.getchannel("A").point(lambda v: v * 50 // 100))
+    put(g, nx, G - 8)
+    put(hoof(1), nx, G - 1)
+    scr.save(path)
+    scr.resize((960, 540), Image.NEAREST).save(str(path).replace(".png", "_2x.png"))
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     toucan_sheet()
     fruit_sheet()
     prints_sheet()
+    trail_sheet()
     icons()
     import sys
     if len(sys.argv) > 1:
         preview(sys.argv[1])
+        trail_mock(sys.argv[1].replace(".png", "_trail.png"))
     print("ok", OUT)

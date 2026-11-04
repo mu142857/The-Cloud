@@ -1,40 +1,48 @@
 extends RefCounted
 ## 第一关支线 4「坡地·鹿的妈妈」的小游戏 side_slope：雾里跟蹄印（docs/剧情改动/第一关支线_设计.md；剧本 data/forest_side_b.json）。
 ##
-## 怎么玩（没有计时、不会输）：
-##   坡地起了浓雾，只看得清晨身边一小圈。晨脚下是一个亮着的鹿蹄印（两瓣的那种，art/forest_story/hoofprints.png 那个样子）。
-##   每一步，雾里左右各浮出一个脚印：一个是鹿的，另一个是别的东西的（鸟的三趾、兔子的一长条）。雾里还会从鹿那边
-##   传来敲树声（左右声道跟着方向）。玩家照常左右走，踩到鹿的那个就亮起来，下一对浮出来；蹄印会拐回头，不是一直往右。
-##   走岔了（踩到别的脚印，或者走出这一对的范围）：雾一下子变浓，敲树声从对的那边传来，晨被轻轻送回上一个蹄印，雾再散回去。
-##   走岔 max_miss 次（默认 3），剩下的蹄印一个接一个亮起来，晨自己跟着走完。走完了雾散开一点，lines.win 在雾里播
-##   （鹿从雾里出来、坦白），播完雾慢慢退掉。
+## 怎么玩（没有计时、不会输；11-04 作者「不太明白这个游戏咋玩」以后改成一眼看懂的）：
+##   坡地起了浓雾，只看得清晨身边一圈。晨脚下一个亮着的蹄印。雾里只有「下一个」蹄印在发光（暖色、一明一暗地呼吸，
+##   画在雾上面，所以远一点也看得见）；别的都不亮。玩家照常左右走，踩上发光的那个：叮一声，它留下来亮着（暖色、不呼吸），
+##   再下一个在更远的雾里亮起来。蹄印会拐一次回头。每踩对一个，雾就薄一点、看得清的圈大一点（走得越远越亮堂）。
+##   走反了（离开上一个蹄印、往没有蹄印的那边走出 LOST 像素）：晨身边的雾一下子变浓，潜意识字「不是这边……」，
+##   晨被轻轻走回上一个亮着的蹄印（走回去，不瞬移），雾再散回去。走反 max_miss 次（默认 3）：剩下的蹄印一个接一个亮起来，
+##   晨自己跟着走完。走完雾散开一大圈，lines.win 播（鹿从前面的雾里走出来、坦白），播完雾慢慢退掉。
 ##
-## 剧本步骤：{"do": "mechanic", "id": "side_slope", "at": 第一个蹄印的 marker（或 x）, "trail"?: [[对的, 错的, 错的种类]…],
-##   "max_miss"?: 3, "sets"?: [走完设的 flag], "lines"?: {start, wrong, auto, win}}
-##   trail 每一项：对的蹄印、错的脚印离 at 多少像素，种类 1 = 鸟、2 = 兔子。默认 TRAIL（7 步，拐两次回头）。
-##   要求：每一步对的和错的分在晨的两边，中间不夹着这一步的另一个（一维的路，走过去会先踩到夹在中间的那个）。
-##   lines：start（雾起来以后）、wrong（第一次走岔）、auto（走岔满了）、win（走完、雾散开一点），都可以不写。
-## 进度（story.mech_load）：{i, miss, gave_up, done}：读档回来从第 i 步接着走。
+## 剧本步骤：{"do": "mechanic", "id": "side_slope", "at": 第一个蹄印的 marker（或 x）, "trail"?: [离 at 多少像素…],
+##   "max_miss"?: 3, "sets"?: [走完设的 flag], "wrong_inner"?: {zh, en}, "lines"?: {start, wrong, auto, win}}
+##   trail：后面每个蹄印离 at 多远（第一个就在 at，不写进去）。默认 TRAIL（7 个，第三个往回拐）。
+##   lines：start（雾起来、第一个发光的蹄印出来以后，比如一句潜意识字）、wrong（第一次走反，「不是这边」之后）、
+##   auto（走反满了）、win（走完、雾散开），都可以不写。
+## 进度（story.mech_load）：{i, miss, gave_up, done}：读档回来从第 i 个接着走。
+## 图：art/forest_side/hoof_trail.png（13×5 三格：踩过的 / 下一个 / 暗）、hoof_glow.png（下一个上方那团光），
+##   art/forest_side/src/side_b_art.py 画的（同一个脚本还能出游戏尺寸的示意图 trail_mock）。
 
+const OL := preload("res://scripts/overlay_layout.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
 const ID := "side_slope"
-const TRAIL := [[40, -32, 1], [82, 10, 2], [50, 116, 1], [124, 20, 2], [92, 158, 1], [168, 60, 2], [214, 134, 1]]
+const TRAIL := [34, 70, 50, 90, 130, 172, 212]
 const MAX_MISS := 3
-const PRINTS := "res://art/forest_side/prints.png"
-const PW := 5
-const PH := 4
-const STEP_R := 4.0                     # 晨脚底离脚印多近算踩上
-const LOST := 30.0                      # 走出这一对多远算走岔
+const HOOF := "res://art/forest_side/hoof_trail.png"
+const GLOW := "res://art/forest_side/hoof_glow.png"
+const PW := 13
+const PH := 5
+const CELL_LIT := 0
+const CELL_NEXT := 1
+const STEP_R := 5.0                     # 晨脚底离蹄印多近算踩上
+const LOST := 34.0                      # 往没有蹄印的那边走出多远算走反
+const PULSE_SEC := 1.6                  # 下一个蹄印呼吸一次
 const FOG_C := Color("#7f988c")         # 和 story_world.gd 的雾一个颜色（偏青绿的灰）
-const FOG_R := 64.0                     # 看得清的那一圈（半径，像素）
-const FOG_R_THICK := 22.0
-const FOG_R_OPEN := 150.0
+const FOG_START := Vector2(0.92, 56.0)  # 刚进雾：[浓度, 看得清的圈半径]
+const FOG_END := Vector2(0.62, 100.0)   # 快走完：雾薄了、圈大了
+const FOG_THICK := Vector2(1.0, 20.0)   # 走反：一下子浓
+const FOG_WIN := Vector2(0.5, 110.0)    # 走完：散开（鹿从圈外的雾里走进来）
 const FOG_MARGIN := 32.0
+const SFX_CHIME := "res://audio/sfx/bell_soft.wav"
 const SFX_STEP := "res://audio/sfx/tap.wav"
-const SFX_KNOCK := "res://audio/sfx/wood_knock.wav"
 const SFX_WRONG := "res://audio/sfx/tree_sway.wav"
-const SFX_DONE := "res://audio/sfx/bell_soft.wav"
-const HINT := {"zh": "← → / A D：跟着鹿的蹄印走（两瓣的那种）", "en": "← → / A D: follow the deer's hoofprints (the split ones)"}
+const WRONG_INNER := {"zh": "不是这边……", "en": "Not this way..."}
+const HINT := {"zh": "← → / A D：踩着发光的蹄印走", "en": "← → / A D: step on the glowing hoofprint"}
 
 const FOG_SHADER := """
 shader_type canvas_item;
@@ -63,7 +71,12 @@ void fragment() {
 
 static func trail(st: Dictionary) -> Array:
 	var v = st.get("trail", TRAIL)
-	return v if v is Array and not (v as Array).is_empty() else TRAIL
+	if not v is Array or (v as Array).is_empty():
+		v = TRAIL
+	var out: Array = []
+	for e in v:
+		out.append(float(e[0]) if e is Array else float(e))    # 旧写法 [[对的, 错的, 种类]…] 也认，只取对的
+	return out
 
 
 static func max_miss(st: Dictionary) -> int:
@@ -78,7 +91,7 @@ static func finished(st: Dictionary, s: Dictionary) -> bool:
 	return int(s["i"]) >= trail(st).size()
 
 
-## 这一步的结果：kind = "ok"（踩对）/ "wrong"（走岔）。返回 ok / done / wrong / give_up
+## 这一步的结果：kind = "ok"（踩对）/ "wrong"（走反）。返回 ok / done / wrong / give_up
 static func act(st: Dictionary, s: Dictionary, kind: String) -> String:
 	if finished(st, s) or s["gave_up"]:
 		return "done"
@@ -92,15 +105,19 @@ static func act(st: Dictionary, s: Dictionary, kind: String) -> String:
 	return "wrong"
 
 
-## 晨站在 x 上：这一步算什么。cur = 上一个蹄印、c = 对的、d = 错的（都是世界 x）。"" = 还在找
-static func judge(x: float, cur: float, c: float, d: float) -> String:
+## 晨站在 x 上：cur = 上一个亮着的蹄印、c = 下一个（都是世界 x）。"ok" 踩上了 / "wrong" 走反了 / "" 还在走
+static func judge(x: float, cur: float, c: float) -> String:
 	if absf(x - c) <= STEP_R:
 		return "ok"
-	if absf(x - d) <= STEP_R:
-		return "wrong"
-	if x < minf(minf(c, d), cur) - LOST or x > maxf(maxf(c, d), cur) + LOST:
+	if (c >= cur and x < cur - LOST) or (c < cur and x > cur + LOST):
 		return "wrong"
 	return ""
+
+
+## 第 i 步的雾（越往后越薄）：[浓度, 圈半径]
+static func fog_at(st: Dictionary, i: int) -> Vector2:
+	var n := maxi(trail(st).size() - 1, 1)
+	return FOG_START.lerp(FOG_END, clampf(float(i) / float(n), 0.0, 1.0))
 
 
 class Ticker extends Node:
@@ -124,18 +141,20 @@ var playing := false
 var x0 := 0.0
 var _cur := 0.0
 var _c := 0.0
-var _d := 0.0
 var _auto_wrong := 0
 var _tick: Ticker
 var _fog: Node2D
 var _fog_rect: ColorRect
 var _fog_mat: ShaderMaterial
 var _fog_density := 0.0
-var _fog_r := FOG_R
+var _fog_r := FOG_START.y
 var _fog_tw: Tween
-var _prints: Node2D
-var _cand: Array = []                   # 这一对 [对的, 错的]（Sprite2D）
+var _prints: Node2D                     # 踩过的（雾下面，只在晨身边那圈里看得见）
+var _beacon: Node2D                     # 下一个（雾上面：光 + 蹄印）
+var _glow: Sprite2D
+var _pulse_t := 0.0
 var _tex: Texture2D
+var _glow_tex: Texture2D
 var _hint: CanvasLayer
 var _hint_shown := false
 var _was_input := true
@@ -150,24 +169,26 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	if not s.has("i"):
 		s = fresh()
 	await _setup()
-	await _lines("start")
 	var tr := trail(step)
+	var first := true
 	while not story.ended and not finished(step, s):
 		if s["gave_up"]:
 			await _auto_rest()
 			break
 		var i := int(s["i"])
-		_cur = x0 + (0.0 if i == 0 else float(tr[i - 1][0]))
-		_c = x0 + float(tr[i][0])
-		_d = x0 + float(tr[i][1])
-		_show_pair(int(tr[i][2]))
-		_knock(_c)
+		_cur = x0 + (0.0 if i == 0 else float(tr[i - 1]))
+		_c = x0 + float(tr[i])
+		_beacon_at(_c)
+		if first:
+			first = false
+			await _wait(0.5)
+			await _lines("start")
 		var kind: String = await _choose()
 		var res := act(step, s, kind)
 		story.mech_save(ID, s)
 		if res in ["ok", "done"]:
 			_step_ok()
-			await _wait(0.35)
+			await _wait(0.45)
 			continue
 		await _went_wrong()
 		if res == "wrong" and not _said_wrong:
@@ -201,12 +222,13 @@ static func _set_flags(st: Dictionary) -> void:
 		StoryState.set_flag(str(f))
 
 
-## 等玩家走到一个结果（自动玩：先故意走岔 auto_wrong 次，再走对的）
+## 等玩家走到一个结果（自动玩：先故意往反方向走 auto_wrong 次，再走到发光的那个）
 func _choose() -> String:
 	if auto_mode:
 		if _auto_wrong > 0:
 			_auto_wrong -= 1
-			await _walk(_d)
+			var away := -1.0 if _c >= _cur else 1.0
+			await _walk(_cur + away * (LOST + 6.0))
 			return "wrong"
 		await _walk(_c)
 		return "ok"
@@ -216,13 +238,14 @@ func _choose() -> String:
 	return k
 
 
-func _on_tick(_delta: float) -> void:
+func _on_tick(delta: float) -> void:
 	_fog_follow()
+	_pulse(delta)
 	if not playing or chen == null:
 		return
 	if not chen.input_enabled:
 		chen.input_enabled = true
-	var k := judge(chen.position.x, _cur, _c, _d)
+	var k := judge(chen.position.x, _cur, _c)
 	if k != "":
 		playing = false
 		chosen.emit(k)
@@ -238,46 +261,43 @@ func _set_playing(on: bool) -> void:
 
 
 # ----------------------------------------------------------------------- 一步
+## 踩对：叮一声，这个蹄印落到雾下面留着亮，雾薄一点
 func _step_ok() -> void:
 	_show_hint(false)
-	_sfx(SFX_STEP, -8.0, 0.62 + 0.03 * float(s["i"]))
-	if _cand.size() >= 2:
-		_print_lit(_cand[0])
-		_print_out(_cand[1], 0.4)
-	_cand = []
+	var i := int(s["i"])
+	_sfx(SFX_CHIME, -12.0, 0.9 + 0.06 * float(i))
+	_sfx(SFX_STEP, -14.0, 0.62)
+	_beacon_off()
+	_print_at(_c, CELL_LIT)
+	var f := fog_at(step, i)
+	_fog_to(f.x, f.y, 1.2)
 
 
-## 走岔：雾一下子变浓，对的那边敲两下，晨被轻轻送回上一个蹄印，雾再散回去
+## 走反：晨身边的雾一下子变浓、「不是这边……」，晨被慢慢走回上一个亮着的蹄印，雾散回去
 func _went_wrong() -> void:
+	if chen != null:
+		chen.input_enabled = false
 	_sfx(SFX_WRONG, -16.0, 1.2)
-	if _cand.size() >= 2:
-		_print_out(_cand[0], 0.5)
-		_print_out(_cand[1], 0.5)
-	_cand = []
-	_fog_to(1.0, FOG_R_THICK, 0.8)
-	await _wait(0.8)
-	_knock(_c)
-	await _wait(0.5)
-	await _walk(_cur)
-	_fog_to(0.9, FOG_R, 1.0)
+	var back := fog_at(step, int(s["i"]))
+	_fog_to(FOG_THICK.x, FOG_THICK.y, 0.7)
+	var w: Dictionary = step.get("wrong_inner", WRONG_INNER)
+	await story.run_steps([{"do": "inner", "zh": str(w.get("zh", "")), "en": str(w.get("en", "")), "style": "fade", "sec": 1.6}])
 	await _wait(0.6)
-	# 同一对再浮出来
-	var tr := trail(step)
-	_show_pair(int(tr[int(s["i"])][2]))
+	_fog_to(back.x, back.y, 1.4)
+	await _walk(_cur)
+	await _wait(0.3)
 
 
-## 走岔满了：剩下的蹄印一个接一个亮起来，晨自己跟着走完
+## 走反满了：剩下的蹄印一个接一个亮起来，晨自己跟着走完
 func _auto_rest() -> void:
 	var tr := trail(step)
 	for i in range(int(s["i"]), tr.size()):
-		var x := x0 + float(tr[i][0])
-		var p := _print_at(x, 0)
-		_print_in(p)
-		_knock(x)
-		await _wait(0.5)
+		var x := x0 + float(tr[i])
+		_beacon_at(x)
+		await _wait(0.6)
 		await _walk(x)
-		_print_lit(p)
-		_sfx(SFX_STEP, -8.0, 0.62 + 0.03 * float(i))
+		_c = x
+		_step_ok()
 		s["i"] = i + 1
 		story.mech_save(ID, s)
 		await _wait(0.3)
@@ -285,12 +305,12 @@ func _auto_rest() -> void:
 
 func _finish() -> void:
 	_show_hint(false)
-	_sfx(SFX_DONE, -16.0, 0.9)
-	_fog_to(0.75, FOG_R_OPEN, 2.0)
+	_beacon_off()
+	_fog_to(FOG_WIN.x, FOG_WIN.y, 2.0)
 	await _wait(1.6)
 	await _lines("win")
-	_fog_to(0.0, FOG_R_OPEN, 2.0)
-	await _wait(2.0)
+	_fog_to(0.0, FOG_WIN.y + 40.0, 2.4)
+	await _wait(2.4)
 	_teardown()
 
 
@@ -311,29 +331,36 @@ func _setup() -> void:
 	if chen != null:
 		_was_input = chen.input_enabled
 		chen.input_enabled = false
-	_tex = _load_tex(PRINTS)
+	_tex = _load_tex(HOOF)
+	_glow_tex = _load_tex(GLOW)
 	_prints = Node2D.new()
 	_prints.name = "SideSlopePrints"
 	level.add_child(_prints)
 	if chen != null and chen.get_parent() == level:
 		level.move_child(_prints, chen.get_index())       # 画在晨脚底下
 	_make_fog()
+	_beacon = Node2D.new()
+	_beacon.name = "SideSlopeBeacon"
+	_beacon.z_as_relative = false
+	_beacon.z_index = 95                                  # 雾（90）上面：远处也看得见那团光
+	level.add_child(_beacon)
 	_tick = Ticker.new()
 	_tick.f = _on_tick
 	level.add_child(_tick)
 	_fog_follow()
-	_fog_to(0.9, FOG_R, 1.6)
+	var tr := trail(step)
+	var f := fog_at(step, int(s["i"]))
+	_fog_to(f.x, f.y, 1.6)
 	if chen != null and absf(chen.position.x - x0) > 1.0:
 		await _walk(x0)
-	await _wait(1.0)
+	await _wait(0.8)
 	# 晨脚下第一个蹄印（读档回来：已经走过的都亮着）
-	var tr := trail(step)
-	_print_lit(_print_at(x0, 0), true)
+	_print_at(x0, CELL_LIT)
 	for i in int(s["i"]):
-		_print_lit(_print_at(x0 + float(tr[i][0]), 0), true)
+		_print_at(x0 + float(tr[i]), CELL_LIT)
 	if int(s["i"]) > 0 and chen != null:
-		await _walk(x0 + float(tr[int(s["i"]) - 1][0]))
-	await _wait(0.4)
+		await _walk(x0 + float(tr[int(s["i"]) - 1]))
+	await _wait(0.3)
 
 
 func _teardown() -> void:
@@ -345,6 +372,9 @@ func _teardown() -> void:
 	if _fog != null:
 		_fog.queue_free()
 		_fog = null
+	if _beacon != null:
+		_beacon.queue_free()
+		_beacon = null
 	if _prints != null:
 		var pr := _prints
 		_prints = null
@@ -422,55 +452,71 @@ func _fog_to(density: float, r: float, sec: float) -> void:
 		_fog_r = lerpf(r0, r, e), 0.0, 1.0, maxf(0.01, sec * (0.25 if auto_mode else 1.0)))
 
 
-# ----------------------------------------------------------------------- 脚印
-func _show_pair(kind: int) -> void:
-	var a := _print_at(_c, 0)
-	var b := _print_at(_d, clampi(kind, 1, 2))
-	_print_in(a)
-	_print_in(b)
-	_cand = [a, b]
+# ----------------------------------------------------------------------- 蹄印
+## 踩过的蹄印：雾下面、晨脚底下那一层，暖色不动
+func _print_at(x: float, cell: int) -> Sprite2D:
+	var p := _hoof_sprite(cell)
+	p.position = Vector2(round(x) - floorf(PW / 2.0), round(_ground(x)) - 1.0)
+	if _prints != null:
+		_prints.add_child(p)
+	return p
 
 
-func _print_at(x: float, kind: int) -> Sprite2D:
+func _hoof_sprite(cell: int) -> Sprite2D:
 	var p := Sprite2D.new()
 	p.centered = false
 	p.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if _tex != null:
 		var at := AtlasTexture.new()
 		at.atlas = _tex
-		at.region = Rect2(kind * PW, 0, PW, PH)
+		at.region = Rect2(cell * PW, 0, PW, PH)
 		p.texture = at
-	p.set_meta("kind", kind)
-	var gy := _ground(x)
-	p.position = Vector2(round(x) - 2.0, round(gy) - 1.0)
-	if _prints != null:
-		_prints.add_child(p)
 	return p
 
 
-## 浮出来：4 档淡入
-func _print_in(p: Sprite2D) -> void:
-	p.modulate.a = 0.0
-	var tw := p.create_tween()
-	tw.tween_method(func(v: float): p.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.6 * (0.25 if auto_mode else 1.0))
-
-
-func _print_out(p: Sprite2D, sec: float) -> void:
-	if not is_instance_valid(p):
+## 下一个蹄印：雾上面一团光 + 亮的蹄印，4 档淡入，然后一明一暗（_pulse）
+func _beacon_at(x: float) -> void:
+	_beacon_off()
+	if _beacon == null:
 		return
-	var tw := p.create_tween()
-	tw.tween_method(func(v: float): p.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, sec)
-	tw.tween_callback(p.queue_free)
+	var holder := Node2D.new()
+	holder.position = Vector2(round(x), round(_ground(x)))
+	_beacon.add_child(holder)
+	if _glow_tex != null:
+		_glow = Sprite2D.new()
+		_glow.texture = _glow_tex
+		_glow.centered = false
+		_glow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_glow.position = Vector2(-floorf(_glow_tex.get_width() / 2.0), 2.0 - _glow_tex.get_height())
+		_glow.modulate.a = 0.5
+		holder.add_child(_glow)
+	var p := _hoof_sprite(CELL_NEXT)
+	p.position = Vector2(-floorf(PW / 2.0), -1.0)
+	holder.add_child(p)
+	holder.modulate.a = 0.0
+	_pulse_t = 0.0
+	var tw := holder.create_tween()
+	tw.tween_method(func(v: float): holder.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.8 * (0.25 if auto_mode else 1.0))
 
 
-## 踩对了：换成亮的那一行（暖光）
-func _print_lit(p: Sprite2D, now := false) -> void:
-	if not is_instance_valid(p):
+func _beacon_off() -> void:
+	_glow = null
+	if _beacon == null:
 		return
-	if p.texture is AtlasTexture:
-		(p.texture as AtlasTexture).region = Rect2(int(p.get_meta("kind")) * PW, PH, PW, PH)
-	if now:
-		p.modulate.a = 1.0
+	for h in _beacon.get_children():
+		var n: Node2D = h
+		var tw := n.create_tween()
+		tw.tween_method(func(v: float): n.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, 0.4)
+		tw.tween_callback(n.queue_free)
+
+
+## 光一明一暗：透明度 0.25 / 0.5 / 0.75 三档之间正弦来回
+func _pulse(delta: float) -> void:
+	if _glow == null or not is_instance_valid(_glow):
+		return
+	_pulse_t += delta
+	var a := 0.5 + 0.25 * sin(TAU * _pulse_t / PULSE_SEC)
+	_glow.modulate.a = clampf(roundf(a * 4.0) / 4.0, 0.25, 0.75)
 
 
 func _ground(x: float) -> float:
@@ -480,22 +526,6 @@ func _ground(x: float) -> float:
 
 
 # ----------------------------------------------------------------------- 声音、提示
-## 鹿在雾里敲树：放在对的那个蹄印再往外一点（左右声道跟着方向）
-func _knock(x: float) -> void:
-	if level == null or not ResourceLoader.exists(SFX_KNOCK):
-		return
-	var a := AudioStreamPlayer2D.new()
-	a.stream = load(SFX_KNOCK)
-	a.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
-	a.volume_db = -6.0 + float(step.get("sfx_db", 0.0))
-	a.max_distance = 600.0
-	var sg := 1.0 if chen == null or x >= chen.position.x else -1.0
-	a.position = Vector2(x + sg * 90.0, (chen.position.y if chen != null else 200.0) - 30.0)
-	level.add_child(a)
-	a.play()
-	a.finished.connect(a.queue_free)
-
-
 func _sfx(path: String, db: float, pitch: float) -> void:
 	if level == null or not ResourceLoader.exists(path):
 		return
@@ -513,22 +543,19 @@ func _show_hint(on: bool) -> void:
 	if auto_mode or level == null:
 		return
 	if on and _hint == null:
+		OL.hud(story, true)                           # 左上角目标让开（最上面一行给按键提示）
 		_hint = CanvasLayer.new()
 		_hint.layer = 5
 		level.add_child(_hint)
-		var lb := Label.new()
+		var lb := OL.HintLabel.new(story)          # 对话 / 选项在显示的时候自己让开（11-04 安全区）
 		lb.text = story.txt(HINT) if story.has_method("txt") else str(HINT["zh"])
-		lb.add_theme_font_override("font", UITheme.font())
-		lb.add_theme_font_size_override("font_size", 14)
-		lb.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lb.position = Vector2(0, 236)
-		lb.size = Vector2(480, 16)
+		lb.position = Vector2(0, OL.HINT_Y)         # 屏幕上方那一行，不放进下面对话那一带
 		lb.modulate.a = 0.0
 		_hint.add_child(lb)
 		var tw := lb.create_tween()
 		tw.tween_method(func(v: float): lb.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.6)
 	elif not on and _hint != null:
+		OL.hud(story, false)
 		var h := _hint
 		_hint = null
 		var lb: Label = h.get_child(0)
@@ -564,23 +591,17 @@ func check(story: Node, st: Dictionary) -> Array:
 		out.append("at 的 marker %s 找不到" % st["at"])
 	var tr = st.get("trail", TRAIL)
 	if not tr is Array or (tr as Array).is_empty():
-		out.append("trail 要是 [[对的, 错的, 种类]…]")
+		out.append("trail 要是一串离 at 的像素数")
 	else:
 		var cur := 0.0
 		for i in (tr as Array).size():
-			var e = tr[i]
-			if not e is Array or (e as Array).size() < 3:
-				out.append("trail[%d] 要写 [对的, 错的, 种类]" % i)
-				continue
-			var c := float(e[0])
-			var d := float(e[1])
-			if (c - cur) * (d - cur) >= 0.0:
-				out.append("trail[%d]：对的和错的要分在上一个蹄印的两边" % i)
-			if not int(e[2]) in [1, 2]:
-				out.append("trail[%d]：种类要是 1（鸟）或 2（兔子）" % i)
+			var c := float(tr[i][0]) if tr[i] is Array else float(tr[i])
+			if absf(c - cur) < 2.0 * STEP_R + 10.0:
+				out.append("trail[%d]：离上一个蹄印太近（%d 像素）" % [i, int(absf(c - cur))])
 			cur = c
-	if not FileAccess.file_exists(PRINTS):
-		out.append("脚印图 %s 还没有" % PRINTS)
+	for p in [HOOF, GLOW]:
+		if not FileAccess.file_exists(p):
+			out.append("蹄印图 %s 还没有" % p)
 	for k in st.get("lines", {}):
 		out.append_array(KIT.check_steps(story, "lines.%s" % k, st["lines"][k]))
 	return out

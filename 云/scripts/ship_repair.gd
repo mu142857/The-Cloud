@@ -29,7 +29,7 @@ const DIR := "res://art/ship_repair/"
 const SFX_DIR := "res://audio/sfx/"
 
 const PANEL := Vector2(232, 150)
-const PANEL_POS := Vector2(124, 66)
+const OL := preload("res://scripts/overlay_layout.gd")    # 安全区（11-04）：面板底边在对话那一带上面，提示在面板上面一行
 const CAV := Vector2(64, 40)          # 凹槽左上（面板里的像素），和 tools/ship_repair_art.py 的 CAV 一致
 const T := 24                         # 一格水管
 const COLS := 4
@@ -180,6 +180,7 @@ var board: Control
 var _root: Control
 var _dim: ColorRect
 var _hint: Label
+var PANEL_POS: Vector2 = OL.panel_pos(PANEL)
 var _layer: CanvasLayer
 var _accept := false
 var _waiting := false                 # 锤子这一段正在等玩家（敲过头满三次 / 全锁上 → 发 _stage）
@@ -378,14 +379,8 @@ func _build() -> void:
 	board.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	board.modulate.a = 0.0
 	_root.add_child(board)
-	_hint = Label.new()
-	_hint.position = Vector2(0, PANEL_POS.y - 19)
-	_hint.size = Vector2(480, 16)
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 14)
+	_hint = OL.HintLabel.new(story, "", OL.hint_y(PANEL_POS.y))   # 对话 / 选项在显示的时候自己让开
 	_hint.add_theme_color_override("font_color", UITheme.TEXT)
-	_hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint.modulate.a = 0.0
 	_root.add_child(_hint)
 
@@ -437,6 +432,7 @@ func _tw() -> Tween:
 
 
 func _fade_in() -> void:
+	OL.hud(story, true)                 # 左上角目标让开（最上面一行给按键提示）
 	var tw := _tw().set_parallel(true)
 	tw.tween_property(_dim, "modulate:a", 1.0, 0.45 * _k()).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(board, "modulate:a", 1.0, 0.4 * _k()).set_trans(Tween.TRANS_SINE).set_delay(0.1 * _k())
@@ -459,6 +455,7 @@ func _fade_out() -> void:
 
 
 func _drop() -> void:
+	OL.hud(story, false)
 	if board != null and is_instance_valid(board):
 		board.m = null
 	if _layer != null and is_instance_valid(_layer):

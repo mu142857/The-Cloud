@@ -17,6 +17,7 @@ extends RefCounted
 ## 兔子的图：art/characters/rabbit/（tools/rabbit_art.py 生成的占位，等作者的美术来换），动作 idle / dance_left / dance_up /
 ##   dance_right / dance_down / shrug / bow，画的是朝右；朝左站时 ← → 两段互换，跳的方向永远和屏幕上的箭头一致。
 
+const OL := preload("res://scripts/overlay_layout.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
 const ID := "rabbit_dance"
 const DIRS := ["left", "up", "right", "down"]
@@ -349,6 +350,7 @@ func _setup() -> void:
 	_row.z_as_relative = false
 	_row.z_index = 100
 	level.add_child(_row)
+	_row.add_child(OL.BusyFade.new(story))           # 头顶那排：说话的框就在头顶，说话的时候淡掉
 	if rabbit != null:
 		_row.position = Vector2(round(rabbit.position.x), round(rabbit.position.y - float(rabbit.get("head")) - AW - 6.0))
 	_tex = _load_tex(ARROWS)
@@ -366,6 +368,7 @@ func _teardown() -> void:
 		tw.tween_callback(row.queue_free)
 		_row = null
 	if _hint != null:
+		OL.hud(story, false)
 		_hint.queue_free()
 		_hint = null
 	_reset_chen()
@@ -507,22 +510,24 @@ func _show_hint(on: bool) -> void:
 	if auto_mode:
 		return
 	if on and _hint == null:
+		OL.hud(story, true)                           # 左上角目标让开（最上面一行给按键提示）
 		_hint = CanvasLayer.new()
 		_hint.layer = 5
 		level.add_child(_hint)
-		var lb := Label.new()
+		var lb := OL.HintLabel.new(story)          # 对话 / 选项在显示的时候自己让开（11-04 安全区）
 		lb.text = story.txt(HINT) if story.has_method("txt") else str(HINT["zh"])
 		lb.add_theme_font_override("font", UITheme.font())
 		lb.add_theme_font_size_override("font_size", 14)
 		lb.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lb.position = Vector2(0, 236)
+		lb.position = Vector2(0, OL.HINT_Y)         # 屏幕上方那一行，不放进下面对话那一带
 		lb.size = Vector2(480, 16)
 		lb.modulate.a = 0.0
 		_hint.add_child(lb)
 		var tw := lb.create_tween()
 		tw.tween_method(func(v: float): lb.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.6)
 	elif not on and _hint != null:
+		OL.hud(story, false)
 		var h := _hint
 		_hint = null
 		var lb: Label = h.get_child(0)

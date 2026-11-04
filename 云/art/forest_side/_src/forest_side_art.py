@@ -15,7 +15,7 @@
   lamp_panel.png   232×150  空屋里面：竖木板墙、左上窗户、底下窗台，灯在 (40,124)
   lamp_lit.png     232×150  同一面墙被灯照亮（按离灯远近分四档，档的边落在木板缝上），脚本按灯光亮度叠上去
   lamp.png         32×26    油灯两帧（没点 / 点着，玻璃罩里亮），一帧 16×26，灯芯在帧里 (8,12)
-  lamp_shadows.png 192×52   墙上的影子（白色剪影，脚本染色）：一格 32×52，大人甲 站 / 挥手、大人乙 站 / 挥手、小孩 弯腰摸地上 / 比划一个背包
+  lamp_shadows.png 320×52   墙上的影子（白色剪影，脚本染色）：一格 32×52，大人甲 站 / 挥手三帧、大人乙 站 / 挥手三帧、小孩 弯腰摸地上 / 比划一个背包
   lamp_hands.png   96×24    手影：兔子 / 鸟 / 狗（白色剪影，一格 32×24）
   radio_eye.png    232×150  猫眼灯亮起来的那层
   icon_menu.png    12×13    背包图标：小吃棚的旧菜单
@@ -511,8 +511,11 @@ def lamp_panel() -> tuple:
     return dark, litimg, lamp
 
 
-def figure(img: Img, ox: int, h: int, w: int, pose: str, child=False) -> None:
-    """墙上的影子：一个人的剪影（白）。pose = stand 手放下 / wave 举手挥 / search 弯腰摸地上 / mime 两手比划一个背包"""
+def figure(img: Img, ox: int, h: int, w: int, pose: str, child=False, tilt=0.0) -> None:
+    """墙上的影子：一个人的剪影（白）。pose = stand 手放下 / wave 挥手 / search 弯腰摸地上 / mime 两手比划一个背包。
+    wave（11-04 作者：「这个挥手好像纳粹德国的挥手啊」，原来是一条直胳膊斜着往前上方举）：
+      大臂往外平伸一点、肘弯成直角、小臂竖直往上，张开的手在头的高度；tilt = 小臂左右摆（-1 / 0 / 1 三帧来回 = 挥手）。
+      没有任何一条直胳膊斜着往前 / 往上举。"""
     yy, xx = img.grid()
     cx = ox + 16
     top = 52 - h
@@ -529,6 +532,7 @@ def figure(img: Img, ox: int, h: int, w: int, pose: str, child=False) -> None:
         return
     img.fill(disk(img, cx, top + hr, hr), WHITE)
     neck = top + 2 * hr
+    img.fill((xx >= int(cx) - 1) & (xx <= int(cx)) & (yy >= int(top + 2 * hr) - 2) & (yy <= int(neck) + 2), WHITE)   # 脖子：头和身子连着
     sh = w * 0.5
     img.fill(poly(img, [(cx - sh * 0.8, neck + 1), (cx + sh * 0.8, neck + 1), (cx + sh, 52), (cx - sh, 52)]), WHITE)
     low = neck + h * 0.42
@@ -555,19 +559,32 @@ def figure(img: Img, ox: int, h: int, w: int, pose: str, child=False) -> None:
         return
     arm(cx - sh * 0.75, neck + 2, cx - sh - 1, low)
     if pose == "wave":
-        arm(cx + sh * 0.7, neck + 2, cx + sh + 5, neck - h * 0.2)
+        # 大臂：肩膀往外、略往下到肘；小臂：从肘竖着往上到头的高度，按 tilt 左右偏一点；手：张开的一小团 + 三根指头
+        ex, ey = cx + sh + 2, neck + 4          # 肘别伸太远：手摆到最右也不出自己那一格（32 宽）
+        hx, hy = ex + tilt * 2.0, top + hr * 0.6
+        arm(cx + sh * 0.6, neck + 2, ex, ey)
+        arm(ex, ey, hx, hy + 2)
+        palm = ell(img, hx, hy, aw * 0.95, aw * 1.05)
+        img.fill(palm, WHITE)
+        for fx in (-2, 0, 2):                   # 三根指头隔开一格，张开的手（不挤成一团）
+            fxi = int(round(hx)) + fx
+            img.fill((yy >= int(hy - aw * 1.05 - 2)) & (yy <= int(hy)) & (xx == fxi), WHITE)
+        img.fill((yy >= int(hy) - 1) & (yy <= int(hy) + 1) & (xx == int(round(hx)) - 3), WHITE)   # 大拇指：贴着手掌左边
     else:
         arm(cx + sh * 0.75, neck + 2, cx + sh + 1, low)
 
 
 def shadows() -> Img:
-    img = Img(192, 52)
+    """十格（一格 32×52）：大人甲 站 / 挥手 ×3、大人乙 站 / 挥手 ×3、小孩 弯腰摸地上 / 比划背包"""
+    img = Img(320, 52)
     figure(img, 0, 50, 16, "stand")
-    figure(img, 32, 50, 16, "wave")
-    figure(img, 64, 45, 15, "stand")
-    figure(img, 96, 45, 15, "wave")
-    figure(img, 128, 32, 11, "search", child=True)
-    figure(img, 160, 32, 11, "mime", child=True)
+    for i, t in enumerate((-1.0, 0.0, 1.0)):
+        figure(img, 32 * (1 + i), 50, 16, "wave", tilt=t)
+    figure(img, 128, 45, 15, "stand")
+    for i, t in enumerate((-1.0, 0.0, 1.0)):
+        figure(img, 32 * (5 + i), 45, 15, "wave", tilt=t)
+    figure(img, 256, 32, 11, "search", child=True)
+    figure(img, 288, 32, 11, "mime", child=True)
     return img
 
 
@@ -690,7 +707,7 @@ def preview(path, p, jb, jf, jl, r, rg, rk, sp, si, ld, ll, lamp, sh, hd) -> Non
     sheet[0:150, 484:716] = a
     a = ll.a.copy()
     over(a, lamp.a[:, 16:32], 32, 98)
-    for k, ox in ((1, 96), (3, 128), (5, 168)):
+    for k, ox in ((2, 96), (6, 128), (9, 168)):
         m = sh.a[:, k * 32:(k + 1) * 32, 3] > 0
         sub = a[64:116, ox:ox + 32]
         sub[m] = hx("#2a1e16")

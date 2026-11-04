@@ -25,6 +25,13 @@ const CARD := Vector2(36, 20)
 const CARD_Y := 127.0
 const CARD_X := [88.0, 132.0, 176.0]      # 三张卡片的中心
 const SHADOW := Color("#2a1e16")
+## lamp_shadows.png 一格 32×52：大人甲 0 站、1~3 挥手；大人乙 4 站、5~7 挥手；小孩 8 弯腰摸地上、9 比划背包
+## （11-04 作者：原来的挥手「好像纳粹德国的挥手」——一条直胳膊斜着往前上举。现在是肘弯着、小臂竖着、张开的手在头边摆）
+const SH_A := 0
+const SH_B := 4
+const SH_KID := 8
+const WAVE := [1, 2, 3, 2]
+const WAVE_SEC := 0.16
 const HINT_LIGHT := {"zh": "点一下灯芯", "en": "Click the wick."}
 const HINT_PICK := {"zh": "做一个一样的手影", "en": "Make the same hand shadow."}
 const SAP := [Color("#7d552f"), Color("#c8823c"), Color("#e8b860")]
@@ -37,7 +44,7 @@ var _lit := false
 var _flame := 0.0                         # 火苗大小（1 = 落稳以后）
 var _light := 0.0                         # 墙有多亮 0..1（画的时候分四档）
 var _sh_a := [0.0, 0.0, 0.0]              # 三个影子多清楚
-var _sh_f := [0, 2, 4]                    # 三个影子现在用 lamp_shadows.png 哪一格
+var _sh_f := [0, 4, 8]                    # 三个影子现在用 lamp_shadows.png 哪一格（见 SH_*）
 var _waving := false
 var _hand_a := 0.0
 var _mine := -1
@@ -95,7 +102,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	await _lines("bag")
 	# ④ 手影
 	_waving = false
-	_sh_f = [0, 2, 4]
+	_sh_f = [SH_A, SH_B, SH_KID]
 	await _wait(0.4)
 	tw = _tw().set_parallel(true)
 	tw.tween_property(self, "_hand_a", 1.0, 0.8 * _k()).set_trans(Tween.TRANS_SINE)
@@ -239,13 +246,13 @@ func _shadows_in() -> void:
 ## 最小的那个弯腰在地上摸，摸了两下，站起来比划一个背包
 func _search() -> void:
 	_waving = false
-	_sh_f = [0, 2, 4]
+	_sh_f = [SH_A, SH_B, SH_KID]
 	for k in 3:
 		_rummage = 1.0 if k % 2 == 0 else -1.0
 		_sfx("pat", -16.0, 1.3)
 		await _wait(0.45)
 	_rummage = 0.0
-	_sh_f[2] = 5
+	_sh_f[2] = SH_KID + 1
 	_sfx("pat", -10.0)
 	await _wait(1.0)
 
@@ -280,9 +287,10 @@ func _hide_mine() -> void:
 
 func _tick(_dt: float) -> void:
 	if _waving:
-		var ph := int(_t / 0.45) % 2
-		_sh_f[0] = ph
-		_sh_f[1] = 2 + (1 - ph)
+		# 挥手：肘弯着、小臂竖着，左右摆三帧（1 → 2 → 3 → 2 来回），两个人错开半拍
+		var k := int(_t / WAVE_SEC)
+		_sh_f[0] = SH_A + WAVE[k % WAVE.size()]
+		_sh_f[1] = SH_B + WAVE[(k + 2) % WAVE.size()]
 
 
 # ----------------------------------------------------------------------- 画

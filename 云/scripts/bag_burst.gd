@@ -2,7 +2,9 @@ extends RefCounted
 ## 第一关小游戏 bag_burst：坠机撞地后的背包特写（docs/剧情改动/第一关新版_实现规格.md 第 1 步）。
 ##   画面压暗，背包特写（art/forest_story/bag_closeup.png，原大 96×104，不放大）落到画面中间，背后一圈坠机火光那样的暖光；
 ##   背包一颠，翻盖一帧帧掀起来（4 帧横排：合着 → 掀开，每帧 100ms），两件东西先后从包口飞出去，沿弧线飞出画面。
-##   两件都是剪影、没有名字（一件以后和跳舞有关，另一件还没定）。然后整个特写淡掉，回到森林。不用玩家操作，约 4 秒。
+##   两件都是剪影、没有名字（一件以后和跳舞有关，另一件还没定）。最后背包自己再弹一下，翻着沿弧线飞出画面右边，
+##   特写淡掉，回到森林（11-04 作者：先给背包特写、又要走过去才见到背包，接不上 → 背包是被甩到右边去的，
+##   剧本接着把镜头往右摇到 c1_bag）。不用玩家操作，约 4.5 秒。
 ##   11-02 作者试玩：原来放大 6 倍的小背包没质感 → 特写单独画（画图脚本在笔记文件夹 bag_art.py）。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "bag_burst"}
@@ -107,11 +109,17 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	await _wait(0.5 * k)
 	_jolt(bag_home, k)
 	await _fly(SIL_B, mouth, Vector2(350, -60), Vector2(560, -30), 1.0 * k)
-	await _wait(0.5 * k)
-	# 3. 特写淡掉
+	await _wait(0.2 * k)
+	# 3. 背包自己也被甩出去：再弹一下，然后翻着沿弧线飞出右边（镜头接着往右摇到 c1_bag，像是飞到了那边）
+	await _hop(bag_home, k)
+	var fling := _fling(bag_home, k)
+	await _wait(FLING_SEC * 0.55 * k)
+	# 4. 特写淡掉（背包还在飞的时候就开始淡）
 	var out := _root.create_tween()
-	out.tween_property(_root, "modulate:a", 0.0, 0.6 * k).set_trans(Tween.TRANS_SINE)
+	out.tween_property(_root, "modulate:a", 0.0, 0.5 * k).set_trans(Tween.TRANS_SINE)
 	await out.finished
+	if fling.is_valid():
+		fling.kill()
 	_layer.queue_free()
 	for f in st.get("sets", []):
 		StoryState.set_flag(str(f))
@@ -205,6 +213,31 @@ func _jolt(home: Vector2, k: float) -> void:
 	var tw := _bag.create_tween()
 	tw.tween_method(func(y: float): _bag.position.y = round(y), home.y, home.y - 4.0, 0.12 * k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_method(func(y: float): _bag.position.y = round(y), home.y - 4.0, home.y, 0.2 * k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## 背包再弹一下：往上 6 像素再落回（sine，0.26 秒），落地那一下就被甩出去
+func _hop(home: Vector2, k: float) -> void:
+	var tw := _bag.create_tween()
+	tw.tween_method(func(y: float): _bag.position.y = round(y), home.y, home.y - 6.0, 0.11 * k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(y: float): _bag.position.y = round(y), home.y - 6.0, home.y, 0.15 * k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await tw.finished
+
+
+## 背包沿二次贝塞尔弧线（先往右上抛、再往右下落）飞出右边，一边顺时针翻大半圈；越飞越快（QUAD EASE_IN，像被甩出去）
+const FLING_SEC := 0.7
+const FLING_SPIN := 2.2                           # 弧度：翻大半圈
+
+func _fling(home: Vector2, k: float) -> Tween:
+	_bag.pivot_offset = _bag.size / 2.0
+	var a := home
+	var c := home + Vector2(150, -95)
+	var b := Vector2(480 + 24, home.y + 30)           # 左边缘也出了画面
+	var step := func(u: float) -> void:
+		_bag.position = _bez(a, c, b, u).round()
+		_bag.rotation = FLING_SPIN * u
+	var tw := _bag.create_tween()
+	tw.tween_method(step, 0.0, 1.0, FLING_SEC * k).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	return tw
 
 
 ## 一件东西从包口（藏在背包后面）沿二次贝塞尔弧线飞出画面：开头快、后面慢一点（EASE_OUT），像被弹出去

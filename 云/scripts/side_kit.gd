@@ -9,6 +9,7 @@ extends RefCounted
 ## 做不好也不会输（作者的规矩）：失败几次以后小游戏自己做完给玩家看。
 
 const KIT := preload("res://scripts/river_explore_order.gd")
+const OL := preload("res://scripts/overlay_layout.gd")    # 安全区：面板在对话那一带上面，提示在面板上面一行（11-04）
 const ART := "res://art/forest_side/"
 const SFX_DIR := "res://audio/sfx/"
 const DIM := Color(0.02, 0.03, 0.03, 0.72)
@@ -26,7 +27,7 @@ var step: Dictionary
 var s: Dictionary
 var board: Control
 var panel := Vector2(232, 150)
-var panel_pos := Vector2(124, 66)
+var panel_pos := Vector2(-1, -1)      # 不写 = OL.panel_pos(panel)（底边在对话那一带上面）
 var _root: Control
 var _dim: ColorRect
 var _hint: Label
@@ -112,6 +113,8 @@ class Board extends Control:
 func _build(name: String, texs: Array) -> void:
 	for k in texs:
 		_tex[k] = _load_tex(ART + k + ".png")
+	if panel_pos.x < 0.0:
+		panel_pos = OL.panel_pos(panel)
 	_root = Control.new()
 	_root.name = name
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -141,14 +144,8 @@ func _build(name: String, texs: Array) -> void:
 	board.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	board.modulate.a = 0.0
 	_root.add_child(board)
-	_hint = Label.new()
-	_hint.position = Vector2(0, panel_pos.y + panel.y + 4)
-	_hint.size = Vector2(480, 16)
-	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.add_theme_font_size_override("font_size", 14)
+	_hint = OL.HintLabel.new(story, "", OL.hint_y(panel_pos.y))   # 面板上面一行；对话 / 选项在显示的时候自己让开
 	_hint.add_theme_color_override("font_color", UITheme.TEXT)
-	_hint.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
-	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint.modulate.a = 0.0
 	_root.add_child(_hint)
 
@@ -184,6 +181,7 @@ func _tw() -> Tween:
 
 
 func _fade_in() -> void:
+	OL.hud(story, true)                 # 左上角目标让开（最上面一行给按键提示）
 	var tw := _tw().set_parallel(true)
 	tw.tween_property(_dim, "modulate:a", 1.0, 0.45 * _k()).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(board, "modulate:a", 1.0, 0.4 * _k()).set_trans(Tween.TRANS_SINE).set_delay(0.1 * _k())
@@ -206,6 +204,7 @@ func _fade_out() -> void:
 
 
 func _drop() -> void:
+	OL.hud(story, false)
 	if board != null and is_instance_valid(board):
 		board.m = null
 	if _layer != null and is_instance_valid(_layer):

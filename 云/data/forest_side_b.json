@@ -2,7 +2,8 @@
  "_comment": "第一关支线 3（大嘴鸟·接果子）、4（坡地·鹿的妈妈·雾里跟蹄印），side-b 会话 11-02 写。设计：docs/剧情改动/第一关支线_设计.md；格式：共享笔记 forest-side-schema.md（id 前缀 sb_，hotspot 要 c1_side_open）。小游戏：scripts/side_toucan.gd（接果子 / act huff 合嘴）、scripts/side_slope.gd（雾里跟蹄印），文件头有玩法和参数。图：art/forest_side/（src/side_b_art.py 生成）。台词都是补写的（added）。",
  "markers": {
   "sb_slope_start": 4220,
-  "sb_slope_deer": 4480
+  "sb_slope_deer": 4480,
+  "sb_slope_deer_far": 4540
  },
  "objectives": [
   {
@@ -386,30 +387,35 @@
      "sb_slope_followed"
     ],
     "lines": {
-     "wrong": [
-      {
-       "narr": {
-        "zh": "雾里有人敲了两下树，在另一边。",
-        "en": "Something in the fog knocks on a tree twice. From the other side."
-       },
-       "added": true
-      }
-     ],
      "auto": [
       {
-       "narr": {
-        "zh": "敲树声近了。剩下的蹄印一个接一个亮了起来。",
-        "en": "The knocking comes closer. The rest of the hoofprints light up one by one."
-       },
-       "added": true
+       "do": "inner",
+       "zh": "……跟着光走。",
+       "en": "...Follow the light.",
+       "style": "fade",
+       "sec": 1.8
       }
      ],
      "win": [
       {
+       "do": "hide",
+       "who": "deer",
+       "fade": 0.3
+      },
+      {
        "do": "show",
        "who": "deer",
-       "at": "sb_slope_deer",
-       "fade": 1.2
+       "at": "sb_slope_deer_far",
+       "fade": 1.6
+      },
+      {
+       "do": "wait",
+       "sec": 1.2
+      },
+      {
+       "do": "walk",
+       "who": "deer",
+       "to": "sb_slope_deer"
       },
       {
        "do": "face",
@@ -446,6 +452,15 @@
        "flag": "c1_mom",
        "then": "sb_slope_mom",
        "else": "sb_slope_child"
+      }
+     ],
+     "start": [
+      {
+       "do": "inner",
+       "zh": "地上有蹄印……踩着走？",
+       "en": "Hoofprints on the ground... follow them?",
+       "style": "fade",
+       "sec": 2.2
       }
      ]
     }
@@ -667,7 +682,7 @@
    {
     "do": "walk",
     "who": "deer",
-    "to": "fog_bank",
+    "to": "sb_slope_deer_far",
     "wait": false
    },
    {
@@ -677,7 +692,7 @@
    {
     "do": "hide",
     "who": "deer",
-    "fade": 1.0
+    "fade": 1.2
    },
    {
     "do": "if",
@@ -690,14 +705,16 @@
    {
     "do": "show",
     "who": "deer",
-    "at": "deer_door"
+    "at": "deer_door",
+    "fade": 0.8
    }
   ],
   "sb_slope_deer_back_ship": [
    {
     "do": "show",
     "who": "deer",
-    "at": "deer_ship"
+    "at": "deer_ship",
+    "fade": 0.8
    }
   ]
  },

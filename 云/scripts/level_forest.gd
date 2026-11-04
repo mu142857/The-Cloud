@@ -146,7 +146,7 @@ const DLG_WALK := 56.0        # 晨离开说话的地方这么远，对话框就
 
 const SFX_DIR := "res://audio/sfx/"
 const FIREFLIES := preload("res://scripts/fireflies.gd")
-const TEX_BAG := preload("res://art/level1/icon_bag.png")
+const TEX_BAG := preload("res://art/forest_story/c1_bag.png")    # 11-04 作者：右上角的背包要和地上捡的那只一样（旧的 art/level1/icon_bag.png 是灰色工具箱样子）
 const TEX_GEAR := preload("res://art/level1/icon_gear.png")
 const TEX_FLAME := preload("res://art/level1/icon_flame.png")
 const TEX_HEADPHONES := preload("res://art/level1/icon_headphones.png")
@@ -2999,7 +2999,8 @@ func _update_portal(delta: float) -> void:
 				to = w.mx("road_arrive") if w.markers.has("road_arrive") else from - ARRIVE_DIST
 			else:
 				to = w.mx("cloth")
-	elif area == "road" and w.bridged() and w.markers.has("wall_glade") and StoryState.has("at_treehouse"):
+	# 11-04 作者「从树屋过得来但是回不去」：新第一关不设旧的 at_treehouse，晨在弥洛家醒来（c1_woke）就算去过树屋
+	elif area == "road" and w.bridged() and w.markers.has("wall_glade") and (StoryState.has("at_treehouse") or StoryState.has("c1_woke")):
 		var edge: float = w.mx("wall_glade")
 		var goal_right: bool = not is_nan(_walk_goal) and _walk_goal > edge
 		if chen.position.x >= edge - 8.0 and (dir > 0.0 or goal_right):

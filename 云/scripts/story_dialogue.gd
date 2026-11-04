@@ -31,6 +31,10 @@ const NARR_Y := 206.0
 const HINT_TEX := preload("res://art/level1/hint_arrow.png")
 const ADDED_C := Color("#8fb8e0")       # 补写台词的蓝
 const MURMUR_TIME := 3.5
+## 对话那一带（11-04）：屏幕上从这里往下归对话框 / 选项 / 旁白 / 拿到东西的提示——三句对话选项最上面一行 186、
+## 旁白 NARR_Y 206、拿到东西的提示 224、道具选择条 224 起。叠在画面上的小游戏面板一律在这条线以上结束
+## （scripts/overlay_layout.gd 的 panel_pos / HintLabel 照这个摆）。
+const BAND_TOP := 184.0
 
 var auto_delay := -1.0               # >= 0：自动推进（每句停这么久）
 var sfx: Callable                    # func(name, db, pitch)：选择 / 确认的声音（level_forest._sfx）
@@ -226,6 +230,12 @@ func close_box() -> void:
 
 func is_open() -> bool:
 	return _open or _narr_wait
+
+
+## 现在有没有字在显示（对话框、选项、道具条、点选、旁白、自言自语）：小游戏的按键提示 / 字幕这时候让开
+func showing() -> bool:
+	return _open or _narr_wait or _pick_on or _menu_kind != "" or _murmur_t > 0.0 \
+		or (_narr != null and _narr.visible and _narr.modulate.a > 0.05)
 
 
 func is_typing() -> bool:
@@ -577,11 +587,16 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 			_menu_items.append(p)
 	else:
 		var y := 222.0 - (opts.size() - 1) * 18.0
+		# 平时从 x 120 起；最长的那句放不下（英文长句）就整组往左让，不出屏幕右边（11-04）
+		var widest := 0.0
+		for o in opts:
+			widest = maxf(widest, UITheme.font().get_string_size("  " + str(o), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
+		var x0 := clampf(roundf(474.0 - 8.0 - widest), 10.0, 120.0)
 		for i in opts.size():
 			var l := _mk_label(UITheme.TEXT_DIM)
 			l.text = "  " + str(opts[i])
-			l.position = Vector2(120, y + i * 18.0)
-			l.size = Vector2(320, 16)
+			l.position = Vector2(x0, y + i * 18.0)
+			l.size = Vector2(maxf(320.0, widest + 4.0), 16)
 			var bg := ColorRect.new()
 			bg.color = Color(BOX_BG, 0.85)
 			bg.position = l.position - Vector2(4, 1)

@@ -25,6 +25,8 @@ const VMIN := 5.0
 const ACC_SEC := 1.4
 const HINT := {"zh": "←→ 或按住左右拧旋钮，找小吃棚的台", "en": "← → or hold left / right to turn the dial. Find the stall's station."}
 const BROADCAST := Color("#a9d8bc")
+const CAP_RECT := Rect2(20, 50, 128, 82)  # 字幕在面板里的位置：喇叭布那一块（radio_panel.png 的 16..151 × 48..134）
+const CAP_BG := Color("#17140e")
 const STATIC_DB := -8.0
 
 var stage := ""                           # tune / lock / done
@@ -46,11 +48,11 @@ var _cap := ""
 var _cap_a := 0.0
 var _seed := 0
 var _capl: Label
+var _cap_room := 1.0                     # 对话 / 选项在显示的时候字幕让开（0..1）
 
 
 func _init() -> void:
 	ID = "side_radio"
-	panel_pos = Vector2(124, 48)
 
 
 func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
@@ -63,7 +65,6 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 			final_f = float(q["f"])
 	var give := _enter({})
 	_build("SideRadio", ["radio_panel", "radio_eye", "radio_knob"])
-	_hint.position.y = panel_pos.y + panel.y + 40
 	_make_caption()
 	await _fade_in()
 	_static = _loop("radio_static", STATIC_DB)
@@ -88,6 +89,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 				_accept = false
 				dir = 0
 				v = 0.0
+				await _wait(OL.READ_SEC)              # 字幕先念完再开选项（选项开着的时候字幕让开）
 				await _lines(res.substr(6))
 				_key_dir = 0                         # 台词播的时候松开的键收不到：清零，免得指针自己走
 				_mouse_dir = 0
@@ -219,9 +221,10 @@ func _tick(dt: float) -> void:
 	else:
 		_cap_a = move_toward(_cap_a, 0.0, dt * 3.0)
 	_seed = int(_t * 8.0)
+	_cap_room = move_toward(_cap_room, 0.0 if OL.busy(story) else 1.0, dt * 5.0)
 	if _capl != null and is_instance_valid(_capl):
 		_capl.text = caption_text()
-		_capl.modulate.a = ceilf(_cap_a * 3.0) / 3.0 * board.modulate.a
+		_capl.modulate.a = ceilf(_cap_a * _cap_room * 3.0) / 3.0 * board.modulate.a
 
 
 ## 听清了哪个台、路过 final 又走掉、停在 final 上
@@ -325,6 +328,8 @@ func _draw_board(b: Control) -> void:
 	var tip := KNOB + Vector2(cos(ang), sin(ang)) * 11.0
 	var mid := KNOB + Vector2(cos(ang), sin(ang)) * 6.0
 	b.draw_line(mid.round(), tip.round(), Color("#2c2118"), 2.0)
+	if _capl != null and _capl.modulate.a > 0.0:
+		b.draw_rect(Rect2(CAP_RECT.position - Vector2(2, 2), CAP_RECT.size + Vector2(4, 4)), Color(CAP_BG, 0.82 * _capl.modulate.a))
 	var x := roundf(fx(f))
 	b.draw_rect(Rect2(x, NEEDLE_Y.x, 1, NEEDLE_Y.y - NEEDLE_Y.x), Color("#e8795a"))
 	b.draw_rect(Rect2(x - 1, NEEDLE_Y.x, 3, 2), Color("#c9473a"))
@@ -332,13 +337,15 @@ func _draw_board(b: Control) -> void:
 		b.draw_rect(Rect2(x - 1, NEEDLE_Y.y - 2, 3, 2), Color("#f0c070", _lock_a))
 
 
-## 字幕：面板下面一行（收音机里正在说什么），信号弱的时候字是花的
+## 字幕：画在收音机自己的喇叭布上（CAP_RECT，面板里），不进屏幕下方对话那一带；信号弱的时候字是花的
 func _make_caption() -> void:
 	_capl = Label.new()
-	_capl.position = Vector2(20, panel_pos.y + panel.y + 6)
-	_capl.size = Vector2(440, 32)
+	_capl.position = panel_pos + CAP_RECT.position
+	_capl.size = CAP_RECT.size
 	_capl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_capl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_capl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_capl.clip_text = true
 	_capl.add_theme_font_size_override("font_size", 14)
 	_capl.add_theme_color_override("font_color", BROADCAST)
 	_capl.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))

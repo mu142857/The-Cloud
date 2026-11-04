@@ -113,7 +113,8 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"pose",   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
 	"barter",   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
 	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
-	"inner", "key_prompt", "reward", "blackout", "burn_held"]   # 第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
+	"inner", "key_prompt", "reward", "blackout", "burn_held",
+	"music"]   # music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
@@ -151,6 +152,7 @@ const BARK_GD := preload("res://scripts/story_bark.gd")      # say 带 bark：�
 const QUICK_GD := preload("res://scripts/story_quick.gd")    # give 数组、走过去就捡（hotspot pickup）
 const BARTER_GD := preload("res://scripts/barter.gd")         # 以物易物（大嘴鸟、料理鼠妈…）
 const FLASHBACK_GD := preload("res://scripts/flashback.gd")   # 母星闪回（4 次）
+const BGM_GD := preload("res://scripts/bgm.gd")          # 配乐（{"do": "music"}，scripts/bgm.gd）
 const FLASHBACK_LAYER := 55                                     # 闪回那一层：盖在黑幕（Top 50）上面、F8 面板（60）下面
 ## F8 传送页的「闪回」按钮（dev_panel.gd）：重新载入那一章、跳节拍到 beat，再从 scene 里闪回那一步往前 back 步开始播
 const FLASHBACK_DEV := [
@@ -817,6 +819,13 @@ func _step(st: Dictionary) -> String:
 		"barter":
 			var bs: String = await barter.run(st)
 			return bs
+		"music":
+			if not ff:
+				var bgm = BGM_GD.get_bgm(level.get_tree())
+				if st.get("stop", false):
+					bgm.stop(float(st.get("fade", 1.5)))
+				else:
+					bgm.play(str(st.get("track", "")), float(st.get("db", NAN)), float(st.get("fade", 1.5)), int(st.get("loop", -1)), str(st.get("then", "")))
 		"flashback":
 			await _flashback(st)
 		"flashback_wake":
@@ -888,6 +897,7 @@ func _flashback(st: Dictionary) -> void:
 		return
 	if flashback_ui != null:
 		await _flashback_wake()              # 上一次停着没醒的先醒
+	BGM_GD.get_bgm(level.get_tree()).suspend(1.0)     # 配乐先淡掉（闪回里是紧张的循环 + 心跳），醒来接回来
 	var layer := CanvasLayer.new()
 	layer.name = "Flashback"
 	layer.layer = FLASHBACK_LAYER
@@ -908,6 +918,8 @@ func _flashback_wake() -> void:
 	flashback_ui = null
 	if n != null and is_instance_valid(n):
 		await n.wake()
+	if not ff:
+		BGM_GD.get_bgm(level.get_tree()).resume()
 
 
 ## F8「闪回」按钮跳过来的：节拍跳完以后从闪回前几步开始播（level_forest.gd 的 _ff_done 拿走）；没有 = {}
@@ -940,6 +952,9 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 	if world.cockpit == null:
 		_warn_once("%s：剧本 rooms 里没有 cockpit，跳过" % kind)
 		return ""
+	var bgm = BGM_GD.get_bgm(level.get_tree())
+	if kind == "keepsake_choice" and not ff:
+		bgm.play("space_choice", NAN, 2.0)          # 作者 11-04 的配乐：选烧什么的时候
 	var n: Control = (load(COCKPIT_STEPS[kind]) as GDScript).new()
 	n.name = kind
 	dlg.add_child(n)
@@ -947,6 +962,8 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 	var r: String = await n.play(self, st)
 	cockpit_ui = null
 	n.queue_free()
+	if kind == "keepsake_choice" and bgm.current() == "space_choice":
+		bgm.stop(2.5)
 	return r
 
 
@@ -2020,6 +2037,7 @@ var ff_resume := ""                  # 停下的地方：接下来该播的 scen
 
 
 func _end_chapter() -> void:
+	BGM_GD.get_bgm(level.get_tree()).stop(2.0)
 	if ff:
 		ff_hit_end = true
 		return
@@ -2038,12 +2056,28 @@ func _end_chapter() -> void:
 	print("END_CARD %s" % ("the_end" if last else "to_be_continued"))   # 自测：连着自动玩到最后，确认出的是「全剧终」
 	if last:
 		barter.show_achievements(level.get_node("Top"))     # 成就：只列拿到的（以物易物，data/achievements.json）
+		if auto == "":
+			await _credits_roll()
 	if auto != "":
 		await _wait(2.5)
 		if shots_dir != "":
 			level._save(shots_dir.path_join("%03d_end_card.png" % (_shot_n + 1)))
 		print_stats("STORY_DONE")
 		get_tree().quit()
+
+
+## 「全剧终」停一会儿以后放制作人员（scripts/credits_page.gd，像 Linger 最后几个结局以后那样）。放的时候按键都给它
+## （level_forest 的 _input 先看 _credits_page）；放完回到结束卡，再按任意键回标题。
+func _credits_roll() -> void:
+	await level.get_tree().create_timer(4.0).timeout
+	if not is_instance_valid(level):
+		return
+	var page: Control = (load("res://scripts/credits_page.gd") as GDScript).new()
+	level.get_node("Top").add_child(page)
+	level.set("_credits_page", page)
+	await page.closed
+	if is_instance_valid(level):
+		level.set("_credits_page", null)
 
 
 # ======================================================================= hotspot
