@@ -465,4 +465,6 @@ func update(delta: float, chen: Node2D, cam_left: Vector2, mouse_world = null) -
 			sy = head
 		_prompt.position = Vector2(clampf(round(sx - w / 2.0), 4.0, 476.0 - w), round(sy - 20.0))
 		la = 0.85
+	if la <= 0.0 and runner != null and runner.dlg != null and (runner.dlg.is_open() or runner.dlg.menu_open()):
+		_prompt.modulate.a = 0.0          # 11-04 --qa_live：剧情一开始对话框就出来了，「E 路标」还在慢慢淡（0.2 秒），叠在框上：有对话框就直接收掉
 	_prompt.modulate.a = move_toward(_prompt.modulate.a, la, delta * 4.0)

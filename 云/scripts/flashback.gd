@@ -40,7 +40,8 @@ extends Control
 ##   导入没开循环：放完自己从头再放，音量 TENSE_DB 跟着触手多近平滑变）、train_door_close；缺的静默跳过，记进
 ##   runner.missing_sfx（--story_check 列出来）。都走 Music 总线；闪回期间 SFX 总线（原场景的环境声）压低 DUCK dB，醒的时候放回去。
 ## 自动玩：时长 × AUTO_K；连按 E（一秒五下，跑掉、拿成就那条路）；第四次站着不动（停下来那条路）。
-##   --fb_caught：自动玩一下也不按（被抓那条路，按真实时长）；--fb_full：自动玩也按真实时长。跳节拍（ff）时 runner 直接跳过，不建它。
+##   --fb_caught：自动玩一下也不按（被抓那条路，按真实时长）；--fb_rate=N：自动玩一秒按 N 下（按真实时长，调手感用）；
+##   --fb_debug：每秒打一行触手离她多远；--fb_full：自动玩也按真实时长。跳节拍（ff）时 runner 直接跳过，不建它。
 ## F8 传送页每章下面有「闪回」按钮（dev_panel.gd，表在 story_runner.gd 的 FLASHBACK_DEV）。
 
 const CITY_SCENE := "res://scenes/city_test.tscn"
@@ -201,6 +202,7 @@ var _extra := 0.0
 var _e_t := 0.0
 var _presses := 0
 var _auto_press_t := 0.0
+var _auto_every := 0.2            # 自动玩隔多久按一下 E（--fb_rate=每秒几下）
 var _still_t := 0.0
 var _ran := false
 var _run_now := false
@@ -244,7 +246,13 @@ func play(r: Node, step: Dictionary) -> void:
 	var args := OS.get_cmdline_user_args()
 	_auto = r.auto != ""
 	_auto_caught = "--fb_caught" in args
+	for a in args:
+		if a.begins_with("--fb_rate="):
+			_auto_every = 1.0 / maxf(0.1, float(a.trim_prefix("--fb_rate=")))
 	_k = AUTO_K if _auto and not "--fb_full" in args and not _auto_caught else 1.0
+	for a in args:
+		if a.begins_with("--fb_rate="):
+			_k = 1.0
 	_bus = "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -596,7 +604,7 @@ func _run_step(dt: float) -> void:
 	if _auto and not _lock and not _auto_caught and id != 4:
 		_auto_press_t -= dt
 		if _auto_press_t <= 0.0:
-			_auto_press_t = 0.2
+			_auto_press_t = _auto_every
 			_press()
 	_e_t = maxf(0.0, _e_t - dt)
 	# 前三次她自己一直跑（涌进来、回头的那一下除外）；第四次按 E 才跑一下

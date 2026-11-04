@@ -28,6 +28,8 @@ const CPS_EN := 30.0
 const BOX_BG := Color(0.02, 0.05, 0.04, 0.78)
 const BOX_EDGE := Color(0.5, 0.6, 0.55, 0.35)
 const NARR_Y := 206.0
+const NARR_W := 440.0               # 旁白最宽（左右各留 20），超过就换行
+const NARR_LINE := 18.0             # 旁白一行多高
 const HINT_TEX := preload("res://art/level1/hint_arrow.png")
 const ADDED_C := Color("#8fb8e0")       # 补写台词的蓝
 const MURMUR_TIME := 3.5
@@ -122,8 +124,9 @@ func _ready() -> void:
 
 	_narr = _mk_label(Color("#c5d3ca"))
 	_narr.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_narr.size = Vector2(480, 16)
-	_narr.position = Vector2(0, NARR_Y)
+	_narr.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART     # 11-04 作者「字又到外面了」：长旁白换行，不出屏
+	_narr.size = Vector2(NARR_W, 16)
+	_narr.position = Vector2((480.0 - NARR_W) / 2.0, NARR_Y)
 	_narr.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.8))
 	_narr.add_theme_constant_override("shadow_offset_x", 0)
 	_narr.add_theme_constant_override("shadow_offset_y", 1)
@@ -301,6 +304,10 @@ func narr(text: String, hold: float) -> void:
 	if instant:
 		return
 	_narr.text = text
+	# 换行以后往上长（最后一行还在 NARR_Y），不往对话框那边掉
+	_narr.size = Vector2(NARR_W, 16)
+	var lines := maxi(1, _narr.get_line_count())
+	_narr.position.y = NARR_Y - float(lines - 1) * NARR_LINE
 	_narr.modulate.a = 0.0
 	_narr_t = hold + 2.2
 	var tw := create_tween()
@@ -318,15 +325,16 @@ func narr(text: String, hold: float) -> void:
 
 ## 选项 / 点选一出来，屏幕下面还在慢慢淡的旁白和小提示（「记进了日记」）马上淡掉
 ## （夜测 11-01：「预计航程：多了一点。」压在燃料选项底下、「记进了日记」压在来客册选项第三行上，字叠在一起）
+## 点选 / 选项要出来了：旁白和「拿到东西」的提示让开。11-04 --qa_live：原来 0.2 秒淡出，这 0.2 秒里旁白（y 206）、
+## 提示（y 224）和选项（y 204 起）叠在一起；选项就在那一带，所以直接收掉
 func _fade_narr_now() -> void:
-	if _narr_t > 0.0 and _narr.modulate.a > 0.01:
-		_narr_t = 0.0              # 不再走 _process 里的慢淡出，换成 0.2 秒从现在的亮度平滑淡到 0
-		create_tween().tween_property(_narr, "modulate:a", 0.0, 0.2)
+	if _narr_t > 0.0 or _narr.modulate.a > 0.01:
+		_narr_t = 0.0
+		_narr.modulate.a = 0.0
 	if _toast.modulate.a > 0.01:
 		if _toast_tw != null and _toast_tw.is_valid():
 			_toast_tw.kill()
-		_toast_tw = create_tween()
-		_toast_tw.tween_property(_toast, "modulate:a", 0.0, 0.2)
+		_toast.modulate.a = 0.0
 
 
 func toast(icon: Texture2D, text: String) -> void:
@@ -337,7 +345,9 @@ func toast(icon: Texture2D, text: String) -> void:
 	_toast_label.text = text
 	_toast.reset_size()
 	var w := UITheme.font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + (20.0 if icon != null else 0.0)
-	_toast.position = Vector2(round(240.0 - w / 2.0), NARR_Y + 18.0)
+	# 下面那一带被占着（选项开着、驾驶舱挑纪念品的托板和按键提示）：提示放到屏幕上方（11-04 --qa_live 查出来的叠字）
+	var low_busy := menu_open() or picking() or has_node("keepsake_choice") or has_node("debris_steer")
+	_toast.position = Vector2(round(240.0 - w / 2.0), 6.0 if low_busy else NARR_Y + 18.0)
 	if _toast_tw != null and _toast_tw.is_valid():
 		_toast_tw.kill()
 	_toast_tw = create_tween()

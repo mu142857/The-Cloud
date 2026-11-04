@@ -1,0 +1,227 @@
+extends Node
+## --qa_live（和 --story_auto 一起用）：边自动玩边看屏幕上的字。level_forest.gd 建它，每 EVERY 帧量一次。
+##   QA_OVERLAP  两段看得见的字的框叠在一起（同一段里一个字一个 Label 的不算；一个是另一个的子节点不算）
+##   QA_OFFSCREEN 看得见的字有一部分在屏幕外（480×270）
+##   QA_DLG_STUCK 对话框 / 头顶气泡同一句字打完以后还挂着超过 STUCK 秒（自动玩一句 0.6 秒，气泡最多 2.3 秒）
+##   QA_DLG_STALE 对话框那句是上一个 scene 的，scene 已经换了还挂着
+## 同一对字只报一次（第几秒、哪个 scene、一共叠了多少帧）。退出时打印 QA_LIVE_SUMMARY。
+## 人物 / 物件瞬移、凭空出现在 story_runner.gd 的 _check_jumps / _show 里（QA_JUMP / QA_CAMJUMP / QA_POPIN）。
+
+const EVERY := 3
+const STUCK := 6.0
+const STALE := 0.8
+const MIN_A := 0.15              # 比这淡的字当看不见（淡入淡出的头尾）
+const SCREEN := Rect2(0, 0, 480, 270)
+
+var story: Node
+var level: Node
+var _f := 0
+var _t := 0.0
+var overlaps := {}               # key → {n, t, scene, a, b}
+var offscreen := {}
+var stuck := {}
+var stale := {}
+var _dlg_text := ""
+var _dlg_since := 0.0
+var _dlg_scene := ""
+var _scene_changed_t := -1.0
+var _bark_text := ""
+var _bark_since := 0.0
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	_f += 1
+	if story == null or not is_instance_valid(story):
+		return
+	_dialogue_state()
+	if _f % EVERY != 0:
+		return
+	var items: Array = []
+	_collect(get_tree().root, items)
+	for i in items.size():
+		var a: Dictionary = items[i]
+		if not SCREEN.grow(1.0).encloses(a["r"]) and not a.get("drift", false):
+			_add(offscreen, _key1(a), {"a": a})
+		for j in range(i + 1, items.size()):
+			var b: Dictionary = items[j]
+			if _related(a, b):
+				continue
+			# 字框上下各有 1 像素的空（行高比字高），先各缩 1 像素再比：同一个框里名字和正文挨着不算
+			var x: Rect2 = (a["r"] as Rect2).grow(-1.0).intersection((b["r"] as Rect2).grow(-1.0))
+			if x.size.x >= 1.0 and x.size.y >= 1.0 and x.get_area() >= 4.0:
+				_add(overlaps, _key2(a, b), {"a": a, "b": b})
+
+
+func _add(bucket: Dictionary, key: String, d: Dictionary) -> void:
+	if bucket.has(key):
+		bucket[key]["n"] += 1
+		return
+	d["n"] = 1
+	d["t"] = _t
+	d["scene"] = str(story._cur_scene)
+	d["room"] = str(story.world.room) if story.world != null else ""
+	bucket[key] = d
+	var tag := "QA_OVERLAP" if bucket == overlaps else "QA_OFFSCREEN"
+	if d.has("b"):
+		print("%s t=%.1f scene=%s room=%s「%s」%s × 「%s」%s | %s × %s" % [tag, _t, d["scene"], d["room"], _short(d["a"]["text"]), _rs(d["a"]["r"]),
+			_short(d["b"]["text"]), _rs(d["b"]["r"]), _who(d["a"]["path"]), _who(d["b"]["path"])])
+	else:
+		print("%s t=%.1f scene=%s room=%s「%s」%s %s" % [tag, _t, d["scene"], d["room"], _short(d["a"]["text"]), _rs(d["a"]["r"]), d["a"]["path"]])
+
+
+## 节点路径的最后两段（哪个界面的字）
+static func _who(p: String) -> String:
+	var parts := p.split("/")
+	return "/".join(parts.slice(maxi(0, parts.size() - 3)))
+
+
+static func _rs(r: Rect2) -> String:
+	return "(%d,%d %dx%d)" % [int(r.position.x), int(r.position.y), int(r.size.x), int(r.size.y)]
+
+
+static func _short(s: String) -> String:
+	s = s.replace("\n", "⏎")
+	return s if s.length() <= 18 else s.substr(0, 18) + "…"
+
+
+func _key1(a: Dictionary) -> String:
+	return _short(a["text"]) + "@" + str(a["path"]).get_file()
+
+
+func _key2(a: Dictionary, b: Dictionary) -> String:
+	var k := [_short(a["text"]), _short(b["text"])]
+	k.sort()
+	return k[0] + " × " + k[1]
+
+
+## 一个是另一个的祖先，或者同一个父节点下一个字一个 Label（潜意识字的字带、闪回逐字掉）
+func _related(a: Dictionary, b: Dictionary) -> bool:
+	var na: Node = a["node"]
+	var nb: Node = b["node"]
+	if na.is_ancestor_of(nb) or nb.is_ancestor_of(na):
+		return true
+	if na.get_parent() == nb.get_parent() and str(a["text"]).length() <= 1 and str(b["text"]).length() <= 1:
+		return true
+	return false
+
+
+# ----------------------------------------------------------------------- 收集看得见的字
+func _collect(n: Node, out: Array) -> void:
+	if n is CanvasLayer and not (n as CanvasLayer).visible:
+		return
+	if n is CanvasItem and not (n as CanvasItem).visible:
+		return
+	if n is Label:
+		var l := n as Label
+		if l.text.strip_edges() != "" and l.visible_characters != 0:
+			var a := _alpha(l)
+			if a >= MIN_A:
+				var r := _text_rect(l)
+				if r.size.x > 0.5 and r.size.y > 0.5:
+					out.append({"node": l, "text": l.text, "r": r, "path": str(l.get_path()), "drift": _drifting(l)})
+	for c in n.get_children():
+		_collect(c, out)
+
+
+func _alpha(c: CanvasItem) -> float:
+	var a := c.self_modulate.a
+	var n: Node = c
+	while n != null and n is CanvasItem:
+		a *= (n as CanvasItem).modulate.a
+		n = n.get_parent()
+	return a
+
+
+## 本来就是从屏幕外飘进来的字：潜意识字的字带（一个字一个 Label）、奔跑片头挂在世界里的名字
+func _drifting(l: Label) -> bool:
+	var p := str(l.get_path())
+	return (l.text.length() <= 1 and p.contains("InnerVoice")) or p.contains("RunCredits")
+
+
+## Label 里字真正占的那一块（屏幕坐标）：换行按框宽，左右按对齐
+func _text_rect(l: Label) -> Rect2:
+	var f := l.get_theme_font("font")
+	var fs := l.get_theme_font_size("font_size")
+	if f == null:
+		return Rect2()
+	var lh := f.get_height(fs) + float(l.get_theme_constant("line_spacing"))
+	var tw := 0.0
+	var th := 0.0
+	if l.autowrap_mode == TextServer.AUTOWRAP_OFF:
+		var lines := l.text.split("\n")
+		for line in lines:
+			tw = maxf(tw, f.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x)
+		th = lines.size() * lh
+	else:
+		var w := maxf(l.size.x, 1.0)
+		var ms := f.get_multiline_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, w, fs, -1,
+			TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE)
+		tw = minf(ms.x, w)
+		th = float(l.get_line_count()) * lh
+	var x := 0.0
+	match l.horizontal_alignment:
+		HORIZONTAL_ALIGNMENT_CENTER:
+			x = (l.size.x - tw) / 2.0
+		HORIZONTAL_ALIGNMENT_RIGHT:
+			x = l.size.x - tw
+	var y := 0.0
+	match l.vertical_alignment:
+		VERTICAL_ALIGNMENT_CENTER:
+			y = (l.size.y - th) / 2.0
+		VERTICAL_ALIGNMENT_BOTTOM:
+			y = l.size.y - th
+	var xf := l.get_global_transform_with_canvas()
+	var p0 := xf * Vector2(x, y)
+	var p1 := xf * Vector2(x + tw, y + th)
+	return Rect2(p0, p1 - p0).abs()
+
+
+# ----------------------------------------------------------------------- 对话框状态
+func _dialogue_state() -> void:
+	var dlg = story.dlg
+	var box = dlg.get("_box")
+	var txt_l = dlg.get("_text")
+	var shown: bool = box != null and (box as CanvasItem).is_visible_in_tree() and (box as CanvasItem).modulate.a > MIN_A
+	var t: String = str((txt_l as Label).text) if shown and txt_l != null else ""
+	if t != _dlg_text:
+		_dlg_text = t
+		_dlg_since = _t
+		_dlg_scene = str(story._cur_scene)
+		_scene_changed_t = -1.0
+	if t != "":
+		var typing: bool = dlg.is_typing()
+		if typing:
+			_dlg_since = _t
+		elif _t - _dlg_since > STUCK and not dlg.picking() and not dlg.menu_open():
+			_flag_once(stuck, "dlg:" + t, "QA_DLG_STUCK 对话框「%s」打完以后挂了 %.1f 秒 scene=%s" % [_short(t), _t - _dlg_since, story._cur_scene])
+		if str(story._cur_scene) != _dlg_scene:
+			if _scene_changed_t < 0.0:
+				_scene_changed_t = _t
+			elif _t - _scene_changed_t > STALE:
+				_flag_once(stale, t, "QA_DLG_STALE 对话框「%s」是 scene %s 的，已经到 %s 了还挂着" % [_short(t), _dlg_scene, story._cur_scene])
+	var bk = story.bark
+	var bb = bk.get("_box") if bk != null else null
+	var bl = bk.get("_label") if bk != null else null
+	var bshown: bool = bb != null and (bb as CanvasItem).is_visible_in_tree() and (bb as CanvasItem).modulate.a > MIN_A
+	var bt: String = str((bl as Label).text) if bshown and bl != null else ""
+	if bt != _bark_text:
+		_bark_text = bt
+		_bark_since = _t
+	elif bt != "" and _t - _bark_since > STUCK:
+		_flag_once(stuck, "bark:" + bt, "QA_DLG_STUCK 头顶气泡「%s」挂了 %.1f 秒 scene=%s" % [_short(bt), _t - _bark_since, story._cur_scene])
+
+
+func _flag_once(bucket: Dictionary, key: String, msg: String) -> void:
+	if bucket.has(key):
+		return
+	bucket[key] = true
+	print(msg)
+
+
+func summary() -> String:
+	return "QA_LIVE_SUMMARY overlap=%d offscreen=%d dlg_stuck=%d dlg_stale=%d" % [overlaps.size(), offscreen.size(), stuck.size(), stale.size()]
+
+
+func _exit_tree() -> void:
+	print(summary())

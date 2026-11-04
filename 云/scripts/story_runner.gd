@@ -1286,17 +1286,25 @@ func _show(st: Dictionary, on: bool) -> void:
 		if old is Tween and (old as Tween).is_valid():
 			(old as Tween).kill()
 		n.remove_meta("vis_tw")
+		if n.get_meta("vis_hiding", false):
+			n.visible = false              # 11-04 --qa_live：上一次 hide 的淡出还没完就又 show（鹿从坡地回门口）：先当它已经藏好了，下面照常淡入，不然一下子冒在新地方
+		n.remove_meta("vis_hiding")
 		n.modulate.a = 1.0
 	if fade > 0.0 and not on and n.visible:
 		var tw := create_tween()
 		n.set_meta("vis_tw", tw)
+		n.set_meta("vis_hiding", true)
 		tw.tween_method(func(a: float): n.modulate.a = ceilf(a * 4.0) / 4.0, 1.0, 0.0, fade)
 		tw.tween_callback(func():
 			n.visible = false
 			n.modulate.a = 1.0
-			n.remove_meta("vis_tw"))
+			n.remove_meta("vis_tw")
+			n.remove_meta("vis_hiding"))
 		return
 	var was := n.visible
+	if _qa_live and on and not was and fade <= 0.0 and not ff and qa_screen_open() and _on_screen(n.global_position, 8.0):
+		print("QA_POPIN %s 在画面里凭空出现（show 没有 fade，也不是走进来）scene=%s room=%s x=%d" % [who, _cur_scene, world.room, int(n.position.x)])
+		qa_counts["popin"] = int(qa_counts.get("popin", 0)) + 1
 	n.visible = on
 	sync_npc_vis(true)
 	if fade > 0.0 and on and not was and n.modulate.a > 0.0:
@@ -1749,9 +1757,7 @@ func _fade_to(st: Dictionary) -> void:
 	var door: bool = room != world.room and (room == "treehouse" or world.room == "treehouse") \
 		and world.near_house(x) and world.near_house(chen.position.x)
 	if door:
-		_teleport(room, x, st.get("with", []), false)
-		_fade_place(st)
-		await _wait(0.55)
+		await _door_move(room, x, st.get("with", []), st)
 		return
 	var out_sec := 0.5
 	if st.has("leave"):
@@ -2171,7 +2177,11 @@ func trigger(p: Dictionary) -> void:
 		return
 	var id := str(h.get("id", ""))
 	var barks := _bark_only(str(h.get("scene", "")))
+	if not barks.is_empty() and bark.busy() and _bark_hot == id:
+		bark.skip()                         # 同一个点的那句还飘着，又按了一下：收掉，不再叠一遍（作者「对话框消不掉」）
+		return
 	if not barks.is_empty():
+		_bark_hot = id
 		# 只浮一句（飞船上方）：不锁人、不停游戏
 		_visited[id] = StoryState.progress()
 		hotspots_used += 1
@@ -2705,9 +2715,10 @@ func _process(delta: float) -> void:
 		deer.visible = false               # 鹿、弥洛是森林的节点：多房间章节（河流篇）里一律不显示
 		miluo.visible = false              # （10-30 作者：旧街水里站着一只第一章的鹿）
 	_update_follow(delta)
+	_no_snap()
 	if _overlap_log and not ff:
 		_check_overlap()
-	if _jump_log and not ff:
+	if (_jump_log or _qa_live) and not ff:
 		_check_jumps()
 	if _alarm_on and (StoryState.has("tried_parts") or StoryState.has("got_wood") or StoryState.has("c1_run")):
 		alarm(false)
@@ -2933,6 +2944,9 @@ func print_stats(tag: String) -> void:
 	print("STORY_UNPLAYED " + (", ".join(unplayed) if not unplayed.is_empty() else "(none)"))
 	print("STORY_MISSING_SFX " + (", ".join(missing_sfx.keys()) if not missing_sfx.is_empty() else "(none)"))
 	print("STORY_MISSING_ANIM " + (", ".join(missing_anims.keys()) if not missing_anims.is_empty() else "(none)"))
+	if _qa_live:
+		print("QA_MOTION_SUMMARY jump=%d camjump=%d propjump=%d proppop=%d popin=%d" % [int(qa_counts.get("jump", 0)),
+			int(qa_counts.get("camjump", 0)), int(qa_counts.get("propjump", 0)), int(qa_counts.get("proppop", 0)), int(qa_counts.get("popin", 0))])
 	if tag == "STORY_STUCK":
 		var av: Array = []
 		for p in hotspots.available():
@@ -3577,6 +3591,32 @@ func _pose(st: Dictionary) -> void:
 
 
 ## 跟着晨走（follow）：自由走动时（剧情没在播、或小游戏在等互动）每帧追晨身后 gap 像素
+## 通用角色（妮芙、阿汀……）在看得见的画面里一帧被挪了 SNAP_MIN～SNAP_MAX 像素（跟随 / 让路 / 墙把人夹回来的那种小跳）：
+## 改成每帧最多 SNAP_MIN，几帧滑过去。更远的是剧本放到别处（换房间、show at）——那种交给剧本自己（淡入、走过来），这里不管。
+## 11-04 作者「闪现问题」，--qa_live 的 QA_JUMP 查出来的（妮芙 10～50 像素一跳）。
+const SNAP_MIN := 6.0
+const SNAP_MAX := 80.0
+
+
+func _no_snap() -> void:
+	if ff or free_roam:
+		return
+	var open := qa_screen_open()
+	for n in npcs.values():
+		if not is_instance_valid(n):
+			continue
+		var last = n.get_meta("ns_x", null)
+		var room := _room_of(n)
+		if last != null and open and n.visible and str(n.get_meta("ns_room", "")) == room and room == world.room:
+			var dx: float = n.position.x - float(last)
+			if absf(dx) > SNAP_MIN and absf(dx) <= SNAP_MAX and not n.has_meta("swap_t"):
+				n.position.x = round(float(last) + signf(dx) * SNAP_MIN)
+				n._x = n.position.x
+				n._snap_y()
+		n.set_meta("ns_x", n.position.x)
+		n.set_meta("ns_room", room)
+
+
 func _update_follow(delta: float) -> void:
 	if ff:
 		return
@@ -3750,10 +3790,15 @@ func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
 	_keep_in(n, w, delta)
 	# 弹簧追不上（晨跑过来、过场里晨走过她身边）：直接推开，鲸鱼壳不压到晨身上
 	# 浮着的（妮芙）不硬推：她要么从晨头顶飘过去（上面 swap），要么弹簧自己让开——硬推就是「闪现」、被推着倒着走（11-02 作者）
+	# 11-04 --qa_live：原来直接 position.x = tx，一帧挪十几到几百像素（阿汀在妮芙家门口一下子跳 500 像素）。改成每帧最多 PUSH_MAX，滑开
 	if not swap and not _is_hover(n) and not n.is_walking() and dx * side < gap - 0.5 and absf(tx - chen.position.x) >= gap - 0.5:
-		n.position.x = round(tx)
+		var lim := maxf(PUSH_MAX, chen._vel * delta + 1.0)
+		n.position.x = round(move_toward(n.position.x, tx, lim))
+		n._x = n.position.x
 		n._snap_y()
 
+
+const PUSH_MAX := 4.0          # 推开让路：一帧最多挪几像素（晨跑得比这快时按晨的速度）
 
 ## 让路 / 跟随的人：每秒最多挪 MAKE_WAY_MAX 像素（弹簧离得远时会冲得很快，看着像「光速弹开」），也不出墙
 const MAKE_WAY_MAX := 110.0
@@ -3766,7 +3811,8 @@ func _keep_in(n: Node2D, w: Vector2, delta: float) -> void:
 		last = n.position.x                  # 剧本把她放到别处了（换房间、show、walk 完）：从新位置算，不往回拽
 	n.set_meta("mw_room", world.room)
 	var x := clampf(n.position.x, last - MAKE_WAY_MAX * delta - 1.0, last + MAKE_WAY_MAX * delta + 1.0)
-	x = clampf(x, w.x + 4.0, w.y - 4.0)
+	var inside := clampf(x, w.x + 4.0, w.y - 4.0)
+	x = move_toward(x, inside, MAKE_WAY_MAX * delta + 1.0)      # 出了墙也是慢慢走回来，不一下子夹回去
 	if absf(x - n.position.x) >= 0.5:
 		n.position.x = round(x)
 		n._x = n.position.x
@@ -4014,22 +4060,95 @@ func _check_overlap() -> void:
 
 ## 调试（--jump_log）：每帧查看得见的人有没有一帧跳很远（「闪现」），打印 JUMP 谁 从哪到哪、scene、房间、层
 var _jump_log := "--jump_log" in OS.get_cmdline_user_args()
+var _qa_live := "--qa_live" in OS.get_cmdline_user_args()   # 自动检查（scripts/qa_live.gd + 这里的 QA_JUMP / QA_CAMJUMP / QA_PROP* / QA_POPIN）
+var qa_counts := {}
+var _qa_cam := {}
+
+
+## 画面现在看得见（没黑、没被像素块 / 闪回盖住）
+func qa_screen_open() -> bool:
+	if level == null or level.fade.color.a > 0.3 or level.get("_pixel_fx") != null:
+		return false
+	if cockpit_ui != null and is_instance_valid(cockpit_ui) and cockpit_ui.get_script() == FLASHBACK_GD:
+		return false
+	return true
+
+
+## 世界坐标的点在不在画面里（margin = 往里缩多少）
+func _on_screen(p: Vector2, margin: float) -> bool:
+	var left: Vector2 = level.cam_left()
+	var z: float = level.cam.zoom.x
+	var r := Rect2(left, Vector2(480, 270) / z).grow(-margin)
+	return r.has_point(p)
 var _last_pos := {}
 
 
 func _check_jumps() -> void:
-	var bodies: Array = [chen]
+	var open := qa_screen_open()            # 黑着 / 像素块盖着 / 闪回盖着的时候换位置不算
+	var bodies: Array = [chen, deer, miluo]
 	bodies.append_array(npcs.values())
 	for n in bodies:
 		var key := str(n.name)
 		var p: Vector2 = n.global_position
-		var vis: bool = n.visible and n.modulate.a > 0.01
+		var vis: bool = open and n.is_visible_in_tree() and n.modulate.a > 0.01
+		var dv := Vector2.ZERO
 		if _last_pos.has(key):
 			var o: Dictionary = _last_pos[key]
-			if vis and bool(o["vis"]) and str(o["room"]) == world.room and (p - (o["p"] as Vector2)).length() > 6.0:
+			dv = p - (o["p"] as Vector2)
+			# 跳一下 = 这一帧挪了 6 像素以上，而且和上一帧的速度差 6 像素以上（下石阶一帧 7 像素那种连续走不算）
+			if vis and bool(o["vis"]) and str(o["room"]) == world.room and dv.length() > 6.0 \
+					and (dv - (o.get("v", Vector2.ZERO) as Vector2)).length() > 6.0 \
+					and not (absf(dv.x - (o.get("v", Vector2.ZERO) as Vector2).x) <= 3.0 and absf(dv.y) <= 12.0) \
+					and (_on_screen(p, 0.0) or _on_screen(o["p"], 0.0)):
 				var sg := _lv_stage()
-				print("JUMP %s (%d,%d)->(%d,%d) scene=%s room=%s lv=%s" % [key, int(o["p"].x), int(o["p"].y), int(p.x), int(p.y), _cur_scene, world.room, str(_lv_of(n, sg)) if sg != null else "-"])
-		_last_pos[key] = {"p": p, "vis": vis, "room": world.room}
+				var cur_st := ""
+				if _qa_live and scenes.has(_cur_scene) and step_i >= 0 and step_i < (scenes[_cur_scene] as Array).size():
+					cur_st = JSON.stringify(scenes[_cur_scene][step_i]).left(110)
+				print("%s %s (%d,%d)->(%d,%d) scene=%s room=%s lv=%s step=%d %s busy=%s" % ["QA_JUMP" if _qa_live else "JUMP", key, int(o["p"].x), int(o["p"].y), int(p.x), int(p.y), _cur_scene, world.room, str(_lv_of(n, sg)) if sg != null else "-", step_i, cur_st, str(busy)])
+				qa_counts["jump"] = int(qa_counts.get("jump", 0)) + 1
+		_last_pos[key] = {"p": p, "vis": vis, "room": world.room, "v": dv if vis else Vector2.ZERO}
+	if not _qa_live:
+		return
+	# 镜头：一帧里速度突然变了 6 像素以上（平移是平滑的，跳一下才算）
+	var c: Vector2 = level.cam.get_screen_center_position()
+	if _qa_cam.has("p") and open and bool(_qa_cam["open"]) and str(_qa_cam["room"]) == world.room:
+		var v: Vector2 = c - (_qa_cam["p"] as Vector2)
+		var pv0: Vector2 = _qa_cam["v"]
+		var dvl := (v - pv0).length()
+		# 跳 = 速度一帧变了 6 像素以上、而且变了一半以上（很快但缓入缓出的长距离平移不算）；镜头抖、跳过坠毁那一下不算
+		var skip_t := float(level.get_meta("qa_skip_t", -100.0))
+		if dvl > 6.0 and dvl > 0.5 * maxf(v.length(), pv0.length()) and float(level.get("_shake")) <= 0.0 \
+				and float(_qa_cam.get("shake", 0.0)) <= 0.0 and _game_t - skip_t > 1.0:
+			var bars: Array = level.get("_bars")
+			print("QA_CAMJUMP (%d,%d)->(%d,%d) scene=%s room=%s step=%d bar_dy=%.0f bar_y=%.0f bar_vis=%s override=%s shake=%.2f" % [int(_qa_cam["p"].x), int(_qa_cam["p"].y), int(c.x), int(c.y), _cur_scene, world.room, step_i,
+				float(level.get("_cam_bar_dy")), (bars[1] as Control).position.y if bars.size() > 1 else -1.0, str((bars[1] as Control).visible) if bars.size() > 1 else "-",
+				str(level.get("_cam_override")), float(level.get("_shake"))])
+			qa_counts["camjump"] = int(qa_counts.get("camjump", 0)) + 1
+		_qa_cam["v"] = v
+	else:
+		_qa_cam["v"] = Vector2.ZERO
+	_qa_cam["p"] = c
+	_qa_cam["shake"] = float(level.get("_shake"))       # 镜头抖（坠毁、起飞）是故意的，不算
+	_qa_cam["open"] = open
+	_qa_cam["room"] = world.room
+	# 剧情物件：在画面里一下子换了位置 / 一下子出现、消失
+	for pid in world.props:
+		var sp = world.props[pid]
+		if not sp is Sprite2D or not is_instance_valid(sp):
+			continue
+		var pv: bool = (sp as Sprite2D).is_visible_in_tree()
+		var pa: float = (sp as Sprite2D).modulate.a if pv else 0.0      # 看得见多少（淡入淡出一档 0.25）
+		var pp: Vector2 = (sp as Sprite2D).global_position
+		var k2 := "prop:" + str(pid)
+		if _last_pos.has(k2) and open and bool(_last_pos[k2]["open"]) and str(_last_pos[k2]["room"]) == world.room:
+			var o2: Dictionary = _last_pos[k2]
+			if pv and bool(o2["vis"]) and (pp - (o2["p"] as Vector2)).length() > 6.0 and _on_screen(pp, 0.0):
+				print("QA_PROPJUMP %s (%d,%d)->(%d,%d) scene=%s" % [pid, int(o2["p"].x), int(o2["p"].y), int(pp.x), int(pp.y), _cur_scene])
+				qa_counts["propjump"] = int(qa_counts.get("propjump", 0)) + 1
+			elif absf(pa - float(o2.get("a", pa))) >= 0.75 and _on_screen(pp, 0.0):
+				print("QA_PROPPOP %s %s（画面里一下子%s）scene=%s room=%s" % [pid, "出现" if pa > 0.5 else "消失", "出现" if pa > 0.5 else "消失", _cur_scene, world.room])
+				qa_counts["proppop"] = int(qa_counts.get("proppop", 0)) + 1
+		_last_pos[k2] = {"p": pp, "vis": pv, "a": pa, "room": world.room, "open": open}
 
 
 func _bodies_str() -> String:
@@ -4095,9 +4214,7 @@ func _stage_fade(st: Dictionary, room: String, x: float, arrive: float) -> bool:
 		return false
 	match kind:
 		"door":
-			_teleport(room, x, with, false)
-			_fade_place(st)
-			await _wait(0.55)
+			await _door_move(room, x, with, st)
 			return true
 		"pan_up", "pan_down":
 			var ts: Node2D = world.stage(room)
@@ -4111,6 +4228,69 @@ func _stage_fade(st: Dictionary, room: String, x: float, arrive: float) -> bool:
 			await _walk_fade(room, x, with, st, arrive)
 			return true
 	return false
+
+
+## 进出门（不黑屏、前墙淡出淡入）：同行 / 跟着晨的人怎么过门（11-04 作者「出门和进门的时候妮芙会闪」）——
+##   就在晨身边（同一层、相距 ≤ DOOR_NEAR）：保持她和晨原来的左右距离，一起换过去，不淡不闪，像并排走出门；
+##   离得远（屋子另一头、楼上）：门这边看不见她了，过门以后她晚一拍从门里出来——在门口淡入、走两步站到晨身边。
+const DOOR_NEAR := 48.0
+func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
+	var near := {}                      # who → 和晨的左右距离
+	var far: Array = []
+	var names: Array = []
+	for w in with:
+		names.append(str(w))
+	for f in follow:
+		if not names.has(str(f)):
+			names.append(str(f))
+	for who in names:
+		var n := npc(who)
+		if n == null or n == chen or not n.visible:
+			continue
+		var dx: float = n.position.x - chen.position.x
+		if str(_npc_room.get(n.name, world.room)) == world.room and absf(dx) <= DOOR_NEAR and absf(n.position.y - chen.position.y) < 8.0:
+			near[who] = clampf(dx, -36.0, 36.0)
+		else:
+			far.append(who)
+	_teleport(room, x, with, false)
+	_fade_place(st)
+	var w2: Vector2 = world.walls(chen.position.x)
+	for who in near:
+		var n := npc(who)
+		var nx := clampf(chen.position.x + float(near[who]), w2.x + 6.0, w2.y - 6.0)
+		_place(n, nx, room)
+		n.modulate.a = 1.0
+		n._set_facing(chen.facing)
+	if far.is_empty():
+		await _wait(0.55)
+		return
+	# 远的那个：先在门口藏着，晚一拍淡入、往外走两步
+	var door_x: float = chen.position.x
+	for who in far:
+		var n := npc(who)
+		if n == null:
+			continue
+		_place(n, door_x, room)
+		n.modulate.a = 0.0
+	await _wait(0.45)
+	var side := -1.0 if chen.facing > 0 else 1.0
+	for who in far:
+		var n := npc(who)
+		if n == null:
+			continue
+		var tw := create_tween()
+		tw.tween_method(func(a: float): n.modulate.a = floorf(a * 4.0) / 4.0, 0.0, 1.0, 0.4)
+		_walk({"who": who, "to": clampf(door_x + side * 26.0, w2.x + 6.0, w2.y - 6.0), "wait": false})
+	await _wait(0.5)
+
+
+func _fade_nodes(list: Array, on: bool, sec: float) -> void:
+	var tw := create_tween().set_parallel(true)
+	for n in list:
+		var nd: Node2D = n
+		tw.tween_method(func(a: float): nd.modulate.a = (floorf(a * 4.0) if on else ceilf(a * 4.0)) / 4.0,
+			0.0 if on else 1.0, 1.0 if on else 0.0, sec)
+	await tw.finished
 
 
 ## 人（晨 + 同行的）按 4 档淡出 / 淡入
@@ -4207,6 +4387,7 @@ func _walk_fade(room: String, x: float, with: Array, st: Dictionary, arrive: flo
 const INNER_GD := "res://scripts/inner_voice.gd"
 const ONE_WAY_EVERY := 6.0           # 往回走的潜意识字：两次之间至少隔几秒
 const REWARD_SEC := 1.5              # 奖励动画多长
+var _bark_hot := ""                 # 上一句 bark 是哪个点浮出来的
 var _bark_at := NAN                  # 这一句 bark 浮在哪个 x 上（飞船）；NAN = 晨头顶
 var _bark_y := 46.0
 var _one_way_t := 99.0
@@ -4234,7 +4415,7 @@ func _inner(st: Dictionary) -> void:
 	else:
 		print("INNER %s: %s" % [str(st.get("style", "drift")), txt(st)])
 	if st.get("wait", false) and total > 0.0:
-		await _wait(total * (0.5 if auto != "" else 1.0))
+		await _wait(total)                 # 自动玩也等满：上一句淡完才出下一句（不然两句叠在天上）
 
 
 func _inner_gd() -> GDScript:
@@ -4307,7 +4488,10 @@ func _burn_held(st: Dictionary) -> void:
 	_fuel_step({"add": total})
 	print("FUEL burn_held %s: +%d → %d/%d" % [",".join(list), total, StoryState.fuel(), StoryState.fuel_need()])
 	if not ff:
-		dlg.toast(Inventory.icon(first), I18n.t("gave_item") % "、".join(names))
+		var tt: String = I18n.t("gave_item") % ("、" if I18n.is_zh() else ", ").join(names)
+		if UITheme.font().get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x > 420.0:
+			tt = I18n.pick({"zh": "交出 %d 件东西", "en": "Handed over %d items"}) % list.size()   # 11-04 --qa_live：名字连起来出屏
+		dlg.toast(Inventory.icon(first), tt)
 		await _wait(0.6)
 
 
@@ -4832,7 +5016,7 @@ func _prop_glide(st: Dictionary) -> void:
 	spr.modulate.a = 0.0
 	var glow: Node2D = SHIP_GLOW.new()
 	spr.add_child(glow)
-	glow.set_from_texture(spr.texture, Vector2.ZERO, Rect2i(spr.frame * fw, 0, fw, fh))
+	glow.set_from_texture(spr.texture, Vector2.ZERO, Rect2i(spr.frame * fw, 0, fw, fh), 2)   # 绳子、桩子不发光
 	glow.heat = 1.0
 	glow.heat_goal = 1.0
 	# 预热

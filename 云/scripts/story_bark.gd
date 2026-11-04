@@ -51,6 +51,13 @@ func push(text: String, added := false) -> void:
 		_hold = minf(_hold, _t + 0.3)
 
 
+## 玩家按了一下：这句马上淡掉，排着的也不播了
+func skip() -> void:
+	_queue.clear()
+	if not _cur.is_empty():
+		_hold = minf(_hold, _t + STEP * 2.0)
+
+
 func clear() -> void:
 	_queue.clear()
 	_cur = {}

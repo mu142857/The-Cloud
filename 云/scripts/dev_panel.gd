@@ -1246,9 +1246,10 @@ func _check_sample(d: Dictionary) -> void:
 ## 面板自己先接输入（它总排在关卡子节点的最后，_input 倒着叫，它最先拿到）：
 ## F12 开关面板；面板上的鼠标点击 / 滚轮在这里自己处理掉。不这样的话剧情播着的时候对话框、点选、小游戏的 _input
 ## 会先把点击吃了，按钮收不到（「剧情的时候不能跳」）
-## F8 会被 Godot 编辑器当作停止运行；用无修饰键的 F12，避开 Ctrl / Shift + F12 编辑器操作。
+## F8 在 Windows 的 Godot 编辑器里是停止运行（本2兔改成 F12）；Mac 上作者一直用 F8（11-04 作者「F8 失效了」）→ 两个都认。
+## 都要无修饰键，避开 Ctrl / Shift + F12 编辑器操作。
 static func is_toggle_event(e: InputEvent) -> bool:
-	return e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_F12 \
+	return e is InputEventKey and e.pressed and not e.echo and (e.keycode == KEY_F12 or e.keycode == KEY_F8) \
 		and not (e.ctrl_pressed or e.shift_pressed or e.alt_pressed or e.meta_pressed)
 
 

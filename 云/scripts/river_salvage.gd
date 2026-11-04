@@ -11,10 +11,12 @@ extends RefCounted
 ##       漂过下沉点就沉下去（sunk，沉在看得见的浅水里，像金属盒「它先坐一会儿」）。
 ##       关键物品（管道接头）和轻的漂到头就停在下游浅滩（shallow）。漂过木桩「咚」一声，水声跟着走（左右声道）。
 ##   走：晨照常在岸上左右走（剧情放手，方向键 / A D）。
-##   抛：按住 E / 空格 / 鼠标左键 = 蓄力（只管够多远：REACH_MIN..REACH_MAX），松手抛钩。自动瞄准：够得着的里面挑最近的一样
-##       （前面的优先，前面没有就转过身去够后面的：先用 chen.gd 自己的 _set_facing 转过来再抛，抛的过程中不转身），
-##       钩子顺着一道低低的弧线飞过去、一路追着那样东西，落在它身上就钩住：线绷紧拽两下，东西「哗」地出水、
-##       顺着弧线飞到晨手里，镜头轻轻一顿。够得着的一样都没有 = 往前面的水里短短抛一下，溅一下、一圈水纹，收线。
+##   抛（11-03 第三版，作者：「怎么改成自动吸附了，好奇怪」——钩子半路拐弯太假）：
+##       按下 E / 空格 / 鼠标左键：晨先转向离她最近的那样东西所在的那边（chen.gd 自己的 _set_facing，锚点不跳），站定；
+##       按住：水面上一个落点圈（实心像素的扁圈 + 一个一上一下的小浮标）从脚边往外滑，滑到最远（SWEEP_SEC 秒）再滑回来，
+##       来回摆，错过了不吃亏；松手：钩子顺着一道自然的抛物线飞到落点，半路不拐弯。
+##       落点离东西 CATCH 像素以内 = 钩住：钩子「扑通」落在它旁边，线一绷，拽两下（东西被拉过来一点），「哗」地出水、
+##       顺着弧线飞到晨手里，镜头轻轻一顿。没钩到 = 溅一下、一圈水纹，收线。连着 MISS_HELP 次没钩到，判定悄悄放宽到 CATCH_HELP。
 ##       按键是每帧轮询的（不靠输入事件的先后顺序），抛的时候晨的方向键先停一下，收完线还给玩家。
 ##   浅滩：河里没东西漂了（都钩走 / 沉了 / 停在浅滩），播 lines.shallows（晨走到浅滩），再把停在那里的、连同沉在浅水里的
 ##       金属盒一样样钩上来（同样是抛钩）。错过沉掉的收藏品不扣任何东西。
@@ -32,16 +34,18 @@ extends RefCounted
 ## 物件状态（给会话 C）：漂流物 float / sink1 / sink2（吃水更深）/ sunk / shallow / taken。
 ## 规则和画面分开：Sim（内部类，纯数据，不碰节点）管漂、沉、停、兜底、瞄谁、钩没钩到；测试直接拿 Sim 模拟。
 ## 调试：--story_auto 时加 --salvage_mash = 不用自动玩的瞄准，改成「乱按的玩家」（随机走、随机按住 / 松手），打印用了多少秒。
+## 测试用的纯函数：sweep(按住几秒) = 落点在 REACH_MIN..REACH_MAX 之间走到哪（0..1），reach_at(按住几秒) = 离晨多远。
 
 const KIT := preload("res://scripts/river_explore_order.gd")
 const ID := "river_salvage"
 const SLOT := 22.0             # 停在浅滩的几样东西并排摆开的间距（物件 18 宽 + 4）
 const SPEED_PX := 9.0          # speed 1 每秒漂几像素
-const CATCH := 24.0            # 钩子离东西中心多近算钩住
-const REACH_MIN := 90.0        # 点一下能够多远（离晨的水平距离）
-const REACH_MAX := 240.0       # 按满能够多远
-const SHORT := 40.0            # 够不着东西：往前面的水里短短抛一下
-const CHARGE_SEC := 0.9        # 蓄满要多久（缓起缓停的曲线）
+const CATCH := 18.0            # 钩子落点离东西中心多近算钩住（只在落水那一下判断，钩子半路不拐弯）
+const CATCH_HELP := 30.0       # 连着没钩到 MISS_HELP 次以后，悄悄放宽到这么多（看不出来的帮一把）
+const MISS_HELP := 3
+const REACH_MIN := 24.0        # 落点离晨最近 / 最远（水平距离）
+const REACH_MAX := 190.0
+const SWEEP_SEC := 1.7         # 按住时落点从最近滑到最远要多久（再按着就滑回来，来回摆，错过了不吃亏）
 const NO_CATCH := 20.0         # 河里这么久没钩到 → 剩下的快快漂去浅滩
 const RIVER_CAP := 30.0        # 河里漂了这么久 → 同上
 const SHALLOW_NET := 12.0      # 浅滩这么久没钩到 → 剩下的妮芙接走
@@ -186,6 +190,15 @@ static func best(step: Dictionary, s: Dictionary) -> String:
 
 static func finished(s: Dictionary) -> bool:
 	return s["phase"] == "done"
+
+
+## 按住 t 秒时落点走到哪（0 = 脚边 REACH_MIN，1 = 最远 REACH_MAX）：缓起缓停地滑出去，再滑回来，来回摆
+static func sweep(t: float) -> float:
+	return 0.5 - 0.5 * cos(PI * t / SWEEP_SEC)
+
+
+static func reach_at(t: float) -> float:
+	return lerpf(REACH_MIN, REACH_MAX, sweep(t))
 
 
 
@@ -380,9 +393,9 @@ class Sim:
 		return front if not front.is_empty() else back
 
 	## 钩子落在 x：钩住的那样（最近的），没钩到 = ""
-	func catch_at(x: float) -> String:
+	func catch_at(x: float, radius := CATCH) -> String:
 		var best_id := ""
-		var bd := CATCH + 0.001
+		var bd := radius + 0.001
 		for h in hookable():
 			var dx := absf(float(h["x"]) - x)
 			if dx < bd:                     # 叠在一起的几样：钩先列出来的那样
@@ -451,7 +464,6 @@ var _lift := {}                # 正在被拽出水的那样：不归 Sim 摆
 var _mash := false             # --salvage_mash：乱按的玩家
 # 抛钩
 var cast := "idle"             # idle / charge / fly / wait / catch / reel
-var _charge := 0.0
 var _btn_prev := false
 var _from := Vector2.ZERO
 var _land := Vector2.ZERO
@@ -461,6 +473,8 @@ var _cdur := 0.0
 var _cast_t := 0.0             # 这一抛过了多久（看门狗）
 var _gen := 0                  # 每抛一次 +1；看门狗重置时也 +1，旧的协程看到不一样就收手
 var _target := ""
+var _hold := 0.0               # 按住了多久（落点圈跟着 sweep 来回滑）
+var _misses := 0               # 连着没钩到几次
 var _sag := 8.0
 var _locked := false
 # 效果
@@ -704,11 +718,9 @@ func _tick(dt: float) -> void:
 	if _free and (not auto_mode or _mash):
 		var btn := _btn_down()
 		if btn and not _btn_prev and cast == "idle":
-			cast = "charge"
-			_charge = 0.0
-			_idle_t = 0.0
+			begin_charge()
 		elif not btn and _btn_prev and cast == "charge":
-			release_cast(reach_of(_charge))
+			release_cast(reach_at(_hold))
 		_btn_prev = btn
 	_tick_cast(dt)
 	_tick_fx(dt)
@@ -803,9 +815,30 @@ func _hand() -> Vector2:
 	return _chen_local() + Vector2(HAND.x * _facing(), HAND.y)
 
 
-func reach_of(c: float) -> float:
-	var e := c * c * (3.0 - 2.0 * c)
-	return lerpf(REACH_MIN, REACH_MAX, e)
+## 按下：晨转向离她最近的那样东西所在的那边（转一次，按住的时候不再转），站定，落点圈从脚边开始滑
+func begin_charge() -> void:
+	var cx := _chen_local().x
+	var near := ""
+	var nd := INF
+	for h in sim.hookable():
+		var d := absf(float(h["x"]) - cx)
+		if d < nd:
+			nd = d
+			near = str(h["id"])
+	if near != "":
+		var dir := signi(int(roundf(sim.x_of(near) - cx)))
+		if dir != 0 and dir != _facing():
+			_turn(dir)
+	_lock_chen(true)
+	cast = "charge"
+	_hold = 0.0
+	_cast_t = 0.0
+	_idle_t = 0.0
+
+
+## 现在松手落点在哪（房间坐标）：晨前面 reach_at(按住多久) 那么远的水面
+func _marker() -> Vector2:
+	return Vector2(roundf(_chen_local().x + _facing() * reach_at(_hold)), _water_y)
 
 
 func _btn_down() -> bool:
@@ -833,24 +866,11 @@ func _swallow(e: InputEvent) -> void:
 		rig.get_viewport().set_input_as_handled()
 
 
-## 现在松手会钩哪样（预览 / 抛都用它）：{id, x}，够不着 = {}
-func _aim(reach: float) -> Dictionary:
-	return sim.aim(_chen_local().x, _facing(), reach)
-
-
-## 松手：自动瞄准。够得着 = 先转过去（chen.gd 自己的转身，锚点不跳），钩子追着那样东西飞；够不着 = 往前面水里短短一抛
-func release_cast(reach: float) -> void:
-	var t := _aim(reach)
+## 松手：钩子飞到晨前面 d 像素的水面（落点在松手那一刻就定了，半路不拐弯）
+func release_cast(d: float) -> void:
 	_target = ""
 	_gen += 1
-	if t.is_empty():
-		_land = Vector2(roundf(_chen_local().x + _facing() * SHORT), _water_y)
-	else:
-		_target = str(t["id"])
-		var dir := signi(int(roundf(float(t["x"]) - _chen_local().x)))
-		if dir != 0 and dir != _facing():
-			_turn(dir)
-		_land = _spot(_target)
+	_land = Vector2(roundf(_chen_local().x + _facing() * clampf(d, REACH_MIN, REACH_MAX)), _water_y)
 	_lock_chen(true)
 	_from = _hand()
 	_hook = _from
@@ -891,13 +911,11 @@ func _tick_cast(dt: float) -> void:
 			return
 	match cast:
 		"charge":
-			_charge = minf(1.0, _charge + dt / CHARGE_SEC)
+			_hold += dt
 		"fly":
 			_ct = minf(_ct + dt, _cdur)
 			var u := _ct / _cdur
-			if _target != "" and sim.can_hook(_target):
-				_land = _spot(_target)          # 一路追着它（它还在漂）
-			_hook = _arc(_hand(), _land, u)
+			_hook = _arc(_from, _land, u)       # 抛物线，起点终点在松手那一刻定了
 			if u >= 1.0:
 				_landed()
 		"wait":
@@ -949,12 +967,14 @@ func _landed() -> void:
 	_ring(_land, true)
 	_splash(_land, 4)
 	_sfx("water_drop", -6.0, _pan(_land.x), randf_range(0.9, 1.1))
-	var id := _target if _target != "" and sim.can_hook(_target) else sim.catch_at(_land.x)
+	var id := sim.catch_at(_land.x, CATCH_HELP if _misses >= MISS_HELP else CATCH)
 	if id == "":
+		_misses += 1
 		cast = "wait"
 		_ct = 0.0
 		_sag = 9.0
 	else:
+		_misses = 0
 		_catch(id)
 
 
@@ -968,23 +988,23 @@ func _catch(id: String) -> void:
 	story.mech_save(ID, s)
 	var tid := id if id != "box" else _box_id()
 	var o := _obj(tid)
-	var start := _spot(id)
-	_sag = 1.0
 	var face := _facing()
+	_sag = 1.0
+	# 钩子就在落点（东西旁边），线一绷：拽两下，每下把东西往钩子那边拉一点（缓起缓停），钩子跟着往回一顿
+	var gap := sim.x_of(id) - _land.x
 	for i in 2:
-		_sfx("tick", -14.0, _pan(start.x), 1.4)
-		if o != null:
-			o.position.x -= face * 2.0
-		_hook = start + Vector2(-face * 2.0, -1)
-		await _wait(0.12)
+		_sfx("tick", -14.0, _pan(_land.x), 1.4)
+		var pull := -gap * 0.5
+		await _tug(o, pull, 0.14)
 		if g != _gen or not _alive():
 			return
-		if o != null:
-			o.position.x += face * 2.0
-		_hook = start
-		await _wait(0.12)
+		gap += pull
+		_hook = _land + Vector2(-face * 1.0, -1)
+		await _wait(0.1)
 		if g != _gen or not _alive():
 			return
+		_hook = _land
+	var start := Vector2(_land.x, _spot(id).y)
 	_splash(start, 8)
 	_ring(start, true)
 	_sfx("splash", -6.0, _pan(start.x))
@@ -1014,6 +1034,20 @@ func _catch(id: String) -> void:
 	_end_cast()
 	if id in key_ids(step):
 		_niff("got_key")
+
+
+## 拽一下：东西沿水面平平地挪 dx（缓起缓停）
+func _tug(o: Sprite2D, dx: float, sec: float) -> void:
+	if o == null or not _alive():
+		await _wait(sec)
+		return
+	var x0 := o.position.x
+	var t := 0.0
+	while t < sec and _alive():
+		await rig.get_tree().process_frame
+		t += rig.get_process_delta_time()
+		var u := clampf(t / sec, 0.0, 1.0)
+		o.position.x = roundf(x0 + dx * u * u * (3.0 - 2.0 * u))
 
 
 func _wait(sec: float) -> void:
@@ -1086,16 +1120,12 @@ func _draw_rig(c: CanvasItem) -> void:
 		return
 	var hand := _hand()
 	if cast == "charge":
-		# 预览：松手会钩哪样（一圈），弧线从手连过去；够不着 = 弧线落在前面不远的水里
-		var t2 := _aim(reach_of(_charge))
-		var land := Vector2(roundf(_chen_local().x + _facing() * SHORT), _water_y)
-		if not t2.is_empty():
-			land = _spot(str(t2["id"]))
-			_ellipse_px(c, land.round(), 6.0, 2.0, AIM_C)
-		var pts: Array = []
-		for i in 25:
-			pts.append(_arc(hand, land, float(i) / 24.0))
-		_poly_px(c, pts, AIM_C)
+		# 落点：水面上一个实心像素的扁圈 + 一个一上一下的小浮标（松手钩子就落在这）
+		var m := _marker()
+		_ellipse_px(c, m, 5.0, 1.5, AIM_C)
+		var bob := -1.0 if fmod(_t, 0.6) < 0.3 else 0.0
+		c.draw_rect(Rect2(m + Vector2(-1, -3 + bob), Vector2(2, 2)), Color("#c9473a"))
+		c.draw_rect(Rect2(m + Vector2(-1, -1 + bob), Vector2(2, 1)), Color("#e2ece6"))
 	if cast in ["fly", "wait", "reel", "catch"]:
 		# 线：手 → 钩子，二次贝塞尔，中间往下坠一点（光滑的一道，连续的像素）
 		var mid := (hand + _hook) * 0.5 + Vector2(0, _sag)
@@ -1223,27 +1253,33 @@ func _auto_play(phase: String) -> void:
 		await story.run_steps([{"do": "face", "who": "chen", "to": wx - 40.0}])
 		if not _alive():
 			return
-		if full and not tried.has("miss"):
-			tried["miss"] = true
-			_land_miss_once()
-		else:
-			release_cast(REACH_MAX)
+		var miss := full and not tried.has("miss")
+		tried["miss"] = true
+		await _auto_cast(str(h["id"]), miss)
 		await _settle()
 
 
-## 自动玩（full）：先演一次够不着的短抛
-func _land_miss_once() -> void:
-	_gen += 1
-	_target = ""
-	_land = Vector2(roundf(_chen_local().x + _facing() * SHORT), _water_y)
-	if sim.catch_at(_land.x) != "":
-		_land.x = _chen_local().x - _facing() * SHORT      # 前面刚好有东西：往另一边空的水里抛
-	_lock_chen(true)
-	_from = _hand()
-	_ct = 0.0
-	_cast_t = 0.0
-	_cdur = 0.3
-	cast = "fly"
+## 自动玩：按住，等落点圈滑到「它飞过去那会儿会漂到的地方」再松手（miss = 故意松早一点，演一次没钩到）
+func _auto_cast(id: String, miss: bool) -> void:
+	begin_charge()
+	var dir := signi(int(roundf(sim.x_of(id) - _chen_local().x)))
+	if dir != 0 and dir != _facing():
+		_turn(dir)                             # 自动玩要的是这一样（不一定是最近的那样）
+	while _alive() and cast == "charge":
+		if not sim.can_hook(id):
+			cast = "idle"
+			_lock_chen(false)
+			return
+		var v := sim.speed(id) if s["phase"] == "river" else 0.0
+		var want := absf(sim.x_of(id) + v * 0.4 - _chen_local().x) + (40.0 if miss else 0.0)
+		want = clampf(want, REACH_MIN, REACH_MAX)
+		if absf(reach_at(_hold) - want) <= 3.0:
+			release_cast(reach_at(_hold))
+			return
+		if _hold > SWEEP_SEC * 4.0:
+			release_cast(want)                 # 保险：怎么都对不上（不该发生）就直接抛
+			return
+		await rig.get_tree().process_frame
 
 
 ## --salvage_mash：乱按的玩家（随机走一会儿、随机按住一会儿再松手），只走同一条按键路径（_btn_down / release_cast）

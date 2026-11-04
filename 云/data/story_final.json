@@ -629,7 +629,7 @@
 			{"do": "flag", "set": "final_e1_prints"}
 		],
 		"e1_meet": [
-			{"do": "show", "who": "elephant", "at": "yard_elephant"},
+			{"do": "show", "who": "elephant", "at": "yard_elephant", "fade": 0.6},
 			{"do": "anim", "who": "elephant", "name": "eat"},
 			{"do": "sfx", "name": "chewing"},
 			{"do": "wait", "sec": 3.0},
@@ -648,7 +648,7 @@
 			{"do": "anim", "who": "elephant", "name": "eat"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "anim", "who": "chen", "name": "hold_phone"},
-			{"do": "show", "who": "passerby", "at": "yard_passerby"},
+			{"do": "show", "who": "passerby", "at": "yard_passerby", "fade": 0.6},
 			{"do": "face", "who": "chen", "to": "passerby"},
 			{"say": "passerby", "zh": "背包别放那么近，它爱翻有吃的味道的袋子。", "en": "Don't keep your bag so close. It likes digging through anything that smells like food.", "added": true},
 			{"do": "anim", "who": "chen", "name": "hug_bag"},
@@ -1298,7 +1298,7 @@
 		"epilogue": [
 			{"do": "flag", "set": "final_epilogue", "spec": "【以下为四个结局后的条件尾声，呈现晨后来回访时的片段，不表示飞机在结局后立即修好。大象的结局改变晨带回的描述，物品状态改变相关动作和局部对白。】"},
 			{"do": "fade_to", "room": "forest", "at": "forest_crossroad"},
-			{"do": "show", "who": "deer", "at": "forest_deer"},
+			{"do": "show", "who": "deer", "at": "forest_deer", "fade": 0.6},
 			{"do": "face", "who": "deer", "to": "chen"},
 			{"do": "if", "flag": "c1_mom", "then": "epi_hi_mom", "else": "epi_hi_child"},
 			{"do": "show_item", "item": "elephant_drawing"},
@@ -1368,7 +1368,7 @@
 			{"do": "fade_to", "room": "treehouse", "at": "treehouse_door"},
 			{"do": "sfx", "name": "knock"},
 			{"do": "sfx", "name": "door_open"},
-			{"do": "show", "who": "miluo", "at": "treehouse_miluo"},
+			{"do": "show", "who": "miluo", "at": "treehouse_miluo", "fade": 0.6},
 			{"do": "wait", "sec": 1.0},
 			{"say": "miluo", "zh": "是你。这么久才来。", "en": "It's you. Took your time.", "added": true},
 			{"do": "if", "flag": "river_cup_traced", "then": "epi_miluo_cup", "else": "epi_miluo_seed", "_note": "11-02 河流篇来客册改成可选：没描杯底记号（river_cup_traced）就不递纸，直接问种子"}
@@ -1436,7 +1436,7 @@
 		],
 		"epi_niff": [
 			{"do": "fade_to", "room": "river_home", "at": "river_home_table"},
-			{"do": "show", "who": "niff", "at": "river_home_niff"},
+			{"do": "show", "who": "niff", "at": "river_home_niff", "fade": 0.6},
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"say": "niff", "zh": "你是谁呀？", "en": "Who are you?", "added": true},
 			{"do": "anim", "who": "chen", "name": "wait"},

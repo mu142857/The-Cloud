@@ -55,10 +55,18 @@ func _start() -> void:
 	_x = v.x - 10.0 if dir > 0 else v.y + 10.0
 
 
+var _last_vx := NAN
+
+
 func _process(delta: float) -> void:
+	# 11-04 作者「城市闪回火车还会消失」：镜头跟着晨往前跑，Parallax2D 会把这一层整体挪一个 repeat（960）接上，
+	# 本地坐标里的屏幕一下子跳了 960，车还在原地 → 一下子跑出屏幕（或被判开完收掉）。跳了多少，车就跟着挪多少。
+	var v := _view_x()
+	if not is_nan(_last_vx) and absf(v.x - _last_vx) > area_w * 0.5:
+		_x += roundf((v.x - _last_vx) / area_w) * area_w
+	_last_vx = v.x
 	if _run:
 		_x += dir * speed * delta
-		var v := _view_x()
 		if (dir > 0 and _x - _len() > v.y + 10.0) or (dir < 0 and _x + _len() < v.x - 10.0):
 			_run = false
 			_wait = _rng.randf_range(interval.x, interval.y)

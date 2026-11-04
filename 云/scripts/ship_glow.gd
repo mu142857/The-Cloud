@@ -101,7 +101,9 @@ func _init() -> void:
 
 
 ## 从船的图算轮廓。origin = 图（或 region）左上角在本节点父节点坐标里的位置；region = 只用图里这一块（多帧的图给一帧）
-func set_from_texture(tex: Texture2D, origin := Vector2.ZERO, region := Rect2i()) -> void:
+## thin > 0：比这么细的东西（缆绳、桩子）不算船身——先腐蚀 thin 次再膨胀回来（形态学开运算），
+## 11-04 作者「红色光晕会附着到牵着的绳子」：河岸拖上岸的飞机那一帧带着桩和松着的绳子
+func set_from_texture(tex: Texture2D, origin := Vector2.ZERO, region := Rect2i(), thin := 0) -> void:
 	_cols_bot = PackedInt32Array()
 	_cols_top = PackedInt32Array()
 	_origin = origin.round()
@@ -114,11 +116,22 @@ func set_from_texture(tex: Texture2D, origin := Vector2.ZERO, region := Rect2i()
 	if img.is_compressed():
 		img.decompress()
 	var r := region if region.size != Vector2i.ZERO else Rect2i(Vector2i.ZERO, img.get_size())
-	for x in r.size.x:
+	var w := r.size.x
+	var h := r.size.y
+	var m := PackedByteArray()
+	m.resize(w * h)
+	for y in h:
+		for x in w:
+			m[y * w + x] = 1 if img.get_pixel(r.position.x + x, r.position.y + y).a > 0.1 else 0   # 半透明的机尾壳也算船身
+	for _i in thin:
+		m = _morph(m, w, h, false)
+	for _i in thin:
+		m = _morph(m, w, h, true)
+	for x in w:
 		var t := -1
 		var b := -1
-		for y in r.size.y:
-			if img.get_pixel(r.position.x + x, r.position.y + y).a > 0.1:          # 半透明的机尾壳也算船身
+		for y in h:
+			if m[y * w + x] == 1:
 				if t < 0:
 					t = y
 				b = y
@@ -126,6 +139,27 @@ func set_from_texture(tex: Texture2D, origin := Vector2.ZERO, region := Rect2i()
 		_cols_bot.append(b)
 	_build()
 	queue_redraw()
+
+
+## 腐蚀（grow = false：四邻有一个空就空）/ 膨胀（grow = true：四邻有一个实就实）一次
+static func _morph(m: PackedByteArray, w: int, h: int, grow: bool) -> PackedByteArray:
+	var o := m.duplicate()
+	for y in h:
+		var row := y * w
+		for x in w:
+			var i := row + x
+			var v := m[i]
+			if grow == (v == 1):
+				continue                                   # 膨胀时本来就实 / 腐蚀时本来就空：不用看邻居
+			var l := m[i - 1] if x > 0 else 0
+			var r := m[i + 1] if x < w - 1 else 0
+			var u := m[i - w] if y > 0 else 0
+			var d := m[i + w] if y < h - 1 else 0
+			if grow:
+				o[i] = 1 if (l | r | u | d) == 1 else 0
+			else:
+				o[i] = l & r & u & d
+	return o
 
 
 ## 直接给轮廓（每列上沿 / 下沿，上下沿都是 -1 = 空列；x0 = 第 0 列在本节点里的 x，y 也是本节点坐标，可以是负的：

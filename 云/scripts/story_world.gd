@@ -661,6 +661,36 @@ func _place(id: String) -> void:
 		s.position = Vector2(round(x), round(float(forest_ground.call(x))) + 1.0 + dy + float(c.get("sink", 0)))
 
 
+## 物件出现 / 消失：4 档透明度淡 PROP_FADE 秒（11-04 --qa_live：拿走 / 摆回去的东西在画面里一下子没了 / 冒出来）；跳节拍直接换
+const PROP_FADE := 0.3
+
+
+func _fade_vis(s: Sprite2D, on: bool) -> void:
+	if s.has_meta("vis_tw"):
+		var old = s.get_meta("vis_tw")
+		if old is Tween and (old as Tween).is_valid():
+			(old as Tween).kill()
+		s.remove_meta("vis_tw")
+		s.modulate.a = float(s.get_meta("vis_a", s.modulate.a))
+	if on == s.visible or (level != null and level.story != null and level.story.ff) or not is_inside_tree():
+		s.visible = on
+		return
+	var full := s.modulate.a if s.modulate.a > 0.0 else 1.0
+	s.set_meta("vis_a", full)
+	var tw := create_tween()
+	s.set_meta("vis_tw", tw)
+	if on:
+		s.modulate.a = 0.0
+		s.visible = true
+		tw.tween_method(func(k: float): s.modulate.a = floorf(k * 4.0) / 4.0 * full, 0.0, 1.0, PROP_FADE)
+	else:
+		tw.tween_method(func(k: float): s.modulate.a = ceilf(k * 4.0) / 4.0 * full, 1.0, 0.0, PROP_FADE)
+		tw.tween_callback(func():
+			s.visible = false
+			s.modulate.a = full)
+	tw.tween_callback(func(): s.remove_meta("vis_tw"))
+
+
 func set_prop(id: String, state: String, save := true) -> void:
 	id = prop_id(id)
 	if save:
@@ -700,14 +730,16 @@ func set_prop(id: String, state: String, save := true) -> void:
 		base = (_cfg[id] as Dictionary).duplicate(true)
 	var c: Dictionary = base.duplicate(true)
 	if state in ["hidden", "hide", "gone", "taken"]:
-		s.visible = false
+		_fade_vis(s, false)
 		return
 	if state in ["show", "shown", "default", ""]:
+		var was := s.visible
 		_cfg[id] = c
 		_apply_look(id, c)
 		s.self_modulate = Color.WHITE
-		s.visible = true
+		s.visible = was
 		_place(id)
+		_fade_vis(s, true)
 		return
 	var st: Dictionary = (base.get("states", {}) as Dictionary).get(state, {})
 	for k in st:
@@ -720,9 +752,11 @@ func set_prop(id: String, state: String, save := true) -> void:
 		for k in ["host", "host_off", "ground_row", "frames", "anim", "anim_seq"]:
 			c.erase(k)
 		_merge_meta(c)                     # 换了图：读新图自己的 json（木板搭成桥：和塌陷口同位置、同 ground_row）
+	var was2 := s.visible
 	_cfg[id] = c
 	_apply_look(id, c)
-	s.visible = bool(c.get("visible", true))
+	s.visible = was2
+	_fade_vis(s, bool(c.get("visible", true)))
 	var fs: Dictionary = FRAME_STATES.get(id, {})
 	var sf: Array = c.get("state_frames", [])
 	if sf.has(state) and s.hframes > sf.find(state):

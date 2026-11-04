@@ -220,6 +220,8 @@ var _hud_burn: HBoxContainer
 var _hud_burn_label: Label
 var _hud_obj: Label
 var _hud_side: Label                    # 「（可选）」支线那一行
+var _hud_dim := 1.0                     # 对话框盖到左上角目标时淡下去（_hud_covered）
+const HUD_UNDER := 0.0
 var _hud_flame: TextureRect
 var _obj_key := "-"
 var _bars: Array[ColorRect] = []
@@ -259,6 +261,7 @@ var _story_auto := ""
 var _story_shots := ""
 var _story_shot_delay := 0.5
 var _story_check := false
+var _qa_text := false                    # --qa_text：所有章节的字量一遍框（scripts/qa_text.gd），打印 QA_TEXT 后退出
 var _beat := ""
 var _story_bars := false
 var _burn_sub_off := false
@@ -366,6 +369,8 @@ func _ready() -> void:
 			_beat = a.trim_prefix("--beat=")
 		elif a == "--story_check":
 			_story_check = true
+		elif a == "--qa_text":
+			_qa_text = true
 		elif a == "--dev_test":
 			if not Engine.has_meta(DEV_BEAT_META):
 				Engine.set_meta(DEV_OPEN_META, true)
@@ -404,7 +409,7 @@ func _ready() -> void:
 		DirAccess.make_dir_recursive_absolute(_shots_dir)
 	if _story_shots != "":
 		DirAccess.make_dir_recursive_absolute(_story_shots)
-	if _debug_stage != "" or _shot != "" or _shots_dir != "" or _autoplay or _browse > 0 or _story_auto != "" or _beat != "" or _story_check or _fuzz > 0.0:
+	if _debug_stage != "" or _shot != "" or _shots_dir != "" or _autoplay or _browse > 0 or _story_auto != "" or _beat != "" or _story_check or _qa_text or _fuzz > 0.0:
 		GameSettings.no_save = true
 		AudioServer.set_bus_mute(0, true)    # 截图 / 录像时不出声，也不吃真的键盘鼠标（见 _input）
 
@@ -434,6 +439,11 @@ func _ready() -> void:
 		Engine.remove_meta(BACK_META)
 		if free_roam == "":
 			_skip_to_title()
+	if _qa_text:
+		var qa = load("res://scripts/qa_text.gd").new()
+		qa.report(qa.run())
+		get_tree().quit()
+		return
 	if _story_check:
 		for line in story.validate():
 			print("STORY_CHECK " + line)
@@ -489,6 +499,12 @@ func _build_story() -> void:
 			return Rect2()
 		return Rect2(wreck.position + wreck.offset + Vector2(20, 20), wreck.texture.get_size() - Vector2(40, 20))
 	story.world.on_pseudo = _on_pseudo_prop
+	if "--qa_live" in OS.get_cmdline_user_args():
+		var qa: Node = load("res://scripts/qa_live.gd").new()      # 自动检查：字叠字、字出屏、对话框挂着不走（docs/QA_自动检查.md）
+		qa.name = "QaLive"
+		qa.set("story", story)
+		qa.set("level", self)
+		add_child(qa)
 	if "wood" in story.data.get("hide_props", []) and chapter == "forest":
 		wood.visible = false                   # 第一关新版：地上没有发光木头（永燃之木是兔子给的）
 	if _story_auto != "" or _beat != "":
@@ -1473,7 +1489,7 @@ func _update_objective() -> void:
 	var side_txt: Array = []
 	for so in story.side_objectives():
 		side_txt.append(story.txt(so))
-	var side_line := "" if side_txt.is_empty() else I18n.pick({"zh": "（可选）", "en": "(Optional) "}) + ("　" if I18n.is_zh() else " / ").join(side_txt)
+	var side_line := _side_line(side_txt)
 	var key := "" if o.is_empty() else str(o.get("zh", "")) + "|" + str(o.get("show_fuel", false))
 	if _hud_side.text != side_line:
 		_hud_side.text = side_line
@@ -2072,6 +2088,7 @@ func _crash_done() -> void:
 
 func _skip_crash() -> void:
 	# 跳过：直接到「晨已经站起来、对话刚出现」
+	set_meta("qa_skip_t", story._game_t if story != null else 0.0)     # --qa_live：跳过时黑边一下子收起，不算镜头跳
 	_kill_cine()
 	_title_root.visible = false
 	_title_root.modulate.a = 0.0
@@ -2097,16 +2114,31 @@ func _skip_crash() -> void:
 
 
 # ======================================================================= 黑边
+## 11-04（--qa_live 查出来的）：上一段剧情的黑边还在往外收（0.5 秒），下一段就开始放下来时，两个 tween 抢同一个属性：
+## 收的那个先到点、把位置设到 270、回调把黑边藏起来，放的那个接着把它挪回 244——黑边看不见了，镜头的黑边偏移也跟着归零，
+## 画面一下子跳 17 像素。所以黑边只留一个 tween：开新的之前先停掉旧的。
+var _bars_tw: Tween
+
+
+func _bars_kill() -> void:
+	if _bars_tw != null and _bars_tw.is_valid():
+		_bars_tw.kill()
+
+
 func _bars_in(sec: float) -> void:
+	_bars_kill()
 	for b in _bars:
 		b.visible = true
 	var tw := _tw()
+	_bars_tw = tw
 	tw.tween_property(_bars[0], "position:y", 0.0, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.parallel().tween_property(_bars[1], "position:y", 270.0 - BAR_H, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _bars_out(sec: float) -> void:
+	_bars_kill()
 	var tw := create_tween()
+	_bars_tw = tw
 	tw.tween_property(_bars[0], "position:y", -float(BAR_H), sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(_bars[1], "position:y", 270.0, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func():
@@ -2375,6 +2407,10 @@ func _toggle_bag() -> void:
 	_close_panels()
 	_sfx("ui_click", -10.0)
 	_panel_prev_focus = null
+	# 11-04 作者「打开背包的时候还在播放制作人员」：奔跑片头的名字还没放完就打开背包 → 名字散掉收起来（主题曲照放）
+	var rc := get_node_or_null("RunCredits")
+	if rc != null and rc.has_method("finish"):
+		rc.finish(0.6)
 	_bag.visible = true
 	_dim.visible = true
 	_bag_sel = clampi(_bag_sel, 0, mini(BAG_SLOTS, Inventory.owned.size()) - 1)
@@ -2530,6 +2566,11 @@ func _input(event: InputEvent) -> void:
 			elif event.is_action_pressed("ui_accept") and _dlg_typing():
 				_dlg_chars = 9999.0
 				_handled()
+			elif state == S.PLAY and story.bark.busy() and ((event is InputEventKey and event.pressed and not event.echo \
+					and event.keycode in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z]) \
+					or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT)):
+				_handled()
+				story.bark.skip()                # 11-04 作者「这个对话框消不掉」：飘着的那一句，按一下 / 点一下就收
 
 
 ## 这个输入用掉了（乱玩时偶尔在换场景的那一帧，viewport 已经没了：不报错）
@@ -2597,6 +2638,19 @@ func _process(delta: float) -> void:
 	if story.ended and _end_t >= 0.0:
 		_end_t += delta
 
+	# 11-04 作者「上面文字被切掉了一些」：剧情黑边放下来时左上角的目标（主目标 + 可选那一行）会被上边的黑边压住一半。
+	# 黑边放多少，目标就淡多少（黑边收起来再回来）
+	if _bars.size() > 0 and _hud_obj != null:
+		var bk := clampf((_bars[0].position.y + BAR_H) / BAR_H, 0.0, 1.0)
+		_hud_obj.modulate.a = 1.0 - bk
+		# 11-04 --qa_live：没有黑边时，说话的人站得高（树屋里、画面外的声音），对话框会盖到左上角的目标上，字叠字。
+		# 对话框和目标那一块碰上了，目标（连燃料表）淡到 HUD_UNDER，框走了再回来
+		var under := _hud_covered()
+		_hud_dim = HUD_UNDER if under else move_toward(_hud_dim, 1.0, delta * 3.0)    # 框一出来立刻让开，框走了慢慢回来
+		for n2: CanvasItem in [_hud_obj, _hud_side, _hud_flame, _hud_burn_label]:
+			if n2 != null:
+				n2.self_modulate.a = _hud_dim
+
 	# 耳机提示的「按任意键」慢慢呼吸
 	if state == S.HEADPHONES:
 		_hp_any.modulate.a = 0.45 + 0.35 * sin(_t * 2.4)
@@ -2645,7 +2699,10 @@ func _update_camera(delta: float) -> void:
 			cam.position.x = TITLE_CAM_X + 18.0 * sin(_t * TAU / 50.0)
 		S.PLAY, S.CINE:
 			if not is_nan(_cam_override.x):
-				cam.position = _cam_override.round()
+				# 11-04 作者「底下为什么有绿边」：_cam_override 存的是不算黑边的镜头位置；黑边收起来时这一点跟着回去，
+				# 不然停在「黑边放下时往下挪了」的高度，黑边一收，画面底下就露出地面以下的空色
+				_cam_bar_dy = _bar_cam_dy(_cam_override.y)
+				cam.position = Vector2(_cam_override.x, _cam_override.y + _cam_bar_dy).round()
 			elif _cam_hold > 0.0:
 				_cam_hold -= delta
 			else:
@@ -2759,7 +2816,7 @@ var _cam_override := Vector2(NAN, NAN)    # 剧本让镜头去别处（树冠缺
 ## 镜头移到 to（世界坐标的镜头中心），sec 秒，到了返回。ease：默认两头都缓；竖直平移的前半段 EASE_IN、后半段 EASE_OUT
 func camera_pan(to: Vector2, sec: float, ease := Tween.EASE_IN_OUT) -> void:
 	_kill_cam_pan()
-	_cam_override = cam.position
+	_cam_override = cam.position - Vector2(0.0, _cam_bar_dy)
 	var tw := create_tween()
 	_cam_pan_tw = tw
 	tw.tween_property(self, "_cam_override", to, sec).set_trans(Tween.TRANS_SINE).set_ease(ease)
@@ -2788,7 +2845,7 @@ func camera_release() -> void:
 ## 镜头直接停在 p 不跟晨（剧本 camera hold / fade_to 的 cam：让人走出 / 走进画面）
 func camera_hold_at(p: Vector2) -> void:
 	_kill_cam_pan()
-	_cam_override = p.round()
+	_cam_override = (p - Vector2(0.0, _cam_bar_dy)).round()      # 存不算黑边的位置（见 _update_camera）
 
 
 func cam_hold(sec: float) -> void:
@@ -3132,6 +3189,43 @@ func story_end() -> void:
 		_bag_after_story = false
 		_bag_sel = maxi(0, Inventory.owned.find("elephant_drawing"))
 		_toggle_bag()
+
+
+## 「（可选）」那一行：一行放不下就只列放得下的几件，后面写「等 N 件」（11-04 --qa_text：支线全开着时 938 像素，出屏）
+const SIDE_LINE_W := 440.0
+
+
+func _side_line(parts: Array) -> String:
+	if parts.is_empty():
+		return ""
+	var head := I18n.pick({"zh": "（可选）", "en": "(Optional) "})
+	var sep := "　" if I18n.is_zh() else " / "
+	var f := UITheme.font()
+	var shown: Array = []
+	for i in parts.size():
+		var rest := parts.size() - i - 1
+		var tail := "" if rest == 0 else (I18n.pick({"zh": "　等 %d 件", "en": " +%d more"}) % rest)
+		var cand := head + sep.join(shown + [parts[i]]) + tail
+		if f.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x > SIDE_LINE_W and not shown.is_empty():
+			break
+		shown.append(parts[i])
+	var left := parts.size() - shown.size()
+	return head + sep.join(shown) + ("" if left == 0 else I18n.pick({"zh": "　等 %d 件", "en": " +%d more"}) % left)
+
+
+## 对话框 / 头顶气泡现在压没压到左上角的目标那一块（主目标、「（可选）」、燃料表）
+func _hud_covered() -> bool:
+	if story == null or story.dlg == null:
+		return false
+	var hud := Rect2(_hud_burn.position, _hud_burn.size)
+	if _hud_side != null and _hud_side.visible and _hud_side.text != "":
+		hud = hud.merge(Rect2(_hud_burn.position + _hud_side.position, _hud_side.size))
+	for box_name in ["_box"]:
+		for host in [story.dlg, story.bark]:
+			var b = host.get(box_name) if host != null else null
+			if b is Control and (b as Control).is_visible_in_tree() and Rect2((b as Control).global_position, (b as Control).size).grow(2.0).intersects(hud):
+				return true
+	return false
 
 
 ## 树冠缺口那一屏（story_world.gd 的 treeline_view_in / out 调）：左上角的目标 / 燃料和右上角的背包淡出，

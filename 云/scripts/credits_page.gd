@@ -2,8 +2,7 @@ extends Control
 ## 制作人员（标题界面「制作人员」、设置面板里的「制作人员」、最后一章「全剧终」以后都放它）。
 ## 11-04 作者：「我都是像电影结束一样一个一个显示，每个都是一个场景」——照 Linger 的片尾（Linger/linger_bilibili/Shared/credits_roll.gd）：
 ##   一次一个人，每个人在游戏里一个活的场景上（场景整个实例化进 SubViewport，像 flashback.gd 搬城市那样，自己的动画照常跑），
-##   场景里那个地方的特效把名字聚出来；木木第一个，先一个人在黑里，名字成形以后森林才从黑里升上来。
-##   每人一个地方，不重复（11-04 作者定的）：
+##   场景里那个地方的特效把名字聚出来。每人一个地方，不重复（11-04 作者定的）：
 ##     1 木木      森林的夜（scenes/forest_test.tscn）  萤火虫从四周飞来，停成名字
 ##     2 本2兔     云层小镇（art/town，room_stage.gd，帆和风车自己在转）  一阵风从左边把淡粉的云丝吹过来，吹成名字；走的时候往右吹散
 ##     3 梧桐      芦苇地（art/reed_field，芦苇自己一阵阵弯腰）  巨型蒲公英的种子从苇丛里飘上来，一颗颗落成名字
@@ -13,7 +12,13 @@ extends Control
 ##   名字和职务读 data/credits.json（和第一关奔跑片头同一份，按 id 找；职务的 role_guess 照旧，作者改那里）。
 ##   特效：萤火虫、光柱就是 run_credits.gd 里的 Moment；风、种子、水面碎光是下面 Slide（继承 Moment，同一套字形像素、
 ##   名字 28 号、职务 14 号）加的三种。芦苇地是白天，职务小字换深色（role_col）。
-##   每页约 5 秒：黑里淡出场景（1.2 秒）→ 名字成形 → 停 → 名字散开、场景淡回黑（1 秒）。镜头在每页里慢慢平移（sine 缓起缓停）。
+## 换页（11-04 作者：「闪黑不好，黑色的时候太长了。不如还是之前方格切换吧」）：不经过黑，
+##   下一页的场景用八比特方格一格一格盖上来（和 fade_to "style": "pixel" 同一套：level_forest.gd 的 PIXEL_CELL 16 像素一格、
+##   PIXEL_STEPS 8 档、每格第几档由 hash(Vector2i(格x, 格y)) 定，这里一档 0.1 秒，共 0.8 秒）。
+##   两个 SubViewport 轮流用（这一页、下一页）；名字画在各自场景的 SubViewport 里（一层 CanvasLayer），换页时连名字一起被方格换掉。
+##   打开时从标题画面直接方格切到森林（木木那页一开始就有森林，萤火虫在森林里聚）；只有最后「感谢游玩」那页是方格切到黑。
+##   每页约 4.5 秒：方格切进来 → 名字成形 → 停 → 名字开始散、方格切到下一页。镜头在每页里慢慢平移（sine 缓起缓停）。
+##   下一页的场景提前 PREBUILD 秒建好（建场景那一下可能卡一帧，别卡在方格中间）。
 ##   场景里的晨（还有森林里的蛇女、鹿）都藏起来：只看地方，不看人。
 ## 输入（level_forest.gd 的 _input 先交给 handle）：点击 / 任意键 = 下一页；Esc = 直接关。
 ## 音乐：打开时记下 BGM 正在放的曲子，换成 theme（scripts/bgm.gd）；关掉时接回原来那首（原来没放就停掉）。
@@ -26,26 +31,26 @@ const RC := preload("res://scripts/run_credits.gd")
 const BGM_GD := preload("res://scripts/bgm.gd")
 const ROOM_GD := preload("res://scripts/room_stage.gd")
 
-const IN := 1.2              # 场景从黑里淡出来
-const OUT := 1.0             # 淡回黑
-const FX_AT := 0.5           # 场景开始淡入以后多久名字开始成形
+const CELL := 16             # 方格：和 level_forest.gd 的 PIXEL_CELL / PIXEL_STEPS 一样
+const STEPS := 8
+const SWAP := 0.8            # 一次换页（8 档 × 0.1 秒）
+const FX_AT := 0.5           # 方格开始切进来以后多久名字开始成形
 const HOLD := 1.8            # 名字成形（Moment.FORM_SEC）以后停多久
-const LEAVE := 1.0           # 名字散开用多久（同时场景淡回黑）
-const FIRST_DARK := 2.6      # 第一页：名字先在黑里成形，过这么久森林才升上来
-const FIRST_SHADE := 0.3     # 第一页森林升上来以后还压暗这么多（Linger 的 FIRST_SHADE）
+const LEAVE := 1.0           # 名字散开用多久（和下一页的方格同时）
+const PREBUILD := 1.2        # 换页前多久先把下一页的场景建好
 const DRIFT := 26.0          # 每页镜头平移多少像素
 const END_HOLD := 3.6        # 最后「感谢游玩」停多久
-const SKIP_LEAVE := 0.45     # 点了下一页：名字散得快一点
+const NAMES_LAYER := 100     # 名字那一层（在场景自己的暗角 Overlay 上面）
 
-## 每一页：id = credits.json 里的人；scene = 哪个场景；cam = 镜头中心起点（世界坐标）；at = 名字的中心（屏幕坐标）
+## 每一页：id = credits.json 里的人；scene = 哪个场景；cam = 镜头中心起点（房间 / 场景坐标）；at = 名字的中心（屏幕坐标）
 ##   fx = 这一页用哪种特效（不写 = credits.json 里那人的 style）；role_col = 职务小字的颜色（亮场景用深色）
 const SLIDES := [
-	{"id": "mumu", "scene": "forest", "cam": Vector2(300, 135), "at": Vector2(240, 116), "first": true, "fx": "fireflies"},
+	{"id": "mumu", "scene": "forest", "cam": Vector2(300, 135), "at": Vector2(240, 116), "fx": "fireflies"},
 	{"id": "bentootoo", "scene": "town", "cam": Vector2(400, 135), "at": Vector2(150, 64), "fx": "wind"},
 	{"id": "wutong", "scene": "reed_field", "cam": Vector2(1100, 135), "at": Vector2(300, 66), "fx": "seeds",
 		"role_col": Color("#4f6a7c")},
 	{"id": "oscar", "scene": "city", "cam": Vector2(700, 175), "at": Vector2(250, 84), "fx": "light"},
-	{"id": "sothere456", "scene": "river_bank", "cam": Vector2(400, 135), "at": Vector2(330, 238), "fx": "glint"},
+	{"id": "sothere456", "scene": "river_bank", "cam": Vector2(400, 135), "at": Vector2(330, 232), "fx": "glint"},
 ]
 const ROOMS := ["river_bank", "town", "reed_field"]   # room_stage 的房间（其余是 SCENES 里的小样场景）
 const SCENES := {
@@ -55,51 +60,57 @@ const SCENES := {
 }
 const HIDE := ["Chen", "Snake", "Deer"]       # 只看地方，不看人
 
-var auto_mode := false       # 测试：不等按键，每页照常播完
 var _entries := {}
-var _black: ColorRect
-var _view: TextureRect
-var _vp: SubViewport
-var _world: Node2D           # 现在这一页的场景根（在 SubViewport 里）
-var _cam: Camera2D
-var _stage: Node2D           # 河岸：room_stage（镜头要每帧喂给它）
-var _cam_from := Vector2.ZERO
-var _fx: Node2D              # 名字特效（屏幕坐标）
-var _moment: Node2D
+var _slots: Array = [{}, {}]  # 两个 SubViewport 轮流：{vp, world, cam, stage, cam_from, moment, t, live}
+var _shown: TextureRect       # 现在整屏显示的那一页
+var _mix: Control             # 换页时一格一格盖上来的下一页
+var _mix_k := 0               # 盖到第几档（0 = 没在换页）
+var _mix_tex: Texture2D       # 盖上来的是哪一页（null = 黑）
+var _black: ColorRect         # 最后一页的黑底
 var _end_box: Control
 var _slide := -1
-var _st := 0.0               # 这一页过了多久
-var _len := 0.0              # 这一页一共多久
 var _skip := false
 var _closing := false
 var _t := 0.0
 var _prev_track := ""
+var _started := false
+var _ending := false
+var black_frames := 0         # 测试：人和人之间整屏是黑的帧数（应该是 0）
+# 测试看的：最新一页的场景
+var _world: Node2D
+var _cam: Camera2D
+var _stage: Node2D
+var _moment: Node2D
 
 
 func _ready() -> void:
 	size = Vector2(480, 270)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_entries = _load()
-	_vp = SubViewport.new()
-	_vp.size = Vector2i(480, 270)
-	_vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
-	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	add_child(_vp)
-	_view = TextureRect.new()
-	_view.texture = _vp.get_texture()
-	_view.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_view.size = size
-	_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_view)
+	for i in 2:
+		var vp := SubViewport.new()
+		vp.size = Vector2i(480, 270)
+		vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
+		vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		add_child(vp)
+		_slots[i] = {"vp": vp}
 	_black = ColorRect.new()
 	_black.color = Color.BLACK
 	_black.size = size
 	_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_black.visible = false
 	add_child(_black)
-	_fx = Node2D.new()
-	add_child(_fx)
-	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.6).set_trans(Tween.TRANS_SINE)
+	_shown = TextureRect.new()                   # 一开始没图：底下还是标题画面，第一次方格直接盖上森林
+	_shown.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_shown.size = size
+	_shown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_shown)
+	_mix = Control.new()
+	_mix.size = size
+	_mix.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mix.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_mix.draw.connect(_draw_mix)
+	add_child(_mix)
 	var bgm = BGM_GD.get_bgm(get_tree())
 	_prev_track = str(bgm.current())
 	bgm.play("theme", NAN, 1.5, 0, _prev_track if _prev_track != "" else "")
@@ -107,11 +118,27 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	await get_tree().create_timer(0.6).timeout
+	_build_slot(0, 0)
+	await get_tree().process_frame
+	await _swap(0)                                # 标题 → 森林
+	_started = true
 	for i in SLIDES.size():
 		if _closing:
 			return
-		await _play_slide(i)
+		var s := i % 2
+		await _hold_slide(i, s)
+		if _closing:
+			return
+		_leave(s)
+		if i + 1 < SLIDES.size():
+			if (_slots[1 - s] as Dictionary).get("world") == null:
+				_build_slot(1 - s, i + 1)
+			await _swap(1 - s)
+		else:
+			_ending = true
+			await _swap(-1)                           # 最后一个人 → 黑（「感谢游玩」）
+		_free_slot(s)
+		print("CREDITS slide %d %s done" % [i, SLIDES[i]["id"]])
 	if _closing:
 		return
 	await _play_end()
@@ -119,51 +146,88 @@ func _run() -> void:
 
 
 # ======================================================================= 一页
-func _play_slide(i: int) -> void:
+## 这一页停到该换页（名字成形 + 停够），点了就提前；换页前 PREBUILD 秒把下一页建好
+func _hold_slide(i: int, s: int) -> void:
 	_slide = i
-	var sd: Dictionary = SLIDES[i]
-	var first: bool = sd.get("first", false)
-	_build_scene(str(sd["scene"]), sd["cam"])
-	_moment = _make_moment(sd)
-	_st = 0.0
 	_skip = false
-	var show_at := FIRST_DARK if first else 0.0                                 # 场景什么时候开始从黑里出来
-	var fx_at := 0.3 if first else FX_AT
-	var form := RC.Moment.FORM_SEC
-	var leave_at := maxf(show_at + IN, fx_at + form) + HOLD
-	_len = leave_at + maxf(LEAVE, OUT)
-	var shade := FIRST_SHADE if first else 0.0
-	var left_at := -1.0
-	while _st < _len and not _closing:
-		var dt := get_process_delta_time()
+	var sl: Dictionary = _slots[s]
+	var leave_at := FX_AT + RC.Moment.FORM_SEC + HOLD
+	while not _closing and not _skip and float(sl.get("t", 0.0)) < leave_at:
+		if i + 1 < SLIDES.size() and float(sl.get("t", 0.0)) >= leave_at - PREBUILD and (_slots[1 - s] as Dictionary).get("world") == null:
+			_build_slot(1 - s, i + 1)
 		await get_tree().process_frame
-		_st += dt
-		if _moment != null and not _moment.begun and _st >= fx_at:
-			_moment.begin(Vector2(240, 135), 1.0)
-		if _skip and left_at < 0.0:
-			_skip = false
-			left_at = _st                                                       # 点了下一页：马上开始散、淡回黑
-			_len = _st + maxf(SKIP_LEAVE, 0.5)
-		elif left_at < 0.0 and _st >= leave_at:
-			left_at = _st
-		if left_at >= 0.0 and _moment != null and _moment.begun and _moment.get("_leave_t") < 0.0:
-			_moment.leave_now(SKIP_LEAVE if _len - left_at < LEAVE else LEAVE)
-		# 场景亮度：show_at 起淡出来，left_at 起淡回黑
-		var k_in := _ease((_st - show_at) / IN)
-		var a := lerpf(1.0, shade, k_in)
-		if left_at >= 0.0:
-			a = lerpf(a, 1.0, _ease((_st - left_at) / (_len - left_at)))
-		_black.color.a = a
-		# 镜头慢慢平移（sine 缓起缓停，整页走 DRIFT 像素）
-		if _cam != null:
-			_cam.position = (_cam_from + Vector2(DRIFT * _ease(_st / _len), 0)).round()
-		if _stage != null and _stage.has_method("update"):
-			_stage.update(dt, _cam.position)
-		if _moment != null and _moment.begun:
-			_moment.step(dt)
-	_black.color.a = 1.0
-	_clear()
-	print("CREDITS slide %d %s done (%.1fs)" % [i, sd["id"], _st])
+	_skip = false
+
+
+func _leave(s: int) -> void:
+	var m = (_slots[s] as Dictionary).get("moment")
+	if m != null and is_instance_valid(m) and m.begun:
+		m.leave_now(LEAVE)
+
+
+## 换页：to 那一页（-1 = 黑）用方格一格一格盖上来；盖满以后它就是整屏的那一页
+func _swap(to: int) -> void:
+	if to >= 0:
+		var sl: Dictionary = _slots[to]
+		sl["live"] = true
+		sl["t"] = 0.0
+		_world = sl.get("world")
+		_cam = sl.get("cam")
+		_stage = sl.get("stage")
+		_moment = sl.get("moment")
+		_mix_tex = (sl["vp"] as SubViewport).get_texture()
+	else:
+		_mix_tex = null
+	for k in STEPS:
+		_mix_k = k + 1
+		_mix.queue_redraw()
+		await get_tree().create_timer(SWAP / STEPS).timeout
+		if _closing:
+			return
+	if to >= 0:
+		_shown.texture = _mix_tex
+	else:
+		_shown.texture = null
+		_black.visible = true
+	_mix_k = 0
+	_mix.queue_redraw()
+
+
+func _draw_mix() -> void:
+	if _mix_k <= 0:
+		return
+	var cols := int(ceil(480.0 / CELL))
+	var rows := int(ceil(270.0 / CELL))
+	for cy in rows:
+		for cx in cols:
+			if absi(hash(Vector2i(cx, cy))) % STEPS < _mix_k:          # 每格第几档盖上（同一格永远同一档，和 level_forest 一样）
+				var r := Rect2(cx * CELL, cy * CELL, CELL, CELL)
+				if _mix_tex != null:
+					_mix.draw_texture_rect_region(_mix_tex, r, r)
+				else:
+					_mix.draw_rect(r, Color.BLACK)
+
+
+func _process(delta: float) -> void:
+	_t += delta
+	for sl in _slots:
+		if not sl.get("live", false) or sl.get("world") == null:
+			continue
+		sl["t"] = float(sl["t"]) + delta
+		var t: float = sl["t"]
+		var cam: Camera2D = sl["cam"]
+		cam.position = ((sl["cam_from"] as Vector2) + Vector2(DRIFT * _ease(t / (FX_AT + RC.Moment.FORM_SEC + HOLD + SWAP)), 0)).round()
+		var st = sl.get("stage")
+		if st != null:
+			st.update(delta, cam.position)
+		var m = sl.get("moment")
+		if m != null and is_instance_valid(m):
+			if not m.begun and t >= FX_AT:
+				m.begin(Vector2(240, 135), 1.0)
+			if m.begun:
+				m.step(delta)
+	if _started and not _ending and not _closing and _shown.texture == null and _mix_k == 0:
+		black_frames += 1
 
 
 ## 最后一页：「感谢游玩」+「2026 年 11 月」，黑底
@@ -205,37 +269,53 @@ func _label(text: String, sz: int, col: Color) -> Label:
 
 
 # ======================================================================= 场景
-func _build_scene(kind: String, cam: Vector2) -> void:
-	_clear_scene()
-	_cam_from = cam
+## 在第 s 个 SubViewport 里建第 i 页：场景 + 镜头 + 名字（名字在场景里的一层 CanvasLayer 上，换页时跟着场景一起被方格换掉）
+func _build_slot(s: int, i: int) -> void:
+	_free_slot(s)
+	var sd: Dictionary = SLIDES[i]
+	var kind := str(sd["scene"])
+	var cam: Vector2 = sd["cam"]
+	var vp: SubViewport = _slots[s]["vp"]
+	var world: Node2D
+	var stage: Node2D = null
+	var camera: Camera2D
 	if kind in ROOMS:
-		_world = Node2D.new()
-		_stage = ROOM_GD.new()
-		_stage.setup(kind, null)
-		_world.add_child(_stage)
-		_cam = Camera2D.new()
-		_world.add_child(_cam)
+		world = Node2D.new()
+		stage = ROOM_GD.new()
+		stage.setup(kind, null)
+		world.add_child(stage)
+		camera = Camera2D.new()
+		world.add_child(camera)
+		cam += stage.origin                          # SLIDES 里是房间坐标；小镇、芦苇地的房间在世界里不在 (0, 0)（room.json 的 origin）
 	else:
 		var path: String = SCENES.get(kind, "")
 		if path == "" or not ResourceLoader.exists(path):
 			push_warning("credits_page：场景 %s 找不到" % path)
-			return
-		_world = (load(path) as PackedScene).instantiate()
-		_world.set_script(null)                     # 小样的根脚本读命令行（--shot= 会存图退出）、管晨和镜头：这里不要
+			world = Node2D.new()
+		else:
+			world = (load(path) as PackedScene).instantiate()
+			world.set_script(null)                   # 小样的根脚本读命令行（--shot= 会存图退出）、管晨和镜头：这里不要
 		for n in HIDE:
-			var c := _world.get_node_or_null(n)
+			var c := world.get_node_or_null(n)
 			if c != null:
 				(c as CanvasItem).visible = false
 				c.process_mode = Node.PROCESS_MODE_DISABLED
-		_cam = _world.get_node_or_null("Camera") as Camera2D
-		if _cam == null:
-			_cam = Camera2D.new()
-			_world.add_child(_cam)
-	_vp.add_child(_world)
-	_cam.position = cam
-	_cam.make_current()
-	if _stage != null:
-		_stage.update(0.0, cam)
+		camera = world.get_node_or_null("Camera") as Camera2D
+		if camera == null:
+			camera = Camera2D.new()
+			world.add_child(camera)
+	vp.add_child(world)
+	camera.position = cam
+	camera.make_current()
+	if stage != null:
+		stage.update(0.0, cam)
+	var names := CanvasLayer.new()
+	names.layer = NAMES_LAYER
+	world.add_child(names)
+	var m := _make_moment(sd)
+	if m != null:
+		names.add_child(m)
+	_slots[s] = {"vp": vp, "world": world, "cam": camera, "stage": stage, "cam_from": cam, "moment": m, "t": 0.0, "live": false}
 
 
 func _make_moment(sd: Dictionary) -> Node2D:
@@ -254,23 +334,20 @@ func _make_moment(sd: Dictionary) -> Node2D:
 	m.setup(e, 0.0)
 	m.hold = 999.0                              # 什么时候散由这一页管（leave_now）
 	m.position = (sd["at"] as Vector2).round()
-	_fx.add_child(m)
 	return m
 
 
+func _free_slot(s: int) -> void:
+	var sl: Dictionary = _slots[s]
+	var w = sl.get("world")
+	if w != null and is_instance_valid(w):
+		w.queue_free()
+	_slots[s] = {"vp": sl["vp"]}
+
+
 func _clear() -> void:
-	if _moment != null and is_instance_valid(_moment):
-		_moment.queue_free()
-	_moment = null
-	_clear_scene()
-
-
-func _clear_scene() -> void:
-	if _world != null and is_instance_valid(_world):
-		_world.queue_free()
-	_world = null
-	_stage = null
-	_cam = null
+	for s in 2:
+		_free_slot(s)
 
 
 # ======================================================================= 输入、关
@@ -284,10 +361,6 @@ func handle(event: InputEvent) -> bool:
 	elif event is InputEventMouseButton and event.pressed and _t > 0.4:
 		_skip = true
 	return true
-
-
-func _process(delta: float) -> void:
-	_t += delta
 
 
 func close() -> void:
