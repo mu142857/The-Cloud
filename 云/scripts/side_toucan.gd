@@ -348,7 +348,7 @@ func _on_tick(delta: float) -> void:
 			chen.input_enabled = true
 		var x := clampf(chen.position.x, _lo, _hi)
 		if x != chen.position.x:
-			chen.position.x = x
+			chen.position.x = move_toward(chen.position.x, x, 3.0)    # 出了接果子的范围：慢慢走回来，不一帧夹回去（11-04 --qa_live）
 	_beak_tick(delta)
 
 
@@ -407,7 +407,8 @@ func _auto_walk(x: float, sec: float) -> void:
 	if chen.has_method("_set_facing") and absf(x - x0) > 1.0:
 		chen._set_facing(1 if x > x0 else -1)
 	var tw := chen.create_tween()
-	tw.tween_method(func(v: float): chen.position.x = round(lerpf(x0, x, 0.5 - 0.5 * cos(PI * v))), 0.0, 1.0, sec * 0.25)
+	# 不比晨平时走路快（150 像素 / 秒）：缩成 1/4 时间那样一帧 7 像素，--qa_live 算闪现
+	tw.tween_method(func(v: float): chen.position.x = round(lerpf(x0, x, 0.5 - 0.5 * cos(PI * v))), 0.0, 1.0, maxf(sec * 0.25, absf(x - x0) / 150.0 * 1.6))
 
 
 # ----------------------------------------------------------------------- 大嘴鸟的嘴（叠图）

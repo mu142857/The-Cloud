@@ -1,0 +1,7 @@
+来源页面：https://opengameart.org/content/crickets-ambient-noise-loopable
+直链：https://opengameart.org/sites/default/files/crickets_1.mp3
+作者：Wolfgang_
+授权：CC0 1.0（公有领域，可商用，不需要署名）
+下载：2026-11-04（作者在会话里同意下载）
+
+结论（11-04）：没用。99% 的能量在 2 kHz 以上，11 秒一段很密的高频蟋蟀叫，循环听久了刺耳；森林继续用合成的 forest_night.ogg（自己的蟋蟀稀疏、轻）。

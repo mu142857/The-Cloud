@@ -1,0 +1,7 @@
+来源页面：https://opengameart.org/content/park-ambiences
+直链：https://opengameart.org/sites/default/files/park_ambience_river.wav
+作者：Thimras
+授权：CC0 1.0（公有领域，可商用，不需要署名）
+下载：2026-11-04（作者在会话里同意下载）
+
+结论（11-04）：没用。截 100~130 秒、3.5 kHz 以上压 6 dB、提到 -21 dBFS 以后还是一整片铺到 8 kHz 的沙沙声（水流过石坎），和作者嫌的白噪音一样；河流章继续用合成的 river_flow.wav（tools/river_flow_soft.py）。试听：river_30s_loop.ogg。

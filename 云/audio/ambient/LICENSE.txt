@@ -1,0 +1,21 @@
+forest_night.ogg
+  来源：自己合成（tools/forest_night_ambient.py，numpy 频域整形噪声 + 合成的蟋蟀、猫头鹰），不含任何下载的录音。
+  授权：本项目自有，可商用，不需要署名。
+  内容：60 秒无缝循环；松林里的风（150~1100 Hz，2 kHz 以上压掉，没有白噪音的沙沙）、三只远处的蟋蟀、两声远处的猫头鹰。
+  重新生成：python3 tools/forest_night_ambient.py 输出.wav [频谱图.png]，再 ffmpeg -i 输出.wav -c:a libvorbis -q:a 4 forest_night.ogg
+  11-04 换掉森林原来的 audio/sfx/rain_loop.wav（作者：白噪音太大、难听）。
+
+audio/sfx/river_flow.wav（河流章的流水声，文件名不变）
+  来源：自己合成（tools/river_flow_soft.py：2 kHz 以下的水声底子 + 一颗颗上滑的水泡声），12 秒无缝循环，单声道。
+  授权：本项目自有，可商用，不需要署名。
+  11-04 换掉原来 tools/river_sfx.py 的 _river（一直铺到 8 kHz 的宽频噪声）。注意：重跑 tools/river_sfx.py 会把它写回旧的。
+
+audio/sfx/rain_loop.wav（城市 art/city/room.json 和闪回的雨，文件名不变）
+  来源：OpenGameArt「Rain in the Gutter Loop」，作者 Ogrebane，https://opengameart.org/content/rain-gutter-loop
+  授权：CC0 1.0（公有领域，可商用，不需要署名）。原文件和授权在 audio/ambient/candidates/02_oga_rain_gutter/。
+  处理：tools/ambient_from_recordings.py rain（截 30 秒、首尾 2 秒交叉淡化成无缝循环、单声道 44.1 kHz、-22.5 dBFS）。
+  11-04 换掉原来合成的宽频雨声（作者嫌白噪音难听）。
+
+audio/ambient/candidates/（.gdignore：Godot 不导入、不进游戏包）
+  下载的候选原文件 + 每个的来源 / 授权 / 结论（LICENSE.txt）+ 频谱图 + 试听用的 30 秒循环 ogg。
+  Pixabay 的候选没下成：内置浏览器里点「Download」以后没有文件落地（直接请求 CDN 也是 403），按约定没有绕过去。

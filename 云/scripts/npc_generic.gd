@@ -13,6 +13,11 @@ extends Node2D
 ## 缺图 / 没有 json：画 color 的竖条色块 + 名字（森林规矩：缺图不卡）。
 ## 跟随（story_runner 的 follow）：follow_to(x) 每帧给目标，弹簧追（先缓起再缓停），停下转向晨；走路动画帧速不变。
 
+const CHEN_GD := preload("res://scripts/chen.gd")
+## 11-04 作者「闪现」（--qa_live）：剧本催人走（WALK_HURRY 2.2 倍）和跟随追赶最快不超过这些（像素 / 秒）：
+## 再快一帧就 6、7 像素，看着像瞬移（妮芙在家里下楼一帧 7 像素）。晨跑最快 225
+const WALK_MAX := 200.0
+const FOLLOW_MAX := 190.0   # 走坡 / 台阶：slope_k、STEP_V 和晨用同一套
 const DIR := "res://art/characters/%s/"
 const LOOP_ANIMS := ["idle", "walk", "talk", "swim"]
 ## 剧本里常见的动作名 → 通用的几个（json 里没有对应的就再往下退）
@@ -267,7 +272,8 @@ func follow_to(tx: float, look_x: float, delta: float, w := 6.0) -> void:
 		return
 	var d := tx - position.x
 	var acc := w * w * d - 2.0 * 0.9 * w * _vel
-	_vel = clampf(_vel + acc * delta, -speed * 2.2, speed * 2.2)
+	var vmax := minf(speed * 2.2, FOLLOW_MAX)
+	_vel = clampf(_vel + acc * delta, -vmax, vmax)
 	if absf(d) < 1.0 and absf(_vel) < 4.0:
 		_vel = 0.0
 		if absf(look_x - position.x) > 2.0:
@@ -277,12 +283,27 @@ func follow_to(tx: float, look_x: float, delta: float, w := 6.0) -> void:
 		return
 	if absf(_x - position.x) > 0.5:
 		_x = position.x
-	_x += _vel * delta
+	_x += _vel * delta * CHEN_GD.slope_k(ground_fn, position.x, signf(_vel))
 	position.x = round(_x)
-	_snap_y()
+	_snap_walk(delta)
 	if absf(_vel) > 6.0:
 		face(1 if _vel > 0.0 else -1)
 		play("walk")
+
+
+## 走路 / 跟随时脚下地面一下子高一截、低一截：每秒最多 chen.gd 的 STEP_V 像素地跟过去（不一帧跳过去，11-04 --qa_live）
+func _snap_walk(delta: float) -> void:
+	var fr := Engine.get_process_frames()
+	if int(get_meta("y_frame", -1)) == fr:
+		return                                 # 一帧只落一次（跟随、让路、自己 _process 都会叫到）
+	set_meta("y_frame", fr)
+	if ground_fn.is_valid():
+		var gy: float = round(float(ground_fn.call(position.x))) + 1.0
+		position.y = round(move_toward(position.y, gy, maxf(CHEN_GD.STEP_V * delta, 1.0)))
+		if absf(position.y - gy) >= 1.0:
+			set_meta("y_lag", true)
+		elif has_meta("y_lag"):
+			remove_meta("y_lag")
 
 
 func _snap_y() -> void:
@@ -294,19 +315,21 @@ func _process(delta: float) -> void:
 	_t += delta
 	if not is_nan(_walk_x):
 		var d := _walk_x - position.x
-		var step := _walk_speed * delta
+		var step := minf(_walk_speed, WALK_MAX) * delta
 		if absf(d) <= step:
 			position.x = _walk_x
 			_walk_x = NAN
-			_snap_y()
+			_snap_walk(delta)                  # 到了：脚下还差的那点高度接着慢慢落（_process 里 y_lag），不一帧补上
 			play("talk" if _talking and has_anim("talk") else "idle")
 		else:
 			if absf(_x - position.x) > 0.5:
 				_x = position.x
-			_x += signf(d) * step
+			_x += signf(d) * step * CHEN_GD.slope_k(ground_fn, position.x, signf(d))
 			position.x = round(_x)
-			_snap_y()
+			_snap_walk(delta)
 			play("walk")
+	if is_nan(_walk_x) and has_meta("y_lag"):
+		_snap_walk(delta)
 	_anim_t += delta
 	_show_frame()
 

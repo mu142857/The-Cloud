@@ -146,6 +146,7 @@ const DLG_TIME := 10.0        # 对话框最多停多久
 const DLG_WALK := 56.0        # 晨离开说话的地方这么远，对话框就淡出
 
 const SFX_DIR := "res://audio/sfx/"
+const RAIN_DB := -18.0        # 森林的环境音（变量名还叫 rain）：11-04 作者「白噪音太大、难听，删了」→ 原来的 rain_loop.wav 换成 audio/ambient/forest_night.ogg（风、蟋蟀、远处的猫头鹰，见那里的 LICENSE.txt）
 const FIREFLIES := preload("res://scripts/fireflies.gd")
 const TEX_BAG := preload("res://art/forest_story/c1_bag.png")    # 11-04 作者：右上角的背包要和地上捡的那只一样（旧的 art/level1/icon_bag.png 是灰色工具箱样子）
 const TEX_GEAR := preload("res://art/level1/icon_gear.png")
@@ -548,9 +549,21 @@ func _apply_quality() -> void:
 
 
 # ======================================================================= 声音
+## 循环的环境音（ogg）：编辑器还没导入时直接读文件；ogg 导入默认不循环，这里打开
+static func _ambient_stream(path: String) -> AudioStream:
+	var s: AudioStream = null
+	if ResourceLoader.exists(path):
+		s = load(path)
+	elif FileAccess.file_exists(path):
+		s = AudioStreamOggVorbis.load_from_file(ProjectSettings.globalize_path(path))
+	if s is AudioStreamOggVorbis:
+		(s as AudioStreamOggVorbis).loop = true
+	return s
+
+
 func _build_audio() -> void:
 	_rain = AudioStreamPlayer.new()
-	_rain.stream = load(SFX_DIR + "rain_loop.wav")
+	_rain.stream = _ambient_stream("res://audio/ambient/forest_night.ogg")
 	_rain.bus = "SFX"
 	_rain.volume_db = -80.0
 	add_child(_rain)
@@ -1576,7 +1589,7 @@ func _leave_headphones() -> void:
 
 func _rain_in() -> void:
 	_rain.play()
-	_fade_db(_rain, -9.0, 3.5)
+	_fade_db(_rain, RAIN_DB, 3.5)
 
 
 func _fade_from_black() -> void:
@@ -1615,7 +1628,7 @@ func _skip_to_title() -> void:
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 0.0
 	_rain.play()
-	_rain.volume_db = -9.0
+	_rain.volume_db = RAIN_DB
 	_show_title()
 	_kill_cine()
 	_title_k = 1.0
@@ -2549,12 +2562,7 @@ func _input(event: InputEvent) -> void:
 				_handled()
 		S.CRASH:
 			if confirm:
-				_handled()
-				if _skip_armed > 0.0:
-					_skip_crash()
-				else:
-					_skip_armed = 2.0
-					_skip_label.modulate.a = 1.0
+				_handled()                        # 11-04 作者：开场坠机是关键演出，不许跳过（_skip_crash 只留给 --stage / 自动玩）
 		S.PLAY, S.CINE:
 			if free_roam != "" and state == S.PLAY and event is InputEventKey and event.pressed and not event.echo \
 					and event.keycode in [KEY_UP, KEY_W, KEY_DOWN, KEY_S] and not story.busy:
@@ -2969,15 +2977,18 @@ func _update_edge_arrow(cc: Vector2) -> void:
 	story.dlg.edge_arrow(side, y)
 
 
+const WALL_SLIDE := 3.0
+
 ## 左右不可见的墙：自由走时顶着墙按方向键就松手（不原地跑），位置也夹回来
 func _update_walls() -> void:
 	if state == S.HEADPHONES or state == S.INTRO or state == S.TITLE or state == S.CRASH:
 		return
 	var w: Vector2 = free_walls() if free_roam != "" else story.world.walls(chen.position.x)
+	# 墙变了（上了楼、换了一段）晨在墙外：每帧最多 WALL_SLIDE 像素走回来，不一帧夹回去（11-04 --qa_live：一下子跳 5 像素）
 	if chen.position.x < w.x:
-		chen.position.x = w.x
+		chen.position.x = move_toward(chen.position.x, w.x, WALL_SLIDE)
 	elif chen.position.x > w.y:
-		chen.position.x = w.y
+		chen.position.x = move_toward(chen.position.x, w.y, WALL_SLIDE)
 	if not is_nan(_walk_target):
 		_walk_target = clampf(_walk_target, w.x, w.y)
 	var dir := Input.get_axis("ui_left", "ui_right")
@@ -3495,7 +3506,7 @@ func on_room_changed(snap := true) -> void:
 	if chapter != "forest":
 		_sync_forest_layers()
 		return                                       # 驾驶舱里没有雨
-	_fade_db(_rain, -16.0 if story.world.in_room() else -9.0, 0.6)
+	_fade_db(_rain, RAIN_DB - 7.0 if story.world.in_room() else RAIN_DB, 0.6)
 
 
 ## 别的章节里回到森林（终章尾声：森林路口 → 树屋，docs/第三章计划.md 第十节）：_start_chapter 藏起来的森林图层再显示出来，
@@ -4169,7 +4180,7 @@ func _start_free() -> void:
 	if chapter == "forest":
 		fade.color.a = 0.0
 		_rain.play()
-		_rain.volume_db = -9.0
+		_rain.volume_db = RAIN_DB
 		_show_wreck()
 		chen.visible = true
 		_chen_stand()

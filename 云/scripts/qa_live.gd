@@ -29,12 +29,21 @@ var _bark_text := ""
 var _bark_since := 0.0
 
 
+## 软锁：左上角目标一直是这一个、这么久一个新 flag 都没设（自动玩会自己找点去互动，正常一两分钟总有进展）
+const SOFTLOCK := 90.0
+var _obj_key := ""
+var _obj_since := 0.0
+var _obj_flags := 0
+var softlocks := {}
+
+
 func _process(delta: float) -> void:
 	_t += delta
 	_f += 1
 	if story == null or not is_instance_valid(story):
 		return
 	_dialogue_state()
+	_softlock()
 	if _f % EVERY != 0:
 		return
 	var items: Array = []
@@ -212,6 +221,23 @@ func _dialogue_state() -> void:
 		_flag_once(stuck, "bark:" + bt, "QA_DLG_STUCK 头顶气泡「%s」挂了 %.1f 秒 scene=%s" % [_short(bt), _t - _bark_since, story._cur_scene])
 
 
+func _softlock() -> void:
+	var o: Dictionary = story.objective()
+	var k := str(o.get("zh", ""))
+	var nf: int = StoryState.flag_order.size()
+	if k != _obj_key or nf != _obj_flags:
+		_obj_key = k
+		_obj_flags = nf
+		_obj_since = _t
+		return
+	if k != "" and _t - _obj_since > SOFTLOCK and not story.ended:
+		var av: Array = []
+		for p in story.hotspots.available():
+			av.append(str(p["h"].get("id", "")))
+		_flag_once(softlocks, k, "QA_SOFTLOCK 目标「%s」%.0f 秒没有进展 room=%s x=%d 能用的点：%s" % [k, _t - _obj_since, story.world.room,
+			int(story.chen.position.x), ", ".join(av) if not av.is_empty() else "（没有）"])
+
+
 func _flag_once(bucket: Dictionary, key: String, msg: String) -> void:
 	if bucket.has(key):
 		return
@@ -220,7 +246,7 @@ func _flag_once(bucket: Dictionary, key: String, msg: String) -> void:
 
 
 func summary() -> String:
-	return "QA_LIVE_SUMMARY overlap=%d offscreen=%d dlg_stuck=%d dlg_stale=%d" % [overlaps.size(), offscreen.size(), stuck.size(), stale.size()]
+	return "QA_LIVE_SUMMARY overlap=%d offscreen=%d dlg_stuck=%d dlg_stale=%d softlock=%d" % [overlaps.size(), offscreen.size(), stuck.size(), stale.size(), softlocks.size()]
 
 
 func _exit_tree() -> void:

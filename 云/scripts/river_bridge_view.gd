@@ -82,6 +82,7 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 		await KIT.steps(story, [{"do": "sfx", "name": "view_click"}])
 		_set_clear(1.0)
 		_flash_full()
+		await _elephant_shadow()
 		await KIT.lines(story, step, "aligned")
 	await KIT.lines(story, step, "ask")
 	while not story.ended:
@@ -193,6 +194,70 @@ func _flash_full() -> void:
 	var tw := _full.create_tween()
 	tw.tween_property(_full, "modulate:a", 0.55, 0.35).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(_full, "modulate:a", 0.0, 0.9).set_trans(Tween.TRANS_SINE)
+
+
+## 11-04 作者「第二关的小游戏不如第一关有趣」：对上那一刻，影像里那团灰影真的从对的桥洞底下走过去一遍
+##   （画在世界里、晨身后；大象的侧影，一步一顿，淡进来再淡出去）。接下来问「它是从哪个桥洞过去的」就有答案可看。
+class Shadow extends Node2D:
+	var step_t := 0.0
+	var k := 0.0
+
+	## 像素椭圆（一行一行）
+	func _ell(c: Vector2, rx: float, ry: float, col: Color) -> void:
+		for dy in range(-int(ry), int(ry) + 1):
+			var w := floorf(rx * sqrt(maxf(0.0, 1.0 - float(dy * dy) / (ry * ry))))
+			draw_rect(Rect2(roundf(c.x - w), roundf(c.y + dy), w * 2.0 + 1.0, 1), col)
+
+	## 大象侧影（朝右走，原点 = 脚底中间）：粗短腿一前一后地迈、圆身子、大耳朵、鼻子垂下来打个卷
+	func _draw() -> void:
+		var col := Color(0.6, 0.67, 0.72, 0.34 * k)
+		var dark := Color(0.5, 0.57, 0.63, 0.34 * k)
+		var bob := roundf(sin(step_t * 5.0) * 1.0)
+		var legs := [-24.0, -12.0, 12.0, 24.0]
+		for i in legs.size():
+			var sw := roundf(sin(step_t * 5.0 + (PI if i in [0, 2] else 0.0)) * 2.5)
+			draw_rect(Rect2(legs[i] - 4.0 + sw, -16 + bob, 9, 16 - bob), col)
+		_ell(Vector2(0, -32 + bob), 34.0, 18.0, col)                   # 身子
+		_ell(Vector2(36, -40 + bob), 13.0, 12.0, col)                  # 头
+		_ell(Vector2(28, -38 + bob), 9.0, 13.0, dark)                  # 耳朵
+		for i in 15:                                                   # 鼻子
+			var t := i / 14.0
+			var q := Vector2(46.0 + 5.0 * t - 7.0 * maxf(0.0, t - 0.75) * 4.0, -38.0 + 30.0 * t + bob)
+			draw_rect(Rect2(q.round(), Vector2(5.0 - 2.0 * t, 2)), col)
+		for i in 6:                                                    # 尾巴
+			draw_rect(Rect2(-34 - i, -32 + i * 2 + bob, 1, 2), dark)
+
+
+func _elephant_shadow() -> void:
+	if story.ff or story.chen == null:
+		return
+	var ax := KIT.mx(world, right_arch(step), NAN)
+	if is_nan(ax):
+		return
+	var sh := Shadow.new()
+	var host: Node = story.chen.get_parent()
+	host.add_child(sh)
+	host.move_child(sh, story.chen.get_index())          # 同一层、画在晨前面一个 = 晨身后
+	sh.z_index = story.chen.z_index
+	sh.z_as_relative = story.chen.z_as_relative
+	var y: float = story.chen.position.y - 26.0          # 在后面的水里（桥洞底下），不从晨身上穿过去
+	var dur := 1.6 if auto_mode else 3.4
+	var x0 := ax - 200.0
+	var x1 := ax + 60.0
+	var t := 0.0
+	KIT.steps(story, [{"do": "sfx", "name": "low_call_tape"}])
+	if story.has_method("_ui_shot"):
+		story._ui_shot("bridge_shadow", dur * 0.45)
+	while t < dur and is_instance_valid(sh) and not story.ended:
+		await story.get_tree().process_frame
+		t += story.get_process_delta_time()
+		var u := t / dur
+		sh.position = Vector2(roundf(lerpf(x0, x1, u)), y)
+		sh.step_t = t
+		sh.k = clampf(minf(u / 0.2, (1.0 - u) / 0.25), 0.0, 1.0)
+		sh.queue_redraw()
+	if is_instance_valid(sh):
+		sh.queue_free()
 
 
 func _drop_frame() -> void:

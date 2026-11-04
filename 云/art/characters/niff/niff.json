@@ -20,12 +20,37 @@
     3
    ],
    "ms": 200
+  },
+  "spin": {
+   "sheet": "niff_spin.png",
+   "frame": [
+    90,
+    89
+   ],
+   "anchor": [
+    45,
+    81
+   ],
+   "frames": [
+    0,
+    1,
+    2,
+    3,
+    0,
+    1,
+    2,
+    3
+   ],
+   "ms": 100,
+   "loop": false,
+   "_note": "作者 11-02 画的「高兴转圈圈」：转两圈（0.8 秒）回待机。高兴的时候用：捞齐了、影像有声音了、送铜铃"
   }
  },
  "alias": {
   "idle": "swim",
   "walk": "swim",
-  "talk": "swim"
+  "talk": "swim",
+  "laugh": "spin"
  },
  "forms": {
   "land": {

@@ -1,0 +1,7 @@
+来源页面：https://opengameart.org/content/rain-gutter-loop
+直链：https://opengameart.org/sites/default/files/rain-gutter-loop_0.mp3
+作者：Ogrebane
+授权：CC0 1.0（公有领域，可商用，不需要署名）
+下载：2026-11-04（作者在会话里同意下载）
+
+结论（11-04）：用了。截 8~38 秒、首尾 2 秒交叉淡化 → audio/sfx/rain_loop.wav（城市 art/city/room.json 和闪回用）。rain_30s_loop.ogg 是同一段的试听版。

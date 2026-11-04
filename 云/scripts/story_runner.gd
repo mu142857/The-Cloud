@@ -677,9 +677,9 @@ func _step(st: Dictionary) -> String:
 			if not ff:
 				await _wait(maxf(float(st.get("sec", 0.5)) * WAIT_SCALE, 0.3))
 		"show":
-			_show(st, true)
+			await _show(st, true)
 		"hide":
-			_show(st, false)
+			await _show(st, false)
 		"give":
 			if st.has("items"):
 				await quick.give_many(st)
@@ -1266,7 +1266,7 @@ func _face(st: Dictionary) -> void:
 	n._set_facing(1 if tx > n.position.x else -1)
 
 
-func _show(st: Dictionary, on: bool) -> void:
+func _show(st: Dictionary, on: bool, instant := false) -> void:
 	var who := str(st.get("who", ""))
 	var n := npc(who)
 	if n == null:
@@ -1276,7 +1276,17 @@ func _show(st: Dictionary, on: bool) -> void:
 		var r: Dictionary = world.resolve(st["at"])
 		if r["ok"]:
 			var slv := _lv_target(st["at"], n) if _lv_stage(str(r["room"])) != null else -1
-			_place(n, _clear_x(n, r["x"], str(r["room"]), slv), r["room"], slv)     # 人和人不叠
+			var tx := _clear_x(n, r["x"], str(r["room"]), slv)       # 人和人不叠
+			var seen_from := _seen_now(n)
+			var seen_to: bool = n.is_visible_in_tree() and n.modulate.a > 0.5 and qa_screen_open() and str(r["room"]) == world.room \
+				and _on_screen(Vector2(tx, n.position.y), -8.0)
+			if on and not ff and not instant and seen_from and str(r["room"]) == world.room and absf(tx - n.position.x) > 6.0 \
+					and (slv < 0 or _lv_stage(str(r["room"])) == null or slv == _lv_of(n, _lv_stage(str(r["room"])))):
+				await _show_move(n, tx, str(r["room"]), slv)       # 已经在画面里的人：滑过去 / 淡出淡入，不瞬移
+			elif on and not ff and not instant and (seen_from or seen_to) and absf(tx - n.position.x) > 6.0:
+				await _show_move(n, tx, str(r["room"]), slv, true)   # 换层，或者从画面外放进画面里：淡出（看不见就直接）、放好、淡入
+			else:
+				_place(n, tx, r["room"], slv)
 		else:
 			_warn_once("show：找不到 " + str(st["at"]))
 	# "fade": 秒（10-29）：按 4 档透明度淡入 / 淡出（鹿走进雾里、慢慢出现），不突然出现 / 消失；不等它淡完就播下一步
@@ -1315,6 +1325,39 @@ func _show(st: Dictionary, on: bool) -> void:
 		tw2.tween_callback(func(): n.remove_meta("vis_tw"))
 
 
+## 这个人现在就在画面里看得见（不黑、不透明、在镜头里）
+func _seen_now(n: Node2D) -> bool:
+	return n.is_visible_in_tree() and n.modulate.a > 0.5 and qa_screen_open() and _on_screen(n.position, -8.0) \
+		and _room_of(n) == world.room
+
+
+## 11-04 作者「闪现」：剧本 show at 一个已经站在画面里的人（上一段留下来的阿汀、妮芙）：原来直接放过去 = 瞬移。
+## 近的（SHOW_GLIDE 以内）缓缓滑过去；远的、换层的先淡出（4 档）、放过去、再淡入。
+const SHOW_GLIDE := 60.0
+
+
+func _show_move(n: Node2D, x: float, room: String, lv: int, force_fade := false) -> void:
+	if not force_fade and absf(x - n.position.x) <= SHOW_GLIDE:
+		var x0 := n.position.x
+		var tw := create_tween()
+		tw.tween_method(func(k: float):
+			n.position.x = round(lerpf(x0, x, k))
+			if n.has_method("_snap_y"):
+				n._snap_y()
+			elif n.has_method("_snap"):
+				n._snap(), 0.0, 1.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		await tw.finished
+		_place(n, x, room, lv)
+		return
+	var tw2 := create_tween()
+	tw2.tween_method(func(a: float): n.modulate.a = ceilf(a * 4.0) / 4.0, 1.0, 0.0, 0.25)
+	await tw2.finished
+	_place(n, x, room, lv)
+	var tw3 := create_tween()
+	tw3.tween_method(func(a: float): n.modulate.a = floorf(a * 4.0) / 4.0, 0.0, 1.0, 0.35)
+	await tw3.finished
+
+
 ## fade_to 的 "place": {"deer": marker, …}：换地方的同时（黑着的时候 / 进出屋前墙还挡着的时候）把这些人放到位、显示出来，
 ## 淡入以后不会凭空冒出来
 func _fade_place(st: Dictionary) -> void:
@@ -1322,7 +1365,7 @@ func _fade_place(st: Dictionary) -> void:
 	if not pl is Dictionary:
 		return
 	for who in pl:
-		_show({"who": str(who), "at": pl[who]}, true)
+		_show({"who": str(who), "at": pl[who]}, true, true)      # 换地方时放人：黑着 / 进出门有 _door_move 管淡入淡出
 
 
 func _room_of(n: Node2D) -> String:
@@ -1369,6 +1412,12 @@ func _set_miluo_front(on: bool) -> void:
 ## 把角色直接放到 x（房间 r 的地面上），停掉正在跑 / 滑
 ## lv：多层小屋里放到哪层（−1 = 晨留在原来那层、NPC 放在晨现在那层）
 func _place(n: Node2D, x: float, r: String, lv := -1) -> void:
+	if _qa_live and not ff and n.is_visible_in_tree() and n.modulate.a > 0.05 and r == world.room and absf(x - n.position.x) > 6.0 and qa_screen_open() \
+			and (_on_screen(n.position, 0.0) or _on_screen(Vector2(x, n.position.y), 0.0)):
+		var stk: Array = []
+		for f in get_stack().slice(1, 6):
+			stk.append("%s:%d" % [str(f["function"]), int(f["line"])])
+		print("QA_PLACE %s %d→%d scene=%s step=%d via %s" % [n.name, int(n.position.x), int(x), _cur_scene, step_i, " < ".join(stk)])
 	if n == deer and _deer_moving():
 		deer._running = false
 		if "_walking" in deer:
@@ -3215,6 +3264,8 @@ func validate() -> Array[String]:
 				for st in scenes.get(s, []):
 					if st is Dictionary and str(st.get("do", "")) == "walk" and str(st.get("who", "chen")) == "chen":
 						out.append("scene %s（hotspot %s 走进去触发）：晨的 walk 不执行——不推人，停在看得见的边上" % [s, h.get("id")])
+	out.append_array(_validate_portals())
+	out.append_array(_validate_objectives())
 	# 第一关支线（include）
 	for e in include_errors:
 		out.append("include：" + str(e))
@@ -3408,6 +3459,121 @@ func _validate_fuel() -> Array[String]:
 	return out
 
 
+## --story_check：绕过必经的剧情（11-04 作者在南桥卡住「这里咋通关啊」）。
+## 一个点的剧情会 fade_to 到房间 R、还设了 flag（= 推进主线的那一步）；可 R 也能从别的房间的门户（room.json portals）直接走进去，
+## 门户的条件和这个点的条件又不冲突，R 里也没有「走进去就补播」的点（trigger enter、能设上同一批 flag 里的一个）→ 报 QA_PORTAL。
+## 修法：在 R 里加 trigger enter 的点（south_arrive 那样），或者给门户加 need（剧情播过以后才开）。
+func _validate_portals() -> Array[String]:
+	var out: Array[String] = []
+	if world.stages.is_empty():
+		return out
+	for h in hotspot_defs:
+		if not h is Dictionary:
+			continue
+		var src := str(h.get("room", "forest"))
+		var sets := {}
+		var dst := ""
+		for sid in _reach(str(h.get("scene", "")), {}):
+			for st in scenes.get(sid, []):
+				if not st is Dictionary:
+					continue
+				if str(st.get("do", "")) == "flag" and st.has("set"):
+					sets[str(st["set"])] = true
+				if str(st.get("do", "")) == "fade_to" and dst == "" and str(st.get("room", "")) != src and world.is_stage(str(st.get("room", ""))):
+					dst = str(st["room"])
+		if dst == "" or sets.is_empty():
+			continue
+		var hneed: Array = h.get("need", [])
+		var hnot: Array = h.get("not", [])
+		var reach := _rooms_without(src, dst)        # 这个点还在等着的时候，不经过 R 能走到哪些房间
+		for r in world.stages:
+			if str(r) == dst or not reach.has(str(r)):
+				continue
+			for pt in world.stages[r].portals():
+				# 只算走到房间边上就过去的门户（edge）；带 x 的是 F8 自由探索用的，平时要靠剧本的点
+				if not pt is Dictionary or str(pt.get("to", "")) != dst or not pt.has("edge"):
+					continue
+				var pneed: Array = pt.get("need", [])
+				var pnot: Array = pt.get("not", [])
+				var clash := false
+				for f in pnot:
+					if hneed.has(f):
+						clash = true
+				for f in pneed:
+					if hnot.has(f) or sets.has(f):
+						clash = true              # 门户要的 flag 是这段剧情才设的：剧情没播之前门户关着
+				if clash:
+					continue
+				var covered := false
+				if str(r) == src and hotspots.is_enter(h):
+					# 这个点自己就是走进去触发的、就在门户那一头的墙边：要走到边上一定先踩到它（南桥的 south_back）
+					var hr: Dictionary = world.resolve(h.get("at", 0))
+					var wl: Vector2 = world.stages[r].walls()
+					var edge_x: float = wl.x if str(pt["edge"]) == "left" else wl.y
+					if hr["ok"] and absf(float(hr["x"]) - edge_x) <= float(h.get("range", 20)) + 30.0:
+						covered = true
+				for h2 in hotspot_defs:
+					if h2 is Dictionary and str(h2.get("room", "forest")) == dst and hotspots.is_enter(h2):
+						for f2 in sets:
+							if _leads_to(str(h2.get("scene", "")), str(f2)):
+								covered = true
+				if not covered:
+					out.append("QA_PORTAL hotspot %s（%s）的剧情要换到 %s，可从 %s 的门户直接走进 %s，进去以后没有补播的点：会卡住" % [h.get("id"), src, dst, r, dst])
+	return out
+
+
+## 从房间 a 出发、不进 avoid，靠走到边上的门户（edge）能到哪些房间（门户的 need 不管：保守算开着）
+func _rooms_without(a: String, avoid: String) -> Dictionary:
+	var seen := {a: true}
+	var todo: Array = [a]
+	while not todo.is_empty():
+		var r: String = todo.pop_back()
+		var sg: Node2D = world.stage(r)
+		if sg == null:
+			continue
+		for pt in sg.portals():
+			if pt is Dictionary and pt.has("edge"):
+				var to := str(pt.get("to", ""))
+				if to != avoid and not seen.has(to) and world.is_stage(to):
+					seen[to] = true
+					todo.append(to)
+	return seen
+
+
+## --story_check：做不完的目标。每个目标（objectives、（可选）的）完成 = 它的 not 里某个 flag 设上；
+## 剧本里没有任何点 / 剧情 / 小游戏能通到这些 flag → QA_OBJECTIVE（玩家会卡在这个目标上）
+func _validate_objectives() -> Array[String]:
+	var out: Array[String] = []
+	var setters := {}
+	for sid in scenes:
+		for st in scenes[sid]:
+			if st is Dictionary and str(st.get("do", "")) in ["flag", "count"] and st.has("set"):
+				setters[str(st["set"])] = true
+			if st is Dictionary and str(st.get("do", "")) == "mechanic":
+				for f in st.get("sets", []):
+					setters[str(f)] = true
+			if st is Dictionary and str(st.get("do", "")) == "burn_held":
+				for f in st.get("items", []):
+					setters["burned_" + str(f)] = true
+	for f in ENGINE_FLAGS:
+		setters[f] = true
+	for f in barter.flags():
+		setters[str(f)] = true
+	for o in data.get("objectives", []) + data.get("side_objectives", []):
+		if not o is Dictionary:
+			continue
+		var done: Array = o.get("not", [])
+		if done.is_empty():
+			continue
+		var ok := false
+		for f in done:
+			if setters.has(str(f)) or carry_flags.has(f):
+				ok = true
+		if not ok:
+			out.append("QA_OBJECTIVE 目标「%s」：not 里的 flag（%s）剧本里哪儿都不设，做不完" % [o.get("zh", ""), ", ".join(done)])
+	return out
+
+
 ## if 的分支 scene 能不能「播完回来」：里面只有普通步骤（没有 goto / if / 点选 / 对话选项 / 带路 / 结束 / 驾驶舱选择）
 func _falls_through(s: String) -> bool:
 	if not scenes.has(s):
@@ -3594,7 +3760,7 @@ func _pose(st: Dictionary) -> void:
 ## 通用角色（妮芙、阿汀……）在看得见的画面里一帧被挪了 SNAP_MIN～SNAP_MAX 像素（跟随 / 让路 / 墙把人夹回来的那种小跳）：
 ## 改成每帧最多 SNAP_MIN，几帧滑过去。更远的是剧本放到别处（换房间、show at）——那种交给剧本自己（淡入、走过来），这里不管。
 ## 11-04 作者「闪现问题」，--qa_live 的 QA_JUMP 查出来的（妮芙 10～50 像素一跳）。
-const SNAP_MIN := 6.0
+const SNAP_MIN := 4.0
 const SNAP_MAX := 80.0
 
 
@@ -3612,7 +3778,7 @@ func _no_snap() -> void:
 			if absf(dx) > SNAP_MIN and absf(dx) <= SNAP_MAX and not n.has_meta("swap_t"):
 				n.position.x = round(float(last) + signf(dx) * SNAP_MIN)
 				n._x = n.position.x
-				n._snap_y()
+				n.set_meta("y_lag", true)       # 脚下的高度交给她自己慢慢落（npc_generic y_lag），不在这里再挪一次
 		n.set_meta("ns_x", n.position.x)
 		n.set_meta("ns_room", room)
 
@@ -3795,7 +3961,7 @@ func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
 		var lim := maxf(PUSH_MAX, chen._vel * delta + 1.0)
 		n.position.x = round(move_toward(n.position.x, tx, lim))
 		n._x = n.position.x
-		n._snap_y()
+		n._snap_walk(delta)
 
 
 const PUSH_MAX := 4.0          # 推开让路：一帧最多挪几像素（晨跑得比这快时按晨的速度）
@@ -3817,7 +3983,7 @@ func _keep_in(n: Node2D, w: Vector2, delta: float) -> void:
 		n.position.x = round(x)
 		n._x = n.position.x
 		n._vel = clampf(n._vel, -MAKE_WAY_MAX, MAKE_WAY_MAX)
-		n._snap_y()
+		n._snap_walk(delta)
 	n.set_meta("mw_x", n.position.x)
 
 
@@ -4095,16 +4261,17 @@ func _check_jumps() -> void:
 		if _last_pos.has(key):
 			var o: Dictionary = _last_pos[key]
 			dv = p - (o["p"] as Vector2)
-			# 跳一下 = 这一帧挪了 6 像素以上，而且和上一帧的速度差 6 像素以上（下石阶一帧 7 像素那种连续走不算）
+			# 11-04 作者「妮芙出门开始会闪现」：看得见的人一帧挪 6 像素以上就算（最快的走路 / 跑 ≈ 3.8 像素一帧；下石阶一帧 7 像素也是太快）
 			if vis and bool(o["vis"]) and str(o["room"]) == world.room and dv.length() > 6.0 \
-					and (dv - (o.get("v", Vector2.ZERO) as Vector2)).length() > 6.0 \
-					and not (absf(dv.x - (o.get("v", Vector2.ZERO) as Vector2).x) <= 3.0 and absf(dv.y) <= 12.0) \
 					and (_on_screen(p, 0.0) or _on_screen(o["p"], 0.0)):
 				var sg := _lv_stage()
 				var cur_st := ""
 				if _qa_live and scenes.has(_cur_scene) and step_i >= 0 and step_i < (scenes[_cur_scene] as Array).size():
 					cur_st = JSON.stringify(scenes[_cur_scene][step_i]).left(110)
-				print("%s %s (%d,%d)->(%d,%d) scene=%s room=%s lv=%s step=%d %s busy=%s" % ["QA_JUMP" if _qa_live else "JUMP", key, int(o["p"].x), int(o["p"].y), int(p.x), int(p.y), _cur_scene, world.room, str(_lv_of(n, sg)) if sg != null else "-", step_i, cur_st, str(busy)])
+				var how := ""
+				if n != chen and npcs.values().has(n):
+					how = "walk=%s swap=%s climb=%s follow=%s" % [str(n.is_walking()), str(n.has_meta("swap_t")), str(n.has_meta("lv_climbing")), str(follow.has(str(n.get("npc_id"))))]
+				print("%s %s (%d,%d)->(%d,%d) scene=%s room=%s lv=%s step=%d %s busy=%s %s" % ["QA_JUMP" if _qa_live else "JUMP", key, int(o["p"].x), int(o["p"].y), int(p.x), int(p.y), _cur_scene, world.room, str(_lv_of(n, sg)) if sg != null else "-", step_i, cur_st, str(busy), how])
 				qa_counts["jump"] = int(qa_counts.get("jump", 0)) + 1
 		_last_pos[key] = {"p": p, "vis": vis, "room": world.room, "v": dv if vis else Vector2.ZERO}
 	if not _qa_live:

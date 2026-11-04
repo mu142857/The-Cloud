@@ -154,9 +154,9 @@ func _process(delta: float) -> void:
 		# 别人（过场、调试参数）直接挪过她，就从那里接着走
 		if is_nan(_x) or absf(position.x - roundf(_x)) > 0.5:
 			_x = position.x
-		_x += facing * _vel * delta
+		_x += facing * _vel * delta * slope_k(ground_fn, position.x, facing)
 		position.x = roundf(_x)
-		_snap()
+		_snap_walk(delta)
 	else:
 		_x = NAN
 	_idle_t += delta
@@ -209,6 +209,24 @@ func _on_finished() -> void:
 
 func _snap() -> void:
 	position.y = round(ground_fn.call(position.x)) + SINK
+
+
+## 11-04 作者「闪现」（--qa_live QA_JUMP：楼梯间、旧街的台阶一帧往下 7～10 像素）：
+## 走路时脚下的地面一下子高一截 / 低一截（台阶的竖边），身子不跟着一帧跳过去，每秒最多 STEP_V 像素地上下，几帧走下去
+const STEP_V := 240.0          # = 4 像素一帧：比最快的走路（200）还快一点，走着不会落后地面；台阶的竖边分两三帧下去
+
+
+func _snap_walk(delta: float) -> void:
+	var gy: float = round(float(ground_fn.call(position.x))) + SINK
+	position.y = round(move_toward(position.y, gy, maxf(STEP_V * delta, 1.0)))
+
+
+## 斜坡 / 台阶上沿着地面走：水平速度按坡度打折（1 / √(1 + 坡度²)），走过的路一样长，不会下楼梯时快得像滑下去
+static func slope_k(gf: Callable, x: float, dir: float) -> float:
+	if not gf.is_valid():
+		return 1.0
+	var s: float = (float(gf.call(x + 3.0 * signf(dir))) - float(gf.call(x))) / 3.0
+	return 1.0 / sqrt(1.0 + s * s)
 
 
 # ===================================================================== 环境对晨的反应（场景的光、脚下、头发光晕）
