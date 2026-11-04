@@ -255,10 +255,11 @@ func play(r: Node, st: Dictionary) -> String:
 		_fx.queue_free()
 	for w in _waves:
 		_free_wave(w)
-	if is_instance_valid(_air):
-		_air.queue_free()
-	if is_instance_valid(_rumble):
-		_rumble.queue_free()
+	for lp in [_air, _rumble]:                       # 气流、低频轰鸣：淡掉再删（不一下子停）
+		if is_instance_valid(lp):
+			(load("res://scripts/audio_fade.gd") as GDScript).release(lp, 0.8)
+			if is_instance_valid(lp) and lp.is_inside_tree() and not bool(lp.get("playing")):
+				lp.queue_free()                       # 没在放的直接删
 	if is_instance_valid(_dark):
 		_dark.queue_free()
 	var lead := 0.0
@@ -755,10 +756,11 @@ func _dark_step(delta: float) -> void:
 			_hint_lv = 2
 		elif lost and since > DARK_HINT1:
 			_hint_lv = maxi(_hint_lv, 1)
+		# 往目标音量平滑地靠（每秒最多 40 dB）：进黑雾那一下不再从 -60 一帧跳到 -36（11-04 --qa_audio）
 		if is_instance_valid(_rumble):
-			_rumble.volume_db = lerpf(-36.0, -7.0, clampf(d, 0.0, 1.0))
+			_rumble.volume_db = move_toward(_rumble.volume_db, lerpf(-36.0, -7.0, clampf(d, 0.0, 1.0)), 40.0 * delta)
 		if is_instance_valid(_air):
-			_air.volume_db = lerpf(-10.0, -30.0, clampf(d, 0.0, 1.0))
+			_air.volume_db = move_toward(_air.volume_db, lerpf(-10.0, -30.0, clampf(d, 0.0, 1.0)), 40.0 * delta)
 		# 铜铃：按航道高低定音高，隔一会儿响一下（提示加强以后更响、更密）；进了航道就不响了（已经找到）
 		if _bell and lost:
 			_bell_t -= delta

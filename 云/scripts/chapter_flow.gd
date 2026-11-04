@@ -138,6 +138,7 @@ static func go(tree: SceneTree, ch: String) -> void:
 	for prev in CHAPTERS:
 		if CHAPTERS[prev].get("next", "") == ch and CHAPTERS[prev].has("end_card"):
 			await _end_card(tree, CHAPTERS[prev]["end_card"])
+	(load("res://scripts/audio_fade.gd") as GDScript).release(tree.current_scene, 0.8)   # 还在响的长声音（引擎、冲刺）淡掉，不被重新载入掐断
 	tree.reload_current_scene.call_deferred()
 
 

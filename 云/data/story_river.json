@@ -469,15 +469,11 @@
 			{"say": "ting", "bark": true, "zh": "第二十条：下回落水，挑深点的地方。浮筒我看过了。", "en": "Regulation Twenty: next time you crash, pick deeper water. I checked the floats.", "added": true}
 		],
 		"home_enter": [
-			{"do": "hide", "who": "niff", "fade": 0.4, "_note": "11-02 作者「妮芙还是闪现进门」：她留在河岸的那个位置在世界坐标里正好叠在妮芙家这一间上，晨一进门就看见她站在那、再一下跳到门口。先跟着屏幕一起淡掉"},
-			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "_note": "11-02 作者：一进门妮芙已经闪现在屋子深处很奇怪。改成晨先进门（妮芙不跟着一起换房间），晨进去拿起罐子以后，妮芙从门口淡入、漂过来"},
+			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "_note": "11-04 作者「妮芙……隐身（还没进门就随着主角一起变黑）」：不再先把她淡掉、晚一拍从门里淡出来。她和晨一起过门（_door_move：先走到门口晨身后，一起进屋），进门以后自己漂去罐子那边", "with": ["niff"]},
 			{"do": "prop", "id": "river_home_labels", "state": "on"},
 			{"do": "walk", "who": "chen", "to": "river_home_jar"},
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"narr": {"zh": "罐子上贴着妮芙的标签：「盐，很咸，尝过了。」", "en": "Niff's label on the jar: \"Salt. Very salty. Tasted it.\""}, "added": true},
-			{"do": "sfx", "name": "door_touch"},
-			{"do": "wait", "sec": 0.3},
-			{"do": "show", "who": "niff", "at": "river_home_labels", "fade": 0.6, "_note": "跟阿汀进门一样：先听见门响，人从门里那一格淡出来、再往里走"},
 			{"do": "walk", "who": "niff", "to": "river_home_jar"},
 			{"do": "anim", "who": "niff", "name": "take"},
 			{"do": "walk", "who": "chen", "to": "river_home_table"},
@@ -805,11 +801,8 @@
 			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post"}, "_note": "10-31 作者「阿汀为什么是突然出现的」：阿汀在换地方的同时就站在码头桩，原来是淡入以后才 show"}
 		],
 		"home_in": [
-			{"do": "hide", "who": "niff", "fade": 0.4},
-			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "_note": "11-02 同 home_enter：晨先进门往里走几步，妮芙再从门口淡入、漂到灶台边（在晨左边，谁也不从谁身上穿过去）"},
+			{"do": "fade_to", "room": "river_home", "at": "river_home_door", "_note": "11-04 同 home_enter：妮芙和晨一起进门，不先淡掉", "with": ["niff"]},
 			{"do": "walk", "who": "chen", "to": "river_home_chen"},
-			{"do": "sfx", "name": "door_touch"},
-			{"do": "show", "who": "niff", "at": "river_home_labels", "fade": 0.6},
 			{"do": "walk", "who": "niff", "to": "river_home_kitchen", "wait": false}
 		],
 		"ting_footage": [
@@ -1324,7 +1317,32 @@
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "chen", "name": "mark_paper"},
 			{"do": "journal", "zh": "南桥：走错了一个桥洞，重新标了灯柱。", "en": "South Bridge: went to the wrong arch, re-marked the lamp post.", "added": true},
-			{"do": "mechanic", "id": "river_bridge_view", "sets": ["river_waterway_open"], "spot": "southbridge_view_spot", "near": 6, "frame": "res://art/river_city/southbridge/viewfinder.png", "frame_lamp": "southbridge_lamp_post", "arches": [{"id": "southbridge_arch_wrong", "label": {"zh": "左边的桥洞", "en": "Left arch"}}, {"id": "southbridge_arch", "label": {"zh": "中间的桥洞", "en": "Middle arch"}, "right": true}, {"id": "southbridge_arch_far", "label": {"zh": "右边的桥洞", "en": "Right arch"}}], "spec": "【小游戏三：还原拍摄位置。玩家对照影像里的桥洞、灯柱与浮灯方向，找到正确的观察点，再结合当前水位确认动物经过的水道。完成后显露旧运输水道的入口，不依赖快速反应或记忆倒计时。】", "lines": {"start": [{"say": "chen", "zh": "影像是从桥这边拍的，灯柱和桥洞要一起对上。", "en": "The footage was shot from this side. Line up the lamp post and the arch.", "added": true}], "aligned": [], "ask": [{"say": "chen", "zh": "浮灯都往一边歪。它是从哪个桥洞过去的？", "en": "The floating lamps all lean one way. Which arch did it go through?", "added": true}], "wrong_southbridge_arch_wrong": [{"say": "chen", "zh": "不是这个桥洞。", "en": "Not this arch.", "added": true}], "wrong_southbridge_arch_far": [{"say": "chen", "zh": "浮灯不是往这边歪的。", "en": "The lamps weren't leaning this way.", "added": true}], "right": []}},
+			{"do": "mechanic", "id": "river_bridge_view",
+				"sets": ["river_waterway_open"],
+				"spot": "southbridge_view_spot",
+				"near": 6,
+				"frame": "res://art/river_city/southbridge/viewfinder.png",
+				"frame_lamp": "southbridge_lamp_post",
+				"arches": [{"id": "southbridge_arch_wrong", "label": {"zh": "左边的桥洞", "en": "Left arch"}}, {"id": "southbridge_arch", "label": {"zh": "中间的桥洞", "en": "Middle arch"}, "right": true}, {"id": "southbridge_arch_far", "label": {"zh": "右边的桥洞", "en": "Right arch"}}],
+				"spec": "【小游戏三：还原拍摄位置。玩家对照影像里的桥洞、灯柱与浮灯方向，找到正确的观察点，再结合当前水位确认动物经过的水道。完成后显露旧运输水道的入口，不依赖快速反应或记忆倒计时。】",
+				"lines": {
+					"start": [
+						{"say": "chen", "zh": "影像是从桥这边拍的，灯柱和桥洞要一起对上。", "en": "The footage was shot from this side. Line up the lamp post and the arch.", "added": true}
+					],
+					"aligned": [
+					],
+					"ask": [
+						{"say": "chen", "zh": "浮灯都往一边歪。它是从哪个桥洞过去的？", "en": "The floating lamps all lean one way. Which arch did it go through?", "added": true}
+					],
+					"wrong_southbridge_arch_wrong": [
+						{"say": "chen", "zh": "不是这个桥洞。", "en": "Not this arch.", "added": true}
+					],
+					"wrong_southbridge_arch_far": [
+						{"say": "chen", "zh": "浮灯不是往这边歪的。", "en": "The lamps weren't leaning this way.", "added": true}
+					],
+					"right": [
+					]
+				}},
 			{"do": "prop", "id": "southbridge_waterway", "state": "revealed"},
 			{"do": "walk", "who": "chen", "to": "southbridge_arch"},
 			{"do": "walk", "who": "niff", "to": "southbridge_footprints", "speed": 110},

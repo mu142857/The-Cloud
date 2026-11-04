@@ -8,6 +8,7 @@ extends RefCounted
 ## 共用的进度：story.mech_load(ID) 里至少有 {enter, fails, done}；第 ENTER_GIVE 次进、或失败 FAILS_GIVE 次 → 放水（give）。
 ## 做不好也不会输（作者的规矩）：失败几次以后小游戏自己做完给玩家看。
 
+const AUDIO_FADE := preload("res://scripts/audio_fade.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
 const OL := preload("res://scripts/overlay_layout.gd")    # 安全区：面板在对话那一带上面，提示在面板上面一行（11-04）
 const ART := "res://art/forest_side/"
@@ -207,9 +208,12 @@ func _drop() -> void:
 	OL.hud(story, false)
 	if board != null and is_instance_valid(board):
 		board.m = null
+	# 面板里还没放完的长音效（水泡、钟声、市集声……）不跟着面板一起被掐断：挪出来淡掉（11-04 作者：不要硬过渡）
 	if _layer != null and is_instance_valid(_layer):
+		AUDIO_FADE.release(_layer)
 		_layer.queue_free()
 	elif _root != null and is_instance_valid(_root):
+		AUDIO_FADE.release(_root)
 		_root.queue_free()
 
 
@@ -264,7 +268,16 @@ func _sfx(name: String, db := 0.0, pitch := 1.0) -> AudioStreamPlayer:
 	_root.add_child(a)
 	a.play()
 	a.finished.connect(a.queue_free)
+	if AUDIO_FADE.is_loop(a):
+		_sfx_fade_in(a, db)                  # 导入时开了循环的（水管咕噜……）：从静音淡进来
 	return a
+
+
+## 循环的声音不一下子响：从静音 0.5 秒淡到 db（11-04 作者）
+func _sfx_fade_in(a: AudioStreamPlayer, db: float) -> void:
+	a.volume_db = -60.0
+	var tw := a.create_tween()
+	tw.tween_property(a, "volume_db", db, 0.5).set_trans(Tween.TRANS_SINE)
 
 
 ## 循环的声音（收音机的沙沙声）：播完自己再来，音量由调用的人改
@@ -273,6 +286,8 @@ func _loop(name: String, db := 0.0) -> AudioStreamPlayer:
 	if a != null:
 		a.finished.disconnect(a.queue_free)
 		a.finished.connect(a.play)
+		if a.volume_db > -59.0:
+			_sfx_fade_in(a, db)              # 收音机的沙沙声：淡进来（音量之后由调用的人改，tween 只管开头这 0.5 秒）
 	return a
 
 

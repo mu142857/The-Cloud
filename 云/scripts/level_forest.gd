@@ -588,8 +588,12 @@ func _sfx(name: String, db := 0.0, pitch := 1.0) -> void:
 
 
 func _fade_db(p: Node, to_db: float, sec: float) -> void:
+	var old = p.get_meta("fade_tw", null)               # 同一个声音只留一个音量 tween（两个抢着改会跳）
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
 	var tw := create_tween()
 	tw.tween_property(p, "volume_db", to_db, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	p.set_meta("fade_tw", tw)
 
 
 # ======================================================================= 界面搭建
@@ -1627,8 +1631,9 @@ func _skip_to_title() -> void:
 	_kill_cine()
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 0.0
-	_rain.play()
-	_rain.volume_db = RAIN_DB
+	if not _rain.playing:
+		_rain.play()
+	_fade_db(_rain, RAIN_DB, 1.2)                      # 跳过片头也淡进来，不一下子响
 	_show_title()
 	_kill_cine()
 	_title_k = 1.0
@@ -2488,6 +2493,7 @@ func _input(event: InputEvent) -> void:
 				_fuzz_t = _fuzz                    # 乱玩：走到结束卡就算玩完
 				return
 			CHAPTER_GD.reset()                     # 回标题 = 新游戏（从森林开始）
+			(load("res://scripts/audio_fade.gd") as GDScript).release(self, 0.8)   # 还在响的长声音淡掉，不被重新载入掐断
 			get_tree().reload_current_scene.call_deferred()
 		return
 	# 剧情在播：按键 / 点击给对话框（确认、点选）；鹿带路时方向键照常走
@@ -3481,16 +3487,27 @@ func camera_zoom(z: float, sec: float) -> void:
 	await _zoom_tw.finished
 
 
+## 黑幕只留一个 tween（11-04 连拍：河流篇起飞自己起了 1.2 秒的淡出、fade_to 又起一个淡出、换房间后再淡入，
+## 两个 tween 抢 fade 的透明度，驾驶舱亮一下、又黑、再亮）：开新的之前停掉旧的，后来的说了算
+var _fade_tw: Tween
+
+
 func fade_to_black(sec: float) -> void:
-	var tw := create_tween()
-	tw.tween_property(fade, "color:a", 1.0, sec).set_trans(Tween.TRANS_SINE)
-	await tw.finished
+	await _fade_go(1.0, sec)
 
 
 func fade_from_black(sec: float) -> void:
+	await _fade_go(0.0, sec)
+
+
+func _fade_go(a: float, sec: float) -> void:
+	if _fade_tw != null and _fade_tw.is_valid():
+		_fade_tw.kill()
 	var tw := create_tween()
-	tw.tween_property(fade, "color:a", 0.0, sec).set_trans(Tween.TRANS_SINE)
-	await tw.finished
+	_fade_tw = tw
+	tw.tween_property(fade, "color:a", a, sec).set_trans(Tween.TRANS_SINE)
+	while tw.is_valid() and tw.is_running():          # 被后来的停掉也返回（停掉的 tween 不发 finished）
+		await get_tree().process_frame
 
 
 ## 换了位置：黑屏换地方时镜头直接跳过去、雾直接到位（进出屋不黑屏，镜头照常跟）；屋里雨声小一点
@@ -3830,7 +3847,7 @@ func story_takeoff() -> void:
 	_restore_chen_order()
 	camera_release()
 	_end_t = 0.0
-	_fade_db(_rain, -30.0, 3.0)
+	_fade_db(_rain, -60.0, 3.0)                      # 一直淡到听不见（换章节重新载入时就不是被掐断的）
 
 
 ## 起飞用的船身：Wreck 前面（Wreck 换成土，盖在船身上面：扎进土里那截被土挡住）、带裁地面的 shader 和泛光
@@ -4179,8 +4196,9 @@ func _start_free() -> void:
 	_title_root.visible = false
 	if chapter == "forest":
 		fade.color.a = 0.0
-		_rain.play()
-		_rain.volume_db = RAIN_DB
+		if not _rain.playing:
+			_rain.play()
+		_fade_db(_rain, RAIN_DB, 1.0)
 		_show_wreck()
 		chen.visible = true
 		_chen_stand()
@@ -4230,7 +4248,7 @@ func _free_spawn(id: String) -> void:
 	story._teleport(id, x, [], true)
 	_walk_target = NAN
 	if _engine_hum != null and id != "cockpit":
-		_engine_hum.stop()                         # 终章从驾驶舱起（_start_chapter 开的引擎声），探索直接站到别的房间
+		_fade_db(_engine_hum, -60.0, 0.8)          # 终章从驾驶舱起（_start_chapter 开的引擎声），探索直接站到别的房间：淡掉，不掐断
 	_enter_play()
 
 

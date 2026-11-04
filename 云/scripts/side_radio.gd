@@ -213,7 +213,7 @@ func _tick(dt: float) -> void:
 	var sv: float = st["s"]
 	if _static != null and is_instance_valid(_static):
 		if stage != "done":
-			_static.volume_db = lerpf(STATIC_DB, -34.0, sv)
+			_static.volume_db = move_toward(_static.volume_db, lerpf(STATIC_DB, -34.0, sv), 60.0 * dt)   # 平滑地靠过去（开头从静音淡进来，不一帧跳满）
 	var q: Dictionary = st["q"]
 	if sv > 0.22 and not q.is_empty():
 		_cap = I18n.pick(q)

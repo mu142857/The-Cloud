@@ -4,6 +4,9 @@ extends Node
 ##       {"do": "music", "stop": true, "fade": 1.5}  淡出停掉
 ## story_runner 还会自己调：闪回开始 suspend()、醒来 resume()；燃料二选一时放 space_choice；章节结束 stop()。
 ## 曲子都在 res://audio/music/<名字>.wav（作者 11-04 给的）；编辑器还没导入时直接读 wav 文件。
+## 淡入淡出（11-04 作者：「记得音效淡入淡出……如果之间有真空期你可以考虑把两个淡入淡出的交织在一起」）：
+##   换曲 = 旧的淡出、新的同时淡入（交叉）；循环的曲子把 WAV 本身设成循环（导入没开，原来放完再 play() 接缝处会断一下）；
+##   不循环的（theme → forest）在结尾前 THEN_XF 秒就开始接下一首，两首交叉，不留真空。每个播放器只留一个音量 tween（不打架）。
 
 const DIR := "res://audio/music/"
 ## 每首默认多响、要不要循环（作者听了觉得哪首太响，改这里的 db）
@@ -14,6 +17,7 @@ const TRACKS := {
 	"space_choice": {"db": -9.0, "loop": true},
 }
 const NODE_NAME := "BGM"
+const THEN_XF := 3.0     # 不循环的曲子结尾前多久开始交叉到 then
 
 var _cur: AudioStreamPlayer
 var _track := ""
@@ -54,23 +58,52 @@ func play(name: String, db := NAN, fade := 1.5, loop := -1, then := "") -> void:
 	_then = then if then != "" else str(cfg.get("then", ""))
 	var want_loop: bool = bool(cfg.get("loop", true)) if loop < 0 else loop == 1
 	var target: float = float(cfg.get("db", -8.0)) if is_nan(db) else db
+	if want_loop and s is AudioStreamWAV and (s as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_DISABLED:
+		var w := (s as AudioStreamWAV).duplicate() as AudioStreamWAV          # 无缝循环（不改缓存里那份）
+		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		w.loop_begin = 0
+		w.loop_end = int(round(w.get_length() * w.mix_rate))
+		s = w
 	var a := AudioStreamPlayer.new()
 	a.stream = s
 	a.bus = "Music"
 	a.volume_db = -50.0
+	a.set_meta("then_at", -1.0 if want_loop or _then == "" else maxf(0.0, s.get_length() - THEN_XF))
 	add_child(a)
 	a.play()
 	a.finished.connect(func():
 		if not is_instance_valid(a) or a != _cur:
 			return
 		if want_loop:
-			a.play()
+			a.play()                                                   # 兜底（上面已经设成循环，一般不会走到这）
 		else:
 			_track = ""
 			if _then != "":
 				play(_then, NAN, 2.5))
-	create_tween().tween_property(a, "volume_db", target, maxf(fade, 0.05)).set_trans(Tween.TRANS_SINE)
+	_fade(a, target, fade)
 	_cur = a
+
+
+## 每帧：不循环的曲子快到结尾了，就开始交叉到 then（旧的淡出、新的淡入同时进行）
+func _process(_delta: float) -> void:
+	if _cur == null or not is_instance_valid(_cur) or not _cur.playing or _then == "":
+		return
+	var at: float = _cur.get_meta("then_at", -1.0)
+	if at >= 0.0 and _cur.get_playback_position() >= at:
+		_cur.set_meta("then_at", -1.0)
+		play(_then, NAN, THEN_XF)
+
+
+## 一个播放器同时只有一个音量 tween：新的来了先停掉旧的（不然两个 tween 抢着改，音量会跳）
+func _fade(a: AudioStreamPlayer, to_db: float, sec: float, free_after := false) -> void:
+	var old = a.get_meta("fade_tw", null)
+	if old is Tween and (old as Tween).is_valid():
+		(old as Tween).kill()
+	var tw := create_tween()
+	tw.tween_property(a, "volume_db", to_db, maxf(sec, 0.05)).set_trans(Tween.TRANS_SINE)
+	if free_after:
+		tw.tween_callback(a.queue_free)
+	a.set_meta("fade_tw", tw)
 
 
 func stop(fade := 1.5) -> void:
@@ -80,9 +113,7 @@ func stop(fade := 1.5) -> void:
 		return
 	var a := _cur
 	_cur = null
-	var tw := create_tween()
-	tw.tween_property(a, "volume_db", -50.0, maxf(fade, 0.05)).set_trans(Tween.TRANS_SINE)
-	tw.tween_callback(a.queue_free)
+	_fade(a, -50.0, fade, true)
 
 
 ## 闪回：先把现在这首淡掉、记住；醒来再接回来

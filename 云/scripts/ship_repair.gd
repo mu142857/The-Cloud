@@ -23,6 +23,7 @@ extends RefCounted
 ## 进度（story.mech_load）：{enter: 第几次进, fails: 敲过头几次, rots: [12 格水管的方向], pipes: 水管接通没有, done}。
 ##   中途退出再进：水管接通过就直接从锤子开始；enter 每进一次 +1。
 
+const AUDIO_FADE := preload("res://scripts/audio_fade.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
 const ID := "ship_repair"
 const DIR := "res://art/ship_repair/"
@@ -458,9 +459,12 @@ func _drop() -> void:
 	OL.hud(story, false)
 	if board != null and is_instance_valid(board):
 		board.m = null
+	# 面板里还没放完的长音效（水泡、钟声、市集声……）不跟着面板一起被掐断：挪出来淡掉（11-04 作者：不要硬过渡）
 	if _layer != null and is_instance_valid(_layer):
+		AUDIO_FADE.release(_layer)
 		_layer.queue_free()
 	elif _root != null and is_instance_valid(_root):
+		AUDIO_FADE.release(_root)
 		_root.queue_free()
 
 

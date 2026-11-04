@@ -1119,6 +1119,8 @@ func _draw_rope() -> void:
 
 
 # ======================================================================= 环境声
+const AMB_FADE := 1.2                  # 房间环境声淡入 / 淡出（交叉）
+
 func ambient_enter(on: bool) -> void:
 	if _amb.is_empty() and on:
 		for ac in cfg.get("ambient", []):
@@ -1147,11 +1149,17 @@ func ambient_enter(on: bool) -> void:
 			add_child(pl)
 			pl.connect("finished", Callable(pl, "play"))
 			_amb.append({"player": pl, "db": float(ac.get("db", -10))})
+	# 换房间时旧房间淡出、新房间淡入是同时开始的（story_world 先 off 再 on，同一帧），两边交叉，中间不空。
+	# 每个声音只留一个 tween：刚淡出又走回来，先停掉「淡完就 stop」的那个，不然它会在淡入中途把声音掐断。
 	for a in _amb:
 		var pl: Node = a["player"]
+		var old_tw = pl.get_meta("fade_tw", null)
+		if old_tw is Tween and (old_tw as Tween).is_valid():
+			(old_tw as Tween).kill()
 		if on and not bool(pl.get("playing")):
 			pl.call("play")
 		var tw := create_tween()
-		tw.tween_property(pl, "volume_db", float(a["db"]) if on else -60.0, 0.8)
+		tw.tween_property(pl, "volume_db", float(a["db"]) if on else -60.0, AMB_FADE).set_trans(Tween.TRANS_SINE)
 		if not on:
 			tw.tween_callback(Callable(pl, "stop"))
+		pl.set_meta("fade_tw", tw)

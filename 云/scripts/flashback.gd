@@ -1352,8 +1352,27 @@ func _tense_later() -> void:
 
 
 func _exit_tree() -> void:
+	# 中途被扔掉（换场景、F8）：总线平滑地升回去、还在响的循环声挪到根上淡掉再删（11-04 作者：不要突然停的硬过渡）。
+	# 用 SceneTree 的 tween：这个节点已经要没了，挂在它身上的 tween 跟着没。
+	var tree := get_tree()
 	if _ducked:
 		var i := AudioServer.get_bus_index("SFX")
 		if i >= 0:
-			AudioServer.set_bus_volume_db(i, _sfx_db)
+			if tree != null:
+				var cur := AudioServer.get_bus_volume_db(i)
+				tree.create_tween().tween_method(func(v: float): AudioServer.set_bus_volume_db(i, v), cur, _sfx_db, 0.6)
+			else:
+				AudioServer.set_bus_volume_db(i, _sfx_db)
 		_ducked = false
+	if tree == null:
+		return
+	for c in get_children():
+		if c is AudioStreamPlayer and (c as AudioStreamPlayer).playing and (c as AudioStreamPlayer).stream != null \
+				and (c as AudioStreamPlayer).stream.get_length() >= 2.0:
+			var a := c as AudioStreamPlayer
+			remove_child.call_deferred(a)
+			tree.root.add_child.call_deferred(a)
+			var tw := tree.create_tween()
+			tw.tween_interval(0.05)
+			tw.tween_property(a, "volume_db", -60.0, 0.8)
+			tw.tween_callback(a.queue_free)

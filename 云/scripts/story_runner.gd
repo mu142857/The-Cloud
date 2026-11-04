@@ -421,6 +421,7 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	if not tm.is_empty() and not tm.has("desc_from_tag"):
 		tm["desc_from_tag"] = "on_travel_map"     # 日记烧掉以后写在航图背面的（_journal_holder）；航图是第一章的物品（items.json）
 	_place_residents(world.room)            # 剧本顶层 residents（森林空地尽头的大嘴鸟）
+	_burst_args()
 	world.one_way = data.get("one_way", {}) if data.get("one_way", {}) is Dictionary else {}
 	for pid in data.get("hide_props", []):
 		if str(pid) != "wood":
@@ -615,6 +616,66 @@ func check_fuel_hook() -> void:
 		await play(h)
 
 
+## 连拍（11-04 作者「妮芙简直是 bug 之王」：要看清每一帧）：--burst_shots=目录 --burst=scene1,scene2,… [--burst_sec=6]
+## 这些 scene 一开始，每 BURST_DT 秒（游戏时间）存一张图到 目录/<scene>_<第几次>/f000.png，连 burst_sec 秒（后面接着播的 scene 也拍进去）；
+## 每张同时打印一行 BURST：晨、妮芙、阿汀的位置 / 透明度 / 看不看得见 / 画在第几层、黑幕多黑。要开窗口（带 shot 的参数 gt.sh 才放行）。
+const BURST_DT := 0.1
+var _burst_dir := ""
+var _burst_ids := {}
+var _burst_sec := 6.0
+var _burst_until := -1.0
+var _burst_next := 0.0
+var _burst_tag := ""
+var _burst_n := 0
+var _burst_count := {}
+
+
+func _burst_args() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--burst_shots="):
+			_burst_dir = a.trim_prefix("--burst_shots=")
+		elif a.begins_with("--burst="):
+			for sid in a.trim_prefix("--burst=").split(","):
+				var kv := sid.strip_edges().split(":")         # scene:秒 = 这一段拍多久（默认 burst_sec）
+				_burst_ids[kv[0]] = float(kv[1]) if kv.size() > 1 else -1.0
+		elif a.begins_with("--burst_sec="):
+			_burst_sec = float(a.trim_prefix("--burst_sec="))
+
+
+func _burst_start(id: String) -> void:
+	if _game_t < _burst_until:
+		_burst_until = _game_t + _burst_sec       # 还在拍上一段：接着拍
+		return
+	_burst_count[id] = int(_burst_count.get(id, 0)) + 1
+	_burst_tag = "%s_%d" % [id, _burst_count[id]]
+	DirAccess.make_dir_recursive_absolute(_burst_dir.path_join(_burst_tag))
+	var sec := float(_burst_ids.get(id, -1.0))
+	_burst_until = _game_t + (sec if sec > 0.0 else _burst_sec)
+	_burst_next = _game_t
+	_burst_n = 0
+
+
+func _burst_tick() -> void:
+	if _burst_until < 0.0 or _game_t > _burst_until or _game_t < _burst_next:
+		return
+	_burst_next = _game_t + BURST_DT
+	var path := _burst_dir.path_join(_burst_tag).path_join("f%03d.png" % _burst_n)
+	RenderingServer.force_draw(false)
+	var img := get_viewport().get_texture().get_image()
+	if img.get_width() != 480:
+		img.resize(480, 270, Image.INTERPOLATE_NEAREST)     # 视网膜窗口拍出来 3000 宽：缩回游戏的 480×270（一张几十 KB）
+	img.save_png(path)
+	var parts: Array = ["chen=(%d,%d)" % [int(chen.position.x), int(chen.position.y)]]
+	for who in ["niff", "ting"]:
+		var n = npcs.get(who, null)
+		if n != null and is_instance_valid(n):
+			parts.append("%s=(%d,%d) a=%.2f vis=%s z=%d idx=%d room=%s" % [who, int(n.position.x), int(n.position.y), n.modulate.a,
+				str(n.is_visible_in_tree()), n.z_index, n.get_index(), _room_of(n)])
+	print("BURST %s f%03d t=%.2f scene=%s step=%d room=%s fade=%.2f %s" % [_burst_tag, _burst_n, _game_t, _cur_scene, step_i, world.room,
+		level.fade.color.a, " ".join(parts)])
+	_burst_n += 1
+
+
 func _on_scene(id: String) -> void:
 	_cur_scene = id
 	var first := not played.has(id)
@@ -624,8 +685,16 @@ func _on_scene(id: String) -> void:
 		return
 	if auto != "":
 		print("STORY_SCENE %s  t=%.1f" % [id, _game_t])
+	if _qa_live and npcs.has("niff"):
+		var nf: Node2D = npcs["niff"]
+		var nsg := _lv_stage()
+		print("NIFF_AT %s niff=(%d,%d) a=%.2f vis=%s room=%s lv=%s | chen=(%d,%d) room=%s lv=%s follow=%s" % [id, int(nf.position.x), int(nf.position.y),
+			nf.modulate.a, str(nf.is_visible_in_tree()), _room_of(nf), str(_lv_of(nf, nsg)) if nsg != null else "-", int(chen.position.x), int(chen.position.y),
+			world.room, str(nsg.chen_lv) if nsg != null else "-", str(follow.has("niff"))])
 	if first and shots_dir != "":
 		_shot(id)
+	if _burst_dir != "" and (_burst_ids.has(id) or _burst_ids.has("*")):
+		_burst_start(id)
 
 
 ## 界面出来的时候也存一张（对话选项、道具选择条、树冠晃动）
@@ -961,6 +1030,7 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 	cockpit_ui = n
 	var r: String = await n.play(self, st)
 	cockpit_ui = null
+	(load("res://scripts/audio_fade.gd") as GDScript).release(n, 0.8)   # 冲刺的引擎声还没放完：淡掉，不跟着节点一起被掐断（11-04 作者）
 	n.queue_free()
 	if kind == "keepsake_choice" and bgm.current() == "space_choice":
 		bgm.stop(2.5)
@@ -1291,6 +1361,11 @@ func _show(st: Dictionary, on: bool, instant := false) -> void:
 			_warn_once("show：找不到 " + str(st["at"]))
 	# "fade": 秒（10-29）：按 4 档透明度淡入 / 淡出（鹿走进雾里、慢慢出现），不突然出现 / 消失；不等它淡完就播下一步
 	var fade := 0.0 if ff else float(st.get("fade", 0.0))
+	# 11-04 作者「所有的场景切换都要丝滑……我最讨厌的就是闪现」：剧本没写 fade、人又就在画面里，一律淡（进 SHOW_FADE_IN、出 SHOW_FADE_OUT）。
+	# 换地方时放人（instant：黑着 / _door_move 管）不算
+	if fade <= 0.0 and not ff and not instant and qa_screen_open() and _room_of(n) == world.room and _on_screen(n.position, -8.0) \
+			and on != n.visible:
+		fade = SHOW_FADE_IN if on else SHOW_FADE_OUT
 	if n.has_meta("vis_tw"):
 		var old = n.get_meta("vis_tw")
 		if old is Tween and (old as Tween).is_valid():
@@ -1323,6 +1398,10 @@ func _show(st: Dictionary, on: bool, instant := false) -> void:
 		n.modulate.a = 0.0
 		tw2.tween_method(func(a: float): n.modulate.a = floorf(a * 4.0) / 4.0, 0.0, 1.0, fade)
 		tw2.tween_callback(func(): n.remove_meta("vis_tw"))
+
+
+const SHOW_FADE_IN := 0.4
+const SHOW_FADE_OUT := 0.3
 
 
 ## 这个人现在就在画面里看得见（不黑、不透明、在镜头里）
@@ -1413,6 +1492,7 @@ func _set_miluo_front(on: bool) -> void:
 ## lv：多层小屋里放到哪层（−1 = 晨留在原来那层、NPC 放在晨现在那层）
 func _place(n: Node2D, x: float, r: String, lv := -1) -> void:
 	if _qa_live and not ff and n.is_visible_in_tree() and n.modulate.a > 0.05 and r == world.room and absf(x - n.position.x) > 6.0 and qa_screen_open() \
+			and Engine.get_process_frames() != _qa_room_frame \
 			and (_on_screen(n.position, 0.0) or _on_screen(Vector2(x, n.position.y), 0.0)):
 		var stk: Array = []
 		for f in get_stack().slice(1, 6):
@@ -1671,6 +1751,11 @@ func _sfx(st: Dictionary) -> void:
 	a.global_position = level.cam_left() + Vector2(240.0 + clampf(float(st.get("pan", 0.0)), -1.0, 1.0) * 320.0, 135.0)
 	a.play()
 	a.finished.connect(a.queue_free)
+	if (load("res://scripts/audio_fade.gd") as GDScript).is_loop(a):
+		# 导入时开了循环的（漏气的嘶嘶、水洞的回声……）：不是一下子响，从静音淡进来（11-04 作者：不要突然开始的硬过渡）
+		var to := a.volume_db
+		a.volume_db = -60.0
+		create_tween().tween_property(a, "volume_db", to, 0.5).set_trans(Tween.TRANS_SINE)
 	if fam:
 		_family.append(a)
 
@@ -1714,8 +1799,9 @@ func _ambient_step(st: Dictionary) -> void:
 	a.bus = "SFX"
 	a.max_distance = float(st.get("dist", 520.0))
 	a.attenuation = 1.6
-	a.volume_db = float(st.get("db", 0.0))
+	a.volume_db = -60.0                                   # 11-04 作者：循环声不许硬开——从静音淡进来（和 ambient off 的 0.8 秒淡出对称）
 	level.add_child(a)
+	create_tween().tween_property(a, "volume_db", float(st.get("db", 0.0)), 0.8)
 	var ax := float(r.get("x", 0.0))
 	var ay := 200.0
 	var rid := str(r.get("room", ""))
@@ -1767,7 +1853,10 @@ func _update_item_show(delta: float) -> void:
 	_item_show.set_meta("t", t)
 	var sz := _item_show.texture.get_size()
 	var left: Vector2 = level.cam_left()
-	var head: Vector2 = (chen.position - left + Vector2(chen.facing * 12.0, -34.0)) * level.cam.zoom.x
+	# 11-04 作者「物品正好挡住主角面部」：原来锚在脚上方 34 像素（下巴），图标的身子刚好盖在脸上。
+	# 晨的帧 68×60、脚在第 56 行 → 头顶在脚上方约 56；图标底边放到头顶再往上 3 像素，略偏朝向那一侧（像举在额前，不挡脸）
+	var top_y: float = -(float(chen.FOOT.y) + 1.0) - 3.0
+	var head: Vector2 = (chen.position - left + Vector2(chen.facing * 6.0, top_y)) * level.cam.zoom.x
 	var lift := minf(t / 0.2, 1.0) * 6.0
 	_item_show.position = (head - Vector2(sz.x / 2.0, sz.y + lift)).round()
 
@@ -1821,6 +1910,14 @@ func _fade_to(st: Dictionary) -> void:
 	else:
 		await level.fade_to_black(out_sec)
 	chen.auto_dir = 0.0
+	# 11-04 作者截图（河流篇起飞以后一帧暗绿、妮芙和阿汀淡淡地浮在上面）：起飞时停住的镜头没放开，换到驾驶舱以后镜头还看着河岸。
+	# 黑着换房间：先放开镜头（cam 参数下面会重新停住）
+	# 还有别的淡出在走（起飞那段自己起了一个 1.2 秒的）：等真黑透了再换，不然新房间先露出来一下、又被盖黑（连拍：驾驶舱闪一下）
+	var bt := 0.0
+	while level.fade.color.a < 0.99 and bt < 2.0:
+		await get_tree().process_frame
+		bt += get_process_delta_time()
+	level.camera_release()
 	_teleport(room, x, st.get("with", []), true)
 	_fade_place(st)
 	if st.has("cam"):
@@ -1893,7 +1990,11 @@ func _camera(st: Dictionary) -> void:
 		level.camera_hold_at(level.cam.position)
 
 
+var _qa_room_frame := -1               # 换房间的那一帧（这一帧里再放人不算 QA_PLACE：画出来的只有最后那个位置）
+
+
 func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
+	_qa_room_frame = Engine.get_process_frames()
 	if world.area_of(x) != world.area_of(chen.position.x) or room != world.room:
 		_unreach.clear()                  # 换了一段：之前够不着的点重新算
 	if world.room == "treehouse" and room != "treehouse":
@@ -2774,6 +2875,8 @@ func _process(delta: float) -> void:
 	if not is_nan(_bark_at) and not bark.busy():
 		_bark_at = NAN
 	_update_one_way(delta)
+	if _burst_dir != "":
+		_burst_tick()
 	if not ended and not ff and not free_roam:
 		_update_nudge(delta)
 		if guide_ready() and level.free_play():
@@ -3720,6 +3823,8 @@ func _sync_generic_vis(instant: bool) -> void:
 		if cs != null and cs.is_house and r != world.room and world.house_pair(r, world.room):
 			if n.position.x > cs.origin.x and n.position.x < cs.origin.x + cs.size.x:
 				a = 0.0
+		elif r != "" and r != world.room and not world.house_pair(r, world.room):
+			a = 0.0                 # 别的房间的人（换到驾驶舱以后河岸上的妮芙、阿汀）：不在这一屏里画出来
 		var old = n.get_meta("sync_tw") if n.has_meta("sync_tw") else null
 		if old is Tween and (old as Tween).is_valid():
 			(old as Tween).kill()
@@ -4410,13 +4515,16 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 	for f in follow:
 		if not names.has(str(f)):
 			names.append(str(f))
+	# 11-04 作者「妮芙……又是隐身（还没进门就随着主角一起变黑），又是穿墙出门」：跟着的人先自己走到门口晨身后，
+	# 再和晨一起过门（不在原地淡没、也不在门外凭空冒出来）。走不过来的（别的层、太远）才淡入淡出。
+	await _door_gather(names)
 	for who in names:
 		var n := npc(who)
 		if n == null or n == chen or not n.visible:
 			continue
 		var dx: float = n.position.x - chen.position.x
-		if str(_npc_room.get(n.name, world.room)) == world.room and absf(dx) <= DOOR_NEAR and absf(n.position.y - chen.position.y) < 8.0:
-			near[who] = clampf(dx, -36.0, 36.0)
+		if str(_npc_room.get(n.name, world.room)) == world.room and absf(dx) <= maxf(DOOR_NEAR, _side_gap(n, DOOR_GAP) + 6.0) and absf(n.position.y - chen.position.y) < 8.0:
+			near[who] = dx
 		else:
 			far.append(who)
 	_teleport(room, x, with, false)
@@ -4424,7 +4532,9 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 	var w2: Vector2 = world.walls(chen.position.x)
 	for who in near:
 		var n := npc(who)
-		var nx := clampf(chen.position.x + float(near[who]), w2.x + 6.0, w2.y - 6.0)
+		# 出门以后站在晨身后（晨朝哪边，她在另一边）：晨接着往前走不会从她身上穿过去（11-04 连拍：出门后晨和妮芙叠在一起交错）
+		var off := maxf(absf(float(near[who])), _side_gap(n, 22.0)) * -float(chen.facing)
+		var nx := clampf(chen.position.x + off, w2.x + 6.0, w2.y - 6.0)
 		_place(n, nx, room)
 		n.modulate.a = 1.0
 		n._set_facing(chen.facing)
@@ -4449,6 +4559,75 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 		tw.tween_method(func(a: float): n.modulate.a = floorf(a * 4.0) / 4.0, 0.0, 1.0, 0.4)
 		_walk({"who": who, "to": clampf(door_x + side * 26.0, w2.x + 6.0, w2.y - 6.0), "wait": false})
 	await _wait(0.5)
+
+
+## 过门之前：跟着的人走到晨身后 DOOR_GAP（同一层、不太远：DOOR_GATHER 以内），等她走到（最多 DOOR_GATHER_SEC 秒）。
+## 跳节拍时直接放过去（看不见）
+const DOOR_GAP := 26.0
+const DOOR_GATHER := 360.0
+const DOOR_GATHER_SEC := 1.6
+const DOOR_CLIMB_SEC := 5.0          # 从楼上走下来最多等这么久
+
+
+func _door_gather(names: Array) -> void:
+	var sg := _lv_stage()
+	var movers: Array = []
+	var climbers: Array = []
+	for who in names:
+		var n := npc(who)
+		if n == null or n == chen or not n.visible or not npcs.values().has(n) or _room_of(n) != world.room:
+			continue
+		if sg != null and _lv_of(n, sg) != int(sg.chen_lv):
+			# 在别的层（妮芙在楼上、晨在一楼门口）：先沿楼梯走下来，走到晨身后（看得见地走，不在楼上淡没）
+			if ff:
+				_place(n, chen.position.x - float(chen.facing) * DOOR_GAP, world.room, int(sg.chen_lv))
+				continue
+			var tx2 := chen.position.x - float(chen.facing) * _side_gap(n, DOOR_GAP)
+			_lv_walk(n, sg, int(sg.chen_lv), tx2, {"speed": 200.0, "wait": false})
+			climbers.append(n)
+			continue
+		var dx: float = n.position.x - chen.position.x
+		if absf(dx) > DOOR_GATHER:
+			continue
+		var side := -float(chen.facing) if absf(dx) < 1.0 else signf(dx)
+		var w: Vector2 = world.walls(chen.position.x)
+		var tx := clampf(chen.position.x + side * _side_gap(n, DOOR_GAP), w.x + 4.0, w.y - 4.0)     # 妮芙的鲸鱼壳宽：按身宽隔开
+		if absf(tx - n.position.x) <= 2.0:
+			continue
+		if ff:
+			_place(n, tx, world.room)
+			continue
+		n.walk_to(tx, clampf(absf(tx - n.position.x) / (DOOR_GATHER_SEC * 0.8), 60.0, 200.0))
+		movers.append(n)
+	var t := 0.0
+	while (not movers.is_empty() and t < DOOR_GATHER_SEC) or (not climbers.is_empty() and t < DOOR_CLIMB_SEC):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		movers = movers.filter(func(m): return is_instance_valid(m) and m.is_walking())
+		climbers = climbers.filter(func(m): return is_instance_valid(m) and (m.has_meta("lv_climbing") or m.is_walking()))
+	for m in movers:
+		if is_instance_valid(m):
+			m.stop()
+	# 下完楼 / 还在路上：同一层了但还没到晨身边，再走一段（最多 DOOR_GATHER_SEC），不然过门时只好淡掉
+	var late: Array = []
+	for who in names:
+		var n2 := npc(who)
+		if n2 == null or n2 == chen or not n2.visible or not npcs.values().has(n2) or _room_of(n2) != world.room:
+			continue
+		if sg != null and _lv_of(n2, sg) != int(sg.chen_lv):
+			continue
+		var d2: float = n2.position.x - chen.position.x
+		if absf(d2) <= maxf(DOOR_NEAR, _side_gap(n2, DOOR_GAP) + 6.0) - 4.0 or absf(d2) > DOOR_GATHER:
+			continue
+		var w3: Vector2 = world.walls(chen.position.x)
+		n2.walk_to(clampf(chen.position.x + signf(d2) * _side_gap(n2, DOOR_GAP), w3.x + 4.0, w3.y - 4.0), 200.0)
+		late.append(n2)
+	var t2 := 0.0
+	while not late.is_empty() and t2 < DOOR_GATHER_SEC:
+		await get_tree().process_frame
+		t2 += get_process_delta_time()
+		late = late.filter(func(m): return is_instance_valid(m) and m.is_walking())
+	print("DOOR_GATHER %s" % ", ".join(names.map(func(w): return "%s dx=%d" % [w, int(npc(w).position.x - chen.position.x) if npc(w) != null else 0])))
 
 
 func _fade_nodes(list: Array, on: bool, sec: float) -> void:
@@ -4480,8 +4659,8 @@ func _fade_people(on: bool, sec: float, with: Array) -> void:
 
 
 ## 竖直平移（10-31 作者：两个房间不拼在一起、也不要夜空，渐黑再渐亮，但要看得出在往上 / 往下走）：
-## 晨（和同行的）淡掉 → 渐黑的同时镜头在这个房间里往上（下）移 PAN_SHIFT、平滑起步 → 黑着换房间 →
-## 渐亮的同时镜头从新房间下（上）面 PAN_SHIFT 接着往上（下）移、减速停住 → 人淡出来。
+## 渐黑的同时镜头在这个房间里往上（下）移 PAN_SHIFT、平滑起步（人跟着画面一起黑）→ 黑着换房间 →
+## 渐亮的同时镜头从新房间下（上）面 PAN_SHIFT 接着往上（下）移、减速停住（人已经站在那，跟着画面亮起来）。
 ## 两段距离、时长一样，sine 前半段 EASE_IN、后半段 EASE_OUT，接上的地方速度相等，看着是一口气。
 ## 镜头移出房间露出来的地方 level_forest 的房间上下盖黑会盖住（本来就在变黑）。
 const PAN_SHIFT := 40.0
@@ -4492,7 +4671,8 @@ func _pan_to(room: String, x: float, with: Array, st: Dictionary) -> void:
 	var dir := -1.0 if from_st == null or to_st.origin.y < from_st.origin.y else 1.0      # -1：往上（镜头 y 变小）
 	var c0: Vector2 = level.cam.position.round()
 	level.camera_hold_at(c0)
-	await _fade_people(false, 0.35, with)
+	# 11-04 作者「妮芙……隐身」（连拍：上市集时晨和妮芙先在河岸上淡没，空河岸停了 0.6 秒才黑）：人不再自己先淡掉，
+	# 跟着画面一起黑下去、一起亮起来
 	level.camera_pan(c0 + Vector2(0, dir * PAN_SHIFT), PAN_HALF, Tween.EASE_IN)
 	await level.fade_to_black(PAN_HALF)
 	var target := Vector2(to_st.clamp_cam_x(x + chen.facing * 24.0), to_st.cam_y())
@@ -4503,15 +4683,14 @@ func _pan_to(room: String, x: float, with: Array, st: Dictionary) -> void:
 			continue
 		var stw = (n as Node2D).get_meta("sync_tw") if (n as Node2D).has_meta("sync_tw") else null
 		if stw is Tween and (stw as Tween).is_valid():
-			(stw as Tween).kill()             # 换房间时 sync_npc_vis 给同行的人起的 0.5 秒淡入：停掉，和晨一起淡出来（10-31 进市集妮芙先出现）
-		(n as Node2D).modulate.a = 0.0
+			(stw as Tween).kill()             # 换房间时 sync_npc_vis 给同行的人起的 0.5 秒淡入：停掉，和画面一起亮起来（10-31 进市集妮芙先出现）
+		(n as Node2D).modulate.a = 1.0
 	var start := target - Vector2(0, dir * PAN_SHIFT)
 	level.camera_hold_at(start)
 	level.cam.position = start.round()
 	level.camera_pan(target, PAN_HALF, Tween.EASE_OUT)
 	await level.fade_from_black(PAN_HALF)
 	level.camera_hold_at(target)
-	await _fade_people(true, 0.35, with)
 	level.camera_release()
 
 
@@ -4751,7 +4930,7 @@ func _reward(st: Dictionary) -> void:
 		var left: Vector2 = level.cam_left()
 		var zk: float = level.cam.zoom.x
 		var hand: Vector2 = (chen.position - left + Vector2(chen.facing * 6.0, -24.0)) * zk
-		var c := (hand + Vector2(0, -34.0 * rise)).round()
+		var c := (hand + Vector2(0, -52.0 * rise)).round()       # 升到头顶上方（到顶放大两倍后底边也不盖到头发；11-04 作者「物品挡住面部」）
 		var big := 1 if k < 1.0 else 2                       # 整数倍放大：到顶那一下变两倍
 		var fade := clampf((dur - t) / 0.3, 0.0, 1.0)
 		var step := floorf(t / 0.1)                           # 光点 100ms 一格转
