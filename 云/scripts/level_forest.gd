@@ -1183,7 +1183,8 @@ func _build_bag(root: Control) -> void:
 
 func _bag_refresh() -> void:
 	_bag_w["title"].text = I18n.t("bag")
-	_bag_w["total"].text = I18n.t("burn_total") % hud_fuel()
+	var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true) or StoryState.fuel_on()
+	_bag_w["total"].text = I18n.t("burn_total") % hud_fuel() if fuel_ok else ""     # 第一关新版没有燃料表（背包标题旁边不写「10 / 200」）
 	for i in _bag_slots.size():
 		var b := _bag_slots[i]
 		var ic: TextureRect = b.get_meta("icon")

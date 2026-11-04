@@ -32,7 +32,7 @@ func _init(runner: Node) -> void:
 	_test_seed()
 
 
-## 测试：--barter_seed=barter_toucan_rain,+rain_glass,-blue_stone（直接进后面章节时假装前面换过；+ / - = 背包加 / 减一件，其余是 flag）
+## 测试：--barter_seed=barter_toucan_rain,+rain_glass,-blue_stone,!c1_mom（直接进后面章节时假装前面换过；+ / - = 背包加 / 减一件，! = 清掉 flag，其余是 flag）
 func _test_seed() -> void:
 	for a in OS.get_cmdline_user_args():
 		if not a.begins_with("--barter_seed="):
@@ -42,6 +42,8 @@ func _test_seed() -> void:
 				Inventory.add(s.substr(1))
 			elif s.begins_with("-"):
 				Inventory.remove(s.substr(1))
+			elif s.begins_with("!"):
+				StoryState.clear_flag(s.substr(1))      # 11-04 夜测：!c1_mom = 换成鹿叫孩子那版
 			else:
 				StoryState.set_flag(s)
 

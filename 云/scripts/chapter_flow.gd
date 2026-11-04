@@ -26,7 +26,7 @@ const C1_FLAGS := ["c1_mom", "c1_child", "c1_bear_given", "burned_family_photo",
 	"burned_rabbit_fur", "burned_floorboard"]
 
 const CHAPTERS := {
-	"forest": {"story": "res://data/story_forest.json", "next": "flight1"},
+	"forest": {"story": "res://data/story_forest.json", "next": "flight1", "hud_fuel": false},   # 11-05 夜测：第一关新版没有燃料表，没目标的时候左上角别冒出「10 / 200」
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
 		"carry_flags": BARTER_FOREST + C1_FLAGS, "items_extra": ["res://data/items_later.json"],
 		"end_card": {"zh": "第一章　完", "en": "End of Chapter One"}},
