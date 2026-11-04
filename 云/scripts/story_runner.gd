@@ -576,6 +576,8 @@ func play(id: String, manage := true, from_index := 0) -> void:
 				continue
 			var t_step := _game_t
 			var g: String = await _step(st)
+			if not is_inside_tree():
+				return
 			if not ff:
 				_count_wait(cur, st, _game_t - t_step)
 			if ended:
@@ -1039,7 +1041,7 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 
 func _wait(sec: float) -> void:
 	var t := 0.0
-	while t < sec:
+	while t < sec and is_inside_tree():
 		await get_tree().process_frame
 		t += get_process_delta_time()
 
@@ -1167,7 +1169,7 @@ func _walk(st: Dictionary) -> void:
 		"deer":
 			deer.visible = true
 			_deer_go(x, st)
-			while wait and _deer_moving():
+			while wait and not ended and is_inside_tree() and _deer_moving():
 				await get_tree().process_frame
 		_ when npcs.values().has(n):
 			n.visible = true
