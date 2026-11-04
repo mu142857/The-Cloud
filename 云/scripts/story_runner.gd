@@ -4394,7 +4394,7 @@ func _check_jumps() -> void:
 			var bars: Array = level.get("_bars")
 			print("QA_CAMJUMP (%d,%d)->(%d,%d) scene=%s room=%s step=%d bar_dy=%.0f bar_y=%.0f bar_vis=%s override=%s shake=%.2f" % [int(_qa_cam["p"].x), int(_qa_cam["p"].y), int(c.x), int(c.y), _cur_scene, world.room, step_i,
 				float(level.get("_cam_bar_dy")), (bars[1] as Control).position.y if bars.size() > 1 else -1.0, str((bars[1] as Control).visible) if bars.size() > 1 else "-",
-				str(level.get("_cam_override")), float(level.get("_shake"))])
+				str(level.get("_cam_override")), float(level.get("_shake"))] + " pos=%s off=%s prev_v=%s" % [str(level.cam.position), str(level.cam.offset), str(pv0)])
 			qa_counts["camjump"] = int(qa_counts.get("camjump", 0)) + 1
 		_qa_cam["v"] = v
 	else:
