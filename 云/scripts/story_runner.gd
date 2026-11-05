@@ -237,6 +237,7 @@ var _npc_names := {}                 # 剧本里当角色用过的名字
 var carry_flags: Array = []          # 前面章节可能设的 flag（chapter_flow 的 carry_flags；--story_check 不报「没有地方设」）
 var follow := {}                     # 跟着晨走的：名字 → 间距
 var closeup_ui: Control              # 特写面板（closeup_ui.gd）
+var mech_node = null                 # 正在玩的那个小游戏（side_kit / river_kit 的面板在它的 board 上）：对话框躲面板用
 var mech_running := ""               # 正在玩的小游戏 id（镜头：房间有 viewfinder 时这期间不往前多看，见 level_forest.gd _cam_target）
 var mech_wait := false               # 小游戏在等玩家互动（wait_interact）：只有临时点能用
 var _mech_spots: Array = []
@@ -393,6 +394,9 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	lv.move_child(hotspots, chen.get_index() + 1)
 	dlg = DIALOGUE_GD.new()
 	dlg.name = "StoryDialogue"
+	dlg.avoid = people_screen_rects
+	dlg.chooser_rect = chen_screen_rect
+	dlg.panel_rect = mech_panel_rect
 	ui_root.add_child(dlg)
 	hotspots.setup(self, world, hotspot_defs, ui_root)
 	phone = PHONE_GD.new()
@@ -966,7 +970,7 @@ func _flashback(st: Dictionary) -> void:
 		return
 	if flashback_ui != null:
 		await _flashback_wake()              # 上一次停着没醒的先醒
-	BGM_GD.get_bgm(level.get_tree()).suspend(1.0)     # 配乐先淡掉（闪回里是紧张的循环 + 心跳），醒来接回来
+	BGM_GD.get_bgm(level.get_tree()).suspend(0.3)     # 配乐跟着压黑很快淡掉（0.3 秒，闪回进场像关门；黑里紧张的循环 + 心跳起来），醒来接回来
 	var layer := CanvasLayer.new()
 	layer.name = "Flashback"
 	layer.layer = FLASHBACK_LAYER
@@ -1082,7 +1086,13 @@ func _anchor(who: String) -> Vector2:
 	var n := npc(who)
 	if n != null and n.visible:
 		var hd := float(n.head) if npcs.values().has(n) else float(HEAD.get(who, 50.0))
-		return (n.position - left + Vector2(0, -hd)) * zk
+		var a := (n.position - left + Vector2(0, -hd)) * zk
+		# 11-05 夜测（河流篇 farewell_b）：show_item 举在晨头顶的图标压在她那句话的字上：框放到图标上面
+		if n == chen and _item_show != null and is_instance_valid(_item_show) and _item_show.visible and _item_show.texture != null:
+			# 和 _update_item_show 同一个算法（刚举起来那一帧图标还没摆好位置）：头顶上 3 像素 + 图标高 + 抬起 6
+			var icon_top: float = (chen.position.y - left.y - float(chen.FOOT.y) - 4.0) * zk - _item_show.texture.get_size().y - 6.0
+			a.y = minf(a.y, icon_top - 1.0)
+		return a
 	# 画面外的声音：树屋在屏幕里就从门那边来（屋里的人隔着门说话），不然屏幕上方中间
 	if not world.in_room() and world.stages.is_empty():
 		var dx: float = float(world.house["door"]) - left.x
@@ -1342,6 +1352,12 @@ func _show(st: Dictionary, on: bool, instant := false) -> void:
 	if n == null:
 		world.set_prop(who, "show" if on else "hidden")     # 引擎扩展：物件也能 show / hide
 		return
+	# 11-05 夜测：上一步 hide 带 fade 不等（鹿边走边淡进雾里 1.2 秒），紧接着 show at 别处（回树屋门口）：
+	# 原来直接把淡出截断成 0.25 秒——画面里的鹿一下子没了。等它自己淡完再放过去。
+	if on and st.has("at") and not ff and not instant and n.get_meta("vis_hiding", false):
+		var ht = (n.get_meta("vis_tw") if n.has_meta("vis_tw") else null)
+		while ht is Tween and (ht as Tween).is_valid() and (ht as Tween).is_running():
+			await get_tree().process_frame
 	if st.has("at"):
 		var r: Dictionary = world.resolve(st["at"])
 		if r["ok"]:
@@ -1834,9 +1850,10 @@ func _show_item(st: Dictionary) -> void:
 	_item_show_until_say = not st.has("sec")
 	tr.set_meta("t", 0.0)
 	if st.has("sec"):
-		var me := tr
+		# 11-05：不能直接抓 tr——sec 没到就举下一件时 tr 已被释放，回调报「Lambda capture at index 0 was freed」。抓 id 比较
+		var me_id := tr.get_instance_id()
 		get_tree().create_timer(float(st["sec"])).timeout.connect(func():
-			if _item_show == me:
+			if _item_show != null and is_instance_valid(_item_show) and _item_show.get_instance_id() == me_id:
 				_drop_item_show())
 
 
@@ -1918,6 +1935,7 @@ func _fade_to(st: Dictionary) -> void:
 		await get_tree().process_frame
 		bt += get_process_delta_time()
 	level.camera_release()
+	_tp_dir = signf(arrive - x) if not is_nan(arrive) and absf(arrive - x) > 2.0 else 0.0
 	_teleport(room, x, st.get("with", []), true)
 	_fade_place(st)
 	if st.has("cam"):
@@ -1993,6 +2011,9 @@ func _camera(st: Dictionary) -> void:
 var _qa_room_frame := -1               # 换房间的那一帧（这一帧里再放人不算 QA_PLACE：画出来的只有最后那个位置）
 
 
+var _tp_dir := 0.0                   # 这次换地方以后晨马上要往哪边走（arrive）：同行的人放在另一边。_teleport 用完清零
+
+
 func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 	_qa_room_frame = Engine.get_process_frames()
 	if world.area_of(x) != world.area_of(chen.position.x) or room != world.room:
@@ -2013,14 +2034,18 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		var fnode := npc(str(fw))
 		if not with.has(fw) and fnode != null and fnode.visible and world.is_stage(room) and str(_npc_room.get(fnode.name, "")) == old_room:
 			with.append(fw)                # 跟着晨的人一起过去
+	# 11-05 夜测（河流篇：进妮芙家、市集→楼梯间、进南桥，一到就叠在一起几帧）：同行的人原来一律放在晨左边，
+	# 淡入时晨要往左走几步（arrive）就正好走进她身上。放在晨要走的方向的反面（身后）
+	var pref := -_tp_dir if _tp_dir != 0.0 else -1.0
+	_tp_dir = 0.0
 	for who in with:
 		var n := npc(str(who))
 		if n == null or n == chen:
 			continue
 		off += _side_gap(n, 30.0)
-		var nx := x - off
-		if nx < w.x + 10.0:
-			nx = x + off
+		var nx := x + pref * off
+		if nx < w.x + 10.0 or nx > w.y - 10.0:
+			nx = x - pref * off
 		nx = _clear_x(n, nx, room, tlv)        # 人和人不叠（也躲开房间里站着的人）
 		_place(n, nx, room)
 		n.visible = true
@@ -2207,33 +2232,54 @@ func _end_chapter() -> void:
 		return
 	# 最后一章（chapter_flow 的 last_card）：「全剧终」，3 秒以后按任意键回标题（level_forest 的结束卡输入）；别的：「未完待续」
 	var last: bool = (load("res://scripts/chapter_flow.gd") as GDScript).info(str(level.chapter)).get("last_card", false)
+	var roll: bool = last and float(level.get("_fuzz")) <= 0.0      # 全剧终以后放制作人员、放完自己回标题（乱玩不放：走到结束卡就算完）
+	var top: Node = level.get_node("Top")
+	var n0 := top.get_child_count()                                     # 结束卡、成就那行是这之后加进 Top 的（放名单前要收掉）
 	dlg.end_card(I18n.t("the_end" if last else "to_be_continued"), I18n.t("the_end_sub" if last else "to_be_continued_sub"),
-		level.get_node("Top"), I18n.t("end_any_key") if last else "")
+		level.get_node("Top"), I18n.t("end_any_key") if last and not roll else "")
 	print("END_CARD %s" % ("the_end" if last else "to_be_continued"))   # 自测：连着自动玩到最后，确认出的是「全剧终」
 	if last:
 		barter.show_achievements(level.get_node("Top"))     # 成就：只列拿到的（以物易物，data/achievements.json）
-		if auto == "":
-			await _credits_roll()
 	if auto != "":
 		await _wait(2.5)
 		if shots_dir != "":
 			level._save(shots_dir.path_join("%03d_end_card.png" % (_shot_n + 1)))
 		print_stats("STORY_DONE")
-		get_tree().quit()
+		if not roll:
+			get_tree().quit()
+	if roll:
+		await _credits_roll(top.get_children().slice(n0))
 
 
-## 「全剧终」停一会儿以后放制作人员（scripts/credits_page.gd，像 Linger 最后几个结局以后那样）。放的时候按键都给它
-## （level_forest 的 _input 先看 _credits_page）；放完回到结束卡，再按任意键回标题。
-func _credits_roll() -> void:
-	await level.get_tree().create_timer(4.0).timeout
+## 「全剧终」停一会儿以后放制作人员（scripts/credits_page.gd 的 from_end：和标题页「制作人员」同一套分场景名单，
+## 从结束卡淡进去，「感谢游玩」以后淡到黑），放完回标题（level_forest.title_after_credits：重新载入，标题从黑里淡出来）。
+## 放的时候按键都给名单页（level_forest 的 _input 先看 _credits_page；Esc = 直接淡到黑回标题）；结束卡自己不再等按键。
+## cards = 结束卡（全剧终）和成就那行：名单淡进来之前先淡到透明（底下是黑的）、删掉，两层字不同时出现（11-05 qa_all 报了叠字）。
+func _credits_roll(cards: Array) -> void:
+	level.set("_end_t", -100.0)
+	await level.get_tree().create_timer(2.5 if auto != "" else 4.5).timeout
+	if not is_instance_valid(level):
+		return
+	var out := level.create_tween().set_parallel(true)
+	out.tween_interval(1.2)                                               # 至少有一个动作（不然空 tween 不会 finished）
+	for c in cards:
+		if is_instance_valid(c) and c is CanvasItem:
+			out.tween_property(c, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_SINE)
+	await out.finished
+	for c in cards:
+		if is_instance_valid(c):
+			c.queue_free()
+	await level.get_tree().create_timer(0.4).timeout                      # 黑一小会儿，再出森林
 	if not is_instance_valid(level):
 		return
 	var page: Control = (load("res://scripts/credits_page.gd") as GDScript).new()
+	page.set("from_end", true)
 	level.get_node("Top").add_child(page)
 	level.set("_credits_page", page)
 	await page.closed
 	if is_instance_valid(level):
-		level.set("_credits_page", null)
+		print("CREDITS_DONE black_frames=%d" % int(page.get("black_frames")))
+		level.title_after_credits()          # _credits_page 不清：重新载入前按键照样被名单页吃掉
 
 
 # ======================================================================= hotspot
@@ -2997,6 +3043,14 @@ func fast_forward(target: String) -> bool:
 	var guard := 0
 	while not StoryState.has(target) and guard < 400:
 		guard += 1
+		if pending_guide.has("scene") and not busy:
+			# 11-05：F8 状态页原地补齐时剧情正停在鹿带路的半路（新版第一关「跟上我的步伐」）：晨直接到鹿身边，接着播停下的那段
+			var gx: float = float(pending_guide.get("x", deer.position.x))
+			_place(deer, gx, world.room)
+			deer.visible = true
+			_place(chen, gx - signf(gx - chen.position.x) * 30.0, world.room)
+			await resume_guide()
+			continue
 		var c := plan()
 		if c.is_empty():
 			break
@@ -3876,7 +3930,7 @@ func _no_snap() -> void:
 	for n in npcs.values():
 		if not is_instance_valid(n):
 			continue
-		var last = n.get_meta("ns_x", null)
+		var last = n.get_meta("ns_x") if n.has_meta("ns_x") else null     # get_meta 的默认值给 null 还是会报错，先问 has_meta
 		var room := _room_of(n)
 		if last != null and open and n.visible and str(n.get_meta("ns_room", "")) == room and room == world.room:
 			var dx: float = n.position.x - float(last)
@@ -3888,9 +3942,71 @@ func _no_snap() -> void:
 		n.set_meta("ns_room", room)
 
 
+## 11-05 河流篇夜测（tape_fix：妮芙从晨右边走到柜子，壳从晨身上平移穿过去）：剧本 walk 的路线经过晨，跟随让路那套管不到。
+## 浮着的（妮芙的鲸鱼壳）走近晨时往上飘到壳底比晨头顶还高 PASS_CLEAR，过了再落回来：离晨 PASS_RAMP 以外开始升（smoothstep），
+## 到挨上的距离（_side_gap）时已经升满，一直保持到离开。高度按两个人不透明那块的屏幕矩形算（壳比 22 高，固定拱高不够，07:20 河流复测）。
+## 只动画出来的高度（npc_generic 的 pass_lift），不动她的位置和脚下；她本来就排在晨后面画（晨在前）
+const PASS_RATE := 240.0
+const PASS_RAMP := 40.0
+const PASS_CLEAR := 2.0
+
+
+## 浮着的人要往上飘多高，壳底才比晨头顶高 PASS_CLEAR（按两人不透明那块的屏幕矩形；已经抬起来的 lifted 先扣回去）。至少 SWAP_ARC
+func _clear_lift(n: Node2D, lifted := 0.0) -> float:
+	var nr := _sprite_screen_rect(n.spr)
+	var cr := _sprite_screen_rect(chen.spr)
+	var zk: float = level.cam.zoom.x
+	if nr.size.x <= 0.0 or cr.size.x <= 0.0:
+		return SWAP_ARC
+	var want := maxf(SWAP_ARC, (nr.end.y + lifted * zk - cr.position.y) / zk + PASS_CLEAR)
+	var room_up := (nr.position.y + lifted * zk - 4.0) / zk          # 壳顶最高到屏幕上沿往下 4 像素（楼上那层再往上飘就出画面了）
+	return clampf(want, minf(SWAP_ARC, maxf(room_up, 0.0)), maxf(room_up, 0.0))
+
+
+func _pass_over(delta: float) -> void:
+	for n in npcs.values():
+		if not is_instance_valid(n) or n.has_meta("swap_t"):
+			continue                  # 正在划弧：飘着的那段高度先不动（_swap_step 只补剩下的）
+		var cur_l := float(n.get_meta("pass_lift", 0.0))
+		var want := 0.0
+		if n.visible and n.is_walking() and _is_hover(n) and chen.visible and _room_of(n) == world.room \
+				and absf(n.position.y - chen.position.y) < 12.0:
+			var zone := _side_gap(n, 30.0)
+			var d := absf(n.position.x - chen.position.x)
+			var wx := float(n.get("_walk_x"))
+			# 只管真要从晨身边过去的（终点在晨另一边，或者终点就挨着晨）：走到晨旁边停下说话的不跳一下
+			var crossing: bool = signf(wx - chen.position.x) != signf(n.position.x - chen.position.x) or absf(wx - chen.position.x) < zone - 0.5
+			if (crossing or d < zone) and d < zone + PASS_RAMP:
+				var full := float(n.get_meta("pass_full", -1.0))
+				if full < 0.0:
+					full = _clear_lift(n, cur_l)
+					n.set_meta("pass_full", full)
+				var k := clampf((zone + PASS_RAMP - d) / PASS_RAMP, 0.0, 1.0)
+				want = full * k * k * (3.0 - 2.0 * k)
+		elif n.visible and not n.is_walking() and not n.has_meta("swap_t") and _is_hover(n) and chen.visible and _room_of(n) == world.room \
+				and absf(n.position.y - chen.position.y) < 12.0:
+			# 站着（跟随 / 让路）的时候被晨挤进身子里（楼梯口、墙边划不了弧，弹簧追不上）：真叠上了就往上飘过晨的头，让开了再落
+			var zone2 := _side_gap(n, 30.0) - CLEAR_GAP
+			var d2 := absf(n.position.x - chen.position.x)
+			if d2 < zone2:
+				var full2 := float(n.get_meta("pass_full", -1.0))
+				if full2 < 0.0:
+					full2 = _clear_lift(n, cur_l)
+					n.set_meta("pass_full", full2)
+				var k2 := clampf((zone2 - d2) / 12.0, 0.0, 1.0)
+				want = full2 * k2 * k2 * (3.0 - 2.0 * k2)
+		if want == 0.0 and n.has_meta("pass_full"):
+			n.remove_meta("pass_full")
+		if absf(cur_l - want) > 0.01:
+			n.set_meta("pass_lift", move_toward(cur_l, want, PASS_RATE * delta))
+		elif want == 0.0 and n.has_meta("pass_lift"):
+			n.remove_meta("pass_lift")
+
+
 func _update_follow(delta: float) -> void:
 	if ff:
 		return
+	_pass_over(delta)
 	var free: bool = (not busy or free_walk or mech_wait) and level.free_play()
 	_walk_guard()
 	for who in follow:
@@ -3984,6 +4100,7 @@ const FOLLOW_W := 3.0
 const FOLLOW_DELAY := 0.3
 const SWAP_SEC := 0.8
 const SWAP_ARC := 22.0
+const SWAP_STEP_MAX := 6.0
 
 
 func _is_hover(n: Node2D) -> bool:
@@ -3992,31 +4109,70 @@ func _is_hover(n: Node2D) -> bool:
 
 
 ## 从晨头顶飘到另一边：x 沿 smoothstep 从起点走到「晨身后 gap」（跟着晨现在的位置算），y 是正弦拱
-func _swap_step(n: Node2D, gap: float, delta: float) -> void:
+## 11-05 河流篇夜测（压缩第二章那边报的：tape_sound 后妮芙一帧 58 像素，从晨左边直接到右边，swap=true）：
+## 划弧中途被别的事打断（晨上楼梯那几帧走 _clear_stair_end、剧本 walk、播剧情时不叫 _make_way）以后 swap_t 还留着，
+## 过一阵再叫到这里就接着用老的起点、老的时间算——一下子跳到弧线终点。中断过 / 被别人挪过 / 在走路：作废，不接着划。
+## 返回 false = 作废了，_make_way 照平常的让路走。
+func _swap_step(n: Node2D, gap: float, delta: float) -> bool:
+	var fr := Engine.get_process_frames()
+	var lf := int(n.get_meta("swap_f", fr - 1))
+	if n.is_walking() or fr - lf > 2 or absf(n.position.x - float(n.get_meta("swap_lx", n.position.x))) > 1.5:
+		n.remove_meta("swap_t")
+		n.remove_meta("swap_f")
+		n.remove_meta("swap_lx")
+		n.remove_meta("swap_sec")
+		n._x = n.position.x
+		n._snap_walk(delta)
+		return false
 	var t := float(n.get_meta("swap_t")) + delta
-	var k := clampf(t / SWAP_SEC, 0.0, 1.0)
+	var k := clampf(t / float(n.get_meta("swap_sec", SWAP_SEC)), 0.0, 1.0)
 	var e := k * k * (3.0 - 2.0 * k)
 	var sd := float(n.get_meta("swap_side"))
 	var w: Vector2 = world.walls(chen.position.x)
 	var tx := clampf(chen.position.x + sd * gap, w.x + 4.0, w.y - 4.0)
+	# 11-05：晨走上楼梯口，这一层能走的范围变了（墙一下子挪到晨脚下），要去的那边被夹到了晨的另一边——
+	# 原来接着按 lerp 算，一帧从晨左边跳到右边 58 像素（连拍 tape_sound）。要去的地方翻了边：作废这次划弧，交给平常的让路 / 楼梯口让开
+	if signf(tx - chen.position.x) != sd:
+		n.remove_meta("swap_t")
+		n.remove_meta("swap_f")
+		n.remove_meta("swap_lx")
+		n.remove_meta("swap_sec")
+		n._x = n.position.x
+		n._snap_walk(delta)
+		return false
 	var x0 := float(n.get_meta("swap_x0"))
 	var x := lerpf(x0, tx, e)
+	x = move_toward(n.position.x, x, SWAP_STEP_MAX)      # 保险：晨跑起来、墙挪了，一帧也不挪超过这些
 	n.face(1 if tx > x0 else -1)
 	n.play("walk")
+	var old_p := n.position
 	n.position.x = round(x)
 	n._snap_y()
-	n.position.y -= round(SWAP_ARC * sin(PI * e))
+	# 高度：前 30% 的时间升满、中间保持、最后 30% 落回（原来正弦拱起得慢，晨迎面走过来时还没升高就叠上了，11-05 河流复测）
+	var up_k := clampf(k / 0.4, 0.0, 1.0)
+	var dn_k := clampf((1.0 - k) / 0.4, 0.0, 1.0)
+	var hk := (up_k * up_k * (3.0 - 2.0 * up_k)) * (dn_k * dn_k * (3.0 - 2.0 * dn_k))
+	n.position.y -= round(float(n.get_meta("swap_arc", SWAP_ARC)) * hk)
+	# 楼梯上划弧：x 每帧挪几像素，脚下的高度跟着陡台阶一下变好几像素（11-05 楼梯间 QA_JUMP 7 像素一帧）：
+	# 这一帧连 x 带 y 最多挪 SWAP_STEP_MAX - 0.5，跟不上就晚一点到（下一帧接着按地面算）
+	if n.position.distance_to(old_p) > SWAP_STEP_MAX - 0.5:
+		n.position = old_p.move_toward(n.position, SWAP_STEP_MAX - 0.5).round()
 	n.set_meta("swap_t", t)
+	n.set_meta("swap_f", fr)
+	n.set_meta("swap_lx", n.position.x)
 	if k >= 1.0:
 		n.remove_meta("swap_t")
+		n.remove_meta("swap_f")
+		n.remove_meta("swap_lx")
+		n.remove_meta("swap_sec")
 		n._x = n.position.x
 		n._vel = chen._vel * signf(chen.facing) if chen._vel > 0.0 else 0.0
 		n.set_meta("f_hold", 0.0)
+	return true
 
 
 func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
-	if n.has_meta("swap_t"):
-		_swap_step(n, gap, delta)
+	if n.has_meta("swap_t") and _swap_step(n, gap, delta):
 		return
 	var dx := n.position.x - chen.position.x
 	# 晨冲她走过来、快挨上了：浮着的从晨头顶飘到身后（不被推着走）
@@ -4028,8 +4184,17 @@ func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
 			n.set_meta("swap_t", 0.0)
 			n.set_meta("swap_x0", n.position.x)
 			n.set_meta("swap_side", -signf(chen.facing))
-			_swap_step(n, gap, delta)
-			return
+			# 已经被 _pass_over 往上飘了 pl（画出来的高度）：划弧期间那段高度先留着不落，弧线只补剩下的
+			var pl := float(n.get_meta("pass_lift", 0.0))
+			var total := _clear_lift(n, pl)
+			var arc := maxf(total - pl, 0.0)
+			n.set_meta("swap_arc", arc)
+			# 拱越高划得越久（升的那段每帧不超过 QA_JUMP 的 6 像素：高 50 的拱 1.4 秒）
+			n.set_meta("swap_sec", SWAP_SEC * clampf(total / SWAP_ARC, 1.0, 1.8))
+			n.remove_meta("swap_f")
+			n.remove_meta("swap_lx")
+			if _swap_step(n, gap, delta):
+				return
 	var side := signf(dx) if absf(dx) >= 1.0 else (-1.0 if chen.facing > 0 else 1.0)
 	# 叠在一起的时候（|dx| 不到半个间距）别每帧重新挑边：上一帧挑哪边就接着往哪边让，不然左右来回翻、一下弹出去（11-02 作者：重叠时光速弹开）
 	if absf(dx) < gap * 0.5 and n.has_meta("mw_side"):
@@ -4058,6 +4223,10 @@ func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
 		n.follow_to(tx, chen.position.x, delta, FOLLOW_W)
 	elif not n.is_walking() and chen._vel > 0.0 and dx * side < gap + 16.0 and signf(chen.facing) == side:
 		n.follow_to(tx, chen.position.x, delta, 4.0 if _is_hover(n) else 6.0)           # 晨冲她走过来：先飘开
+	elif _is_hover(n) and not n.is_walking() and chen._vel <= 0.0 and dx * side < gap - 2.0:
+		# 11-05 河流篇复测（进妮芙家：剧本 walk 晨走到罐子，两人站定只隔 18、壳盖着晨）：过场里不跟随、晨也停了，
+		# 原来就这么一直叠着。浮着的人慢慢飘开到不叠的距离（软弹簧，不推）
+		n.follow_to(tx, chen.position.x, delta, 3.0)
 	_keep_in(n, w, delta)
 	# 弹簧追不上（晨跑过来、过场里晨走过她身边）：直接推开，鲸鱼壳不压到晨身上
 	# 浮着的（妮芙）不硬推：她要么从晨头顶飘过去（上面 swap），要么弹簧自己让开——硬推就是「闪现」、被推着倒着走（11-02 作者）
@@ -4346,6 +4515,105 @@ func qa_screen_open() -> bool:
 
 
 ## 世界坐标的点在不在画面里（margin = 往里缩多少）
+## 11-05 夜测：一句一句的选项原来固定摆在 x 120、y 186–240，正好压在站在地上的人身上（晨、鹿的身子被选项框盖住）。
+## 给 dlg 一份「现在画面里的人各占哪块屏幕」（不透明的那一块），它摆选项时躲开。
+func people_screen_rects() -> Array:
+	var out: Array = []
+	if (closeup_ui != null and is_instance_valid(closeup_ui) and closeup_ui.visible) or mech_panel_rect().size.x > 0.0:
+		return out                       # 特写 / 小游戏面板（油灯、收音机、路标）开着：人都压在暗幕后面，选项照原位摆在面板下面
+	var list: Array = [chen, deer, miluo]
+	list.append_array(npcs.values())
+	for n in list:
+		if n == null or not is_instance_valid(n) or not (n is CanvasItem) or not (n as CanvasItem).is_visible_in_tree():
+			continue
+		if (n as CanvasItem).modulate.a < 0.3 or (n != chen and _room_of(n) != world.room):
+			continue
+		var sp = n.get("spr")
+		if not (sp is CanvasItem) or not (sp as CanvasItem).is_visible_in_tree():
+			continue
+		var r := _sprite_screen_rect(sp)
+		if r.size.x > 0.5 and Rect2(0, 0, 480, 270).intersects(r):
+			out.append(r)
+	return out
+
+
+## 晨在屏幕上占的矩形（选项是晨在选：选项躲人时贴着晨摆）。看不见 / 特写、面板开着 = 空
+func chen_screen_rect() -> Rect2:
+	var rs := people_screen_rects()
+	if rs.is_empty() or chen == null or not is_instance_valid(chen) or not chen.is_visible_in_tree():
+		return Rect2()
+	var sp = chen.get("spr")
+	if not (sp is CanvasItem) or not (sp as CanvasItem).is_visible_in_tree():
+		return Rect2()
+	return _sprite_screen_rect(sp)
+
+
+## 11-05 夜测（河流篇报的）：面板小游戏开着时画面里的人说话（鼠妈「听锅的。」），框按头顶放、正好落进面板中间盖住锅。
+## 面板的屏幕矩形（没开面板 = 空）：dlg 摆框时躲开（放到面板下面对话那一带，overlay_layout.gd 的规矩 ①）
+func mech_panel_rect() -> Rect2:
+	if mech_node == null or not (mech_node is Object) or not is_instance_valid(mech_node):
+		return Rect2()
+	var b = mech_node.get("board")
+	if not (b is Control) or not is_instance_valid(b) or not (b as Control).is_visible_in_tree():
+		return Rect2()
+	return (b as Control).get_global_rect()
+
+
+var _used_cache := {}
+
+
+func _sprite_screen_rect(s: CanvasItem) -> Rect2:
+	var tex: Texture2D = null
+	var local := Rect2()
+	var flip := false
+	var trim := true
+	if s is AnimatedSprite2D:
+		var a := s as AnimatedSprite2D
+		if a.sprite_frames == null or not a.sprite_frames.has_animation(a.animation):
+			return Rect2()
+		tex = a.sprite_frames.get_frame_texture(a.animation, a.frame)
+		if tex == null:
+			return Rect2()
+		var sz := tex.get_size()
+		local = Rect2((-sz / 2.0 if a.centered else Vector2.ZERO) + a.offset, sz)
+		flip = a.flip_h
+	elif s is Sprite2D:
+		var sp := s as Sprite2D
+		tex = sp.texture
+		if tex == null:
+			return Rect2()
+		local = sp.get_rect()
+		flip = sp.flip_h
+		trim = not sp.region_enabled and sp.hframes == 1 and sp.vframes == 1
+	else:
+		return Rect2()
+	if trim:
+		var u := _used_rect(tex)
+		if u.size.x > 0.0:
+			var k := local.size / tex.get_size()
+			if flip:
+				u.position.x = tex.get_size().x - u.end.x
+			local = Rect2(local.position + u.position * k, u.size * k)
+	var xf := s.get_global_transform_with_canvas()
+	var p0 := xf * local.position
+	var p1 := xf * local.end
+	return Rect2(p0, p1 - p0).abs()
+
+
+func _used_rect(tex: Texture2D) -> Rect2:
+	var key := tex.get_rid()
+	if _used_cache.has(key):
+		return _used_cache[key]
+	var r := Rect2()
+	var img := tex.get_image()
+	if img != null:
+		if img.is_compressed():
+			img.decompress()
+		r = Rect2(img.get_used_rect())
+	_used_cache[key] = r
+	return r
+
+
 func _on_screen(p: Vector2, margin: float) -> bool:
 	var left: Vector2 = level.cam_left()
 	var z: float = level.cam.zoom.x
@@ -4394,7 +4662,7 @@ func _check_jumps() -> void:
 			var bars: Array = level.get("_bars")
 			print("QA_CAMJUMP (%d,%d)->(%d,%d) scene=%s room=%s step=%d bar_dy=%.0f bar_y=%.0f bar_vis=%s override=%s shake=%.2f" % [int(_qa_cam["p"].x), int(_qa_cam["p"].y), int(c.x), int(c.y), _cur_scene, world.room, step_i,
 				float(level.get("_cam_bar_dy")), (bars[1] as Control).position.y if bars.size() > 1 else -1.0, str((bars[1] as Control).visible) if bars.size() > 1 else "-",
-				str(level.get("_cam_override")), float(level.get("_shake"))] + " pos=%s off=%s prev_v=%s" % [str(level.cam.position), str(level.cam.offset), str(pv0)])
+				str(level.get("_cam_override")), float(level.get("_shake"))] + " pos=%s off=%s prev_v=%s zoom=%.3f prev_zoom=%.3f qte=%s" % [str(level.cam.position), str(level.cam.offset), str(pv0), level.cam.zoom.x, float(_qa_cam.get("z", 1.0)), str(is_instance_valid(level.get("_getup_qte")))])
 			qa_counts["camjump"] = int(qa_counts.get("camjump", 0)) + 1
 		_qa_cam["v"] = v
 	else:
@@ -4403,6 +4671,7 @@ func _check_jumps() -> void:
 	_qa_cam["shake"] = float(level.get("_shake"))       # 镜头抖（坠毁、起飞）是故意的，不算
 	_qa_cam["open"] = open
 	_qa_cam["room"] = world.room
+	_qa_cam["z"] = level.cam.zoom.x
 	# 剧情物件：在画面里一下子换了位置 / 一下子出现、消失
 	for pid in world.props:
 		var sp = world.props[pid]
@@ -4533,7 +4802,12 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 	for who in near:
 		var n := npc(who)
 		# 出门以后站在晨身后（晨朝哪边，她在另一边）：晨接着往前走不会从她身上穿过去（11-04 连拍：出门后晨和妮芙叠在一起交错）
-		var off := maxf(absf(float(near[who])), _side_gap(n, 22.0)) * -float(chen.facing)
+		var g := maxf(absf(float(near[who])), _side_gap(n, 22.0))
+		var off := g * -float(chen.facing)
+		# 11-05 河流篇复测（进妮芙家：晨一进门就贴着左墙，身后只剩 16 像素，被墙夹到只隔 16，接着从晨身上漂过去）：
+		# 身后站不下就站到晨前面那边
+		if chen.position.x + off < w2.x + 6.0 or chen.position.x + off > w2.y - 6.0:
+			off = -off
 		var nx := clampf(chen.position.x + off, w2.x + 6.0, w2.y - 6.0)
 		_place(n, nx, room)
 		n.modulate.a = 1.0
@@ -4543,21 +4817,24 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 		return
 	# 远的那个：先在门口藏着，晚一拍淡入、往外走两步
 	var door_x: float = chen.position.x
+	# 11-05 夜测（河流篇进妮芙家）：原来放在门口 = 晨脚下、淡入时往外走 26 像素——妮芙的壳半宽 37，整段都压在晨身上。
+	# 放在晨身后差一点就挨上的地方淡入，再走到不叠的距离（_side_gap）
+	var side := -1.0 if chen.facing > 0 else 1.0
 	for who in far:
 		var n := npc(who)
 		if n == null:
 			continue
-		_place(n, door_x, room)
+		var g := _side_gap(n, 26.0)
+		_place(n, clampf(door_x + side * maxf(g - 12.0, 14.0), w2.x + 6.0, w2.y - 6.0), room)
 		n.modulate.a = 0.0
 	await _wait(0.45)
-	var side := -1.0 if chen.facing > 0 else 1.0
 	for who in far:
 		var n := npc(who)
 		if n == null:
 			continue
 		var tw := create_tween()
 		tw.tween_method(func(a: float): n.modulate.a = floorf(a * 4.0) / 4.0, 0.0, 1.0, 0.4)
-		_walk({"who": who, "to": clampf(door_x + side * 26.0, w2.x + 6.0, w2.y - 6.0), "wait": false})
+		_walk({"who": who, "to": clampf(door_x + side * _side_gap(n, 26.0), w2.x + 6.0, w2.y - 6.0), "wait": false})
 	await _wait(0.5)
 
 
@@ -4723,6 +5000,7 @@ func _walk_fade(room: String, x: float, with: Array, st: Dictionary, arrive: flo
 		start = x - s_in * 40.0
 		var w2: Vector2 = ts.walls()
 		start = clampf(start, w2.x + 2.0, w2.y - 2.0)
+	_tp_dir = signf(to - start) if absf(to - start) > 2.0 else 0.0
 	_teleport(room, start, with, true)
 	_fade_place(st)
 	await _wait(0.2)
@@ -4983,6 +5261,7 @@ func _mechanic(st: Dictionary) -> void:
 		return
 	print("MECH %s start" % mid)
 	mech_running = mid
+	mech_node = m
 	if auto != "":
 		if m.has_method("auto"):
 			await m.auto(level, world, self, st)
@@ -4991,6 +5270,7 @@ func _mechanic(st: Dictionary) -> void:
 	elif m.has_method("run"):
 		await m.run(level, world, self, st)
 	mech_running = ""
+	mech_node = null
 	_mech_done(mid)
 	print("MECH %s returned" % mid)
 

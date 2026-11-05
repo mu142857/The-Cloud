@@ -55,6 +55,19 @@ extends Node2D
 ## - 超前景（fg：{img, y, scroll, z}）：一张 fg.png 的 Sprite2D，scroll 1.6（比晨这一层快），z 116（gf 前面）。
 ##   随风轻摆（和水底的 sway 一个摆法，但时间按 100ms 一格走，一格一格地摆）；盖住晨或者正在说话的人时淡到 FG_DIM，
 ##   走开 FG_HOLD 秒以后淡回来（和 room_stage 的 front 层一个意思）。
+##
+## 时间滤镜（11-04，作者：白天 → 黄昏 → 夜里 → 第二天要看得出来）
+## - 读剧本的 sky 物件（room.json 里 1×1 的空图，状态 day / dusk / night / shadow_pass，只是剧情状态）：结局一 e1_evening 切「黄昏」，
+##   结局二 e2_night 切「夜里」、躺下以后切回 day（「第二天。」）。shadow_pass 是驾驶舱里的事，这里当白天。
+## - 「亮主角暗背景」：晨不调色。晨后面的东西（z < 0：天、山、各层、物件、后排芦苇、鸟、倒影、晨身后压暗的那圈）用一张盖住整间房的
+##   ColorRect 读屏幕调（z −1，前面一个 BackBufferCopy 先把屏幕拷下来）；晨前面的东西（z ≥ 0：r2 / g2 / g3 / g4 / gf、水花、脚踝的水面、
+##   mist_low、z ≥ 0 的物件、这间房里的 NPC）挂同一个调色的材质（只挂原来没有材质的，回到白天就摘掉）；超前景 fg 的 shader 里本来就带这一段。
+## - 调色（TIME_SETS，GRADE_GLSL）：c' = mix(灰, c, sat)；按亮度上色 g = mix(c', l·tone, tone_k)（tone 归一到亮度 1：蓝天变桃色 / 青灰，
+##   不会像直接乘橙色那样发脏）；g *= tmul（压暗）；最后往 haze 蒙 haze_a。全是 c 的仿射，所以半透明的东西先调再叠 = 叠完再调，
+##   晨前后两种调法接得上。Python 预览用的是同一个公式（docs/qa/芦苇地_时间滤镜_预览.png）。
+## - 换时间：参数从「现在的样子」沿 smootherstep 走到目标（TIME_DUR 秒），走到一半又换也从当时的样子接着走，不跳。
+##   刚进这间房（跳 beat、换房间淡入，隔了 TIME_SNAP_MS 没跑过）时已经是黄昏 / 夜里，就直接是那个样子。
+##   白天 = 全部关掉（ColorRect 藏起来、材质摘掉），和原来一模一样，不多花一点。
 
 const ANG_RANGE := 80
 ## 每排：视差、晨推的半径（像素）、最多弯几度、风的大小（倍）、z（绝对；晨是 0，main 层大约 −92）
@@ -211,6 +224,60 @@ var _flock_cfg := {"scroll": 0.1, "y": [30, 74], "speed": 7.0}
 var _isle_node: Node2D
 var _flock_node: Node2D
 
+# ---- 时间滤镜：[sat, tone(rgb), tone_k, tmul(rgb), haze(rgb), haze_a]；tone 用的时候归一到亮度 1
+const TIME_SETS := {
+	"day": [1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+	"dusk": [1.0, 1.30, 0.93, 0.62, 0.42, 0.97, 0.90, 0.82, 0.98, 0.70, 0.45, 0.06],      # 偏暖橙，蓝天变桃色
+	"night": [0.72, 0.62, 1.03, 1.18, 0.52, 0.47, 0.56, 0.63, 0.05, 0.15, 0.20, 0.07],    # 深青蓝带一点月色，不用正蓝
+}
+const TIME_DUR := {"dusk": 4.0, "night": 4.5, "day": 3.5}       # 走到这个时间用几秒
+const TIME_SNAP_MS := 500                                       # 隔这么久没跑过 _process（刚进房间）= 直接是目标的样子
+const TIME_Z := -1                                              # 晨（z 0）正后面
+const GRADE_GLSL := """
+uniform float sat = 1.0;
+uniform vec3 tone = vec3(1.0);
+uniform float tone_k = 0.0;
+uniform vec3 tmul = vec3(1.0);
+uniform vec3 haze = vec3(0.0);
+uniform float haze_a = 0.0;
+vec3 time_grade(vec3 c) {
+	float l = dot(c, vec3(0.299, 0.587, 0.114));
+	vec3 g = mix(vec3(l), c, sat);
+	g = mix(g, l * tone, tone_k);
+	g *= tmul;
+	return clamp(mix(g, haze, haze_a), 0.0, 1.0);
+}
+"""
+const TIME_SCREEN_SHADER := """
+shader_type canvas_item;
+render_mode unshaded;
+uniform sampler2D screen_tex : hint_screen_texture, filter_nearest;
+//GRADE
+void fragment() {
+	COLOR = vec4(time_grade(textureLod(screen_tex, SCREEN_UV, 0.0).rgb), 1.0);
+}
+"""
+const TIME_ITEM_SHADER := """
+shader_type canvas_item;
+render_mode unshaded;
+//GRADE
+void fragment() {
+	COLOR.rgb = time_grade(COLOR.rgb);
+}
+"""
+var _time_bb: BackBufferCopy
+var _time_rect: ColorRect
+var _time_screen_mat: ShaderMaterial
+var _time_item_mat: ShaderMaterial
+var _time_owned: Array = []         # 这里挂上调色材质的 CanvasItem（白天摘掉）
+var _time_state := ""               # 现在要去的时间（"" = 还没读过）
+var _time_p := PackedFloat32Array()
+var _time_p0 := PackedFloat32Array()
+var _time_p1 := PackedFloat32Array()
+var _time_u := 1.0
+var _time_dur := 1.0
+var _time_ms := 0
+
 const REFL_SHADER := """
 shader_type canvas_item;
 render_mode unshaded;
@@ -304,6 +371,7 @@ func _ready() -> void:
 	_splash_node = _make_painter("Splash", SPLASH_Z, _paint_splash)
 	_splash_node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_make_fg()
+	_make_time()
 	if fauna != "" and _load_fauna():
 		_isle_node = _make_painter("IsleFauna", int(fauna_z[0]), _paint_isle_fauna)
 		_flock_node = _make_painter("Flock", int(fauna_z[1]), _paint_flock)
@@ -440,6 +508,7 @@ func _process(delta: float) -> void:
 	_shade.visible = SHADE_ON and _have_chen
 	if _shade.visible:
 		_shade.global_position = (_chen_node.global_position + Vector2(0, SHADE_DY)).round()
+	_update_time(dt, stage, world)
 
 
 # ======================================================================= 倒影、身后压暗
@@ -1147,6 +1216,7 @@ uniform float wavelength = 240.0;
 uniform float power = 1.6;
 uniform float bend = 0.02;
 uniform float alpha = 1.0;
+//GRADE
 void fragment() {
 	vec2 size = vec2(textureSize(TEXTURE, 0));
 	vec2 px = floor(UV * size);
@@ -1159,7 +1229,7 @@ void fragment() {
 	if (c.a < 0.5) {
 		discard;
 	}
-	COLOR = vec4(c.rgb, alpha);
+	COLOR = vec4(time_grade(c.rgb), alpha);
 }
 """
 
@@ -1178,7 +1248,7 @@ func _make_fg() -> void:
 	_fg.z_index = int(fg.get("z", 116))
 	_fg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var sh := Shader.new()
-	sh.code = FG_SHADER
+	sh.code = FG_SHADER.replace("//GRADE", GRADE_GLSL)
 	var m := ShaderMaterial.new()
 	m.shader = sh
 	_fg.material = m
@@ -1223,3 +1293,125 @@ func _update_fg(dt: float) -> void:
 	_fg_clear = 0.0 if hit else _fg_clear + dt
 	_fg_u = move_toward(_fg_u, 1.0 if _fg_clear < FG_HOLD else 0.0, dt / FG_FADE)
 	(_fg.material as ShaderMaterial).set_shader_parameter("alpha", lerpf(1.0, FG_DIM, smoothstep(0.0, 1.0, _fg_u)))
+
+
+# ======================================================================= 时间滤镜（11-04）
+func _make_time() -> void:
+	_time_bb = BackBufferCopy.new()
+	_time_bb.name = "TimeCopy"
+	_time_bb.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	_time_bb.z_as_relative = false
+	_time_bb.z_index = TIME_Z
+	_time_bb.visible = false
+	add_child(_time_bb)
+	_time_rect = ColorRect.new()
+	_time_rect.name = "TimeGrade"
+	_time_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_time_rect.z_as_relative = false
+	_time_rect.z_index = TIME_Z
+	_time_rect.visible = false
+	var sz = get_parent().get("cfg").get("size", [1920, 270]) if get_parent() != null and get_parent().get("cfg") is Dictionary else [1920, 270]
+	# 盖住整间房（上下各多一屏：天往上接的那一截）；左右不多盖，免得调到隔壁房间
+	_time_rect.position = Vector2(0.0, -270.0)
+	_time_rect.size = Vector2(float(sz[0]), float(sz[1]) + 540.0)
+	var sh := Shader.new()
+	sh.code = TIME_SCREEN_SHADER.replace("//GRADE", GRADE_GLSL)
+	_time_screen_mat = ShaderMaterial.new()
+	_time_screen_mat.shader = sh
+	_time_rect.material = _time_screen_mat
+	add_child(_time_rect)
+	var ish := Shader.new()
+	ish.code = TIME_ITEM_SHADER.replace("//GRADE", GRADE_GLSL)
+	_time_item_mat = ShaderMaterial.new()
+	_time_item_mat.shader = ish
+	_time_p = _time_pack("day")
+
+
+func _time_pack(state: String) -> PackedFloat32Array:
+	var a := PackedFloat32Array(TIME_SETS.get(state, TIME_SETS["day"]))
+	var l := 0.299 * a[1] + 0.587 * a[2] + 0.114 * a[3]
+	for i in range(1, 4):
+		a[i] /= maxf(l, 0.01)
+	return a
+
+
+func _update_time(dt: float, stage: Node, world) -> void:
+	if _time_rect == null:
+		return
+	var want := str(stage.call("prop_state", "sky")) if stage != null and stage.has_method("prop_state") else ""
+	if not TIME_SETS.has(want):
+		want = "day"                  # 没设过、shadow_pass（驾驶舱里的事）
+	var now := Time.get_ticks_msec()
+	var fresh := _time_state == "" or now - _time_ms > TIME_SNAP_MS
+	_time_ms = now
+	if want != _time_state:
+		print("REED_TIME %s → %s（%s）" % [_time_state if _time_state != "" else "-", want, "直接" if fresh else "%.1f 秒" % float(TIME_DUR.get(want, 3.5))])
+		_time_state = want
+		_time_p1 = _time_pack(want)
+		if fresh:
+			_time_p = _time_p1.duplicate()
+			_time_u = 1.0
+		else:
+			_time_p0 = _time_p.duplicate()
+			_time_u = 0.0
+			_time_dur = float(TIME_DUR.get(want, 3.5))
+	if _time_u < 1.0:
+		_time_u = minf(1.0, _time_u + dt / _time_dur)
+		var u := _time_u
+		var e := u * u * u * (u * (u * 6.0 - 15.0) + 10.0)       # smootherstep：起步和停下都是缓的
+		for i in _time_p.size():
+			_time_p[i] = lerpf(_time_p0[i], _time_p1[i], e)
+	var on := not (_time_state == "day" and _time_u >= 1.0)
+	_time_bb.visible = on
+	_time_rect.visible = on
+	var mats: Array = [_time_screen_mat, _time_item_mat]
+	if _fg != null:
+		mats.append(_fg.material)
+	for m in mats:
+		_time_params(m as ShaderMaterial, _time_p)
+	if on:
+		_time_wear(stage, world)
+	elif not _time_owned.is_empty():
+		for n in _time_owned:
+			if is_instance_valid(n) and (n as CanvasItem).material == _time_item_mat:
+				(n as CanvasItem).material = null
+		_time_owned.clear()
+
+
+func _time_params(m: ShaderMaterial, p: PackedFloat32Array) -> void:
+	m.set_shader_parameter("sat", p[0])
+	m.set_shader_parameter("tone", Vector3(p[1], p[2], p[3]))
+	m.set_shader_parameter("tone_k", p[4])
+	m.set_shader_parameter("tmul", Vector3(p[5], p[6], p[7]))
+	m.set_shader_parameter("haze", Vector3(p[8], p[9], p[10]))
+	m.set_shader_parameter("haze_a", p[11])
+
+
+## 晨前面（z ≥ 0）、原来没有材质的东西挂上调色材质：这里的 r2 / g2 / g3 / g4 / gf 和水花、房间的层和物件、这间房里的 NPC（连子节点）。
+## 每帧看一遍（新 show 出来的人、新建的物件也挂上），晨永远不挂。
+func _time_wear(stage: Node, world) -> void:
+	var items: Array = [_splash_node]
+	for r in ROWS:
+		if int(ROWS[r]["z"]) >= 0:
+			items.append(_painters[r])
+	if stage != null:
+		for c in stage.get_children():
+			if c is CanvasItem and c != self and (c as CanvasItem).z_index >= 0:
+				items.append(c)
+	var chen = world.get("chen") if world != null else null
+	var lv = world.get("level") if world != null else null
+	var st = lv.get("story") if lv != null else null
+	var npcs = st.get("npcs") if st != null else null
+	if npcs is Dictionary and stage is Node2D:
+		var sz = stage.get("cfg").get("size", [1920, 270]) if stage.get("cfg") is Dictionary else [1920, 270]
+		var room := Rect2((stage as Node2D).global_position + Vector2(0.0, -270.0), Vector2(float(sz[0]), float(sz[1]) + 540.0))
+		for n in npcs.values():
+			if n is Node2D and n != chen and room.has_point((n as Node2D).global_position):
+				items.append(n)
+				for k in (n as Node).find_children("*", "CanvasItem", true, false):
+					items.append(k)
+	for n in items:
+		if n is CanvasItem and n != chen and (n as CanvasItem).material == null:
+			(n as CanvasItem).material = _time_item_mat
+			_time_owned.append(n)
+

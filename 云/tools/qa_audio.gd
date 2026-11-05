@@ -7,6 +7,8 @@ extends SceneTree
 ##   jump        在放的时候一帧里音量变了 > 12 dB（两边都 > -40 dB）
 ##   bus_jump    音频总线一帧里音量变了 > 12 dB
 ##   gap         「听得见的长声音」从有变成 0、超过 0.3 秒以后又有了（场景之间的真空）
+## 白名单：播放器带 meta qa_attack_until（Engine.get_process_frames() 的帧号）时，到那一帧为止的 hard_start / jump 不报——
+##   只给「故意的硬起音」用（闪回黑到底那一下紧张的音乐直接起，flashback.gd 的 _music_hit，20 帧），过了那几帧照常查。
 ## 跑：Godot --headless --audio-driver Dummy --path . -s tools/qa_audio.gd -- --chapter=forest --story_auto
 ##   每条打印 AUDIO_FLAG …；退出时打印 AUDIO_QA 各类的条数。Dummy 驱动下播放位置照样走。
 
@@ -78,18 +80,19 @@ func _tick() -> void:
 		var db: float = p.volume_db
 		var pos: float = p.get_playback_position() if playing else 0.0
 		cur[id] = {"db": db, "playing": playing, "pos": pos, "len": len, "who": _label(p), "loop": AF.is_loop(p)}
+		var attack: bool = p.has_meta("qa_attack_until") and Engine.get_process_frames() <= int(p.get_meta("qa_attack_until"))
 		var pr = _prev.get(id, null)
 		if playing and db > AUDIBLE:
 			audible.append(cur[id]["who"])
 		if pr == null:
-			if playing and db > LOUD and cur[id]["loop"]:
+			if playing and db > LOUD and cur[id]["loop"] and not attack:
 				_flag("hard_start", cur[id]["who"], "db=%.1f（第一帧就在放）" % db)
 			continue
-		if playing and not pr["playing"] and db > LOUD and cur[id]["loop"] and float(pr["pos"]) < float(pr["len"]) - 0.25:
+		if playing and not pr["playing"] and db > LOUD and cur[id]["loop"] and float(pr["pos"]) < float(pr["len"]) - 0.25 and not attack:
 			_flag("hard_start", cur[id]["who"], "db=%.1f" % db)
 		elif pr["playing"] and not playing and float(pr["db"]) > LOUD and float(pr["pos"]) < float(pr["len"]) - 0.15:
 			_flag("hard_stop", cur[id]["who"], "db=%.1f pos=%.1f/%.1f" % [pr["db"], pr["pos"], pr["len"]])
-		elif playing and pr["playing"] and absf(db - float(pr["db"])) > JUMP and maxf(db, float(pr["db"])) > AUDIBLE:
+		elif playing and pr["playing"] and absf(db - float(pr["db"])) > JUMP and maxf(db, float(pr["db"])) > AUDIBLE and not attack:
 			_flag("jump", cur[id]["who"], "%.1f → %.1f dB" % [pr["db"], db])
 	# 上一帧在放、这一帧节点没了（queue_free / 换场景）
 	for id in _prev:

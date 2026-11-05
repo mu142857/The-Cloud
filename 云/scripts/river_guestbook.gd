@@ -74,6 +74,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
+	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
 	await run(lv, w, r, st)
 
 
@@ -169,3 +170,15 @@ func _draw_board(b: Control) -> void:
 	# 干了多少
 	b.draw_rect(Rect2(PAGE.position.x, PAGE.end.y + 5, PAGE.size.x, 3), FRAME_DARK)
 	b.draw_rect(Rect2(PAGE.position.x, PAGE.end.y + 5, PAGE.size.x * dry, 3), LAMP)
+
+
+# ----------------------------------------------------------------------- 夜测机器人（--mech_play）
+## ←→ 交替扇
+func _bot_play() -> void:
+	await _bot_ready()
+	await _bot_wait(0.6)
+	var k := 0
+	while _alive() and dry < 1.0 and _accept:
+		_bot_key(KEY_LEFT if k % 2 == 0 else KEY_RIGHT)
+		k += 1
+		await _bot_wait(0.16)

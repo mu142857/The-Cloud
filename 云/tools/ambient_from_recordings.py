@@ -3,7 +3,7 @@
            调到 -21 dBFS（和原来的流水声差不多响），单声道 → audio/sfx/river_flow.wav（文件名不变，河流章 room.json 不用改）
   rain   ← candidates/02_oga_rain_gutter/rain-gutter-loop_0.mp3（Ogrebane，CC0）：截 30 秒 → audio/sfx/rain_loop.wav（城市、闪回用）
   循环：多截 2 秒，末尾这 2 秒和开头用等功率交叉淡化叠在一起，首尾接上不断。
-用法：python3 tools/ambient_from_recordings.py river|rain 输出.wav [频谱图.png]
+用法：python3 tools/ambient_from_recordings.py river|rain|birds|cityrain 输出.wav [频谱图.png]
 需要 ffmpeg（解 mp3 / 重采样）。
 """
 import sys, subprocess, tempfile, os, math
@@ -18,6 +18,14 @@ CFG = {
               "soften": 3500.0, "rms": -21.0},
     "rain": {"src": "audio/ambient/candidates/02_oga_rain_gutter/rain-gutter-loop_0.mp3", "start": 8.0, "sec": 30.0,
              "soften": 0.0, "rms": -20.0},
+    # 11-05 作者给的森林鸟叫（Pixabay dany_photo「Forest Birds 2」）：只有鸟叫没底噪，截 60 秒；调到 -30 dBFS（原来合成的
+    # forest_night.ogg 是 -24，作者嫌白噪音太大，鸟叫本来就稀，再轻 6 dB）→ audio/ambient/forest_birds.ogg
+    "birds": {"src": "audio/ambient/candidates/04_pixabay_forest_birds/dany_photo-forestbirds-2-367580.mp3", "start": 5.0, "sec": 60.0,
+              "soften": 0.0, "rms": -30.0},
+    # 11-05 作者给的城市雨（Pixabay boons_freak「Rain Sound」）：避开首尾的淡入淡出，从第 10 秒截 40 秒；调到 -26 dBFS
+    # （原来 OGA 那条是 -22.5，作者嫌环境声大，轻 3.5 dB）→ audio/sfx/rain_loop.wav（文件名不变，城市 room.json 和闪回不用改）
+    "cityrain": {"src": "audio/ambient/candidates/05_pixabay_rain_boons_freak/boons_freak-rain-sound-188158.mp3", "start": 10.0, "sec": 40.0,
+                 "soften": 0.0, "rms": -26.0},
 }
 XF = 2.0
 

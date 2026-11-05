@@ -71,10 +71,70 @@ func _tr(d, fallback := "") -> String:
 	return str(d) if d != null else fallback
 
 
-## 按住：空格 / E / 回车 / Z / 鼠标左键
+# ----------------------------------------------------------------------- 夜测：按键机器人（--mech_play）
+## 自动玩（--story_auto）的时候加 --mech_play：小游戏不走 auto() 的快进直解，而是 run() 照常（玩家的速度），
+##   由子类的 _bot_play() 按真实的按键去玩（还会故意错一次），面板、提示、台词都和玩家看到的一样。
+var bot := false
+var _bot_hold := false
+var _bot_axis := 0
+
+
+static func bot_on() -> bool:
+	return "--mech_play" in OS.get_cmdline_user_args()
+
+
+## auto() 里调：开了 --mech_play 就让机器人玩，返回 true；没开返回 false（照旧快进）
+func _bot_start() -> bool:
+	if not bot_on():
+		return false
+	bot = true
+	auto_mode = false
+	_bot_run()
+	return true
+
+
+func _bot_run() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	while board == null:
+		await tree.process_frame
+	await _bot_play()
+	_bot_hold = false
+	_bot_axis = 0
+
+
+## 子类覆盖：照玩家的节奏按键
+func _bot_play() -> void:
+	pass
+
+
+## 合成一次按键，送进和玩家一样的输入处理（_on_input → _press）
+func _bot_key(code: Key) -> void:
+	if not _alive():
+		return
+	var e := InputEventKey.new()
+	e.keycode = code
+	e.pressed = true
+	_on_input(e)
+
+
+## 机器人等：等 sec 秒（面板没了就不等）
+func _bot_wait(sec: float) -> void:
+	if _alive():
+		await board.get_tree().create_timer(sec).timeout
+
+
+## 机器人等到能按（台词播完、面板收键）
+func _bot_ready() -> void:
+	while _alive() and not _accept:
+		await board.get_tree().process_frame
+
+
+## 按住：空格 / E / 回车 / Z / 鼠标左键（夜测机器人：_bot_hold）
 func _holding() -> bool:
 	if not _accept:
 		return false
+	if bot:
+		return _bot_hold
 	for k in [KEY_SPACE, KEY_E, KEY_ENTER, KEY_KP_ENTER, KEY_Z]:
 		if Input.is_key_pressed(k):
 			return true
@@ -85,6 +145,8 @@ func _holding() -> bool:
 func _axis() -> int:
 	if not _accept:
 		return 0
+	if bot:
+		return _bot_axis
 	var d := 0
 	if Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
 		d -= 1

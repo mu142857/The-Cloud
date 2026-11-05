@@ -337,7 +337,7 @@ func _process(delta: float) -> void:
 func _show_frame() -> void:
 	if spr == null:
 		return
-	var bob := -float(cur.get("hover", 0.0))
+	var bob: float = -float(cur.get("hover", 0.0)) - roundf(float(get_meta("pass_lift", 0.0)))   # 浮着走过晨的时候从晨头顶飘过去（story_runner._pass_over）
 	var amp := float(cur.get("bob", 0.0))
 	if amp > 0.0:
 		bob -= round(amp * (0.5 - 0.5 * cos(TAU * _t / maxf(float(cur.get("bob_s", 2.4)), 0.1))))

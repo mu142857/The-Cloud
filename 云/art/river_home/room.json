@@ -136,6 +136,10 @@
    "x": 48,
    "level": "l0"
   },
+  "river_home_door_in": {
+   "x": 48,
+   "level": "l0"
+  },
   "river_home_labels": {
    "x": 28,
    "level": "l0"
@@ -182,6 +186,10 @@
   },
   "river_home_player": {
    "x": 266,
+   "level": "l1"
+  },
+  "river_home_player_r": {
+   "x": 292,
    "level": "l1"
   },
   "river_home_l2": {

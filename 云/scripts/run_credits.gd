@@ -6,12 +6,17 @@ extends RefCounted
 ##     本2兔      一团雾飘进来，一点光像笔尖在雾里从左往右写过去，写出来的字是光
 ##     梧桐       梧桐叶从上面飘下来，一片片落成名字；走的时候一阵风从右边把叶子吹走
 ##     奥斯卡     林子里斜着落下一束光，名字在光里一个像素一个像素地画出来（他是画像素的人），光里飘着灰尘
-##     特别感谢   最后在树冠上面的黑里，像星星一样一颗颗亮起来（钉在屏幕上，像天）
+##     原案       最后在树冠上面的黑里，像星星一样一颗颗亮起来（钉在屏幕上，像天）
 ##   写法、颜色照 Linger / Oscar Rush 的片尾：职务小字（14 号）在上，名字 28 号（两倍）在下，各人自己的颜色。
 ##   景深 depth：名字在屏幕上的移动速度 = 晨脚下地面的 depth 倍（越远越慢），所以跑起来名字是在远处慢慢往后退，看得清。
 ##   跑 920 像素只要 4 秒，所以名字按时间错开（gap 秒一个）；轮到谁，就把它放在当时镜头中心右边 dx 屏幕像素处
 ##   （也可以写死世界 x），之后它就钉在那个世界位置上，跟着晨的 x 走。晨停下（捡背包）名字也就停在那里。
 ##   走完自己释放；离开森林（进树屋）就收掉。
+##   11-05 作者「跑的时间不够显示所有人名」「都跑到了才显示奥斯卡和梧桐，这肯定来不及」：Shift 跑到背包只要 4 秒多，
+##   所以 credits.json 的 start 排成：木木 0、本2兔 0.4、梧桐 1.2、奥斯卡 1.8（后两个 pace 1.4 成形快一点），跑到之前四个都成形；
+##   四个 depth 相同（在屏幕上一起退，彼此距离只会变大），分上下两行、都在晨那句「好熟悉的感觉……」（天空 y 45–62）下面。
+##   Sothere456 钉在天上和那句话同高，等它淡完（5.6 秒）再出。--qa_live 打印 QA_CREDITS（每个名字 begin / formed、晨第一次停下），
+##   并且量名字（qa_label）和别的字叠不叠。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "run_credits", "wait": false}
 ##   可选："file": 名单文件（默认 res://data/credits.json）。
@@ -62,6 +67,8 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	if d.is_empty() or (d.get("entries", []) as Array).is_empty():
 		push_warning("run_credits：%s 读不到 / 是空的，不出字幕" % st.get("file", FILE))
 		return
+	if OS.has_environment("RC_SHIFT"):   # TEMP
+		var k := InputEventKey.new(); k.keycode = KEY_SHIFT; k.pressed = true; Input.parse_input_event(k)
 	var old := lv.get_node_or_null("RunCredits")
 	if old != null:
 		old.name = "RunCreditsOld"
@@ -77,9 +84,9 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	print("MECH %s started entries=%d sec=%.1f" % [ID, (d["entries"] as Array).size(), total_sec(d) / speed])
 
 
-## 自动玩：一样不挡，只是快 4 倍
+## 自动玩：一样不挡，按真实的快慢放（--qa_live 要量名字和晨那句潜意识字叠不叠，快了就不准）
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
-	speed = 4.0
+	speed = 1.0
 	await run(lv, w, r, st)
 
 
@@ -133,6 +140,9 @@ class Roll extends Node2D:
 	var _t := 0.0
 	var _ms: Array = []
 	var _ending := false
+	var _qa := false                 # --qa_live：打印 QA_CREDITS
+	var _chen_ran := false
+	var _chen_stopped := false
 
 	static func start_of_entry(d: Dictionary, i: int) -> float:
 		var e: Dictionary = (d.get("entries", []) as Array)[i]
@@ -141,6 +151,7 @@ class Roll extends Node2D:
 	func setup(d: Dictionary, speed: float, story: Node) -> void:
 		_speed = speed
 		_story = story
+		_qa = "--qa_live" in OS.get_cmdline_user_args()
 		var es: Array = d.get("entries", [])
 		for i in es.size():
 			var m := Moment.new()
@@ -157,10 +168,21 @@ class Roll extends Node2D:
 		for m in _ms:
 			if not m.begun and _t >= m.start_at and not _ending:
 				m.begin(cc, z)
+				if _qa:
+					print("QA_CREDITS begin %s t=%.2f" % [m.e.get("id", ""), _t])
 			m.place(cc, z)
+			var was_forming: bool = m.begun and m._t < Moment.FORM_SEC
 			m.step(dt * _speed)
+			if _qa and was_forming and m._t >= Moment.FORM_SEC:
+				print("QA_CREDITS formed %s t=%.2f" % [m.e.get("id", ""), _t])
 			if not m.finished():
 				live += 1
+		if _qa and not _chen_stopped and _story != null and _story.get("chen") != null:
+			var v: float = _story.chen._vel
+			_chen_ran = _chen_ran or v > 1.0
+			if _chen_ran and v <= 0.0:
+				_chen_stopped = true
+				print("QA_CREDITS chen_stop t=%.2f" % _t)
 		if live == 0 or _t > 90.0:
 			queue_free()
 			return
@@ -262,6 +284,7 @@ class Moment extends Node2D:
 	var depth := 0.2
 	var col := Color.WHITE
 	var hold := HOLD
+	var pace := 1.0                  # 成形快几倍（credits.json 的 pace；成形完照常按秒停）
 	var _t := 0.0                    # 成形开始后过了多久
 	var _leave_t := -1.0             # 开始散以后过了多久（< 0 = 还没散）
 	var _leave_len := LEAVE_SEC
@@ -271,6 +294,7 @@ class Moment extends Node2D:
 	var _blk := PackedVector2Array() # 名字的像素块（左上角，本地坐标，已经放大两倍）
 	var _role := PackedVector2Array()
 	var _role_at := Vector2.ZERO
+	var _role_sz := Vector2.ZERO
 	var _box := Rect2()              # 名字那一块
 	# 每个像素块：起点、控制点、延迟、时长、相位、颜色档；散的时候去哪、控制点、延迟
 	var _from := PackedVector2Array()
@@ -291,6 +315,7 @@ class Moment extends Node2D:
 		start_at = at
 		depth = float(e.get("depth", 0.0 if style == "sky" else 0.2))
 		hold = float(e.get("hold", HOLD))
+		pace = float(e.get("pace", 1.0))
 		col = Color(str(e.get("color", "d8d4cc")))
 		_rng.seed = hash(str(e.get("id", "")))
 		visible = false
@@ -332,13 +357,22 @@ class Moment extends Node2D:
 				visible = false
 		position = p.round()
 
+	## --qa_live（qa_live.gd 的 _collect）：这个名字现在在屏幕上占的框（职务 + 名字）；还没成形 / 散到一半以后不算
+	func qa_label() -> Dictionary:
+		if not begun or _done or not visible or _t < 0.3:
+			return {}
+		if _leave_t >= 0.0 and _leave_t > _leave_len * 0.5:
+			return {}
+		var r := Rect2(_role_at, _role_sz).merge(_box)
+		return {"text": I18n.pick(e.get("name", {})), "r": get_global_transform_with_canvas() * r}
+
 	func screen_x(cc: Vector2, z: float) -> float:
 		return 240.0 + (position.x - cc.x) * z
 
 	func step(dt: float) -> void:
 		if not begun or _done:
 			return
-		_t += dt
+		_t += dt * (pace if _t < FORM_SEC else 1.0)
 		if _leave_t < 0.0 and _t >= FORM_SEC + hold:
 			_leave_t = 0.0
 		elif _leave_t >= 0.0:
@@ -367,6 +401,7 @@ class Moment extends Node2D:
 		var rh := int(rl["h"])
 		var top := -(rh + 3 + nh) / 2
 		_role_at = Vector2(-rw / 2, top)
+		_role_sz = Vector2(rw, rh)
 		for p in rl["px"]:
 			_role.append(p)
 		_box = Rect2(-nw / 2, top + rh + 3, nw, nh)
@@ -688,7 +723,7 @@ class Moment extends Node2D:
 				var a := 1.0 - _e(_leave_k(i, 0.4))
 				_glow.draw_rect(Rect2(_blk[i] - Vector2(1, 1), Vector2(4, 4)), Color(GOLD, (0.08 + 0.25 * (1.0 - clampf(k, 0.0, 1.0))) * a))
 
-	# ---- 特别感谢：天上一颗颗亮起来
+	# ---- 原案（Sothere456）：天上一颗颗亮起来
 	func _draw_sky() -> void:
 		for i in _blk.size():
 			var k := (_t - _delay[i]) / 0.3

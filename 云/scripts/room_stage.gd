@@ -1153,7 +1153,7 @@ func ambient_enter(on: bool) -> void:
 	# 每个声音只留一个 tween：刚淡出又走回来，先停掉「淡完就 stop」的那个，不然它会在淡入中途把声音掐断。
 	for a in _amb:
 		var pl: Node = a["player"]
-		var old_tw = pl.get_meta("fade_tw", null)
+		var old_tw = (pl.get_meta("fade_tw") if pl.has_meta("fade_tw") else null)
 		if old_tw is Tween and (old_tw as Tween).is_valid():
 			(old_tw as Tween).kill()
 		if on and not bool(pl.get("playing")):

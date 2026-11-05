@@ -96,7 +96,7 @@ func _process(_delta: float) -> void:
 
 ## 一个播放器同时只有一个音量 tween：新的来了先停掉旧的（不然两个 tween 抢着改，音量会跳）
 func _fade(a: AudioStreamPlayer, to_db: float, sec: float, free_after := false) -> void:
-	var old = a.get_meta("fade_tw", null)
+	var old = (a.get_meta("fade_tw") if a.has_meta("fade_tw") else null)
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	var tw := create_tween()

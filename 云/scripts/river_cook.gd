@@ -65,6 +65,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
+	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
 	await run(lv, w, r, st)
 
 
@@ -212,3 +213,25 @@ func _draw_board(b: Control) -> void:
 	# 放了几样
 	for k in ings.size():
 		_disc(b, Vector2(panel.x - 16 - (ings.size() - 1 - k) * 9, panel.y - 12), 3, LAMP if k < idx else IRON)
+
+
+# ----------------------------------------------------------------------- 夜测机器人（--mech_play）
+## 第二样故意按早一次（鼠妈「早了！」），其余都卡在咕嘟那一下
+func _bot_play() -> void:
+	var missed := false
+	while _alive() and idx < ings.size():
+		await _bot_ready()
+		if not _alive():
+			break
+		await _bot_wait(0.3)
+		if idx == 1 and not missed:
+			missed = true
+			while _alive() and _phase_err() < 0.45:
+				await _frame()
+			_bot_key(KEY_SPACE)
+			await _bot_wait(0.8)
+			continue
+		while _alive() and _accept and _phase_err() > 0.04:
+			await _frame()
+		_bot_key(KEY_SPACE)
+		await _bot_wait(0.9)

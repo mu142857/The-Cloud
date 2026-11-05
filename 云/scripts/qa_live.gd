@@ -129,6 +129,10 @@ func _collect(n: Node, out: Array) -> void:
 				var r := _text_rect(l)
 				if r.size.x > 0.5 and r.size.y > 0.5:
 					out.append({"node": l, "text": l.text, "r": r, "path": str(l.get_path()), "drift": _drifting(l)})
+	elif n is CanvasItem and n.has_method("qa_label"):      # 画出来的字（奔跑片头的名字 run_credits.gd 的 Moment）：自己报屏幕上的框
+		var d = n.call("qa_label")
+		if d is Dictionary and not d.is_empty():
+			out.append({"node": n, "text": str(d["text"]), "r": d["r"], "path": str(n.get_path()), "drift": true})
 	for c in n.get_children():
 		_collect(c, out)
 

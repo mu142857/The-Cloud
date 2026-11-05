@@ -1,0 +1,5 @@
+boons_freak-rain-sound-188158.mp3
+  来源：Pixabay「Rain Sound」，作者 boons_freak，https://pixabay.com/sound-effects/rain-sound-188158/ ，作者 11-05 自己下载后给的。
+  授权：Pixabay Content License（可商用，不需要署名，不能原样单独转售）。
+  内容：91 秒，立体声 44.1 kHz，匀的雨声，首尾有淡入淡出（整体 -28 dBFS）。
+  结论：用。做成 audio/sfx/rain_loop.wav（tools/ambient_from_recordings.py cityrain），城市街和闪回的雨。

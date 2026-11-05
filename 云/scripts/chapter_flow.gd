@@ -36,7 +36,8 @@ const CHAPTERS := {
 		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two"}},
 	# carry_flags：飞行一烧了哪件（燃料柜空的那格）；森林的 returned_all / returned_any / saw_rock（尾声鹿、弥洛的分支）
 	"final": {"story": "res://data/story_final.json", "start": "start_final", "room": "cockpit", "next": "",
-		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "returned_all", "returned_any", "saw_rock", "musicbox_fixed",
+		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "saw_rock", "musicbox_fixed",
+			"sa_sign_done", "sa_radio_done",   # 11-05：尾声鹿 / 弥洛按新第一关「送回路标 / 收音机」支线分支（旧版的 returned_all / returned_any 新版不设了）
 			"river_cup_traced",             # 11-02 河流篇来客册改成可选：epi_miluo 按它分支
 			"river_n_plain", "river_n_courier", "river_n_bio", "river_n_mom", "river_n_odd"]   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
 			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,

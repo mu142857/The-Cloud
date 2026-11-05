@@ -4,7 +4,8 @@ extends RefCounted
 ##   重复介绍的对话随剧情推进；关键任务记录始终可以查看。
 ##   顺序 = 剧本 flag 锁好的（没到的地方门不开）；铃只在剧本写好的节点响；闲聊按 flag 换（剧本已写）。这里只做最后一句：
 ##   「关键任务记录」= 阿汀给的防水板（原文 101 递给妮芙「出门的事项写齐」、106 闸的刻度记在板上、110 交给晨、写着名字 / 来取什么 /
-##   返回的方向 /「跟着导绳走」）。板上一行一行，做完的划一道；水闸验证过的刻度也写在这里（river_sluice.gd 调 board_add）。
+##   返回的方向 /「跟着导绳走」）。板上一行一行，做完的划一道；行由剧本写（river_explore_order 自己的 run / ff 把 rows 用 board_add 加上去，mode "add" 只加不弹）。
+##   11-05：旧水闸 river_sluice.gd 删了（以前它往板上记验证过的刻度）；现在的水闸 river_valve.gd 不写板子。
 ##
 ## 剧本步骤（都在 story_river.json）：
 ##   {"do": "mechanic", "id": "river_explore_order", "rows": [{k, zh, en, done?: flag, added}…], "lines": {after}}
@@ -17,7 +18,7 @@ extends RefCounted
 ## 板子存在 StoryState 物件状态 "river_board"（JSON：[{k, zh, en, done?, added?, x?}]，x = 试过不对的刻度，写成 ×）。
 ## 各小游戏的中间进度用 story.mech_load / mech_save（约定 3.3），离开再回来、F8 跳节拍都还在。
 ##
-## 共用小工具（别的四个 river_*.gd preload 这个文件用）：
+## 共用小工具（river_salvage、river_bridge_view，森林的 side_kit、side_toucan、side_slope、rabbit_dance、ship_repair preload 这个文件用）：
 ##   choose(m, story, opts, hint)：等玩家走过去互动一个点（story.wait_interact）；自动玩时直接挑对的（full 先把错的各试一次）。
 ##   steps / lines：播一串剧本步骤（story.run_steps）。node / local_x：物件节点、marker 的房间 x。
 

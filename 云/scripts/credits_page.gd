@@ -7,7 +7,7 @@ extends Control
 ##     2 本2兔     云层小镇（art/town，room_stage.gd，帆和风车自己在转）  一阵风从左边把淡粉的云丝吹过来，吹成名字；走的时候往右吹散
 ##     3 梧桐      芦苇地（art/reed_field，芦苇自己一阵阵弯腰）  巨型蒲公英的种子从苇丛里飘上来，一颗颗落成名字
 ##     4 奥斯卡    下雨的城市街道（scenes/city_test.tscn）  雨里一束光斜落下来，一个像素一个像素画出名字
-##     5 特别感谢  月夜河岸（art/river_city/river_bank）  名字在水面上，月光的碎光从左往右一闪一闪亮成名字
+##     5 原案      月夜河岸（art/river_city/river_bank）  名字在水面上，月光的碎光从左往右一闪一闪亮成名字
 ##     6 「感谢游玩」+「2026 年 11 月」，在黑里
 ##   名字和职务读 data/credits.json（和第一关奔跑片头同一份，按 id 找；职务的 role_guess 照旧，作者改那里）。
 ##   特效：萤火虫、光柱就是 run_credits.gd 里的 Moment；风、种子、水面碎光是下面 Slide（继承 Moment，同一套字形像素、
@@ -20,7 +20,10 @@ extends Control
 ##   每页约 4.5 秒：方格切进来 → 名字成形 → 停 → 名字开始散、方格切到下一页。镜头在每页里慢慢平移（sine 缓起缓停）。
 ##   下一页的场景提前 PREBUILD 秒建好（建场景那一下可能卡一帧，别卡在方格中间）。
 ##   场景里的晨（还有森林里的蛇女、鹿）都藏起来：只看地方，不看人。
-## 输入（level_forest.gd 的 _input 先交给 handle）：点击 / 任意键 = 下一页；Esc = 直接关。
+## 「全剧终」以后（from_end = true，story_runner._credits_roll 打开）：同一套页，只是开头和结尾都是淡：
+##   木木那页的森林整页从结束卡上淡出来（FROM_END_IN 秒，名字在淡的后半段开始聚）；
+##   「感谢游玩」停够（或按 Esc）以后整屏淡到黑（FROM_END_OUT 秒），音乐同时淡掉，然后发 closed，页留着（黑的）等关卡重新载入回标题。
+## 输入（level_forest.gd 的 _input 先交给 handle）：这一页名字成形以后，点击 / 任意键 = 下一页（没成形不算）；Esc = 直接关。
 ## 音乐：打开时记下 BGM 正在放的曲子，换成 theme（scripts/bgm.gd）；关掉时接回原来那首（原来没放就停掉）。
 ## 用法照旧：var p := preload("res://scripts/credits_page.gd").new(); 加到 UI 层; p.closed.connect(...)；p.close() 提前关。
 
@@ -41,6 +44,8 @@ const PREBUILD := 1.2        # 换页前多久先把下一页的场景建好
 const DRIFT := 26.0          # 每页镜头平移多少像素
 const END_HOLD := 3.6        # 最后「感谢游玩」停多久
 const NAMES_LAYER := 100     # 名字那一层（在场景自己的暗角 Overlay 上面）
+const FROM_END_IN := 2.0     # 全剧终 → 森林那页：淡进来多久
+const FROM_END_OUT := 1.6    # 感谢游玩 → 黑：淡多久（之后标题从黑里淡出来）
 
 ## 每一页：id = credits.json 里的人；scene = 哪个场景；cam = 镜头中心起点（房间 / 场景坐标）；at = 名字的中心（屏幕坐标）
 ##   fx = 这一页用哪种特效（不写 = credits.json 里那人的 style）；role_col = 职务小字的颜色（亮场景用深色）
@@ -76,6 +81,7 @@ var _prev_track := ""
 var _started := false
 var _ending := false
 var black_frames := 0         # 测试：人和人之间整屏是黑的帧数（应该是 0）
+var from_end := false         # 「全剧终」以后放的（加进树之前设）：淡进、淡到黑，不回到底下的画面
 # 测试看的：最新一页的场景
 var _world: Node2D
 var _cam: Camera2D
@@ -120,7 +126,10 @@ func _ready() -> void:
 func _run() -> void:
 	_build_slot(0, 0)
 	await get_tree().process_frame
-	await _swap(0)                                # 标题 → 森林
+	if from_end:
+		await _fade_in_first()                    # 全剧终 → 森林：整页淡进来
+	else:
+		await _swap(0)                            # 标题 → 森林
 	_started = true
 	for i in SLIDES.size():
 		if _closing:
@@ -157,6 +166,23 @@ func _hold_slide(i: int, s: int) -> void:
 			_build_slot(1 - s, i + 1)
 		await get_tree().process_frame
 	_skip = false
+
+
+## 全剧终以后：第一页直接整屏显示，整页从透明淡进来；名字晚一点开始聚（slot 的 t 从负数起）
+func _fade_in_first() -> void:
+	var sl: Dictionary = _slots[0]
+	sl["live"] = true
+	sl["t"] = FX_AT - FROM_END_IN * 0.6
+	_world = sl.get("world")
+	_cam = sl.get("cam")
+	_stage = sl.get("stage")
+	_moment = sl.get("moment")
+	_shown.texture = (sl["vp"] as SubViewport).get_texture()
+	modulate.a = 0.0
+	await get_tree().process_frame                # SubViewport 先画一帧，别淡进来一张空图
+	var tw := create_tween()
+	tw.tween_property(self, "modulate:a", 1.0, FROM_END_IN).set_trans(Tween.TRANS_SINE)
+	await tw.finished
 
 
 func _leave(s: int) -> void:
@@ -333,6 +359,7 @@ func _make_moment(sd: Dictionary) -> Node2D:
 		m.role_shadow = Color(1, 1, 1, 0.35)
 	m.setup(e, 0.0)
 	m.hold = 999.0                              # 什么时候散由这一页管（leave_now）
+	m.pace = 1.0                                # pace 是奔跑片头赶时间用的；这里每页时间够
 	m.position = (sd["at"] as Vector2).round()
 	return m
 
@@ -356,11 +383,23 @@ func handle(event: InputEvent) -> bool:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE:
 			close()
-		elif _t > 0.4:
+		elif _can_skip():
 			_skip = true
-	elif event is InputEventMouseButton and event.pressed and _t > 0.4:
+	elif event is InputEventMouseButton and event.pressed and _can_skip():
 		_skip = true
 	return true
+
+
+## 11-05 作者：「跳的前提是显示完」。这一页的名字还没成形（或最后一页还没淡进来）时，点了不算；成形以后点一下 = 下一页
+func _can_skip() -> bool:
+	if not _started or _closing:
+		return false
+	if _slide >= SLIDES.size():                                   # 最后「感谢游玩」那页：淡完才能跳
+		return _end_box != null and is_instance_valid(_end_box) and _end_box.modulate.a >= 0.999
+	if _slide < 0:
+		return false
+	var sl: Dictionary = _slots[_slide % 2]
+	return bool(sl.get("live", false)) and float(sl.get("t", 0.0)) >= FX_AT + RC.Moment.FORM_SEC
 
 
 func close() -> void:
@@ -368,6 +407,20 @@ func close() -> void:
 		return
 	_closing = true
 	var bgm = BGM_GD.get_bgm(get_tree())
+	if from_end:                                  # 全剧终以后：整屏淡到黑、音乐一起淡掉，黑着等回标题
+		bgm.stop(FROM_END_OUT + 1.6)
+		var veil := ColorRect.new()
+		veil.color = Color(0, 0, 0, 0)
+		veil.size = size
+		veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(veil)
+		var vt := create_tween()
+		vt.tween_property(veil, "color:a", 1.0, FROM_END_OUT).set_trans(Tween.TRANS_SINE)
+		vt.tween_interval(0.2)
+		vt.tween_callback(func():
+			_clear()
+			closed.emit())
+		return
 	if _prev_track != "":
 		bgm.play(_prev_track, NAN, 2.0)
 	else:
@@ -539,7 +592,7 @@ class Slide extends "res://scripts/run_credits.gd".Moment:
 		draw_rect(Rect2(p, Vector2.ONE), Color(SEED, a))
 		draw_rect(Rect2(p + Vector2(-1, -1), Vector2(3, 1)), Color(FLUFF, 0.7 * a))        # 头上一小撮绒毛
 
-	# ---- 特别感谢：河面上的月光碎光
+	# ---- 原案（Sothere456）：河面上的月光碎光
 	func _draw_glint() -> void:
 		for i in _blk.size():
 			var k := (_t - _delay[i]) / 0.35

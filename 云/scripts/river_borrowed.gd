@@ -84,6 +84,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
+	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
 	await run(lv, w, r, st)
 
 
@@ -347,3 +348,29 @@ func _draw_niff(b: Control) -> void:
 		if k < mem or _helped:
 			_ring(b, p, 3.0, SOFT, 12)
 			b.draw_rect(Rect2(p + Vector2(-1, -2), Vector2(1, 1)), Color(1, 1, 1, 0.8))
+
+
+# ----------------------------------------------------------------------- 夜测机器人（--mech_play）
+## 先开错一只，再按 → 一只一只挪过去开读取头、密封圈；她忘了的时候等她想起来
+func _bot_play() -> void:
+	await _bot_ready()
+	await _bot_wait(1.4)
+	var want := {"": -1, "head": -1, "seal": -1}
+	for i in boxes.size():
+		var f := str(boxes[i]["d"].get("find", ""))
+		if want.has(f) and int(want[f]) < 0:
+			want[f] = i
+	for k in ["", "head", "seal"]:
+		var i := int(want[k])
+		if i < 0 or not _alive():
+			continue
+		while _alive() and mem == 0 and not _helped:
+			await _frame()
+		for n in 10:
+			if sel == i or not _alive():
+				break
+			_bot_key(KEY_RIGHT)
+			await _bot_wait(0.38)
+		await _bot_wait(0.3)
+		_bot_key(KEY_SPACE)
+		await _bot_wait(2.4 if k == "" else 1.6)

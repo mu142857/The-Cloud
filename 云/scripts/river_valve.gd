@@ -105,6 +105,7 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
+	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
 	await run(lv, w, r, st)
 
 
@@ -331,3 +332,25 @@ func _draw_pipe(b: Control) -> void:
 		if q.y < PIPE_Y - 13:
 			q.y = PIPE_Y - 13              # 冒到水面就停在水面上破掉
 		_ring(b, q, float(bb["r"]) * (1.0 - u * 0.4), SOFT, 8)
+
+
+# ----------------------------------------------------------------------- 夜测机器人（--mech_play）
+## 第一道闸故意转过头（噗、弹回去），之后都在泡泡停的那一下松手
+func _bot_play() -> void:
+	var miss := true
+	while _alive() and gate < gates.size():
+		await _bot_ready()
+		if not _alive() or stage != "turn":
+			await _frame()
+			continue
+		await _bot_wait(0.5)
+		var t := _target()
+		var stop := minf(0.97, t + 0.14) if miss else t
+		miss = false
+		_bot_hold = true
+		while _alive() and _accept and stage == "turn" and v < stop - 0.004 and v < 0.99:
+			await _frame()
+		_bot_hold = false
+		await _bot_wait(0.4)
+		while _alive() and stage != "turn":
+			await _frame()

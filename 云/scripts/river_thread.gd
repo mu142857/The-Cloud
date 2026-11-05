@@ -84,6 +84,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
+	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
 	await run(lv, w, r, st)
 
 
@@ -162,3 +163,20 @@ func _draw_board(b: Control) -> void:
 	if _done_t >= 0.0:
 		var k := clampf(1.0 - _done_t / 0.5, 0.0, 1.0)
 		_ring(b, c, 18.0 + 10.0 * (1.0 - k), Color(LAMP.r, LAMP.g, LAMP.b, k), 32)
+
+
+# ----------------------------------------------------------------------- 夜测机器人（--mech_play）
+## 先照印着的箭头往右拧（拧松、妮芙「反方向呀」），再往左拧进去
+func _bot_play() -> void:
+	await _bot_ready()
+	await _bot_wait(0.8)
+	_bot_axis = 1
+	while _alive() and p > -0.35:
+		await _frame()
+	_bot_axis = 0
+	await _bot_ready()
+	await _bot_wait(0.6)
+	_bot_axis = -1
+	while _alive() and p < turns:
+		await _frame()
+	_bot_axis = 0

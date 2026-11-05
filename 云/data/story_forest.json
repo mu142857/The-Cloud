@@ -1235,7 +1235,7 @@
 			{"do": "goto", "scene": "pipes_pick"}
 		],
 		"pipe_c": [
-			{"do": "sfx", "name": "pipe_hiss"},
+			{"do": "sfx", "name": "pipe_hiss", "db": -14.0, "_note": "11-05 作者：放气声太大，压低（原来 0 dB；hiss_thin 导入是循环的，不能用在这）"},
 			{"say": "chen", "zh": "这儿有点尖响，应该就是这段了吧？", "en": "A thin, sharp hiss. This must be the one?"},
 			{"do": "wait", "sec": 1.5},
 			{"say": "chen", "zh": "这回对了吧？", "en": "Got it this time, right?"},

@@ -146,7 +146,8 @@ const DLG_TIME := 10.0        # 对话框最多停多久
 const DLG_WALK := 56.0        # 晨离开说话的地方这么远，对话框就淡出
 
 const SFX_DIR := "res://audio/sfx/"
-const RAIN_DB := -18.0        # 森林的环境音（变量名还叫 rain）：11-04 作者「白噪音太大、难听，删了」→ 原来的 rain_loop.wav 换成 audio/ambient/forest_night.ogg（风、蟋蟀、远处的猫头鹰，见那里的 LICENSE.txt）
+const RAIN_DB := -18.0        # 森林的环境音（变量名还叫 rain）：11-05 作者给的鸟叫录音 audio/ambient/forest_birds.ogg（Pixabay，只有鸟叫，见那里的 LICENSE.txt）；11-04 的合成 forest_night.ogg 作者还是嫌白噪音大，不用了
+const RAIN_ROOM_DB := -60.0   # 进树屋这类房间：鸟叫淡出去（11-05 作者「进入树屋这个音效会淡出」），出来再淡回来
 const FIREFLIES := preload("res://scripts/fireflies.gd")
 const TEX_BAG := preload("res://art/forest_story/c1_bag.png")    # 11-04 作者：右上角的背包要和地上捡的那只一样（旧的 art/level1/icon_bag.png 是灰色工具箱样子）
 const TEX_GEAR := preload("res://art/level1/icon_gear.png")
@@ -405,12 +406,16 @@ func _ready() -> void:
 			_dbg_bag_line = int(a.trim_prefix("--bag_line="))
 		elif a == "--story_chain":
 			_story_chain = true
+		elif a.begins_with("--ui_tour="):
+			_ui_tour = a.trim_prefix("--ui_tour=")
 	_beat_cli = _beat != ""
 	if _shots_dir != "":
 		DirAccess.make_dir_recursive_absolute(_shots_dir)
 	if _story_shots != "":
 		DirAccess.make_dir_recursive_absolute(_story_shots)
-	if _debug_stage != "" or _shot != "" or _shots_dir != "" or _autoplay or _browse > 0 or _story_auto != "" or _beat != "" or _story_check or _qa_text or _fuzz > 0.0:
+	if _ui_tour != "":
+		DirAccess.make_dir_recursive_absolute(_ui_tour)
+	if _debug_stage != "" or _shot != "" or _shots_dir != "" or _autoplay or _browse > 0 or _story_auto != "" or _beat != "" or _story_check or _qa_text or _fuzz > 0.0 or _ui_tour != "":
 		GameSettings.no_save = true
 		AudioServer.set_bus_mute(0, true)    # 截图 / 录像时不出声，也不吃真的键盘鼠标（见 _input）
 
@@ -430,6 +435,10 @@ func _ready() -> void:
 			return 0.0
 		return preload("res://scripts/env_light.gd").polygon_shafts(c, shafts))
 	_place_world()
+	var pzf := Node.new()                     # 11-05：镜头缩放时视差层的偏移修正（起身连按 Q 推近，树「离地」）
+	pzf.name = "ParallaxZoomFix"
+	pzf.set_script(preload("res://scripts/parallax_zoom_fix.gd"))
+	add_child(pzf)
 	_apply_quality()
 	_build_audio()
 	_build_ui()
@@ -440,6 +449,9 @@ func _ready() -> void:
 		Engine.remove_meta(BACK_META)
 		if free_roam == "":
 			_skip_to_title()
+	if Engine.has_meta(TITLE_FADE_META):    # 「全剧终」以后的制作人员放完：从黑里淡出标题（title_after_credits）
+		Engine.remove_meta(TITLE_FADE_META)
+		_title_fade_in()
 	if _qa_text:
 		var qa = load("res://scripts/qa_text.gd").new()
 		qa.report(qa.run())
@@ -563,7 +575,7 @@ static func _ambient_stream(path: String) -> AudioStream:
 
 func _build_audio() -> void:
 	_rain = AudioStreamPlayer.new()
-	_rain.stream = _ambient_stream("res://audio/ambient/forest_night.ogg")
+	_rain.stream = _ambient_stream("res://audio/ambient/forest_birds.ogg")
 	_rain.bus = "SFX"
 	_rain.volume_db = -80.0
 	add_child(_rain)
@@ -588,7 +600,7 @@ func _sfx(name: String, db := 0.0, pitch := 1.0) -> void:
 
 
 func _fade_db(p: Node, to_db: float, sec: float) -> void:
-	var old = p.get_meta("fade_tw", null)               # 同一个声音只留一个音量 tween（两个抢着改会跳）
+	var old = (p.get_meta("fade_tw") if p.has_meta("fade_tw") else null)               # 同一个声音只留一个音量 tween（两个抢着改会跳）
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	var tw := create_tween()
@@ -1647,6 +1659,36 @@ func _skip_to_title() -> void:
 	_gear.modulate.a = GEAR_A
 
 
+## 「全剧终」→ 制作人员放完（story_runner._credits_roll 调）：回标题 = 新游戏。名单页已经淡到黑；
+## 还在响的长声音淡掉，重新载入后标题从黑里淡出来（_title_fade_in），一路不硬切。
+const TITLE_FADE_META := "level_forest_title_fade"
+
+
+func title_after_credits() -> void:
+	CHAPTER_GD.reset()
+	Engine.set_meta(TITLE_FADE_META, true)
+	if _story_auto != "":                      # 自测带着 --chapter=final：重新载入时别又进终章
+		Engine.set_meta(CHAPTER_GD.PICK_META, true)
+		Engine.set_meta(CHAPTER_GD.CHAPTER_META, "forest")
+	(load("res://scripts/audio_fade.gd") as GDScript).release(self, 0.8)
+	get_tree().reload_current_scene.call_deferred()
+
+
+func _title_fade_in() -> void:
+	_set_state(S.INTRO)
+	_hp_root.modulate.a = 0.0
+	fade.color.a = 1.0
+	_run([
+		[0.2, _rain_in],
+		[0.4, _fade_from_black],
+		[1.0, _show_title],
+	])
+	if _story_auto != "":                      # 自测：看到标题就算走完（不然自动玩会按「开始」又玩一遍）
+		get_tree().create_timer(1.9).timeout.connect(func():
+			print("TITLE_AFTER_CREDITS state=%s fade=%.2f" % [S.keys()[state], fade.color.a])
+			get_tree().quit())
+
+
 func _open_credits() -> void:
 	if _credits_page != null or state in [S.HEADPHONES, S.INTRO, S.CRASH, S.CINE]:
 		return
@@ -2044,8 +2086,26 @@ func _begin_getup_qte() -> void:
 	_getup_qte.level = self
 	_getup_qte.completed.connect(func():
 		_getup_qte = null
+		_qte_soft_end()
 		_crash_done())
 	add_child(_getup_qte)
+
+
+## 11-05 夜测（--qa_live QA_CAMJUMP，真玩也有）：起身小游戏结束时（getup_qte.gd 的 cancel）把镜头一下子拉回 1 倍、
+## 停回开始时的位置——画面一帧跳 21 像素、缩放也跳。那个文件不归这里改：结束的那一帧先把镜头放回小游戏最后的样子，
+## 再慢慢拉回 1 倍，位置交给平时的跟随（本来就是缓缓跟过去的）。
+var _qte_cam: Array = []
+const QTE_UNZOOM := 0.6
+
+
+func _qte_soft_end() -> void:
+	if _qte_cam.size() != 2:
+		return
+	cam.position = _qte_cam[0]
+	cam.zoom = _qte_cam[1]
+	_qte_cam = []
+	if absf(cam.zoom.x - 1.0) > 0.01:
+		camera_zoom(1.0, QTE_UNZOOM)
 
 
 func _chen_get_up() -> void:
@@ -2639,6 +2699,8 @@ func _process(delta: float) -> void:
 		_update_objective()
 	_update_front(delta)
 	_update_camera(delta)
+	if is_instance_valid(_getup_qte):
+		_qte_cam = [cam.position, cam.zoom]
 	_apply_flash()
 	_update_world(delta)
 	_update_dialogue(delta)
@@ -2716,7 +2778,10 @@ func _update_camera(delta: float) -> void:
 			if not is_nan(_cam_override.x):
 				# 11-04 作者「底下为什么有绿边」：_cam_override 存的是不算黑边的镜头位置；黑边收起来时这一点跟着回去，
 				# 不然停在「黑边放下时往下挪了」的高度，黑边一收，画面底下就露出地面以下的空色
-				_cam_bar_dy = _bar_cam_dy(_cam_override.y)
+				# 11-05 夜测（QA_CAMJUMP c1_crash）：起身小游戏拉近时镜头低 16 像素，一停回来黑边让位一下子重算，画面一帧跳 16 像素。
+				# 亮着的时候让位量每秒最多变 BAR_DY_RATE 像素（黑边本身滑进滑出比这慢，平时看不出差别）；黑着照旧直接到位
+				var want_dy := _bar_cam_dy(_cam_override.y)
+				_cam_bar_dy = want_dy if fade.color.a > 0.5 else move_toward(_cam_bar_dy, want_dy, BAR_DY_RATE * delta)
 				cam.position = Vector2(_cam_override.x, _cam_override.y + _cam_bar_dy).round()
 			elif _cam_hold > 0.0:
 				_cam_hold -= delta
@@ -2859,8 +2924,19 @@ func camera_release() -> void:
 
 ## 镜头直接停在 p 不跟晨（剧本 camera hold / fade_to 的 cam：让人走出 / 走进画面）
 func camera_hold_at(p: Vector2) -> void:
+	var target := (p - Vector2(0.0, _cam_bar_dy)).round()       # 存不算黑边的位置（见 _update_camera）
+	# 11-05 夜测（--qa_live QA_CAMJUMP，真玩也有）：坠毁后起身的小游戏结束时把镜头停回它记下的位置，一帧跳 21 像素。
+	# 画面亮着、要停的地方离现在超过 HOLD_GLIDE：缓缓移过去（黑着、像素块盖着照旧直接停；驾驶舱冲刺那种每帧小步的不受影响）
+	var cur := cam.position - Vector2(0.0, _cam_bar_dy)
+	if fade.color.a < 0.5 and _pixel_fx == null and cur.distance_to(target) > HOLD_GLIDE and state in [S.PLAY, S.CINE]:
+		camera_pan(target, clampf(cur.distance_to(target) / 600.0, 0.3, 0.8))
+		return
 	_kill_cam_pan()
-	_cam_override = (p - Vector2(0.0, _cam_bar_dy)).round()      # 存不算黑边的位置（见 _update_camera）
+	_cam_override = target
+
+
+const HOLD_GLIDE := 24.0
+const BAR_DY_RATE := 60.0
 
 
 func cam_hold(sec: float) -> void:
@@ -3524,7 +3600,7 @@ func on_room_changed(snap := true) -> void:
 	if chapter != "forest":
 		_sync_forest_layers()
 		return                                       # 驾驶舱里没有雨
-	_fade_db(_rain, RAIN_DB - 7.0 if story.world.in_room() else RAIN_DB, 0.6)
+	_fade_db(_rain, RAIN_ROOM_DB if story.world.in_room() else RAIN_DB, 1.2)      # 房间的环境音在 room_stage.ambient_enter 里同时淡进来，两边交叉
 
 
 ## 别的章节里回到森林（终章尾声：森林路口 → 树屋，docs/第三章计划.md 第十节）：_start_chapter 藏起来的森林图层再显示出来，
@@ -4697,7 +4773,61 @@ func _skip_crash_instant() -> void:
 	story.dlg.instant = false
 
 
+## --ui_tour=目录（夜测）：耳机页 → 标题 → 制作人员（每秒一张）→ 关掉 → 设置面板 → 关掉 → 英文标题，拍完退出。
+var _ui_tour := ""
+var _ui_touring := false
+
+
+func _ui_tour_run() -> void:
+	_ui_touring = true
+	var d := _ui_tour
+	var shot := func(n: String) -> void:
+		RenderingServer.force_draw(false)
+		var img := get_viewport().get_texture().get_image()
+		if img.get_width() != 480:
+			img.resize(480, 270, Image.INTERPOLATE_NEAREST)
+		img.save_png(d.path_join(n + ".png"))
+	shot.call("00_headphones")
+	await get_tree().create_timer(1.0).timeout
+	_leave_headphones()
+	for i in 6:
+		await get_tree().create_timer(0.5).timeout
+		shot.call("01_intro_%d" % i)
+	while state != S.TITLE:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.5).timeout
+	shot.call("02_title")
+	_open_credits()
+	for i in 22:
+		await get_tree().create_timer(1.0).timeout
+		shot.call("03_credits_%02d" % i)
+	if _credits_page != null:
+		_credits_page.close()
+	await get_tree().create_timer(1.0).timeout
+	shot.call("04_title_back")
+	_open_settings()
+	await get_tree().create_timer(0.6).timeout
+	shot.call("05_settings")
+	_close_panels()
+	await get_tree().create_timer(0.6).timeout
+	shot.call("06_title_after_settings")
+	GameSettings.set_lang("en")
+	await get_tree().create_timer(0.8).timeout
+	shot.call("07_title_en")
+	_open_settings()
+	await get_tree().create_timer(0.6).timeout
+	shot.call("08_settings_en")
+	_close_panels()
+	_open_credits()
+	await get_tree().create_timer(3.0).timeout
+	shot.call("09_credits_en")
+	print("UI_TOUR_DONE")
+	get_tree().quit()
+
+
 func _debug_tick() -> void:
+	if _ui_tour != "" and not _ui_touring and state == S.HEADPHONES and _state_t > 0.5:
+		_ui_tour_run()
 	if _browse > 0 and state == S.TITLE and _state_t > 0.5 and not Engine.has_meta("level_forest_browsed"):
 		Engine.set_meta("level_forest_browsed", true)
 		_open_test_scene(TEST_SCENES[KEY_F1 + _browse - 1], 2.5)

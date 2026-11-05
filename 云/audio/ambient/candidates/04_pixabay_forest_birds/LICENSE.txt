@@ -1,0 +1,5 @@
+dany_photo-forestbirds-2-367580.mp3
+  来源：Pixabay「Forest Birds 2」，作者 dany_photo，https://pixabay.com/sound-effects/forest-birds-2-367580/ ，作者 11-05 自己下载后给的。
+  授权：Pixabay Content License（可商用，不需要署名，不能原样单独转售）。
+  内容：110 秒，单声道 48 kHz，只有鸟叫，几乎没有底噪（整体 -46 dBFS，很轻）。
+  结论：用。做成 audio/ambient/forest_birds.ogg（tools/ambient_from_recordings.py birds）。

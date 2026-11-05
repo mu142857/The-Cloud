@@ -8,8 +8,10 @@ extends Control
 ## 四次一样的玩法（作者讨厌每章换玩法）。11-04 作者：「左侧的灰色我一直觉得没压迫感而且我看不到，所以能不能做成触手？
 ## 然后速度平滑的决定于主角的速度，就是永远在主角后面也就是屏幕右侧有一点，然后本来主角就在跑，而不是按D也可以跑，
 ## 但是触手接近的速度更快，只有狂按E才能往前冲，然后冲的时加点特效」：
-##   1. 进：画面（连对话框、物件）和晨的意识一起慢慢糊掉、去色、四角压暗（第一次是雾：发白），约 INTRO 秒；
-##      母星的画面在糊里淡进来（flashback_screen / flashback_view 两个 shader）。
+##   1. 进（11-05 作者：「突然到闪回有点软绵绵的……像关门或者电影 cut 一下就很快的逐渐黑下去，然后音乐响起」）：
+##      原场景 BLACK_IN 秒缓出地压黑（不是一帧切；四次一样，第一次也不再是浅灰绿的雾）→ 黑到底那一下紧张的音乐直接从目标音量起
+##      （HIT 秒防爆音）+ 第一下心跳 → 黑里停 BLACK_HOLD 秒 → 雨夜的街从黑里出来（STREET_IN 秒，糊 → 清楚），雨跟着街淡进来
+##      （flashback_screen / flashback_view 两个 shader）。
 ##   2. 触手涌进来（前三次）：画面一清楚，左边一团黑里伸出几条触手（_draw_tentacles，程序画：粗到细的一节节、硬像素边、
 ##      近黑带一道冷光，沿正弦扭、尖上卷起来抓），SURGE 秒先快后慢涌到晨身后 GAP0，把她身后的人吞掉；
 ##      左边照旧压暗、去色（view shader 的那一片，现在是暗角）。晨回头看一眼（只是翻一下，GLANCE），这一秒多不让跑（_lock）。
@@ -23,9 +25,11 @@ extends Control
 ##      调的数（按这里的公式模拟过，见 docs/闪回_实现说明.md）：一下不按约 13 秒被抓；一秒半下约 18 秒；一秒一下以上跑得掉。
 ##   4. 结束：触手追上她 → 一把卷住、屏幕变黑。跑满 RUN 秒没被追上 → 成就（flag fb_outran，名字在 data/achievements.json），触手缩回去，
 ##      再按这一次的 end：black 晨慢下来停住、慢慢黑掉；door 前面那列车慢下来，晨跑到车门跟前门关上，车开走，再黑；
-##      white 前面的楼、人群、倒影一段一段褪成空白（从右往左，一段 seg_w 宽），晨停下，整屏发白。
+##      white 晨慢下来停住；字掉完，整屏像闪光灯一样一下子过曝（先轻轻一闪、再 0.15 秒缓出冲到满白），白里透一点过曝的人影残像，
+##      残像慢慢淡掉，再从白里醒（11-05 作者定：记忆是空白的；和进闪回的 cut 同一套手感——快、硬、干净，没有慢慢爬的边）。
 ##      第四次（end: still）：晨不自己跑（按 E 才跑一下），触手慢慢挪过来；站着不动 STILL 秒（或者触手挪到她身边），
-##      触手在她身边停一会儿、绕开她从身边过去（不碰她），什么也没发生，成就（flag fb_stood_still），慢慢暗下去。
+##      触手在她身边停一会儿、绕开她从身边过去（不碰她：每条只走她头上或脚下一边，按自己多粗让开；她身上不被压暗），
+##      什么也没发生，成就（flag fb_stood_still），慢慢暗下去。
 ##      她跑起来，触手就和前三次一样追；一直跑满 RUN 秒没被追上，和第一次一样慢下来、黑掉。
 ##   5. 醒：hold = 停在黑 / 白上，等剧本自己放好原场景、叫醒她的声音，再 flashback_wake：眼皮从上下慢慢睁开
 ##      （睁一半、又合一点、再睁开），糊的画面一起变清楚。没写 hold 就自己接着醒。
@@ -57,7 +61,11 @@ const SOUNDS := ["heartbeat", "flashback_tense", "train_door_close"]
 const GROUND := 228.0
 const CHEN_SX := 300.0          # 晨在屏幕上的 x：中间偏右一点，左边一直看得见触手
 const FOLLOW := 8.0             # 镜头跟得多紧（冲的时候跟慢一点，就是往前一推）
-const INTRO := 2.6              # 糊掉 → 母星画面淡进来
+const BLACK_IN := 0.2           # 原场景压黑（缓出：一开始就快）
+const BLACK_HOLD := 0.3         # 黑里停一下：音乐在这儿响起
+const STREET_IN := 1.0          # 雨街从黑里出来（之后再 1.2 秒糊退干净）
+const HIT := 0.05               # 紧张的音乐起音（直接到目标音量，只防爆音）
+const DUCK_SEC := 0.25          # 原场景的环境声跟着压黑一起压低
 const RUN := 22.0               # 跑满这么久还没被追上 = 跑掉了
 const RUN_BONUS := 50.0         # 闪回里晨平时就跑得比平时快这么多（chen.gd 的 150 + 50）
 const V_BASE := 200.0           # 她平时大约多快（150 + RUN_BONUS；列车按它跟着跑，触手按实测的 _vc）
@@ -87,7 +95,6 @@ const HEART_DB := Vector2(-20.0, -9.0)    # 心跳：触手远 → 近（heartbe
 const TENSE_DB := Vector2(-22.0, -10.0)   # 紧张的音乐：触手远 → 近
 const DUCK := 14.0
 const AUTO_K := 0.4
-const FOG_C := Color(0.63, 0.69, 0.67)
 const DARK_C := Color(0.02, 0.03, 0.03)
 const SHADE_C := Color(0.02, 0.025, 0.03)  # 左边压暗的那一片（触手从这团黑里伸出来）
 const WHITE_C := Color(0.93, 0.95, 0.94)
@@ -107,6 +114,8 @@ const TENT := [                 # [根的 y（世界）, 长度系数, 起始角
 	[272.0, 0.92, -0.16, 16.0, 2.3, 2.5],
 	[294.0, 0.70, -0.30, 12.0, 0.9, -2.6],
 ]
+const BODY_HALF := Vector2(12.0, 24.0)   # 晨身子的半宽、半高（世界像素，中心在脚上面 24）：第四次触手绕开的就是这一块
+const AVOID_FALL := 26.0        # 绕开那段两边多宽里平滑地回到原来的路上
 const T_ROOT := -46.0           # 根在屏幕左边外面多远
 # 第一次：画
 const PAPER_LEAD := 95.0        # 在晨前面多远飘（前后再晃 ±18）
@@ -128,7 +137,10 @@ const SPILL_C := Color(0.62, 0.46, 0.28)
 const LIGHT_SX := 436.0
 const LIGHT_Y := 197.0
 const LIGHT_C := Color(0.98, 0.8, 0.52)
-const WHITE_SEC := 4.2          # 空白从右边漫到晨跟前要多久
+const WHITE_STOP := 0.6         # 跑掉以后她再跑多久就慢下来
+const FLASH := [[0.6, 0.04], [0.3, 0.07], [1.0, 0.15]]   # 闪白：[到多少, 用几秒]——先轻轻一闪、落一点，再缓出冲到满白
+const FLASH_HOLD := 0.9         # 满白以后残像停多久
+const GHOST_OUT := 1.4          # 残像淡掉要多久
 # 提示：「狂按 E 冲刺」+ E 键帽，在对话那一带（story_dialogue.gd BAND_TOP 184）上面
 const PROMPT_Y := 164.0
 const KEY_C := Color(0.82, 0.86, 0.84)
@@ -178,6 +190,7 @@ var _prompt_a := 0.0
 var _prompt_t := -999.0
 var _key_down := 0.0
 var _music: AudioStreamPlayer
+var _rain: AudioStreamPlayer      # 城市的雨，垫在紧张的音乐底下
 var _heart_p: AudioStreamPlayer
 var _bus := "Master"
 var _sfx_db := 0.0
@@ -196,7 +209,6 @@ var _tmode := ""                  # "" 追 / grab 卷住 / back 缩回去 / hove
 var _tents: Node2D
 var _tent_a := 1.0
 var _grab := 0.0                  # 卷住她的程度（0..1）
-var _white_wx := 99999.0          # 第三次：空白的前沿（世界 x，只往左走，褪掉的不会再回来）
 var _boost := 0.0
 var _extra := 0.0
 var _e_t := 0.0
@@ -212,6 +224,8 @@ var _bpm := 0.0
 var _heart_db := HEART_DB.x
 var _end_color := BLACK_C
 var _look := 240.0 - CHEN_SX      # 镜头中心 = 晨 + _look
+var _avoid_k := 0.0
+var _tside: Array = []            # 第四次绕开她：每条触手走上面（-1）还是下面（1），第一次绕的时候定
 var _kick := 0.0                  # 冲的时候镜头多往前推一点（平滑退回去）
 # 冲刺特效
 var _fx: Control                  # 速度线（屏幕坐标，盖在画面上）
@@ -363,7 +377,6 @@ func _build_city() -> void:
 	var wet_n := _world.get_node_or_null("Wet")
 	if wet_n != null:
 		_world.move_child(_tents, wet_n.get_index())
-	_music_on("rain_loop", -20.0)
 
 
 func _node2d(nm: String, fn: Callable, add := false) -> Node2D:
@@ -437,6 +450,9 @@ func _build_lines() -> void:
 			c.add_theme_color_override("font_shadow_color", Color(0.0, 0.02, 0.02, 0.85))
 			c.add_theme_constant_override("shadow_offset_x", 0)
 			c.add_theme_constant_override("shadow_offset_y", 1)
+			if end_kind == "white":                # 结尾一边黑一边白：一圈暗描边，两边都看得见（以前整行压暗，在黑的那边就看不见了）
+				c.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.04, 0.75))
+				c.add_theme_constant_override("outline_size", 4)
 			c.position = Vector2(x, roundf(y0 + float(i) * 20.0))
 			c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			c.modulate.a = 0.0
@@ -500,26 +516,29 @@ static func _tx(k: String) -> String:
 
 # ======================================================================= 进
 func _intro() -> void:
+	# 原场景很快地压黑：缓出（头几帧就暗下去一大截），带一点糊和去色，像门一关
 	_screen.visible = true
-	_smat.set_shader_parameter("veil", FOG_C if id == 1 else DARK_C)   # 第一次：雾越来越浓（发白）
-	var d := INTRO * _k
-	var tw := create_tween().set_parallel().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tw.tween_method(_sp.bind("blur"), 0.0, 4.0, d)
-	tw.tween_method(_sp.bind("desat"), 0.0, 0.75, d)
+	_smat.set_shader_parameter("veil", DARK_C)
+	var d := BLACK_IN * _k
+	var tw := create_tween().set_parallel().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_method(_sp.bind("veil_a"), 0.0, 1.0, d)
+	tw.tween_method(_sp.bind("blur"), 0.0, 2.0, d)
+	tw.tween_method(_sp.bind("desat"), 0.0, 0.6, d)
 	tw.tween_method(_sp.bind("vig"), 0.0, 0.85, d)
-	tw.tween_method(_sp.bind("veil_a"), 0.0, 0.6 if id == 1 else 0.3, d)
-	_bpm = HEART_BPM.x
-	# 母星的画面在糊里淡进来
+	await tw.finished
+	# 黑到底：音乐、心跳响起
+	_music_hit()
+	await _sleep(BLACK_HOLD)
+	# 雨夜的街从黑里出来（糊的），雨跟着淡进来
 	_vmat.set_shader_parameter("blur", 4.0)
 	_view.modulate.a = 0.0
 	_view.visible = true
 	var tw2 := create_tween()
-	tw2.tween_interval(d * 0.45)
-	tw2.tween_property(_view, "modulate:a", 1.0, d * 0.65).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw2.tween_property(_view, "modulate:a", 1.0, STREET_IN * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw2.finished
 	_screen.visible = false
 	# 最后那点糊一边退、触手一边涌进来（不等它全清楚：画面一出来两秒内就要看出为什么跑）
-	create_tween().tween_method(_vp_blur, 4.0, 0.0, 1.4 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	create_tween().tween_method(_vp_blur, 4.0, 0.0, 1.2 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _sp(v: float, key: String) -> void:
@@ -806,11 +825,11 @@ func _process(delta: float) -> void:
 	# 左边压暗那一片：跟着触手（前沿在触手尖后面一点）；第四次过去时有后沿
 	_vmat.set_shader_parameter("grey_x", _front - 70.0 - left)
 	_vmat.set_shader_parameter("grey_tail", _tail - left)
-	_vmat.set_shader_parameter("white_x", _white_wx - left)
-	_vmat.set_shader_parameter("cam_left", left)
 	_vmat.set_shader_parameter("chen_sx", _chen.position.x - left)
 	_vmat.set_shader_parameter("t", _t)
 	_goals_step(delta, left)
+	if not _running:
+		_train_step(delta)                      # 跑完了车还要接着动（慢下来停住 / 开走）：跑的时候 _run_step 里推（11-05 夜测：之前跑完车当场定住、也开不走）
 	_fx_step(delta)
 	_prompt_step(delta)
 	_heart(delta)
@@ -959,8 +978,11 @@ func _draw_tentacles() -> void:
 	_tents.modulate.a = _tent_a
 	var left := _cam.position.x - 240.0
 	var bx := left + T_ROOT
-	var chen_c := Vector2(_chen.position.x, GROUND - 30.0) if is_instance_valid(_chen) else Vector2(-99999, 0)
+	var chen_c := Vector2(_chen.position.x, GROUND - BODY_HALF.y) if is_instance_valid(_chen) else Vector2(-99999, 0)
 	var avoid := _tmode == "hover" or _tmode == "pass"
+	_avoid_k = move_toward(_avoid_k, 1.0 if avoid else 0.0, get_process_delta_time() / 0.4)   # 绕开是 0.4 秒慢慢绕过去的，不是一下弹开
+	if _avoid_k <= 0.0:
+		_tside.clear()
 	for i in TENT.size():
 		var d: Array = TENT[i]
 		var reach := maxf(20.0, (_front - bx) * float(d[1]))
@@ -974,9 +996,17 @@ func _draw_tentacles() -> void:
 			curl *= 1.0 + 0.6 * _grab
 			amp = lerpf(0.42, 0.6, _grab)
 		var pts := _spine(Vector2(bx, float(d[0])), reach / 0.86, a0, ph, curl, amp)
-		if avoid:
+		if _avoid_k > 0.0:
+			var th := float(d[3])
+			var near := 0                       # 一条只走一边：看脊线上离她最近（x）的那一点在她身子中心上面还是下面
 			for j in pts.size():
-				pts[j] = _around(pts[j], chen_c)
+				if absf(pts[j].x - chen_c.x) < absf(pts[near].x - chen_c.x):
+					near = j
+			if _tside.size() <= i:              # 第一次绕的时候定下来，之后不变（不然扭着扭着从上面一下跳到下面）
+				_tside.append(-1.0 if pts[near].y < chen_c.y else 1.0)
+			var sgn: float = _tside[i]
+			for j in pts.size():
+				pts[j] = pts[j].lerp(_around(pts[j], chen_c, th * pow(1.0 - float(j) / float(TN), 1.15) + 0.7, sgn), _avoid_k)
 		_tentacle(pts, float(d[3]))
 
 
@@ -994,19 +1024,19 @@ func _spine(b: Vector2, length: float, a0: float, ph: float, curl: float, amp: f
 	return pts
 
 
-## 绕开她：离她身子（中心 c，半径约 40）近的点往上 / 往下推开，越靠近她推得越多
-func _around(p: Vector2, c: Vector2) -> Vector2:
+## 绕开她：离她身子（中心 c，半宽高 BODY_HALF）近的点往 sgn 那边（上 / 下，一条触手只走一边）推开，推到身子外面再加上这一节自己的半粗 w + 一点空，
+## 正对着她的那一段全推开，两边 AVOID_FALL 像素里平滑地回到原来的路上。
+## 11-05 夜测：原来只推脊线、圆心偏上、半径 40，触手自己十几像素粗，从她身上压过去（第四次「绕开她」其实盖住了她）。
+func _around(p: Vector2, c: Vector2, w: float, sgn: float) -> Vector2:
 	var dx := absf(p.x - c.x)
-	if dx >= 44.0:
+	var core := BODY_HALF.x + w
+	if dx >= core + AVOID_FALL:
 		return p
-	var w := 1.0 - dx / 44.0
-	w = w * w * (3.0 - 2.0 * w)
-	var dy := p.y - c.y
-	var r := 40.0
-	if absf(dy) >= r:
-		return p
-	var sgn := -1.0 if dy < 0.0 else 1.0
-	return Vector2(p.x, lerpf(p.y, c.y + sgn * r, w))
+	var k := 1.0 - clampf((dx - core) / AVOID_FALL, 0.0, 1.0)
+	k = k * k * (3.0 - 2.0 * k)
+	var r := BODY_HALF.y + w + 3.0
+	var y := minf(p.y, c.y - r) if sgn < 0.0 else maxf(p.y, c.y + r)   # 已经在身子外面的不动
+	return Vector2(p.x, lerpf(p.y, y, k))
 
 
 func _tentacle(pts: PackedVector2Array, thick: float) -> void:
@@ -1067,6 +1097,7 @@ func _ending() -> void:
 			_bpm = 0.0
 			_music_off(1.5)
 			_achieve("fb_stood_still")
+			create_tween().tween_method(_vp_param.bind("chen_lit"), 0.0, 1.0, 1.2 * _k).set_trans(Tween.TRANS_SINE)   # 灰过去的时候她身上不被压暗
 			await _sleep(HOVER)
 			_tmode = "pass"                     # ……绕开她从身边过去，什么也没发生
 			_tail = _front - 380.0
@@ -1131,32 +1162,31 @@ func _end_door() -> void:
 	await _veil_to(BLACK_C, 1.4)
 
 
-## 第三次跑掉了：前面的楼、人群、倒影一段一段褪成空白（前沿从屏幕右边往晨这边走，世界坐标只往左，褪掉的不回来），
-## 晨跑着跑着停下；字一个个掉完，最后连她一起白掉
+## 第三次跑掉了：晨慢下来停住，暖光淡掉；字一个个掉完以后，整屏像相机过曝一样一下子闪白（flashback_view 的 flash），
+## 白里透一点过曝的人影残像（ghost_a），残像慢慢淡掉，停在白上（醒的时候白慢慢退掉）。
+## 11-05 作者定（嫌原来「左边灰右边白很劣质」）：不要从右边漫过来的软光，改成闪光灯式的过曝；意思不变——记忆是空白的。
 func _end_white() -> void:
 	_chen.auto_dir = 1.0
-	var d := WHITE_SEC * _k
-	var tw := create_tween()
-	tw.tween_method(_white_to, 560.0, CHEN_SX + 22.0, d).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	create_tween().tween_property(_line_box, "modulate", Color(0.3, 0.33, 0.33), d).set_trans(Tween.TRANS_SINE)   # 白底上字要看得见
-	create_tween().tween_property(self, "_light_a", 0.0, d * 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)   # 暖光跟着白淡掉
-	_music_off(2.5)
-	await _sleep(WHITE_SEC * 0.65)
-	_chen.auto_dir = 0.0
-	await tw.finished
-	print("FLASHBACK_WHITE front_ahead=%d" % int(_white_wx - _chen.position.x))
+	create_tween().tween_property(self, "_light_a", 0.0, 1.2 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)   # 远处的暖光淡掉
+	_music_off(2.0)
+	await _sleep(WHITE_STOP)
+	_chen.auto_dir = 0.0                        # 跑着跑着慢下来，停住
 	_bpm = 0.0
 	await _flush_lines()
+	_vmat.set_shader_parameter("ghost_a", 1.0)
+	var tw := create_tween()
+	var from := 0.0
+	for f in FLASH:
+		tw.tween_method(_vp_param.bind("flash"), from, float(f[0]), float(f[1])).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		from = float(f[0])
+	await tw.finished
+	print("FLASHBACK_WHITE flash")
+	await _sleep(FLASH_HOLD)
 	var tw2 := create_tween()
-	tw2.tween_method(_vp_param.bind("white_all"), 0.0, 1.0, 1.2 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw2.tween_method(_vp_param.bind("ghost_a"), 1.0, 0.0, GHOST_OUT * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw2.finished
 	_end_color = WHITE_C
-	await _veil_to(WHITE_C, 0.8)
-
-
-func _white_to(sx: float) -> void:
-	if is_instance_valid(_cam):
-		_white_wx = minf(_white_wx, _cam.position.x - 240.0 + sx)
+	await _veil_to(WHITE_C, 0.3)                 # 底下已经是满白：盖一层同色的白，醒的时候从这层退
 
 
 ## 尾门：k = 关了多少。两片门扇从门洞两边的门袋里滑出来（只露出滑出来的那一截，合缝那边在前）
@@ -1288,23 +1318,38 @@ func _play(snd: String, db: float) -> void:
 	a.finished.connect(a.queue_free)
 
 
-## 底下一层循环的声音：城市先是雨（rain_loop），开跑以后换成紧张的音乐（flashback_tense，缺就留着雨）
-func _music_on(snd: String, db: float) -> void:
+## 底下一层循环的声音：紧张的音乐（flashback_tense）+ 垫在底下的雨（rain_loop）；缺的静默跳过。sec = 从 -60 推到 db 用多久
+func _music_on(snd: String, db: float, sec: float) -> AudioStreamPlayer:
 	var p: String = runner._sfx_path(snd)
 	if p == "":
 		runner.missing_sfx[snd] = true
-		return
-	_music = AudioStreamPlayer.new()
-	_music.stream = load(p)
-	_music.bus = _bus
-	_music.volume_db = -60.0
-	_music.set_meta("snd", snd)
-	add_child(_music)
-	_music.play()
-	var m := _music
+		return null
+	var m := AudioStreamPlayer.new()
+	m.stream = load(p)
+	m.bus = _bus
+	m.volume_db = -60.0
+	m.set_meta("snd", snd)
+	add_child(m)
+	m.play()
 	m.finished.connect(m.play)                  # 导入没开循环的（flashback_tense 24 秒）：放完从头再放
-	if snd != "flashback_tense":                # 紧张的音乐由 _heart 平滑地推到目标音量
-		create_tween().tween_property(_music, "volume_db", db, 1.5 * _k)
+	create_tween().tween_property(m, "volume_db", db, sec)   # 之后紧张的音乐由 _heart 跟着触手多近平滑地变
+	return m
+
+
+## 黑到底那一下：紧张的音乐直接从目标音量起（只给 HIT 秒防爆音；故意的起音，qa_audio 认 qa_attack_until（帧号）不报），第一下心跳；
+## 雨跟着街淡进来。缺音乐就只有雨（音量高一点）。
+func _music_hit() -> void:
+	if result != "":
+		return
+	_bpm = HEART_BPM.x
+	_heart_t = 0.0
+	_beat()
+	_music = _music_on("flashback_tense", TENSE_DB.x, HIT)
+	if _music != null:
+		_music.set_meta("qa_attack_until", Engine.get_process_frames() + 20)   # 20 帧（约 0.33 秒）内的起音不算硬过渡
+	_rain = _music_on("rain_loop", -30.0 if _music != null else -20.0, (BLACK_HOLD + STREET_IN) * _k)
+	if _music == null:
+		_music = _rain
 
 
 func _music_off(sec: float) -> void:
@@ -1326,29 +1371,12 @@ func _duck(on: bool) -> void:
 		_ducked = true
 		_sfx_db = AudioServer.get_bus_volume_db(i)
 		var from := _sfx_db
-		create_tween().tween_method(func(v: float): AudioServer.set_bus_volume_db(i, v), from, from - DUCK, 1.5 * _k)
-		_tense_later()
+		create_tween().tween_method(func(v: float): AudioServer.set_bus_volume_db(i, v), from, from - DUCK, DUCK_SEC * _k)
 	elif not on and _ducked:
 		_ducked = false
 		var cur := AudioServer.get_bus_volume_db(i)
 		var to := _sfx_db
 		create_tween().tween_method(func(v: float): AudioServer.set_bus_volume_db(i, v), cur, to, 0.5)
-
-
-## 画面淡进来以后起紧张的音乐（缺文件就留着城市的雨 / 没有）
-func _tense_later() -> void:
-	await get_tree().create_timer(INTRO * _k * 0.8).timeout
-	if not is_instance_valid(self) or result != "":
-		return
-	if runner._sfx_path("flashback_tense") == "":
-		runner.missing_sfx["flashback_tense"] = true
-		return
-	var rain := _music
-	_music = null
-	_music_on("flashback_tense", -22.0)
-	if rain != null:
-		var tw := create_tween()
-		tw.tween_property(rain, "volume_db", -30.0, 2.0)
 
 
 func _exit_tree() -> void:

@@ -840,7 +840,7 @@ func _finish() -> void:
 	tw.tween_property(self, "_ham_a", 0.0, 0.35 * _k())
 	tw.tween_property(self, "_furn", 1.4, 0.5 * _k()).set_trans(Tween.TRANS_SINE)
 	tw.tween_property(self, "_noz", 1.35, 0.5 * _k()).set_trans(Tween.TRANS_SINE)
-	_sfx("pipe_hiss", -6.0)
+	_sfx("pipe_hiss", -16.0)        # 11-05 作者：放气声「最讨厌」、太大，压低（原来 -6；hiss_thin 导入是循环的，不能用）
 	await tw.finished
 	await _wait(0.9)
 

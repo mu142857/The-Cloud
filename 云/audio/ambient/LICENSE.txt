@@ -19,3 +19,16 @@ audio/sfx/rain_loop.wav（城市 art/city/room.json 和闪回的雨，文件名�
 audio/ambient/candidates/（.gdignore：Godot 不导入、不进游戏包）
   下载的候选原文件 + 每个的来源 / 授权 / 结论（LICENSE.txt）+ 频谱图 + 试听用的 30 秒循环 ogg。
   Pixabay 的候选没下成：内置浏览器里点「Download」以后没有文件落地（直接请求 CDN 也是 403），按约定没有绕过去。
+
+forest_birds.ogg（森林的环境音，11-05 换上）
+  来源：Pixabay「Forest Birds 2」，作者 dany_photo，https://pixabay.com/sound-effects/forest-birds-2-367580/ ，作者自己下载的。
+  授权：Pixabay Content License（可商用，不需要署名）。原文件和授权在 audio/ambient/candidates/04_pixabay_forest_birds/。
+  处理：tools/ambient_from_recordings.py birds（从第 5 秒截 60 秒、首尾 2 秒交叉淡化成无缝循环、单声道 44.1 kHz、-30 dBFS），
+  再 ffmpeg -c:a libvorbis -q:a 4。只有鸟叫，没有风和虫鸣。
+  11-05 换掉 11-04 合成的 forest_night.ogg（作者：白噪音太大）。forest_night.ogg 留着没删。
+
+audio/sfx/rain_loop.wav（城市街和闪回的雨，11-05 换成作者给的录音，文件名不变）
+  来源：Pixabay「Rain Sound」，作者 boons_freak，https://pixabay.com/sound-effects/rain-sound-188158/ ，作者自己下载的。
+  授权：Pixabay Content License（可商用，不需要署名）。原文件和授权在 audio/ambient/candidates/05_pixabay_rain_boons_freak/。
+  处理：tools/ambient_from_recordings.py cityrain（从第 10 秒截 40 秒、首尾 2 秒交叉淡化成无缝循环、单声道 44.1 kHz、-26 dBFS）。
+  11-05 换掉 11-04 的 OGA「Rain in the Gutter Loop」（那条留在 candidates/02_oga_rain_gutter/）。

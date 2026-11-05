@@ -40,6 +40,9 @@ const BAND_TOP := 184.0
 
 var auto_delay := -1.0               # >= 0：自动推进（每句停这么久）
 var sfx: Callable                    # func(name, db, pitch)：选择 / 确认的声音（level_forest._sfx）
+var avoid: Callable                  # func() -> Array[Rect2]：画面里的人占的屏幕矩形（story_runner），选项躲开它们
+var chooser_rect: Callable           # func() -> Rect2：晨的屏幕矩形（story_runner.chen_screen_rect），选项躲人时贴着晨
+var panel_rect: Callable             # func() -> Rect2：开着的小游戏面板（story_runner.mech_panel_rect），对话框不落进去
 var _murmur_t := 0.0
 # 菜单（道具选择条 / 对话选项）
 var _menu_kind := ""                 # "" / "items" / "lines"
@@ -279,12 +282,45 @@ func _place_box() -> void:
 	var x := clampf(round(a.x - sz.x / 2.0), 6.0, 474.0 - sz.x)
 	var y := roundf(a.y - 5.0 - sz.y)
 	y = clampf(y, top_limit, 230.0 - sz.y)
+	if panel_rect.is_valid():
+		var pr: Rect2 = panel_rect.call()
+		if pr.size.x > 0.0 and pr.intersects(Rect2(x, y, sz.x, sz.y + 3.0)):
+			# 面板下面那一带（BAND_TOP 起）归对话框；放不下就贴着面板上沿外面
+			var below := maxf(BAND_TOP, pr.end.y + 2.0)
+			if below + sz.y <= 268.0:
+				y = below
+			elif pr.position.y - 3.0 - sz.y >= top_limit:
+				y = pr.position.y - 3.0 - sz.y
+	var xy := _dodge_cards(Rect2(x, y, sz.x, sz.y + 3.0))
+	x = xy.x
+	y = xy.y
 	_box.position = Vector2(x, y)
 	# 小尖角：框下沿、对着说话人（框贴边时尖角还在框里）
 	var tx := clampf(round(a.x) - 2.0, x + 3.0, x + sz.x - 8.0)
 	_tail.position = Vector2(tx, y + sz.y)
 	_tail.visible = _box.visible and a.y - 5.0 >= y + sz.y - 1.0
 	_more.position = Vector2(x + sz.x - 8.0, y + sz.y - 4.0)
+
+
+## 11-05 夜测（第一段飞行，挑纪念品）：右上角的说明卡（cockpit_keepsake.gd，宽 236）把晨头上的话框盖掉一半（「小鹿塞给我的。」）。
+## 话框碰到开着的说明卡：先往卡左边让，左边放不下就放到卡下面。
+func _dodge_cards(r: Rect2) -> Vector2:
+	var kc := get_node_or_null("keepsake_choice")
+	if kc == null or not (kc is CanvasItem) or not (kc as CanvasItem).visible:
+		return r.position
+	for c in kc.get_children():
+		if not (c is Panel) or not (c as Panel).visible or (c as Panel).modulate.a < 0.1 or (c as Panel).size.x < 100.0:
+			continue
+		var pr := Rect2((c as Panel).global_position, (c as Panel).size).grow(3.0)
+		if not pr.intersects(r):
+			continue
+		var nx := pr.position.x - r.size.x
+		if nx >= 6.0:
+			return Vector2(roundf(nx), r.position.y)
+		var ny := pr.end.y
+		if ny + r.size.y <= 230.0:
+			return Vector2(r.position.x, roundf(ny))
+	return r.position
 
 
 func _draw_tail() -> void:
@@ -602,6 +638,9 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 		for o in opts:
 			widest = maxf(widest, UITheme.font().get_string_size("  " + str(o), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
 		var x0 := clampf(roundf(474.0 - 8.0 - widest), 10.0, 120.0)
+		var xy := _menu_dodge(x0, y, widest, opts.size())
+		x0 = xy.x
+		y = xy.y
 		for i in opts.size():
 			var l := _mk_label(UITheme.TEXT_DIM)
 			l.text = "  " + str(opts[i])
@@ -617,6 +656,57 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 			_menu_root.add_child(l)
 			_menu_items.append(l)
 	_menu_style()
+
+
+## 11-05 夜测：选项框压在人身上（晨站在 x 200 上下，选项从 x 120 摆到 y 240）。按顺序试：原位 → 晨右边紧挨着 →
+## 晨左边紧挨着 → 晨头顶上方。11-05 作者看图：躲人时要贴着晨（选的人），别滑到画面另一头（收音机那次跑到弥洛右边）：
+## 左右两边框边离晨最多 MENU_DODGE_MAX，中间有别人挡着、放不下就改头顶。头顶也放不下就原位（总比出屏幕好）。
+## 挑物品那一排图标（choose_item）不躲人（作者定的），不走这里。
+const MENU_DODGE_GAP := 8.0
+const MENU_DODGE_MAX := 24.0         # 框边离晨最远多少像素
+
+
+func _menu_dodge(x0: float, y: float, widest: float, n: int) -> Vector2:
+	if not avoid.is_valid():
+		return Vector2(x0, y)
+	var rs: Array = avoid.call()
+	var w := widest + 12.0
+	var h := n * 18.0
+	var band := func(x: float, yy: float) -> Rect2:
+		return Rect2(x - 4.0, yy - 1.0, w, h)
+	var hit := func(r: Rect2) -> bool:
+		for p in rs:
+			if (p as Rect2).grow(2.0).intersects(r):
+				return true
+		return false
+	if not hit.call(band.call(x0, y)):
+		return Vector2(x0, y)
+	var c := Rect2()
+	if chooser_rect.is_valid():
+		c = chooser_rect.call()
+	if c.size.x < 0.5:
+		return Vector2(x0, y)             # 晨不在画面里：没有可贴的人，原位
+	var x_max := 474.0 - widest - 8.0
+	# 右边：框左边离晨 GAP..MAX
+	var g := MENU_DODGE_GAP
+	while g <= MENU_DODGE_MAX:
+		var xr := roundf(c.end.x + g + 4.0)
+		if xr <= x_max and not hit.call(band.call(xr, y)):
+			return Vector2(xr, y)
+		g += 4.0
+	# 左边：框右边离晨 GAP..MAX
+	g = MENU_DODGE_GAP
+	while g <= MENU_DODGE_MAX:
+		var xl := roundf(c.position.x - g - w + 4.0)
+		if xl >= 10.0 and not hit.call(band.call(xl, y)):
+			return Vector2(xl, y)
+		g += 4.0
+	# 头顶：框底离晨头顶 GAP，横着对准晨
+	var yu := roundf(c.position.y - MENU_DODGE_GAP - h)
+	if yu >= top_limit + 36.0:
+		var xc := clampf(roundf(c.get_center().x - w / 2.0 + 4.0), 10.0, maxf(x_max, 10.0))
+		return Vector2(xc, yu)
+	return Vector2(x0, y)
 
 
 func _menu_style() -> void:

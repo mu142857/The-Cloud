@@ -63,6 +63,11 @@ var _auto_t := 0.0
 var _flash := {}                   # 控件 → 剩多久
 var multi := false                 # 多选版（终章燃料柜）
 var _burned: Array[String] = []    # 多选版：这一次放进去的
+var _cap := 999                    # 托板一排最多摆几格（11-04 夜测：终章十几件排出了屏幕左边）；放不下就只摆这么多、跟着选中的左右滚
+var _win := 0                      # 摆出来的第一格是第几件
+var _conv_x := 0.0                 # 转化装置左边（驾驶舱坐标）
+var _tray_y := 0.0
+var _more: Array[Label] = []       # 两头的 < >：那边还有没摆出来的
 
 
 func play(r: Node, step: Dictionary) -> String:
@@ -206,6 +211,12 @@ func _make_slots() -> Rect2:
 		conv = cockpit.objects["cockpit_converter"]["rect"]
 	var n := items.size()
 	var y: float = (cockpit.floor_y if cockpit != null else 222.0) - 42.0
+	_conv_x = conv.position.x
+	_tray_y = y
+	# 屏幕左边到转化装置之间摆得下几格（左右各留 8 像素，放 < >）
+	var left_scr: float = _scr(Vector2(conv.position.x, y)).x if cockpit != null else conv.position.x
+	_cap = maxi(3, int(floor((left_scr - 8.0 - 16.0) / 24.0)))
+	var vis := mini(n, _cap)
 	for i in n:
 		var p := Panel.new()
 		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -222,11 +233,45 @@ func _make_slots() -> Rect2:
 	if route:
 		_route_btn = _label("  " + _tx("route"), UITheme.TEXT_DIM)
 		_route_btn.add_theme_stylebox_override("normal", UITheme.box(BG, EDGE, 1, Vector4(4, 1, 6, 1)))
-		_route_btn.set_meta("home", Vector2(conv.position.x - 8.0 - n * 24.0 - 6.0, y + 24.0))
+		_route_btn.set_meta("home", Vector2(conv.position.x - 8.0 - vis * 24.0 - 6.0, y + 24.0))
 		add_child(_route_btn)
 		_slots.append(_route_btn)
 	_sel = clampi(_sel, 0, maxi(0, _slots.size() - 1))
+	for l in _more:
+		l.queue_free()
+	_more.clear()
+	if n > _cap:
+		for t in ["<", ">"]:
+			var m := _label(t, UITheme.TEXT_DIM)
+			m.visible = false
+			add_child(m)
+			_more.append(m)
 	return conv
+
+
+## 放不下的时候：这一格该摆在哪（看不见 = 不在窗口里）
+func _layout_window() -> void:
+	var n := items.size()
+	if n <= _cap:
+		return
+	if _sel < n:
+		if _sel < _win:
+			_win = _sel
+		elif _sel >= _win + _cap:
+			_win = _sel - _cap + 1
+	_win = clampi(_win, 0, n - _cap)
+	for i in n:
+		var c: Control = _slots[i]
+		c.visible = i >= _win and i < _win + _cap
+		if c.visible:
+			c.set_meta("home", Vector2(_conv_x - 8.0 - (_cap - (i - _win)) * 24.0, _tray_y))
+	if _more.size() == 2:
+		var l0 := _scr(Vector2(_conv_x - 8.0 - _cap * 24.0, _tray_y))
+		var r0 := _scr(Vector2(_conv_x - 8.0, _tray_y))
+		_more[0].visible = _win > 0 and _mode == "pick"
+		_more[0].position = (l0 + Vector2(-10, 2)).round()
+		_more[1].visible = _win + _cap < n and _mode == "pick"
+		_more[1].position = (r0 + Vector2(-2, 2)).round()
 
 
 func _slot_count() -> int:
@@ -277,6 +322,7 @@ func _sound(n: String, db: float, pitch := 1.0) -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	# 托板上的东西跟着镜头（机身抖的时候一起抖）、选中的上下浮 1 像素
+	_layout_window()
 	for i in _slots.size():
 		var c: Control = _slots[i]
 		var home: Vector2 = c.get_meta("home")
@@ -603,6 +649,8 @@ func _hit(p: Vector2) -> int:
 	if _mode == "pick":
 		for i in _slots.size():
 			var c: Control = _slots[i]
+			if not c.visible:
+				continue
 			var sz := c.size if c is Panel else c.get_combined_minimum_size()
 			if Rect2(c.position - Vector2(3, 3), sz + Vector2(6, 6)).has_point(p):
 				return i

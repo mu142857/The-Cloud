@@ -22,7 +22,7 @@ static func release(node: Node, sec := 0.5) -> void:
 		var s: AudioStream = p.get("stream")
 		if s == null or (s.get_length() < LONG and not is_loop(p)):
 			continue
-		var old = p.get_meta("fade_tw", null)
+		var old = (p.get_meta("fade_tw") if p.has_meta("fade_tw") else null)
 		if old is Tween and (old as Tween).is_valid():
 			(old as Tween).kill()
 		p.reparent(tree.root, true)                  # 2D 的保留世界坐标（换场景以后声像大概不变，反正马上淡掉）

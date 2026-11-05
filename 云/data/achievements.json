@@ -9,7 +9,7 @@
 		{"id": "two_planets", "zh": "两颗星的朋友", "en": "Friends on Two Planets", "all": ["barter_toucan", "barter_rat_chef"], "added": true},
 		{"id": "collector", "zh": "收藏家", "en": "Collector", "all": ["barter_toucan_feather", "barter_toucan_whistle", "barter_toucan_rain",
 			"barter_rat_chef_soup", "barter_rat_chef_recipe", "barter_rat_chef_fire"], "added": true},
-		{"id": "outran", "zh": "跑在灰色前面", "en": "Outran the Grey", "all": ["fb_outran"], "added": true, "_note": "母星闪回 1～3（第四次跑起来也算）没被灰色追上（scripts/flashback.gd）"},
-		{"id": "stood_still", "zh": "停下来", "en": "Standing Still", "all": ["fb_stood_still"], "added": true, "_note": "第四次闪回（终章燃料柜）站着不动，灰色和人群从身边过去"}
+		{"id": "outran", "zh": "逃脱", "en": "Escaped", "all": ["fb_outran"], "added": true, "_note": "母星闪回 1～3（第四次跑起来也算）没被触手追上（scripts/flashback.gd）"},
+		{"id": "stood_still", "zh": "停下来", "en": "Standing Still", "all": ["fb_stood_still"], "added": true, "_note": "第四次闪回（终章燃料柜）站着不动，触手和人群从身边过去"}
 	]
 }

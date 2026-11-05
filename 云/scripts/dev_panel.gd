@@ -38,14 +38,15 @@ extends CanvasLayer
 const W := 206.0
 const TEST_META := "dev_panel_test"       # 自测进度（跨重新载入）：{ch0, phase, i, stage…}
 ## 自测抽查状态页：从本章开头原地补齐到这个 flag，再接着自动玩
+## 11-05 换成新版第一关：主线前段（拿回背包）、一条支线（坡地蹄印，要先补齐支线窗口）、主线最后（和鹿道别，下一步就是起飞）
 const SAMPLES := {
-	"forest": ["bridge_built", "parts_all", "launched"],
+	"forest": ["c1_got_bag", "sb_slope_done", "c1_ready"],
 	"flight1": ["flight1_leak_fixed", "flight1_miluo_msg"],
 }
 ## 自测打断：剧情播到这种时候按 F12 点地图的方块跳走（进那个房间的自由探索）。[什么时候, 从哪段开始 [章, after], 点哪个方块 [章, 房间]]
 const INTERRUPTS := [
-	["对话", ["forest", "fuel_full"], ["forest", "treehouse"]],
-	["点选", ["forest", "parts_all"], ["flight1", "cockpit"]],
+	["对话", ["forest", "c1_got_wood"], ["forest", "treehouse"]],      # 拿到永燃之木 → 回树屋修船那段对话
+	["点选", ["forest", "c1_chase_done"], ["flight1", "cockpit"]],     # 追逐完 → 弥洛家醒来的选项
 	["小游戏", ["river", ""], ["river", "oldstreet"]],
 	["驾驶舱小游戏", ["flight1", ""], ["river", "market"]],
 ]
@@ -205,14 +206,19 @@ func _set_tab(i: int) -> void:
 
 
 # ======================================================================= 页签
+## 状态页列的 flag：引擎的 + 本章剧本里设的；dev_names.json 的 old_flags（第一关旧流程，新版不会设）不列
 func all_flags() -> Array[String]:
 	var out: Array[String] = []
+	var old = _names.get("old_flags", [])
+	if not old is Array:
+		old = []
 	for f in story.ENGINE_FLAGS:
-		if not out.has(str(f)):
+		if not out.has(str(f)) and not (old as Array).has(str(f)):
 			out.append(str(f))
 	for id in story.scenes:
 		for st in story.scenes[id]:
-			if st is Dictionary and str(st.get("do", "")) == "flag" and st.has("set") and not out.has(str(st["set"])):
+			if st is Dictionary and str(st.get("do", "")) == "flag" and st.has("set") and not out.has(str(st["set"])) \
+					and not (old as Array).has(str(st["set"])):
 				out.append(str(st["set"]))
 	return out
 
