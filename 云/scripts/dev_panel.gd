@@ -64,6 +64,7 @@ const NAMES_PATH := "res://data/dev_names.json"
 var level: Node2D
 var story: Node
 var _root: Panel
+var _rabbit_btn: Button
 var _tab := 0
 var _tab_btns: Array[Button] = []
 var _pages: Array[Control] = []
@@ -114,10 +115,18 @@ func _ready() -> void:
 		b.custom_minimum_size = Vector2(0, 16)
 		tabs.add_child(b)
 		_tab_btns.append(b)
+	_rabbit_btn = _btn("兔子舞步  [R]", _open_rabbit_demo, "独立测试兔子舞步：方向键 / WASD 模仿，R 重玩，Esc 返回标题")
+	_rabbit_btn.name = "RabbitDanceButton"
+	_rabbit_btn.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_rabbit_btn.position = Vector2(4, 23)
+	_rabbit_btn.custom_minimum_size = Vector2(0, 32)
+	_rabbit_btn.size = Vector2(W - 8, 32)
+	_root.add_child(_rabbit_btn)
+	var pages_y := 23.0 + maxf(32.0, _rabbit_btn.get_combined_minimum_size().y) + 3.0
 	for i in TABS.size():
 		var sc := ScrollContainer.new()
-		sc.position = Vector2(4, 23)
-		sc.size = Vector2(_page_w(i) - 8, 262 - 27)
+		sc.position = Vector2(4, pages_y)
+		sc.size = Vector2(_page_w(i) - 8, 262 - pages_y - 4)
 		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		_root.add_child(sc)
 		var v := VBoxContainer.new()
@@ -146,6 +155,18 @@ func _ready() -> void:
 
 func toggle() -> void:
 	visible = not visible
+
+
+func _open_rabbit_demo() -> void:
+	if not OS.is_debug_build() or _rabbit_btn.disabled:
+		return
+	_rabbit_btn.disabled = true
+	# 先让正在等待的剧情收尾，再替换场景，避免旧剧情在场景移除后继续取 get_tree()。
+	story.ended = true
+	level._kill_cine()
+	await get_tree().process_frame
+	if is_inside_tree():
+		level._open_test_scene.call_deferred("res://scenes/rabbit_dance_demo.tscn")
 
 
 ## 这一页时面板多宽（地图那页宽一些）
@@ -200,6 +221,7 @@ func _set_tab(i: int) -> void:
 	_tab = i
 	_root.size = Vector2(_page_w(i), 262)
 	_root.position = Vector2(480 - _page_w(i) - 4, 4)
+	_rabbit_btn.size.x = _page_w(i) - 8
 	for k in _pages.size():
 		_pages[k].visible = k == i
 		_tab_btns[k].modulate = Color(1.3, 1.3, 1.3) if k == i else Color(0.75, 0.75, 0.75)
@@ -1265,6 +1287,11 @@ func _input(e: InputEvent) -> void:
 		toggle()
 		return
 	if not visible:
+		return
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_R \
+			and not (e.ctrl_pressed or e.shift_pressed or e.alt_pressed or e.meta_pressed):
+		get_viewport().set_input_as_handled()
+		_open_rabbit_demo()
 		return
 	if e is InputEventMouseButton:
 		var mb := e as InputEventMouseButton
