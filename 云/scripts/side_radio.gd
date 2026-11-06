@@ -192,6 +192,8 @@ func strength_at(x: float) -> Dictionary:
 
 
 func _tick(dt: float) -> void:
+	if _mouse_dir != 0 and not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_mouse_dir = 0            # 按住的时候开了设置（暂停），在设置里松的手：松手事件暂停时收不到
 	if stage == "tune" and not _drift:
 		var want := _key_dir if _key_dir != 0 else _mouse_dir
 		if not _accept and not auto_mode:

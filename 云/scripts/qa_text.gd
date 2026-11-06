@@ -150,6 +150,11 @@ func _step(where: String, st: Dictionary) -> void:
 	if st.has("narr"):
 		check("narr", where, st["narr"])
 		return
+	if str(st.get("do", "")) == "cycle":
+		for l in st.get("lines", []):
+			if l is Dictionary:
+				_step(where, l)
+		return
 	match str(st.get("do", "")):
 		"inner":
 			if str(st.get("style", "drift")) == "fade" and not st.get("clear", false):

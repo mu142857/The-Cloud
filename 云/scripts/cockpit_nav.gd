@@ -345,9 +345,9 @@ func _press(i: int) -> void:
 	_sound("tick", -4.0, 0.9)
 	_sound("flight_select", -10.0, 1.0)
 	_card.modulate = Color(1.8, 1.8, 1.8)
-	await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(0.2, false).timeout
 	_card.modulate = Color.WHITE
-	await get_tree().create_timer(0.15).timeout
+	await get_tree().create_timer(0.15, false).timeout
 	var tw := create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.3)
 	await tw.finished

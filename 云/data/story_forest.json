@@ -120,6 +120,7 @@
 		{"need": ["c1_ready"], "not": ["launched"], "zh": "起飞", "en": "Take off", "show_fuel": false, "added": true, "_c1": true},
 		{"need": ["c1_seed"], "not": ["c1_ready"], "zh": "出门，回飞船", "en": "Head out, back to the ship", "show_fuel": false, "added": true, "_c1": true},
 		{"need": ["c1_got_wood"], "not": ["c1_fixed"], "zh": "回树屋找弥洛", "en": "Back to Milo's treehouse", "show_fuel": false, "added": true, "_c1": true},
+		{"need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "zh": "问问鹿永燃之木在哪", "en": "Ask the deer where the Everburning Wood is", "show_fuel": false, "added": true, "_c1": true},
 		{"need": ["c1_need_wood"], "not": ["c1_to_rabbit"], "zh": "去找永燃之木", "en": "Find the Everburning Wood", "show_fuel": false, "added": true, "_c1": true},
 		{"need": ["c1_got_bag"], "not": ["c1_chase_done"], "zh": "查看背包里的照片", "en": "View the photo in your backpack", "show_fuel": false, "added": true, "_c1": true},
 		{"need": ["c1_asked_bag"], "not": ["c1_got_bag"], "zh": "找回背包和记忆", "en": "Find the backpack, and your memory", "show_fuel": false, "_c1": true},

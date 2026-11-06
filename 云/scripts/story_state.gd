@@ -124,6 +124,13 @@ static func none_of(list) -> bool:
 	return true
 
 
+## 等下一帧，设置开着（暂停）时不算：process_frame 这个信号暂停时还在发，剧情里 await 它数时间的循环会接着走（scripts/pause_gate.gd）
+static func frame(tree: SceneTree) -> void:
+	await tree.process_frame
+	while tree.paused:
+		await tree.process_frame
+
+
 static func to_dict() -> Dictionary:
 	return {"flags": flag_order.duplicate(), "journal": journal.duplicate(true), "props": props.duplicate(),
 		"used": used.keys(), "owned": Inventory.owned.duplicate(), "phone": PHONE.to_dict()}

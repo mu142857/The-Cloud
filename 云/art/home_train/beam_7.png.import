@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://duxindo4g86ju"
-path="res://.godot/imported/beam_door0.png-ac9a24c9911b73197caa815bceca0494.ctex"
+uid="uid://snrel8vlicbf"
+path="res://.godot/imported/beam_7.png-9a613556e123dccc67ee871527540337.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/home_train/beam_door0.png"
-dest_files=["res://.godot/imported/beam_door0.png-ac9a24c9911b73197caa815bceca0494.ctex"]
+source_file="res://art/home_train/beam_7.png"
+dest_files=["res://.godot/imported/beam_7.png-9a613556e123dccc67ee871527540337.ctex"]
 
 [params]
 

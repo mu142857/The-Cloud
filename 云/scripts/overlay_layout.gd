@@ -4,12 +4,12 @@ extends RefCounted
 ##   ① 对话那一带：屏幕上 BAND_TOP 往下归对话框 / 选项 / 旁白 / 拿到东西的提示（story_dialogue.gd 的 BAND_TOP）。
 ##      面板一律在它上面结束：panel_pos(面板大小)。
 ##   ② 字幕（收音机里的台、画面里的说明）放在面板里面或紧挨着面板上沿，不放进对话那一带。
-##   ③ 按键提示放在面板上面那一行（hint_y），没有面板就屏幕上方 HINT_Y；对话 / 选项 / 旁白显示的时候藏起来，
+##   ③ 按键提示放在面板上面那一行（hint_y），没有面板就屏幕上方（top_hint_y：黑边放下时在黑边下面）；对话 / 选项 / 旁白显示的时候藏起来，
 ##      关了再回来：用 HintLabel，或者自己每帧看 busy(story)。
 ##   ④ 字幕和选项不同时出：字幕先念 READ_SEC 秒再开选项；选项开着的时候字幕也藏起来（busy）。
 ##   ⑤ 角色头顶的计数 / 箭头（兔子、大嘴鸟）：说话的框就在头顶，busy 的时候淡掉（BusyFade）。
 ##   ⑥ 小游戏的面板 / 按键提示出来的时候，左上角的目标、燃料和背包按钮淡掉（hud(story, true)，结束 hud(story, false)），
-##      把屏幕最上面一行让给按键提示。
+##      把屏幕最上面一行让给按键提示。HintLabel 开头等目标淡完才亮（HUD_WAIT），结束时先收提示、再把目标放回来，两行字不交叉。
 ##   没有站在画面里的说话人（收音机、老松树）的对话框在屏幕上方正中（框底 y 39），会压住面板上沿几像素：
 ##   那是对话框盖在面板的木框上（对话框在面板上面画），不是字叠字，允许。
 ## 不用 class_name（编辑器还没扫到时会报错）：preload("res://scripts/overlay_layout.gd")。
@@ -22,6 +22,7 @@ const HINT_Y := 16.0                    # 没有面板时按键提示那一行�
 const HINT_H := 16.0
 const READ_SEC := 1.5                   # 字幕先念这么久再开选项
 const SCREEN := Vector2(480, 270)
+const HUD_WAIT := 0.5                   # 按键提示开头最多等左上角目标这么久（目标淡出 0.3 秒，英文目标长，会和提示叠）
 
 
 ## 面板放哪（屏幕坐标）：水平居中，底边在对话那一带上面 2 像素；放得下就顶到 TOP
@@ -33,6 +34,14 @@ static func panel_pos(size: Vector2) -> Vector2:
 ## 按键提示那一行（面板上沿往上一行；没有面板 = HINT_Y）
 static func hint_y(panel_top := -1.0) -> float:
 	return HINT_Y if panel_top < 0.0 else maxf(0.0, panel_top - HINT_H - 1.0)
+
+
+## 没有面板时那一行放哪：剧情黑边放下来时（高 26，正好压住 HINT_Y 那行），挪到黑边下面（11-05 兔子舞步）
+static func top_hint_y(story: Object) -> float:
+	var lv = story.get("level") if story != null else null
+	if lv != null and is_instance_valid(lv) and lv.has_method("bars_on") and lv.bars_on():
+		return float(lv.BAR_H) + 2.0
+	return HINT_Y
 
 
 ## 小游戏能放字的地方（屏幕坐标）：对话那一带以上
@@ -71,7 +80,8 @@ class HintLabel extends Label:
 		add_theme_color_override("font_color", UITheme.TEXT_DIM)
 		add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
 
-	var _k := 1.0
+	var _k := 0.0
+	var _hud_wait := HUD_WAIT
 
 	static func _busy(st: Object) -> bool:              # 内部类调不到外面的静态函数：同一段判断再放一份
 		if st == null:
@@ -79,8 +89,18 @@ class HintLabel extends Label:
 		var d = st.get("dlg")
 		return d != null and is_instance_valid(d) and d.has_method("showing") and bool(d.showing())
 
+	## 左上角目标还看得见吗（level_forest 的 _hud_burn；别的场景没有就算看不见）
+	static func _hud_up(st: Object) -> bool:
+		var lv = st.get("level") if st != null else null
+		if lv == null or not is_instance_valid(lv):
+			return false
+		var b = lv.get("_hud_burn")
+		return b is CanvasItem and (b as CanvasItem).visible and (b as CanvasItem).modulate.a > 0.05
+
 	func _process(dt: float) -> void:
-		_k = move_toward(_k, 0.0 if _busy(story) else 1.0, dt * 5.0)
+		if _hud_wait > 0.0:                               # 只等开头这一次，之后目标回来也不把提示藏掉（玩的时候提示不能没）
+			_hud_wait = _hud_wait - dt if _hud_up(story) else 0.0
+		_k = move_toward(_k, 0.0 if _hud_wait > 0.0 or _busy(story) else 1.0, dt * 5.0)
 		self_modulate.a = ceilf(_k * 4.0) / 4.0           # 4 档，像素字不糊
 
 

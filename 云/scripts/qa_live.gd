@@ -9,6 +9,7 @@ extends Node
 
 const EVERY := 3
 const STUCK := 6.0
+const PAUSE_AT := [6.0, 18.0, 40.0, 80.0]    # 第几秒做一次暂停自测（那时剧情在播才做）
 const STALE := 0.8
 const MIN_A := 0.15              # 比这淡的字当看不见（淡入淡出的头尾）
 const SCREEN := Rect2(0, 0, 480, 270)
@@ -17,6 +18,7 @@ var story: Node
 var level: Node
 var _f := 0
 var _t := 0.0
+var _pause_i := 0
 var overlaps := {}               # key → {n, t, scene, a, b}
 var offscreen := {}
 var stuck := {}
@@ -42,6 +44,9 @@ func _process(delta: float) -> void:
 	_f += 1
 	if story == null or not is_instance_valid(story):
 		return
+	if _pause_i < PAUSE_AT.size() and _t >= float(PAUSE_AT[_pause_i]) and story.busy:
+		_pause_i += 1
+		_pause_test()
 	_dialogue_state()
 	_softlock()
 	if _f % EVERY != 0:
@@ -60,6 +65,46 @@ func _process(delta: float) -> void:
 			var x: Rect2 = (a["r"] as Rect2).grow(-1.0).intersection((b["r"] as Rect2).grow(-1.0))
 			if x.size.x >= 1.0 and x.size.y >= 1.0 and x.get_area() >= 4.0:
 				_add(overlaps, _key2(a, b), {"a": a, "b": b})
+
+
+## 设置 = 暂停的自测（QA_PAUSE）：剧情播到一半开设置，等真实 1 秒，什么都不该动；关掉 0.5 秒后剧情钟接着走，没有新的 QA_JUMP / QA_CAMJUMP
+func _pause_test() -> void:
+	var s0 := _pause_snap()
+	var j0: int = story.qa_jump_n
+	var by_key := _pause_i % 2 == 1                  # 一次按 Esc，一次点齿轮（走真的入口 gate_event）
+	level.gate_event(_pause_event(by_key, true))
+	level.gate_event(_pause_event(by_key, false))
+	var was_paused: bool = get_tree().paused and level._settings.visible and level._settings.can_process()
+	await get_tree().create_timer(1.0, true, false, true).timeout       # 这个定时器要在暂停时走、不看 time_scale
+	var s1 := _pause_snap()
+	var gear: bool = level._gear.visible
+	level.gate_event(_pause_event(by_key, true))
+	level.gate_event(_pause_event(by_key, false))
+	await get_tree().create_timer(0.5, false).timeout
+	if not is_instance_valid(story):
+		return
+	var moved := float(story._game_t) > float(s1["t"])
+	var ok: bool = was_paused and s0 == s1 and gear and moved and not get_tree().paused and story.qa_jump_n == j0
+	print("QA_PAUSE %s scene=%s step=%d 暂停=%s 齿轮=%s 关掉后接着走=%s 跳变+%d%s" % ["ok" if ok else "FAILED", s0["scene"], s0["step"], was_paused, gear, moved,
+		story.qa_jump_n - j0, "" if s0 == s1 else "  变了: %s -> %s" % [s0, s1]])
+
+
+func _pause_event(by_key: bool, pressed: bool) -> InputEvent:
+	if by_key:
+		var k := InputEventKey.new()
+		k.keycode = KEY_ESCAPE
+		k.pressed = pressed
+		return k
+	var m := InputEventMouseButton.new()
+	m.button_index = MOUSE_BUTTON_LEFT
+	m.pressed = pressed
+	m.position = level._gear.get_global_rect().get_center()
+	return m
+
+
+func _pause_snap() -> Dictionary:
+	return {"scene": str(story._cur_scene), "step": int(story.step_i), "t": float(story._game_t), "chen": level.chen.global_position,
+		"cam": level.cam.global_position, "fade": level.fade.color.a, "flags": StoryState.flag_order.size()}
 
 
 func _add(bucket: Dictionary, key: String, d: Dictionary) -> void:

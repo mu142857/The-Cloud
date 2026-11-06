@@ -354,7 +354,7 @@ func narr(text: String, hold: float) -> void:
 	while _narr_wait and t < limit:
 		if not is_inside_tree():
 			return                                # 换场景 / 跳节拍时已经不在树里了
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 	_narr_wait = false
 
@@ -455,7 +455,7 @@ func _pick_choose(i: int) -> void:
 	var n: Sprite2D = _pick_opts[i].get("node", null)
 	if n != null and is_instance_valid(n):
 		n.modulate = Color(1.9, 1.9, 1.9, n.modulate.a)
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.35, false).timeout
 	_pick_restore()
 	_pick_on = false
 	_pick_done = false
@@ -750,7 +750,7 @@ func _menu_choose(i: int) -> void:
 		sfx.call("tick", -5.0, 1.0)
 	var it: Control = _menu_items[i]
 	it.modulate = Color(1.8, 1.8, 1.8)
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.3, false).timeout
 	_menu_kind = ""
 	if _menu_root != null:
 		_menu_root.queue_free()
@@ -822,16 +822,16 @@ func closeup(tex: Texture2D, sec: float) -> void:
 	if sfx.is_valid():
 		sfx.call("page_turn", -6.0, 1.0)
 	for i in 7:                                   # 展开：七档
-		await get_tree().create_timer(0.05).timeout
+		await get_tree().create_timer(0.05, false).timeout
 		set_h.call(full.y * float(i + 1) / 7.0)
 	_closeup_wait = true
 	var t := 0.0
 	while _closeup_wait and t < sec:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 	_closeup_wait = false
 	for i in 5:                                   # 收起
-		await get_tree().create_timer(0.04).timeout
+		await get_tree().create_timer(0.04, false).timeout
 		set_h.call(full.y * float(4 - i) / 5.0)
 	var tw := create_tween()
 	tw.tween_property(dim, "color:a", 0.0, 0.25)

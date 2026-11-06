@@ -15,7 +15,7 @@ extends RefCounted
 ##   11-05 作者「跑的时间不够显示所有人名」「都跑到了才显示奥斯卡和梧桐，这肯定来不及」：Shift 跑到背包只要 4 秒多，
 ##   所以 credits.json 的 start 排成：木木 0、本2兔 0.4、梧桐 1.2、奥斯卡 1.8（后两个 pace 1.4 成形快一点），跑到之前四个都成形；
 ##   四个 depth 相同（在屏幕上一起退，彼此距离只会变大），分上下两行、都在晨那句「好熟悉的感觉……」（天空 y 45–62）下面。
-##   Sothere456 钉在天上和那句话同高，等它淡完（5.6 秒）再出。--qa_live 打印 QA_CREDITS（每个名字 begin / formed、晨第一次停下），
+##   11-05 作者：Sothere456 森林这里去掉，只在制作人员页保留（credits.json 里 "run": false：片头跳过，credits_page 照旧按 id 读）。--qa_live 打印 QA_CREDITS（每个名字 begin / formed、晨跑到背包），
 ##   并且量名字（qa_label）和别的字叠不叠。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "run_credits", "wait": false}
@@ -44,6 +44,8 @@ static func total_sec(d: Dictionary) -> float:
 	var t := 0.0
 	var es: Array = d.get("entries", [])
 	for i in es.size():
+		if not es[i].get("run", true):
+			continue
 		t = maxf(t, Roll.start_of_entry(d, i) + Moment.FORM_SEC + float(es[i].get("hold", Moment.HOLD)) + Moment.LEAVE_SEC)
 	return t
 
@@ -67,8 +69,6 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	if d.is_empty() or (d.get("entries", []) as Array).is_empty():
 		push_warning("run_credits：%s 读不到 / 是空的，不出字幕" % st.get("file", FILE))
 		return
-	if OS.has_environment("RC_SHIFT"):   # TEMP
-		var k := InputEventKey.new(); k.keycode = KEY_SHIFT; k.pressed = true; Input.parse_input_event(k)
 	var old := lv.get_node_or_null("RunCredits")
 	if old != null:
 		old.name = "RunCreditsOld"
@@ -81,7 +81,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 		lv.move_child(roll, main.get_index() + 1)
 	roll.setup(d, speed, r)
 	_start_music(d, lv)
-	print("MECH %s started entries=%d sec=%.1f" % [ID, (d["entries"] as Array).size(), total_sec(d) / speed])
+	print("MECH %s started entries=%d sec=%.1f" % [ID, roll._ms.size(), total_sec(d) / speed])
 
 
 ## 自动玩：一样不挡，按真实的快慢放（--qa_live 要量名字和晨那句潜意识字叠不叠，快了就不准）
@@ -141,8 +141,8 @@ class Roll extends Node2D:
 	var _ms: Array = []
 	var _ending := false
 	var _qa := false                 # --qa_live：打印 QA_CREDITS
-	var _chen_ran := false
-	var _chen_stopped := false
+	var _chen_arrived := false
+	var _chen_max_v := 0.0
 
 	static func start_of_entry(d: Dictionary, i: int) -> float:
 		var e: Dictionary = (d.get("entries", []) as Array)[i]
@@ -154,6 +154,8 @@ class Roll extends Node2D:
 		_qa = "--qa_live" in OS.get_cmdline_user_args()
 		var es: Array = d.get("entries", [])
 		for i in es.size():
+			if not es[i].get("run", true):
+				continue                     # "run": false = 只在制作人员页出，片头跳过
 			var m := Moment.new()
 			m.setup(es[i], start_of_entry(d, i))
 			add_child(m)
@@ -177,12 +179,11 @@ class Roll extends Node2D:
 				print("QA_CREDITS formed %s t=%.2f" % [m.e.get("id", ""), _t])
 			if not m.finished():
 				live += 1
-		if _qa and not _chen_stopped and _story != null and _story.get("chen") != null:
-			var v: float = _story.chen._vel
-			_chen_ran = _chen_ran or v > 1.0
-			if _chen_ran and v <= 0.0:
-				_chen_stopped = true
-				print("QA_CREDITS chen_stop t=%.2f" % _t)
+		if _qa and not _chen_arrived and _story != null and _story.get("chen") != null:
+			_chen_max_v = maxf(_chen_max_v, float(_story.chen._vel))
+			if str(_story.get("_cur_scene")) == "c1_got_bag":        # 跑到背包了（enter 触发，接着就停下捡）
+				_chen_arrived = true
+				print("QA_CREDITS chen_arrive t=%.2f max_vel=%.0f" % [_t, _chen_max_v])
 		if live == 0 or _t > 90.0:
 			queue_free()
 			return
@@ -349,7 +350,7 @@ class Moment extends Node2D:
 			return
 		var p: Vector2
 		if style == "sky":
-			p = Vector2(cc.x, cc.y + (anchor.y - 135.0) / z)                         # 钉在屏幕上
+			p = Vector2(cc.x + (float(e.get("screen_x", 240.0)) - 240.0) / z, cc.y + (anchor.y - 135.0) / z)   # 钉在屏幕上
 		else:
 			p = Vector2(cc.x + (anchor.x - cc.x) * depth, anchor.y)
 			if absf(p.x - cc.x) * z > 240.0 + _box.size.x * z and _t > 0.2:

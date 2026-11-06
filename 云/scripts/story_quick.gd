@@ -43,8 +43,8 @@ func give_many(st: Dictionary) -> void:
 	for i in n:
 		r._fly_to_bag(Inventory.icon(str(got[i])), from + Vector2(roundf((i - (n - 1) / 2.0) * 7.0), 0))   # 不等，一起飞
 		if i < n - 1:
-			await r.get_tree().create_timer(0.07).timeout
-	await r.get_tree().create_timer(0.75).timeout     # 最后一件落进背包
+			await r.get_tree().create_timer(0.07, false).timeout
+	await r.get_tree().create_timer(0.75, false).timeout     # 最后一件落进背包
 
 
 ## 走过去就捡
@@ -67,7 +67,7 @@ func pickup(p: Dictionary) -> void:
 		var steps: Array = r.scenes[cur]
 		if not steps.is_empty() and steps[0] is Dictionary and not _quick_ok(steps[0]):
 			while r.busy and not r.ended:
-				await r.get_tree().process_frame
+				await StoryState.frame(r.get_tree())
 			if not r.ended:
 				await r.play(cur, true)       # 整段都是正经剧情（比如 fuel_full 的对话）：直接交出去
 			return
@@ -85,7 +85,7 @@ func pickup(p: Dictionary) -> void:
 					played.erase(cur)
 				r.played_order.pop_back()
 				while r.busy and not r.ended:
-					await r.get_tree().process_frame
+					await StoryState.frame(r.get_tree())
 				if not r.ended:
 					await r.play(cur, true, i)
 				return

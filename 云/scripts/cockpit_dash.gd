@@ -61,7 +61,7 @@ func play(r: Node, st: Dictionary) -> String:
 	var half := false
 	var t := 0.0
 	while t < PUSH_SEC:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 		var u := clampf(t / PUSH_SEC, 0.0, 1.0)
 		level.camera_hold_at(base - Vector2(BACK + (PUSH - BACK) * u * u * u, 0.0))
@@ -81,7 +81,7 @@ func play(r: Node, st: Dictionary) -> String:
 func _move(base: Vector2, a: float, b: float, sec: float, ease: Callable) -> void:
 	var t := 0.0
 	while t < sec:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 		var u := clampf(t / sec, 0.0, 1.0)
 		level.camera_hold_at(base - Vector2(a + (b - a) * float(ease.call(u)), 0.0))
@@ -90,7 +90,7 @@ func _move(base: Vector2, a: float, b: float, sec: float, ease: Callable) -> voi
 func _wait(sec: float) -> void:
 	var t := 0.0
 	while t < sec:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 
 

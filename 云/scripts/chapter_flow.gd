@@ -39,7 +39,7 @@ const CHAPTERS := {
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "saw_rock", "musicbox_fixed",
 			"sa_sign_done", "sa_radio_done",   # 11-05：尾声鹿 / 弥洛按新第一关「送回路标 / 收音机」支线分支（旧版的 returned_all / returned_any 新版不设了）
 			"river_cup_traced",             # 11-02 河流篇来客册改成可选：epi_miluo 按它分支
-			"river_n_plain", "river_n_courier", "river_n_bio", "river_n_mom", "river_n_odd"]   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
+			"river_n_courier"]   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
 			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,
 		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},
 }
@@ -68,7 +68,7 @@ const SEED_FLIGHT1 := {
 ## river 走完（river_done）时多出来的 flags 和物品：10-31 从 story_river.json 的 flag / give / take 静态收出来（河流篇 flag 都是主线必经的），
 ## 不是自动玩跑出来的；只是直接进 final 时的起点
 const SEED_RIVER := {
-	"flags": ["river_ashore", "river_met", "river_salvaged", "river_landed", "river_bread", "river_book_drying", "river_peek1", "river_peek2",
+	"flags": ["river_ashore", "river_met", "river_salvaged", "river_landed", "river_home_intro", "river_book_drying", "river_peek1", "river_peek2",
 		"river_sat_down", "river_deer_msg", "river_footage_broken", "river_need_head", "river_market", "river_breather", "river_oldstreet",
 		"river_sluice_done", "river_jam", "river_roped", "river_wh_dive", "river_wh_in", "river_back_home", "river_footage_fixed",
 		"river_cup_traced", "river_prints", "river_dock_matched", "river_ship_number", "river_bell", "river_plane_fixed", "river_farewell",
@@ -170,7 +170,7 @@ static func _end_card(tree: SceneTree, card: Dictionary) -> void:
 		tree.create_tween().tween_property(l, "modulate:a", 1.0, 1.4).set_delay(0.4 + 0.5 * i).set_trans(Tween.TRANS_SINE)
 	cl.add_child(root)
 	tree.root.add_child(cl)
-	await tree.create_timer(3.6).timeout
+	await tree.create_timer(3.6, false).timeout
 	var tw := tree.create_tween()
 	tw.tween_interval(0.6)                       # 新章节载入、自己的黑屏接上以后
 	tw.tween_property(root, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_SINE)

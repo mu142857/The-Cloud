@@ -536,7 +536,7 @@ func _press_btn(i: int) -> void:
 		_sound("tick", -4.0, 0.9)
 		_sound("flight_select", -10.0, 1.0)
 		_blink(_card)
-		await get_tree().create_timer(0.35).timeout
+		await get_tree().create_timer(0.35, false).timeout
 		var id := _card_id
 		var tw := create_tween()
 		tw.tween_property(self, "modulate:a", 0.0, 0.25)

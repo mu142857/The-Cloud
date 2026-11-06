@@ -562,7 +562,7 @@ func _run() -> void:
 		_surge_in()
 	runner._ui_shot("flashback%d" % id, 3.0 * _k)
 	while _running:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		_run_step(get_process_delta_time())
 	_lock = false
 	_surge = false
@@ -738,7 +738,7 @@ func _dash_fx() -> void:
 
 func _ghost(delay: float) -> void:
 	if delay > 0.0:
-		await get_tree().create_timer(delay).timeout
+		await get_tree().create_timer(delay, false).timeout
 	if not is_instance_valid(_chen) or _spr == null or _spr.sprite_frames == null:
 		return
 	var tex := _spr.sprite_frames.get_frame_texture(_spr.animation, _spr.frame)
@@ -963,7 +963,7 @@ func _flush_lines() -> void:
 		var fall_done := not bool(st.get("fall", false)) or _fall_i == -2 or _line_rows.is_empty()
 		if _shown >= _line_rows.size() and fall_done:
 			break
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		guard += get_process_delta_time()
 	await _sleep(1.2)
 
@@ -1136,7 +1136,7 @@ func _end_door() -> void:
 	_train_mode = "stop"
 	var guard := 0.0
 	while _train_wx + DOOR_POS.x + DOOR_HALF - _chen.position.x > DOOR_CLOSE_AT and guard < 5.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		guard += get_process_delta_time()
 	_play("train_door_close", -6.0)
 	var tw := create_tween()
@@ -1155,7 +1155,7 @@ func _end_door() -> void:
 	create_tween().tween_property(self, "_lamp", 0.0, 0.6)
 	guard = 0.0
 	while _train_wx - (_cam.position.x - 240.0) < 500.0 and guard < 6.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		guard += get_process_delta_time()
 	await _flush_lines()
 	_end_color = BLACK_C
@@ -1260,7 +1260,7 @@ func _achieve(flag: String) -> void:
 
 
 func _sleep(sec: float) -> void:
-	await get_tree().create_timer(sec * _k).timeout
+	await get_tree().create_timer(sec * _k, false).timeout
 
 
 # ======================================================================= 醒

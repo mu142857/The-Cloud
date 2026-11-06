@@ -425,7 +425,7 @@ func _alive() -> bool:
 
 func _wait(sec: float) -> void:
 	if _alive():
-		await board.get_tree().create_timer(sec * _k()).timeout
+		await board.get_tree().create_timer(sec * _k(), false).timeout
 
 
 func _tw() -> Tween:
@@ -716,7 +716,7 @@ func _swing_loop() -> void:
 		_ham_goal = j
 		var wait_n := 0
 		while _ham_p.distance_to(_strike_pivot(j)) > 1.5 and wait_n < 40 and _alive():
-			await board.get_tree().process_frame
+			await StoryState.frame(board.get_tree())
 			wait_n += 1
 		var down := _tw()
 		down.tween_property(self, "_ham_ang", STRIKE, 0.07 * _k()).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -820,15 +820,15 @@ func _auto_hammer(give: bool) -> void:
 		for k in n:
 			hit_part(j)
 		while _swinging and _alive():
-			await board.get_tree().process_frame
+			await StoryState.frame(board.get_tree())
 		if not parts[j]["locked"] and int(parts[j]["hits"]) == 0:
 			await _wait(0.4)
 			for k in int(need[j]):
 				hit_part(j)
 			while _swinging and _alive():
-				await board.get_tree().process_frame
+				await StoryState.frame(board.get_tree())
 		while not parts[j]["locked"] and _alive():
-			await board.get_tree().process_frame
+			await StoryState.frame(board.get_tree())
 	await _wait(0.3)
 
 

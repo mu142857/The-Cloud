@@ -279,7 +279,7 @@
 		"final_paper": [
 			{"narr": {"zh": "仪表盘：燃料不足。纸质物品可用。", "en": "Gauge: fuel low. Paper items can be burned."}, "added": true},
 			{"do": "show_item", "item": "journal", "sec": 2.5},
-			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "niff_biography", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard", "niff_biography": "burn_niff_biography"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard", "niff_biography": "look_niff_biography"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）", "spec_journal_rule": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
+			{"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true, "spec": "【最终航行：将听声避障、简短修补和燃料选择结合。选择物品时飞机进入稳定航行状态，玩家可以阅读说明、最后播放声音或取消选择。确认转化后消耗所选物品，其余纪念品保留。列表仅显示当前持有的物品。】（剧本约定：可以做成 flight1 的 keepsake_choice 加多选 / 可退出；选中一件时播 look_<物品id>，确认转化后播 burn_<物品id>；蓝色石头 / 通勤卡剩下的那件用 burn_final_<id>。）", "spec_journal_rule": "【日记首页为始终保留的剧情物件，不计入可转化燃料。日记首页在所有物品选择及四个结局中均予保留，“我一定要找到大象，因为”后面始终空着，页面仅供查看。】"},
 			{"do": "flag", "set": "final_fuel_done"},
 			{"do": "goto", "scene": "final_approach"}
 		],
@@ -292,18 +292,7 @@
 			{"narr": {"zh": "瓶子上的标签：「晨来过的那条河」", "en": "The label on the bottle: \"The river Chen came to\""}}
 		],
 		"look_river_water_c": [
-			{"narr": {"zh": "瓶子上的标签：「寄件人：妮芙小姐」", "en": "The label on the bottle: \"Sender: Miss Niff\""}, "added": true}
-		],
-		"look_niff_biography": [
-			{"do": "show_item", "item": "niff_biography"},
-			{"narr": {"zh": "传记第一页：「第一章：妮芙小姐掉了一箱东西。」后面都还空着。", "en": "First page of the biography: \"Chapter One: Miss Niff dropped a box of things.\" The rest is blank."}, "added": true}
-		],
-		"burn_niff_biography": [
-			{"do": "take", "item": "niff_biography"},
-			{"do": "flag", "set": "burned_niff_biography"},
-			{"do": "sfx", "name": "convert"},
-			{"do": "wait", "sec": 1.0},
-			{"narr": {"zh": "第二章没来得及写。", "en": "Chapter Two never got written."}, "added": true}
+			{"narr": {"zh": "瓶子上的标签：「寄件人：妮芙」", "en": "The label on the bottle: \"Sender: Niff\""}, "added": true}
 		],
 		"burn_river_water": [
 			{"do": "sfx", "name": "water_pour"},
@@ -545,7 +534,7 @@
 		],
 		"final_descend": [
 			{"do": "flag", "set": "final_descend"},
-			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "niff_biography", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard", "niff_biography": "burn_niff_biography"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard", "niff_biography": "look_niff_biography"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
+			{"do": "keepsake_choice", "id": "final_fuel_b", "multi": true, "items": ["river_water", "clear_seed", "music_box", "copper_bell", "elephant_footage", "footprint_rubbing", "postcard", "home_photo", "species_query", "seat_chart", "blue_stone", "commute_card", "toucan_feather", "recipe_card", "bird_whistle", "rain_glass", "family_photo", "deer_bear", "miluo_letter", "rabbit_fur", "floorboard", "journal"], "scenes": {"river_water": "burn_river_water", "clear_seed": "burn_clear_seed", "music_box": "burn_music_box", "copper_bell": "burn_copper_bell", "elephant_footage": "burn_elephant_footage", "footprint_rubbing": "burn_footprint_rubbing", "postcard": "burn_postcard", "home_photo": "burn_home_photo", "species_query": "burn_species_query", "seat_chart": "burn_seat_chart", "blue_stone": "burn_final_blue_stone", "commute_card": "burn_final_commute_card", "journal": "burn_journal", "toucan_feather": "burn_toucan_feather", "recipe_card": "burn_recipe_card", "bird_whistle": "burn_bird_whistle", "rain_glass": "burn_final_rain_glass", "family_photo": "burn_family_photo", "deer_bear": "burn_deer_bear", "miluo_letter": "burn_miluo_letter", "rabbit_fur": "burn_rabbit_fur", "floorboard": "burn_floorboard"}, "look_scenes": {"river_water": "look_river_water", "clear_seed": "look_clear_seed", "music_box": "look_music_box", "copper_bell": "look_copper_bell", "elephant_footage": "look_elephant_footage", "footprint_rubbing": "look_footprint_rubbing", "postcard": "look_postcard", "home_photo": "look_home_photo", "species_query": "look_species_query", "seat_chart": "look_seat_chart", "blue_stone": "look_final_blue_stone", "commute_card": "look_final_commute_card", "journal": "look_journal", "toucan_feather": "look_toucan_feather", "recipe_card": "look_recipe_card", "bird_whistle": "look_bird_whistle", "rain_glass": "look_rain_glass", "family_photo": "look_family_photo", "deer_bear": "look_deer_bear", "miluo_letter": "look_miluo_letter", "rabbit_fur": "look_rabbit_fur", "floorboard": "look_floorboard"}, "keep_scenes": {"music_box": "keep_music_box"}, "route": true, "route_from": {"zh": "河流星球", "en": "River planet"}, "route_to": {"zh": "云层星", "en": "Cloud planet"}, "added": true},
 			{"do": "sfx", "name": "cloud_part"},
 			{"do": "wait", "sec": 1.0},
 			{"narr": {"zh": "导航屏：西侧旧货场，运输船号对上了。", "en": "Nav screen: old freight yard to the west. The cargo ship number matches."}, "added": true},
@@ -1450,9 +1439,7 @@
 			{"do": "anim", "who": "niff", "name": "read"},
 			{"do": "wait", "sec": 2.5},
 			{"do": "if", "flag": "river_n_courier", "then": "epi_niff_name_c"},
-			{"do": "if", "flag": "river_n_bio", "then": "epi_niff_name_b"},
-			{"do": "if", "flag": "river_n_mom", "then": "epi_niff_name_m"},
-			{"do": "if", "flag": "!river_n_odd", "then": "epi_niff_name_p"},
+			{"do": "if", "flag": "!river_n_courier", "then": "epi_niff_name_p"},
 			{"do": "if", "flag": "final_ending_1", "then": "epi_niff_e1", "else": "epi_niff_q2"}
 		],
 		"epi_niff_q2": [
@@ -1583,41 +1570,25 @@
 		],
 		"final_niff_msg_plain": [
 			{"do": "if", "flag": "river_n_courier", "then": "final_nifu1_plain_c"},
-			{"do": "if", "flag": "river_n_bio", "then": "final_nifu1_plain_b"},
-			{"do": "if", "flag": "river_n_mom", "then": "final_nifu1_plain_m"},
-			{"do": "if", "flag": "!river_n_odd", "then": "final_nifu1_plain_p"},
+			{"do": "if", "flag": "!river_n_courier", "then": "final_nifu1_plain_p"},
 			{"do": "goto", "scene": "final_niff_msg_b", "_note": "11-02 这两段里按河流篇的称呼分了四个 if，不再算「播完回来」的分支，播完显式接回去"}
 		],
 		"final_nifu1_plain_p": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1", "from": "nifu", "zh": "晨，本子上写着你吃过面包啦，那现在呢，吃饭了吗？", "en": "Chen, my notebook says you had bread. What about now, have you eaten?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}}
+			{"do": "phone_msg", "id": "final_msg_nifu_1", "from": "nifu", "zh": "晨，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Chen, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "还没。路上没地方烧水。", "en": "Not yet. Nowhere to boil water out here.", "added": true}}
 		],
 		"final_nifu1_plain_c": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_courier", "from": "nifu", "zh": "取件员，本子上写着你吃过面包啦，那现在呢，吃饭了吗？", "en": "Courier, my notebook says you had bread. What about now, have you eaten?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}, "added": true}
-		],
-		"final_nifu1_plain_b": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_bio", "from": "nifu", "zh": "妮芙小姐来信：本子上写着传记作者吃过面包啦，那现在呢，吃饭了吗？", "en": "From Miss Niff: my notebook says the biographer had bread. What about now, have you eaten?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}, "added": true}
-		],
-		"final_nifu1_plain_m": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_mom", "from": "nifu", "zh": "冒牌妈妈，本子上写着你吃过面包啦，那现在呢，吃饭了吗？", "en": "Fake mom, my notebook says you had bread. What about now, have you eaten?", "reply": {"zh": "饼干还剩一点，刚在吃。", "en": "A few biscuits left. Eating them now."}, "added": true}
+			{"do": "phone_msg", "id": "final_msg_nifu_1_courier", "from": "nifu", "zh": "取件员，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Courier, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "还没。路上没地方烧水。", "en": "Not yet. Nowhere to boil water out here.", "added": true}, "added": true}
 		],
 		"final_niff_msg_soup": [
 			{"do": "if", "flag": "river_n_courier", "then": "final_nifu1_soup_c"},
-			{"do": "if", "flag": "river_n_bio", "then": "final_nifu1_soup_b"},
-			{"do": "if", "flag": "river_n_mom", "then": "final_nifu1_soup_m"},
-			{"do": "if", "flag": "!river_n_odd", "then": "final_nifu1_soup_p"},
+			{"do": "if", "flag": "!river_n_courier", "then": "final_nifu1_soup_p"},
 			{"do": "goto", "scene": "final_niff_msg_b", "_note": "11-02 这两段里按河流篇的称呼分了四个 if，不再算「播完回来」的分支，播完显式接回去"}
 		],
 		"final_nifu1_soup_p": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_soup", "from": "nifu", "zh": "晨，本子上写着你吃过面包啦，那现在呢，吃饭了吗？", "en": "Chen, my notebook says you had bread. What about now, have you eaten?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}}
+			{"do": "phone_msg", "id": "final_msg_nifu_1_soup", "from": "nifu", "zh": "晨，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Chen, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}}
 		],
 		"final_nifu1_soup_c": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_soup_courier", "from": "nifu", "zh": "取件员，本子上写着你吃过面包啦，那现在呢，吃饭了吗？", "en": "Courier, my notebook says you had bread. What about now, have you eaten?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}, "added": true}
-		],
-		"final_nifu1_soup_b": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_soup_bio", "from": "nifu", "zh": "妮芙小姐来信：本子上写着传记作者吃过面包啦，那现在呢，吃饭了吗？", "en": "From Miss Niff: my notebook says the biographer had bread. What about now, have you eaten?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}, "added": true}
-		],
-		"final_nifu1_soup_m": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_soup_mom", "from": "nifu", "zh": "冒牌妈妈，本子上写着你吃过面包啦，那现在呢，吃饭了吗？", "en": "Fake mom, my notebook says you had bread. What about now, have you eaten?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}, "added": true}
+			{"do": "phone_msg", "id": "final_msg_nifu_1_soup_courier", "from": "nifu", "zh": "取件员，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Courier, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}, "added": true}
 		],
 		"look_toucan_feather": [
 			{"do": "show_item", "item": "toucan_feather"},
@@ -1814,12 +1785,6 @@
 		],
 		"epi_niff_name_c": [
 			{"say": "niff", "zh": "取件员晨！你的件我还没找到，再等等。", "en": "Chen the courier! I still haven't found your package. Hang on.", "added": true}
-		],
-		"epi_niff_name_b": [
-			{"say": "niff", "zh": "传记作者晨！第二章写好了吗？", "en": "Chen the biographer! Is chapter two done yet?", "added": true}
-		],
-		"epi_niff_name_m": [
-			{"say": "niff", "zh": "冒牌妈妈晨！本子上写着：「别信这个人，但可以请吃面包。」", "en": "Chen the fake mom! My notebook says: \"Don't trust this one, but bread is fine.\"", "added": true}
 		]
 	}
 }

@@ -30,6 +30,7 @@ var _mdir := 0
 
 func _init() -> void:
 	ID = "river_guestbook"
+	quit_ok = true
 	panel = Vector2(248, 140)
 
 
@@ -47,17 +48,21 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	await _fade_in()
 	await _lines("intro")
 	_shot("guestbook", 0.6)
-	if dry < 1.0:
+	if dry < 1.0 and not _quit_req:
 		_set_hint(step.get("hint", HINT))
 		_accept = true
-		while _alive() and dry < 1.0:
+		while _alive() and dry < 1.0 and not _quit_req:
 			if auto_mode:
 				dry = minf(1.0, dry + board.get_process_delta_time() * 0.9)
 			await _frame()
 		_accept = false
 		_set_hint({})
-	elif give:
+	elif give and not _quit_req:
 		await _lines("give")
+	if _quit_req:
+		await _quit_out()
+		return
+	quit_ok = false
 	# 名单一行一行出来
 	while _alive() and _shown < guests.size():
 		_shown += 1
@@ -75,6 +80,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
 	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
+	_qa_quit_start()
 	await run(lv, w, r, st)
 
 
@@ -83,7 +89,7 @@ func ff(r: Node, st: Dictionary) -> void:
 
 
 func check(r: Node, st: Dictionary) -> Array:
-	var out := _check_lines(r, st, ["intro", "done"])
+	var out := _check_lines(r, st, ["intro", "done"]) + _check_quit(r, st)
 	for g in st.get("guests", []):
 		if not g is Dictionary or str(g.get("zh", "")) == "" or str(g.get("en", "")) == "":
 			out.append("guests：每条要有 zh / en：%s" % str(g))

@@ -323,8 +323,9 @@ func _scan_perches() -> void:
 		_perches.append(cur)
 
 
+## 11-05：天空贴图在世界里往下钉了 17（parallax_zoom_fix.gd 的 SKY_Y），世界 y 对应贴图 y − 17，剪影的底色才和身后的雾对得上
 func fog_at(y: float) -> Color:
-	return _fog_rows[clampi(int(y), 0, _fog_rows.size() - 1)]
+	return _fog_rows[clampi(int(y - 17.0), 0, _fog_rows.size() - 1)]
 
 
 func _tint(a: Actor, y_body: float) -> void:

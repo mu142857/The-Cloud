@@ -126,6 +126,15 @@ func _hold(on: bool) -> void:
 		_next = 0.0
 
 
+func _still_down() -> bool:
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		return true
+	for k in [KEY_SPACE, KEY_E, KEY_ENTER, KEY_KP_ENTER, KEY_Z]:
+		if Input.is_key_pressed(k):
+			return true
+	return false
+
+
 ## 自己接：按住，估计「已经在罐子里的 + 还在落的」到了 goal 就松手
 func _auto_catch(goal: float) -> void:
 	_auto_hold = true
@@ -142,6 +151,8 @@ func _tick(dt: float) -> void:
 	show_px = move_toward(show_px, level_px, dt * 30.0)
 	if stage != "catch":
 		return
+	if holding and not _auto_hold and not _still_down():
+		_hold(false)              # 按住的时候开了设置（暂停），在设置里松的手：松手事件暂停时收不到
 	if holding:
 		_hold_t += dt
 		_next -= dt

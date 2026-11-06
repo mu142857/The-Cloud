@@ -82,7 +82,6 @@ static func auto_sec(text: String, style: String) -> float:
 func _ready() -> void:
 	layer = LAYER
 	follow_viewport_enabled = false            # 屏幕坐标，镜头平移和缩放不带着字走
-	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 func show_line(zh: String, en: String, style: String, sec: float) -> float:

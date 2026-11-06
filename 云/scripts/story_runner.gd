@@ -112,6 +112,7 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"mechanic", "todo_mechanic", "form", "follow", "water", "closeup",   # 后六个：多房间章节（docs/river_rooms_contract.md）
 	"pose",   # pose：通用角色的图斜过来 / 挪一点 / 压到物件后面（_pose）
 	"barter",   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
+	"cycle",   # cycle：一次念一句，一直按一直往下念（_cycle_next，阿汀的河岸条例）
 	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
 	"inner", "key_prompt", "reward", "blackout", "burn_held",
 	"music"]   # music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
@@ -238,6 +239,7 @@ var carry_flags: Array = []          # 前面章节可能设的 flag（chapter_f
 var follow := {}                     # 跟着晨走的：名字 → 间距
 var closeup_ui: Control              # 特写面板（closeup_ui.gd）
 var mech_node = null                 # 正在玩的那个小游戏（side_kit / river_kit 的面板在它的 board 上）：对话框躲面板用
+var _mech_quit := false              # 刚才那个小游戏是退出来的（side_kit 的 quitted）
 var mech_running := ""               # 正在玩的小游戏 id（镜头：房间有 viewfinder 时这期间不往前多看，见 level_forest.gd _cam_target）
 var mech_wait := false               # 小游戏在等玩家互动（wait_interact）：只有临时点能用
 var _mech_spots: Array = []
@@ -709,14 +711,14 @@ func _ui_shot(kind: String, delay: float) -> void:
 		return
 	_shot_n += 1
 	var n := _shot_n
-	await get_tree().create_timer(delay).timeout
+	await get_tree().create_timer(delay, false).timeout
 	level._save(shots_dir.path_join("%03d_ui_%s_%s.png" % [n, kind, _cur_scene.validate_filename()]))
 
 
 func _shot(id: String) -> void:
 	_shot_n += 1
 	var n := _shot_n
-	await get_tree().create_timer(shot_delay).timeout
+	await get_tree().create_timer(shot_delay, false).timeout
 	level._save(shots_dir.path_join("%03d_%s.png" % [n, id.validate_filename()]))
 
 
@@ -730,6 +732,41 @@ func _wants_bars(id: String) -> bool:
 		if str(st.get("do", "")) in ["walk", "guide", "fade_to", "anim", "show", "pick", "end_chapter"]:
 			return true
 	return says >= 4
+
+
+## {"do": "cycle", "id": 计数名, "lines": [步骤…]}：每播一次走 lines 的下一步，走完从头来（11-05 作者：河岸条例要像佐特的戒律）。
+## 计数存在 StoryState.props（跟着存档、换章走）。一轮结束时要说的话就写在 lines 最后一条。跳节拍时不算念过
+func _cycle_next(st: Dictionary) -> Dictionary:
+	var list: Array = st.get("lines", [])
+	var id := str(st.get("id", ""))
+	if ff or list.is_empty() or id == "":
+		return {}
+	var n := int(str(StoryState.props.get(id, "0")))
+	StoryState.set_prop(id, str(n + 1))
+	return list[n % list.size()]
+
+
+## --cycle_test=次数（配 --chapter=river --story_check）：不开画面，按真的 hotspot 优先级把阿汀点这么多次，打印每次念了什么
+func cycle_test(clicks: int) -> void:
+	StoryState.set_flag("river_landed")
+	for i in clicks:
+		var picked := {}
+		for h in hotspots.defs:
+			if str(h.get("at", "")) == "ting" and str(h.get("room", "")) == "river_bank" and hotspots.usable(h):
+				picked = h
+				break
+		if picked.is_empty():
+			print("CYCLE_TEST %d 没有能点的" % (i + 1))
+			continue
+		if picked.get("once", false):
+			StoryState.mark_used(str(picked.get("id", "")))
+		for st in scenes.get(str(picked.get("scene", "")), []):
+			var line: Dictionary = st
+			if str(st.get("do", "")) == "cycle":
+				line = _cycle_next(st)
+			if line.has("say"):
+				print("CYCLE_TEST %d %s：%s" % [i + 1, str(picked.get("id", "")), str(line.get("zh", ""))])
+	print("CYCLE_TEST done n=%s" % str(StoryState.props.get("ting_rule_n", "0")))
 
 
 ## 一步。返回下一个 scene（goto / pick），"" = 接着播这个 scene
@@ -817,8 +854,15 @@ func _step(st: Dictionary) -> String:
 		"choice":
 			var cs: String = await _choice(st)
 			return cs
+		"cycle":
+			var cn := _cycle_next(st)
+			if not cn.is_empty():
+				return await _step(cn)
 		"mechanic":
 			await _mechanic(st)
+			if _mech_quit:                       # 玩家退出了（Esc / ×）：不接着往下播，跳去 quit_scene
+				_mech_quit = false
+				return str(st.get("quit_scene", ""))
 		"todo_mechanic":
 			_warn_once("todo_mechanic %s：小游戏还没接上，跳过" % st.get("id", ""))
 		"form":
@@ -1030,6 +1074,16 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 	var bgm = BGM_GD.get_bgm(level.get_tree())
 	if kind == "keepsake_choice" and not ff:
 		bgm.play("space_choice", NAN, 2.0)          # 作者 11-04 的配乐：选烧什么的时候
+	# 11-05 作者「每个飞船游戏都要播放音乐」：躲碎石、往前一冲进场放 flight_theme（theme.wav 的循环版 track，旧曲淡出它淡入交叉；
+	# 同一段里再进接着上次的位置）。躲碎石：交叉 1.5 秒，玩完它淡出 2 秒、原来那首接回来（没有就只淡出）。
+	# 往前一冲只有约 7 秒：淡入快（0.7 秒）、结束不淡出，一直放进接下来的 end_chapter（stop 2 秒）/ 落地 fade_to（_fade_to 里淡 2.5 秒）。
+	# 驾驶舱没有自己的环境声循环；碎石段的气流 / 轰鸣是玩法提示，不动。
+	var ship_music := kind in ["debris_steer", "cockpit_dash"] and not ff
+	var prev_track := ""
+	if ship_music:
+		prev_track = bgm.current()
+		bgm.play("flight_theme", NAN, 0.7 if kind == "cockpit_dash" else 1.5)
+		_ship_music_hold = kind == "cockpit_dash"
 	var n: Control = (load(COCKPIT_STEPS[kind]) as GDScript).new()
 	n.name = kind
 	dlg.add_child(n)
@@ -1040,13 +1094,20 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 	n.queue_free()
 	if kind == "keepsake_choice" and bgm.current() == "space_choice":
 		bgm.stop(2.5)
+	if kind == "cockpit_dash" and level.has_method("hum_done"):
+		level.hum_done()                             # 冲出去 / 落地了：驾驶舱引擎声淡掉，这一章不再回来
+	if ship_music and kind != "cockpit_dash" and bgm.current() == "flight_theme":
+		if prev_track != "" and prev_track != "flight_theme":
+			bgm.play(prev_track, NAN, 2.0)
+		else:
+			bgm.stop(2.0)
 	return r
 
 
 func _wait(sec: float) -> void:
 	var t := 0.0
 	while t < sec and is_inside_tree():
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 
 
@@ -1138,7 +1199,7 @@ func _walk(st: Dictionary) -> void:
 		return
 	var cl_t := 0.0
 	while n != chen and n.has_meta("lv_climbing") and not ff and cl_t < 20.0:
-		await get_tree().process_frame        # 前面 wait:false 的 walk 还在上 / 下石阶：先等这段走完（两段一起跑会抢着走）
+		await StoryState.frame(get_tree())        # 前面 wait:false 的 walk 还在上 / 下石阶：先等这段走完（两段一起跑会抢着走）
 		cl_t += get_process_delta_time()
 	var tlv := _lv_target(st.get("to", 0), n)
 	x = _no_pass_chen(n, x, tlv)
@@ -1180,7 +1241,7 @@ func _walk(st: Dictionary) -> void:
 			deer.visible = true
 			_deer_go(x, st)
 			while wait and not ended and is_inside_tree() and _deer_moving():
-				await get_tree().process_frame
+				await StoryState.frame(get_tree())
 		_ when npcs.values().has(n):
 			n.visible = true
 			var nsp := float(st.get("speed", -1.0))
@@ -1191,12 +1252,12 @@ func _walk(st: Dictionary) -> void:
 				nsp = clampf(absf(x - n.position.x) / WALK_WAIT_MAX, nsp, nsp * WALK_HURRY)
 			n.walk_to(x, nsp)
 			while wait and n.is_walking():
-				await get_tree().process_frame
+				await StoryState.frame(get_tree())
 		_:
 			miluo.visible = true
 			miluo.glide_to(x, float(st.get("speed", miluo.GLIDE_SPEED)))
 			while wait and miluo.is_gliding():
-				await get_tree().process_frame
+				await StoryState.frame(get_tree())
 
 
 ## 多层小屋（room.json levels，妮芙家）：现在这间是多层的就返回它
@@ -1254,11 +1315,11 @@ func _lv_walk(n: Node2D, sg: Node2D, to_lv: int, x: float, st := {}) -> void:
 			n.visible = true
 			n.walk_to(float(e["x0"]), sp)
 			while n.is_walking():
-				await get_tree().process_frame
+				await StoryState.frame(get_tree())
 			n.ground_fn = sg.stair_fn(int(e["si"]))
 			n.walk_to(float(e["x1"]), sp)
 			while n.is_walking():
-				await get_tree().process_frame
+				await StoryState.frame(get_tree())
 			sg.npc_lv[n.name] = int(e["to"])
 			n.ground_fn = sg.level_fn(int(e["to"]))
 	n.remove_meta("lv_climbing")
@@ -1268,7 +1329,7 @@ func _lv_walk(n: Node2D, sg: Node2D, to_lv: int, x: float, st := {}) -> void:
 	else:
 		n.walk_to(x, sp)
 		while n.is_walking():
-			await get_tree().process_frame
+			await StoryState.frame(get_tree())
 
 
 ## 点了别的层的 hotspot（鼠标 / 自动玩）：先走上 / 下去，到那一层的楼梯口为止，再播它的剧情
@@ -1315,7 +1376,7 @@ func _chen_walk(x: float, solo := false) -> void:
 		if level.player_free():
 			break                            # 过场播完了（walk 带 wait:false 的还没走到）：松手，绝不推着玩家走
 		chen.auto_dir = dir if solo else (0.0 if _chen_blocked(dir) else dir)     # 前面的人还在走：跟在后面等一下，不撞上去
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 		if t > 20.0:
 			chen.position.x = _chen_no_pass(x, true)
@@ -1324,7 +1385,7 @@ func _chen_walk(x: float, solo := false) -> void:
 	_chen_goal = NAN
 	t = 0.0
 	while chen._vel > 0.0 and t < 1.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 
 
@@ -1359,7 +1420,7 @@ func _show(st: Dictionary, on: bool, instant := false) -> void:
 	if on and st.has("at") and not ff and not instant and n.get_meta("vis_hiding", false):
 		var ht = (n.get_meta("vis_tw") if n.has_meta("vis_tw") else null)
 		while ht is Tween and (ht as Tween).is_valid() and (ht as Tween).is_running():
-			await get_tree().process_frame
+			await StoryState.frame(get_tree())
 	if st.has("at"):
 		var r: Dictionary = world.resolve(st["at"])
 		if r["ok"]:
@@ -1463,6 +1524,13 @@ func _fade_place(st: Dictionary) -> void:
 		return
 	for who in pl:
 		_show({"who": str(who), "at": pl[who]}, true, true)      # 换地方时放人：黑着 / 进出门有 _door_move 管淡入淡出
+	# "face": {"chen": "ting", …}：黑着的时候就转好身，揭开时不会看见转身、镜头也不会跟着晃（只给黑着换位置的 fade_to 用）
+	var fc = st.get("face", {})
+	if fc is Dictionary and not fc.is_empty():
+		for who2 in fc:
+			_face({"who": str(who2), "to": fc[who2]})
+		if not ff:
+			level._snap_camera()
 
 
 func _room_of(n: Node2D) -> String:
@@ -1854,7 +1922,7 @@ func _show_item(st: Dictionary) -> void:
 	if st.has("sec"):
 		# 11-05：不能直接抓 tr——sec 没到就举下一件时 tr 已被释放，回调报「Lambda capture at index 0 was freed」。抓 id 比较
 		var me_id := tr.get_instance_id()
-		get_tree().create_timer(float(st["sec"])).timeout.connect(func():
+		get_tree().create_timer(float(st["sec"]), false).timeout.connect(func():
 			if _item_show != null and is_instance_valid(_item_show) and _item_show.get_instance_id() == me_id:
 				_drop_item_show())
 
@@ -1886,6 +1954,11 @@ var _arrive_lv := -1                 # fade_to 进多层小屋：晨（和同行
 
 func _fade_to(st: Dictionary) -> void:
 	var room := str(st.get("room", "forest"))
+	if _ship_music_hold:                               # 往前一冲以后的落地转场：飞船配乐在黑里淡掉（2.5 秒），不硬停
+		_ship_music_hold = false
+		var bgm0 = BGM_GD.get_bgm(level.get_tree())
+		if bgm0.current() == "flight_theme":
+			bgm0.stop(2.5)
 	var lsg := _lv_stage(room)
 	_arrive_lv = lsg.marker_level(str(st.get("at", ""))) if lsg != null and st.get("at", 0) is String else -1
 	var r: Dictionary = world.resolve(st.get("at", 0))
@@ -1934,7 +2007,7 @@ func _fade_to(st: Dictionary) -> void:
 	# 还有别的淡出在走（起飞那段自己起了一个 1.2 秒的）：等真黑透了再换，不然新房间先露出来一下、又被盖黑（连拍：驾驶舱闪一下）
 	var bt := 0.0
 	while level.fade.color.a < 0.99 and bt < 2.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		bt += get_process_delta_time()
 	level.camera_release()
 	_tp_dir = signf(arrive - x) if not is_nan(arrive) and absf(arrive - x) > 2.0 else 0.0
@@ -1962,7 +2035,7 @@ func _arrive_walk(to: float) -> void:
 	level.stroll_to(to)
 	await _from_black(0.5)
 	while level.strolling() or chen._vel > 0.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 
 
 var _pixel := false                  # 这次 fade_to 是像素块溶解
@@ -2215,12 +2288,20 @@ func _auto_to() -> String:
 
 
 var ff_hit_end := false              # 跳节拍时碰到了 end_chapter（跳到 launched：跳完直接播起飞）
+var _ship_music_hold := false        # 往前一冲放着的飞船配乐（flight_theme）还没收：下一个 fade_to / end_chapter 里淡掉
 var ff_stop := false                 # 跳节拍时目标 flag 一设上、那个 scene 播完就停（flight1 一路 goto 到底，不停会跳过头）
 var ff_resume := ""                  # 停下的地方：接下来该播的 scene（关卡跳完以后正常播）
 
 
 func _end_chapter() -> void:
-	BGM_GD.get_bgm(level.get_tree()).stop(2.0)
+	_ship_music_hold = false
+	# 全剧终以后要放制作人员：主题曲从这里就淡进来，和正在淡掉的引擎声交叉，一路垫过结束卡接到名单（11-05 qa_audio：结束卡 8 秒真空）
+	var roll_music: bool = not ff and float(level.get("_fuzz")) <= 0.0 \
+		and (load("res://scripts/chapter_flow.gd") as GDScript).info(str(level.chapter)).get("last_card", false)
+	if roll_music:
+		BGM_GD.get_bgm(level.get_tree()).play("theme", NAN, 2.0)
+	else:
+		BGM_GD.get_bgm(level.get_tree()).stop(2.0)
 	if ff:
 		ff_hit_end = true
 		return
@@ -2259,7 +2340,7 @@ func _end_chapter() -> void:
 ## cards = 结束卡（全剧终）和成就那行：名单淡进来之前先淡到透明（底下是黑的）、删掉，两层字不同时出现（11-05 qa_all 报了叠字）。
 func _credits_roll(cards: Array) -> void:
 	level.set("_end_t", -100.0)
-	await level.get_tree().create_timer(2.5 if auto != "" else 4.5).timeout
+	await level.get_tree().create_timer(2.5 if auto != "" else 4.5, false).timeout
 	if not is_instance_valid(level):
 		return
 	var out := level.create_tween().set_parallel(true)
@@ -2271,7 +2352,7 @@ func _credits_roll(cards: Array) -> void:
 	for c in cards:
 		if is_instance_valid(c):
 			c.queue_free()
-	await level.get_tree().create_timer(0.4).timeout                      # 黑一小会儿，再出森林
+	await level.get_tree().create_timer(0.4, false).timeout                      # 黑一小会儿，再出森林
 	if not is_instance_valid(level):
 		return
 	var page: Control = (load("res://scripts/credits_page.gd") as GDScript).new()
@@ -3257,6 +3338,14 @@ func validate() -> Array[String]:
 				"narr":
 					if not st["narr"] is Dictionary or str(st["narr"].get("zh", "")) == "":
 						out.append("scene %s：narr 没有 zh" % id)
+				"cycle":
+					if str(st.get("id", "")) == "" or (st.get("lines", []) as Array).is_empty():
+						out.append("scene %s：cycle 要有 id 和 lines" % id)
+					for l5 in st.get("lines", []):
+						if not l5 is Dictionary or not l5.has("say") or str(l5.get("zh", "")) == "" or str(l5.get("en", "")) == "":
+							out.append("scene %s：cycle 的一句要有 say / zh / en：%s" % [id, str(l5)])
+						elif not speakers.has(str(l5["say"])):
+							out.append("scene %s：cycle 的说话人 %s 不在 speakers 里" % [id, l5["say"]])
 				"walk", "face":
 					var who := str(st.get("who", "chen"))
 					if npc(who) == null:
@@ -3362,6 +3451,13 @@ func validate() -> Array[String]:
 								out.append("scene %s：fade_to 的 place 不认识 %s" % [id, w4])
 							elif not world.has_marker(str(pl4[w4])) and not str(pl4[w4]).is_valid_float():
 								out.append("scene %s：fade_to 的 place 找不到 %s" % [id, pl4[w4]])
+					var fc4 = st.get("face", {})
+					if fc4 is Dictionary:
+						for w5 in fc4:
+							if npc(str(w5)) == null:
+								out.append("scene %s：fade_to 的 face 不认识 %s" % [id, w5])
+							elif npc(str(fc4[w5])) == null and not world.has_marker(str(fc4[w5])) and not str(fc4[w5]).is_valid_float():
+								out.append("scene %s：fade_to 的 face 找不到 %s" % [id, fc4[w5]])
 					for k4 in ["leave", "cam", "arrive"]:
 						if st.has(k4) and not world.has_marker(str(st[k4])) and not str(st[k4]).is_valid_float():
 							out.append("scene %s：fade_to 的 %s 找不到 %s" % [id, k4, st[k4]])
@@ -4502,6 +4598,7 @@ func _check_overlap() -> void:
 
 ## 调试（--jump_log）：每帧查看得见的人有没有一帧跳很远（「闪现」），打印 JUMP 谁 从哪到哪、scene、房间、层
 var _jump_log := "--jump_log" in OS.get_cmdline_user_args()
+var qa_jump_n := 0                  # QA_JUMP + QA_CAMJUMP 一共几次（qa_live 的暂停自测看它有没有新增）
 var _qa_live := "--qa_live" in OS.get_cmdline_user_args()   # 自动检查（scripts/qa_live.gd + 这里的 QA_JUMP / QA_CAMJUMP / QA_PROP* / QA_POPIN）
 var qa_counts := {}
 var _qa_cam := {}
@@ -4646,6 +4743,7 @@ func _check_jumps() -> void:
 				var how := ""
 				if n != chen and npcs.values().has(n):
 					how = "walk=%s swap=%s climb=%s follow=%s" % [str(n.is_walking()), str(n.has_meta("swap_t")), str(n.has_meta("lv_climbing")), str(follow.has(str(n.get("npc_id"))))]
+				qa_jump_n += 1
 				print("%s %s (%d,%d)->(%d,%d) scene=%s room=%s lv=%s step=%d %s busy=%s %s" % ["QA_JUMP" if _qa_live else "JUMP", key, int(o["p"].x), int(o["p"].y), int(p.x), int(p.y), _cur_scene, world.room, str(_lv_of(n, sg)) if sg != null else "-", step_i, cur_st, str(busy), how])
 				qa_counts["jump"] = int(qa_counts.get("jump", 0)) + 1
 		_last_pos[key] = {"p": p, "vis": vis, "room": world.room, "v": dv if vis else Vector2.ZERO}
@@ -4662,6 +4760,7 @@ func _check_jumps() -> void:
 		if dvl > 6.0 and dvl > 0.5 * maxf(v.length(), pv0.length()) and float(level.get("_shake")) <= 0.0 \
 				and float(_qa_cam.get("shake", 0.0)) <= 0.0 and _game_t - skip_t > 1.0:
 			var bars: Array = level.get("_bars")
+			qa_jump_n += 1
 			print("QA_CAMJUMP (%d,%d)->(%d,%d) scene=%s room=%s step=%d bar_dy=%.0f bar_y=%.0f bar_vis=%s override=%s shake=%.2f" % [int(_qa_cam["p"].x), int(_qa_cam["p"].y), int(c.x), int(c.y), _cur_scene, world.room, step_i,
 				float(level.get("_cam_bar_dy")), (bars[1] as Control).position.y if bars.size() > 1 else -1.0, str((bars[1] as Control).visible) if bars.size() > 1 else "-",
 				str(level.get("_cam_override")), float(level.get("_shake"))] + " pos=%s off=%s prev_v=%s zoom=%.3f prev_zoom=%.3f qte=%s" % [str(level.cam.position), str(level.cam.offset), str(pv0), level.cam.zoom.x, float(_qa_cam.get("z", 1.0)), str(is_instance_valid(level.get("_getup_qte")))])
@@ -4714,7 +4813,7 @@ func _settle_start() -> void:
 		return
 	var st_t := 0.0
 	while chen._vel > 0.0 and st_t < 0.5:      # 走进 trigger:"enter" 的点触发的：晨还在往前滑，等停稳再看压没压到人（不然算出来的空地滑过头）
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		st_t += get_process_delta_time()
 	var sg := _lv_stage()
 	var lv := int(sg.chen_lv) if sg != null else -1
@@ -4734,7 +4833,7 @@ func _settle_start() -> void:
 			continue
 		n.walk_to(nx)
 		while n.is_walking():
-			await get_tree().process_frame
+			await StoryState.frame(get_tree())
 		n._set_facing(1 if chen.position.x > n.position.x else -1)
 
 
@@ -4880,7 +4979,7 @@ func _door_gather(names: Array) -> void:
 		movers.append(n)
 	var t := 0.0
 	while (not movers.is_empty() and t < DOOR_GATHER_SEC) or (not climbers.is_empty() and t < DOOR_CLIMB_SEC):
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 		movers = movers.filter(func(m): return is_instance_valid(m) and m.is_walking())
 		climbers = climbers.filter(func(m): return is_instance_valid(m) and (m.has_meta("lv_climbing") or m.is_walking()))
@@ -4903,7 +5002,7 @@ func _door_gather(names: Array) -> void:
 		late.append(n2)
 	var t2 := 0.0
 	while not late.is_empty() and t2 < DOOR_GATHER_SEC:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t2 += get_process_delta_time()
 		late = late.filter(func(m): return is_instance_valid(m) and m.is_walking())
 	print("DOOR_GATHER %s" % ", ".join(names.map(func(w): return "%s dx=%d" % [w, int(npc(w).position.x - chen.position.x) if npc(w) != null else 0])))
@@ -5231,7 +5330,7 @@ func _reward(st: Dictionary) -> void:
 		fx.draw_texture_rect(tex, Rect2((c - d / 2.0).round(), d), false, Color(1, 1, 1, fade)))
 	var t0 := 0.0
 	while t0 < dur and is_instance_valid(fx):
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t0 += get_process_delta_time()
 		fx.set_meta("t", t0)
 		fx.queue_redraw()
@@ -5273,6 +5372,10 @@ func _mechanic(st: Dictionary) -> void:
 		await m.run(level, world, self, st)
 	mech_running = ""
 	mech_node = null
+	if m.get("quitted") == true:
+		_mech_quit = true
+		print("MECH %s returned (quit)" % mid)
+		return
 	_mech_done(mid)
 	print("MECH %s returned" % mid)
 
@@ -5389,6 +5492,8 @@ func _validate_room_step(id: String, kind: String, st: Dictionary, refs: Diction
 		"todo_mechanic":
 			out.append("info: scene %s：todo_mechanic %s 还没换成 mechanic（跳过）" % [id, st.get("id")])
 		"mechanic":
+			if st.has("quit_scene"):
+				refs[str(st["quit_scene"])] = true
 			var path := "res://scripts/%s.gd" % str(st.get("id", ""))
 			if not ResourceLoader.exists(path):
 				out.append("info: scene %s：mechanic 的脚本 %s 还没有（播到这里当它玩完了）" % [id, path])
@@ -5527,7 +5632,7 @@ func _stage_takeoff() -> void:
 	var t := 0.0
 	var ign := [0.15, 0.25, 0.4, 0.5, 0.62]
 	while t < 1.5:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var d := get_process_delta_time()
 		t += d
 		var on := 0
@@ -5546,7 +5651,7 @@ func _stage_takeoff() -> void:
 	t = 0.0
 	var yp := c0.y
 	while t < 2.3:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var d2 := get_process_delta_time()
 		t += d2
 		var k := clampf(t / 2.3, 0.0, 1.0)
@@ -5561,7 +5666,7 @@ func _stage_takeoff() -> void:
 	glow.hold_goal = 0.3
 	t = 0.0
 	while t < 0.7:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var d3 := get_process_delta_time()
 		t += d3
 		st["pos"] = Vector2(hv.x, hv.y - roundf(sin(t / 0.7 * PI)))
@@ -5580,7 +5685,7 @@ func _stage_takeoff() -> void:
 	var p: Vector2 = st["pos"]
 	var fading := false
 	while t < 5.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var d4 := get_process_delta_time()
 		t += d4
 		st["row"] = 2 + int(t / 0.1) % 2
@@ -5655,7 +5760,7 @@ func _prop_glide(st: Dictionary) -> void:
 		glow.strength = 0.5 * clampf(t / 0.5, 0.0, 1.0)
 		glow.step(d)
 		ghost.position = p0 + Vector2(0, -1 if fmod(t, 0.16) < 0.08 and t > 0.3 else 0)
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 	# 挪过去
 	t = 0.0
 	var prev := spr.position.y
@@ -5674,7 +5779,7 @@ func _prop_glide(st: Dictionary) -> void:
 		glow.heat_goal = 1.0
 		glow.drive((spr.position.y - prev) / maxf(d2, 0.001), d2)
 		prev = spr.position.y
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 	spr.position = p0
 	spr.modulate.a = 1.0
 	ghost.queue_free()
@@ -5688,7 +5793,7 @@ func _prop_glide(st: Dictionary) -> void:
 		glow.strength = move_toward(glow.strength, 0.0, d3 / 0.8)
 		glow.heat_goal = 1.0
 		glow.step(d3)
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 	glow.queue_free()
 
 

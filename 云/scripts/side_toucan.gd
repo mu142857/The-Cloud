@@ -174,7 +174,7 @@ func _one_throw() -> String:
 	var caught := false
 	var u := 0.0
 	while not story.ended:
-		await story.get_tree().process_frame
+		await StoryState.frame(story.get_tree())
 		t += story.get_process_delta_time() / (0.25 if auto_mode else 1.0)
 		u = t / dur
 		var p := _arc(o, Vector2(target, catchy), u)
@@ -359,7 +359,7 @@ func _lines(key: String) -> void:
 
 
 func _wait(sec: float) -> void:
-	await story.get_tree().create_timer(sec * (0.25 if auto_mode else 1.0)).timeout
+	await story.get_tree().create_timer(sec * (0.25 if auto_mode else 1.0), false).timeout
 
 
 func _mouth() -> Vector2:
@@ -554,12 +554,14 @@ func _show_hint(on: bool) -> void:
 		var tw := lb.create_tween()
 		tw.tween_method(func(v: float): lb.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.6)
 	elif not on and _hint != null:
-		OL.hud(story, false)
 		var h := _hint
 		_hint = null
 		var lb: Label = h.get_child(0)
 		var tw := lb.create_tween()
 		tw.tween_method(func(v: float): lb.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, 0.5)
+		tw.tween_callback(func():
+			if _hint == null:                             # 提示收完才放目标回来（这半秒里又开了一条就不放）
+				OL.hud(story, false))
 		tw.tween_callback(h.queue_free)
 
 

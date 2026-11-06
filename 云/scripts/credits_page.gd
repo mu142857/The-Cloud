@@ -408,7 +408,7 @@ func close() -> void:
 	_closing = true
 	var bgm = BGM_GD.get_bgm(get_tree())
 	if from_end:                                  # 全剧终以后：整屏淡到黑、音乐一起淡掉，黑着等回标题
-		bgm.stop(FROM_END_OUT + 1.6)
+		bgm.stop(FROM_END_OUT + 4.4)              # 比画面淡得久：标题的鸟叫淡进来时音乐还没完（level_forest._title_fade_in），不留真空
 		var veil := ColorRect.new()
 		veil.color = Color(0, 0, 0, 0)
 		veil.size = size

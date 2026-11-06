@@ -167,7 +167,7 @@ static func choose(m: Object, story: Node, opts: Array, hint := Callable()) -> S
 static func _hint_after(story: Node, ticket: Dictionary, hint: Callable) -> void:
 	var t := 0.0
 	while ticket["open"] and t < HINT_SEC:
-		await story.get_tree().process_frame
+		await StoryState.frame(story.get_tree())
 		t += story.get_process_delta_time()
 	if ticket["open"]:
 		hint.call()

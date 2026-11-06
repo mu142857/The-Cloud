@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b2o01ckv3ont0"
-path="res://.godot/imported/near.png-9a57fffec026ccc8bcc6794c171b932f.ctex"
+uid="uid://dht6qymaiod7w"
+path="res://.godot/imported/回家列车_统一画风_预览.png-fb3560b44bed90c720d8045216161a58.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/home_train/near.png"
-dest_files=["res://.godot/imported/near.png-9a57fffec026ccc8bcc6794c171b932f.ctex"]
+source_file="res://docs/qa/回家列车_统一画风_预览.png"
+dest_files=["res://.godot/imported/回家列车_统一画风_预览.png-fb3560b44bed90c720d8045216161a58.ctex"]
 
 [params]
 

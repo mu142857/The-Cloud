@@ -36,6 +36,7 @@ const SFX_MISS := "res://audio/sfx/pat.wav"
 const SFX_ROUND := "res://audio/sfx/bell_soft.wav"
 const PITCH := {"left": 1.0, "down": 0.891, "right": 1.122, "up": 1.335}     # 每个键一个音：do re mi fa 那样排开
 const HINT := {"zh": "方向键 / WASD：跟着兔子跳", "en": "Arrow keys / WASD: follow the rabbit"}
+const HINT_LAYER := 15
 
 
 # ======================================================================= 规则（纯函数）
@@ -141,7 +142,6 @@ var _row: Node2D
 var _arrows: Array = []
 var _tex: Texture2D
 var _hint: CanvasLayer
-var _hint_shown := false
 var _chen_tw: Tween
 var _was_input := true
 var _said_wrong := false
@@ -157,6 +157,7 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 		s = fresh()
 	await _setup()
 	await _lines("start")
+	_show_hint(true)                                  # 整段舞都在，跳完才收（11-05 作者：箭头上面那行字）
 	var rs := seqs(step)
 	while not story.ended and not finished(step, s):
 		if s["gave_up"]:
@@ -236,9 +237,6 @@ func _demo(seq: Array) -> void:
 func _turn(seq: Array) -> String:
 	for k in _arrows.size():
 		_set_row(k, ROW_DIM)
-	if not _hint_shown:
-		_hint_shown = true
-		_show_hint(true)
 	while not story.ended:
 		var expect := str(seq[int(s["k"])])
 		var d: String = await _next_key(expect)
@@ -248,7 +246,6 @@ func _turn(seq: Array) -> String:
 		if kind in ["wrong", "give_up"]:
 			_tap(d, -10.0, 0.75, SFX_MISS)
 			return kind
-		_show_hint(false)
 		_set_row(int(res["k"]), ROW_LIT, true)
 		_chen_move(d)
 		_tap(d, -4.0)
@@ -270,6 +267,7 @@ func _next_key(expect: String) -> String:
 
 ## 错满了：剩下的兔子和晨一起慢慢跳完（箭头一个个亮），不再要玩家按
 func _auto_rest() -> void:
+	_show_hint(false)                                 # 接下来不用按了，「方向键」那行字收起来
 	await _lines("auto")
 	var rs := seqs(step)
 	for r in range(int(s["round"]), rs.size()):
@@ -384,7 +382,7 @@ func _lines(key: String) -> void:
 
 
 func _wait(sec: float) -> void:
-	await story.get_tree().create_timer(sec * (0.25 if auto_mode else 1.0)).timeout
+	await story.get_tree().create_timer(sec * (0.25 if auto_mode else 1.0), false).timeout
 
 
 # ----------------------------------------------------------------------- 兔子
@@ -505,27 +503,25 @@ static func _load_tex(p: String) -> Texture2D:
 
 
 # ----------------------------------------------------------------------- 提示、声音
-## 第一轮轮到玩家时，屏幕下方淡淡一行怎么按；按对第一下就淡掉
+## 怎么按的那行字：画面上方，整段舞都在（对话显示时 HintLabel 自己让开）。
+## 11-04 / 11-05 作者两次说「上面的字」：这行原来在 y16、CanvasLayer 5，
+## 黑边（高 26，在 UI 层 20）放下来正好把它压掉大半；按对第一下又收掉，后面几轮就什么字都没有了。
+## 现在放在黑边下面（OL.top_hint_y），层在暗角（10）和 UI（20）之间。
 func _show_hint(on: bool) -> void:
-	if auto_mode:
-		return
 	if on and _hint == null:
 		OL.hud(story, true)                           # 左上角目标让开（最上面一行给按键提示）
 		_hint = CanvasLayer.new()
-		_hint.layer = 5
+		_hint.layer = HINT_LAYER
 		level.add_child(_hint)
-		var lb := OL.HintLabel.new(story)          # 对话 / 选项在显示的时候自己让开（11-04 安全区）
+		var lb := OL.HintLabel.new(story, "", OL.top_hint_y(story))
 		lb.text = story.txt(HINT) if story.has_method("txt") else str(HINT["zh"])
-		lb.add_theme_font_override("font", UITheme.font())
-		lb.add_theme_font_size_override("font_size", 14)
-		lb.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lb.position = Vector2(0, OL.HINT_Y)         # 屏幕上方那一行，不放进下面对话那一带
-		lb.size = Vector2(480, 16)
+		lb.add_theme_color_override("font_color", UITheme.TEXT)
 		lb.modulate.a = 0.0
 		_hint.add_child(lb)
 		var tw := lb.create_tween()
 		tw.tween_method(func(v: float): lb.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.6)
+		if auto_mode:
+			tw.tween_callback(_print_hint.bind(lb))
 	elif not on and _hint != null:
 		OL.hud(story, false)
 		var h := _hint
@@ -534,6 +530,19 @@ func _show_hint(on: bool) -> void:
 		var tw := lb.create_tween()
 		tw.tween_method(func(v: float): lb.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, 0.5)
 		tw.tween_callback(h.queue_free)
+
+
+## 跑 --story_auto 时打印这行字的位置，确认它没被黑边压住
+func _print_hint(lb: Label) -> void:
+	var bars = level.get("_bars")
+	var bar_bottom := -1.0
+	if bars is Array and not (bars as Array).is_empty():
+		var b: Control = bars[0]
+		bar_bottom = b.position.y + b.size.y if b.visible else 0.0
+	var top := lb.position.y
+	print("RABBIT_HINT text=\"%s\" y=%d..%d layer=%d alpha=%.2f visible=%s bar_bottom=%d covered=%s" % [
+		lb.text, int(top), int(top + lb.size.y), (lb.get_parent() as CanvasLayer).layer, lb.modulate.a,
+		str(lb.is_visible_in_tree()), int(bar_bottom), str(top < bar_bottom)])
 
 
 func _tap(d: String, db: float, pitch := -1.0, path := SFX) -> void:

@@ -7,6 +7,9 @@ extends RefCounted
 ##   _press(e) -> bool  输入（已经过滤掉设置 / 背包开着、Esc、F8）；返回 true = 吃掉
 ## 共用的进度：story.mech_load(ID) 里至少有 {enter, fails, done}；第 ENTER_GIVE 次进、或失败 FAILS_GIVE 次 → 放水（give）。
 ## 做不好也不会输（作者的规矩）：失败几次以后小游戏自己做完给玩家看。
+## 可选支线可以退出（11-05 作者「我可以有不玩小游戏退出的选项吗」）：子类 _init 里 quit_ok = true，剧本步骤写 "quit_scene"。
+##   Esc 或面板右上角 × = 不算完成，面板淡出，跳去 quit_scene，hotspot 还在，可以再来。
+##   子类的 run：等待的循环加 not _quit_req，循环后 if _quit_req: await _quit_out(); return，做完以后 quit_ok = false。主线必须过的不开。
 
 const AUDIO_FADE := preload("res://scripts/audio_fade.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
@@ -16,6 +19,7 @@ const SFX_DIR := "res://audio/sfx/"
 const DIM := Color(0.02, 0.03, 0.03, 0.72)
 const FAILS_GIVE := 3
 const ENTER_GIVE := 3
+const QUIT_TIP := {"zh": "Esc 退出", "en": "Esc to leave"}
 
 signal _stage(kind: String)
 
@@ -36,6 +40,10 @@ var _layer: CanvasLayer
 var _accept := false
 var _t := 0.0
 var _tex := {}
+var quit_ok := false                  # 这个小游戏能退出（可选支线）
+var quitted := false                  # 这次是退出来的（story_runner._mechanic 看：不算做完，跳去 quit_scene）
+var _quit_req := false
+var _quit_a := 0.0                    # × 的透明度（淡入淡出）
 
 
 # ----------------------------------------------------------------------- 进度
@@ -104,11 +112,13 @@ class Board extends Control:
 		if m != null:
 			m._t += dt
 			m._tick(dt)
+			m._quit_tick(dt)
 			queue_redraw()
 
 	func _draw() -> void:
 		if m != null:
 			m._draw_board(self)
+			m._draw_quit(self)
 
 
 func _build(name: String, texs: Array) -> void:
@@ -169,12 +179,12 @@ func _alive() -> bool:
 
 func _wait(sec: float) -> void:
 	if _alive():
-		await board.get_tree().create_timer(sec * _k()).timeout
+		await board.get_tree().create_timer(sec * _k(), false).timeout
 
 
 func _frame() -> void:
 	if _alive():
-		await board.get_tree().process_frame
+		await StoryState.frame(board.get_tree())
 
 
 func _tw() -> Tween:
@@ -293,16 +303,78 @@ func _loop(name: String, db := 0.0) -> AudioStreamPlayer:
 
 # ----------------------------------------------------------------------- 输入
 func _on_input(e: InputEvent) -> void:
-	if not _accept or not _alive():
+	if not _alive():
 		return
 	for n in ["_settings", "_bag"]:
 		var pnl = level.get(n) if level != null else null
 		if pnl is CanvasItem and (pnl as CanvasItem).visible:
 			return
+	if can_quit() and _quit_event(e):
+		board.get_viewport().set_input_as_handled()
+		return
+	if not _accept or _quit_req:
+		return
 	if e is InputEventKey and ((e as InputEventKey).keycode == KEY_ESCAPE or (e as InputEventKey).keycode == KEY_F8):
 		return                                         # Esc 照常开设置
 	if _press(e) or e is InputEventMouse or e is InputEventKey:
 		board.get_viewport().set_input_as_handled()
+
+
+# ----------------------------------------------------------------------- 退出（可选支线）
+## level_forest._esc_is_back 也问这个：能退的时候 Esc 归面板，不开设置
+func can_quit() -> bool:
+	return quit_ok and not _quit_req and _alive()
+
+
+func _quit_rect() -> Rect2:
+	return Rect2(board.global_position + Vector2(panel.x - 19, 4), Vector2(15, 15))
+
+
+func _quit_event(e: InputEvent) -> bool:
+	var hit := false
+	if e is InputEventKey:
+		hit = e.is_pressed() and not e.is_echo() and (e as InputEventKey).keycode == KEY_ESCAPE
+	elif is_click(e) and e.is_pressed():
+		hit = _quit_rect().grow(1.0).has_point((e as InputEventMouseButton).position)
+	if hit:
+		_quit_req = true
+		_sfx("ui_click", -10.0)
+	return hit
+
+
+## 退的时候鼠妈正说着话：把这几句快进掉，run 才走得到退出那一步
+func _quit_tick(dt: float) -> void:
+	_quit_a = move_toward(_quit_a, 1.0 if can_quit() else 0.0, dt * 3.0)
+	if _quit_req and story.dlg.is_open():
+		story.dlg.confirm()
+
+
+func _quit_out() -> void:
+	quitted = true
+	_accept = false
+	print("MECH %s quit enter=%d" % [ID, int(s.get("enter", 0))])
+	await _fade_out()
+
+
+## 像素叉和背包的关闭按钮一样（15×15 里一个 7×7）；第一次进这个小游戏时左边淡淡写一句 Esc 退出
+func _draw_quit(b: Control) -> void:
+	if _quit_a <= 0.01:
+		return
+	var col: Color = UITheme.TEXT
+	col.a = (1.0 if _quit_rect().grow(1.0).has_point(b.get_global_mouse_position()) else 0.7) * _quit_a
+	var o := Vector2(panel.x - 15, 8)
+	for i in 7:
+		b.draw_rect(Rect2(o + Vector2(i, i), Vector2(1, 1)), col)
+		b.draw_rect(Rect2(o + Vector2(6 - i, i), Vector2(1, 1)), col)
+	if int(s.get("enter", 0)) <= 1:
+		var tip: Color = UITheme.TEXT
+		tip.a = 0.5 * _quit_a
+		_text(b, Vector2(0, 16), I18n.pick(QUIT_TIP), tip, panel.x - 23, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+func _check_quit(r: Node, st: Dictionary) -> Array:
+	var q := str(st.get("quit_scene", ""))
+	return [] if q != "" and (r.get("scenes") as Dictionary).has(q) else ["%s：能退出的小游戏要写 quit_scene，现在是「%s」" % [ID, q]]
 
 
 func _mouse() -> Vector2:

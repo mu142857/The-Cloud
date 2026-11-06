@@ -2,7 +2,9 @@ extends Node
 ## 配乐（Music 总线，跟设置里的「音乐」音量走）。挂在 SceneTree 根下的一个节点上，换章节、重开场景都不断。
 ## 剧本：{"do": "music", "track": "forest"}  换曲（旧的淡出、新的淡入）；可选 "db"、"fade"、"loop"、"then"（不循环的放完接哪首）
 ##       {"do": "music", "stop": true, "fade": 1.5}  淡出停掉
-## story_runner 还会自己调：闪回开始 suspend()、醒来 resume()；燃料二选一时放 space_choice；章节结束 stop()。
+## story_runner 还会自己调：闪回开始 suspend()、醒来 resume()；燃料二选一时放 space_choice；章节结束 stop()；
+##   飞船小游戏（躲碎石、往前一冲）进场放 flight_theme、出来接回原来的（_cockpit_step）。TRACKS 里 "resume": true 的曲子停下时记住位置，
+##   同一段里再进接着放（不重头）；"file" = 用哪个 wav（没写就是 track 名）。
 ## 曲子都在 res://audio/music/<名字>.wav（作者 11-04 给的）；编辑器还没导入时直接读 wav 文件。
 ## 淡入淡出（11-04 作者：「记得音效淡入淡出……如果之间有真空期你可以考虑把两个淡入淡出的交织在一起」）：
 ##   换曲 = 旧的淡出、新的同时淡入（交叉）；循环的曲子把 WAV 本身设成循环（导入没开，原来放完再 play() 接缝处会断一下）；
@@ -15,6 +17,9 @@ const TRACKS := {
 	"theme": {"db": -5.0, "loop": false, "then": "forest"},
 	"rabbit_beat": {"db": -7.0, "loop": true},
 	"space_choice": {"db": -9.0, "loop": true},
+	# 11-05 作者「每个飞船游戏都要播放音乐」，给的 jam(1).wav 就是 theme.wav：同一个文件另起一条 track——循环、不接 forest、
+	# 比片头轻 4 dB（压在碎石段的气流 / 轰鸣提示下面）、停下记位置（story_runner._cockpit_step：躲碎石、往前一冲）
+	"flight_theme": {"file": "theme", "db": -9.0, "loop": true, "resume": true},
 }
 const NODE_NAME := "BGM"
 const THEN_XF := 3.0     # 不循环的曲子结尾前多久开始交叉到 then
@@ -23,6 +28,7 @@ var _cur: AudioStreamPlayer
 var _track := ""
 var _then := ""
 var _held := ""          # suspend() 时记下的曲子，resume() 接回来
+var _pos := {}           # "resume": true 的曲子停下时放到哪了（秒）：同一段里再进小游戏接着放，不重头
 
 
 static func get_bgm(tree: SceneTree):
@@ -30,12 +36,13 @@ static func get_bgm(tree: SceneTree):
 	if n == null:
 		n = (load("res://scripts/bgm.gd") as GDScript).new()
 		n.name = NODE_NAME
+		n.process_mode = Node.PROCESS_MODE_ALWAYS   # 打开设置（暂停）时配乐接着放，不重开
 		tree.root.add_child.call_deferred(n)
 	return n
 
 
 static func load_track(name: String) -> AudioStream:
-	var p := DIR + name + ".wav"
+	var p := DIR + str((TRACKS.get(name, {}) as Dictionary).get("file", name)) + ".wav"     # "file"：几条 track 共用一个文件
 	if ResourceLoader.exists(p):
 		return load(p) as AudioStream
 	if FileAccess.file_exists(p):
@@ -53,6 +60,7 @@ func play(name: String, db := NAN, fade := 1.5, loop := -1, then := "") -> void:
 	var s := load_track(name)
 	if s == null:
 		return
+	print("BGM play %s (was %s) fade %.1fs" % [name, _track if _track != "" else "-", fade])     # headless 核对配乐换了没（--qa_audio 只报硬切）
 	stop(fade)
 	_track = name
 	_then = then if then != "" else str(cfg.get("then", ""))
@@ -70,7 +78,7 @@ func play(name: String, db := NAN, fade := 1.5, loop := -1, then := "") -> void:
 	a.volume_db = -50.0
 	a.set_meta("then_at", -1.0 if want_loop or _then == "" else maxf(0.0, s.get_length() - THEN_XF))
 	add_child(a)
-	a.play()
+	a.play(float(_pos.get(name, 0.0)) if bool(cfg.get("resume", false)) else 0.0)
 	a.finished.connect(func():
 		if not is_instance_valid(a) or a != _cur:
 			return
@@ -107,6 +115,10 @@ func _fade(a: AudioStreamPlayer, to_db: float, sec: float, free_after := false) 
 
 
 func stop(fade := 1.5) -> void:
+	if _track != "" and _cur != null and is_instance_valid(_cur) and _cur.playing and bool((TRACKS.get(_track, {}) as Dictionary).get("resume", false)):
+		_pos[_track] = _cur.get_playback_position()
+	if _track != "":
+		print("BGM stop %s fade %.1fs" % [_track, fade])
 	_track = ""
 	if _cur == null or not is_instance_valid(_cur):
 		_cur = null

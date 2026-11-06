@@ -400,7 +400,7 @@ func _hold(sec: float) -> void:
 		sec = minf(sec, 0.5)
 	var t := 0.0
 	while t < sec and mode != "":
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 
 

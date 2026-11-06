@@ -131,19 +131,19 @@ class View extends Control:
 		await tw.finished
 		var sec := float(st.get("sec", 0.0))
 		if auto_mode:
-			await get_tree().create_timer(0.3).timeout
+			await get_tree().create_timer(0.3, false).timeout
 			if _can_flip:
 				await flip()
-			await get_tree().create_timer(0.3).timeout
+			await get_tree().create_timer(0.3, false).timeout
 			close()
 			return
 		if st.get("reveal", false) and _side == "front" and _can_flip:
-			await get_tree().create_timer(REVEAL_WAIT).timeout
+			await get_tree().create_timer(REVEAL_WAIT, false).timeout
 			if not _closing and _side == "front":
 				await flip()
 		if sec > 0.0:
 			_hint.visible = false
-			await get_tree().create_timer(sec).timeout
+			await get_tree().create_timer(sec, false).timeout
 			close()
 
 	func _set_hint() -> void:

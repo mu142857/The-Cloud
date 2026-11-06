@@ -16,6 +16,9 @@ extends Control
 ##       擦过船以后往右走（debris_pass_r，声像偏右）。
 ##     气流声：有碎石来的时候一直有稳定的气流声（airflow_loop），音高跟着安全通道的高低（通道在上面音高）；
 ##       画面上安全通道那个高度、机头前面有几道淡淡的气流线往船这边流（AIR_C，很淡，不闪；碎石的划痕会闪）。
+##       11-05 作者（「会突然往回一跳、撞到飞船前直接消失、整体移动」）：每道线是独立的粒子——出生时按当时的安全通道定自己的 y
+##       和长度，之后只往右匀速飞，不回跳；飞到整条被船身挡住（debris_layer 在船后面）或出了屏幕右边才删，中途不消失；
+##       通道换了只影响新出生的线，飞着的线不整体挪（_air_lines / _air_lines_step）。
 ##   预告：碎石擦到船之前 WARN（2）秒，左边那个高度上先出现一道划痕（两行虚线，越来越长、一闪一闪、往右 4 档变淡）
 ##     + 一个远远的小影子（3 → 7 像素，左上一点亮边）。墙只给离船近的那两块画划痕（其余的只是墙）。
 ##   擦边：碎石飞过船身、离船身不到 GRAZE 像素又没碰到 → 船外泛光闪一下（ship_glow 光强拉满再按原来的速度熄）+ 擦边的几颗火星 + 一声轻的「咻」。
@@ -74,6 +77,8 @@ const FAR_X := 0.73           # 远景船停在屏幕右边：图的中线在屏
 const FAR_SLOW := 0.9         # 远景里碎石再慢这么多（和挪到右边一起：碎石进画面到撞上船头约 1.6 秒，原来约 0.8 秒）
 const WARN_OFF := 1.2         # 远景：碎石进画面之前，左边划痕先预告多少秒（和原来船在中间时一样）
 const AIR_C := Color(0.5, 0.78, 0.64)       # 气流线（#7fc7a4 一族，很淡）
+const AIR_EVERY := 0.18       # 气流线：每隔多少秒从屏幕左边出生一道（原来 5 道循环，约这个密度）
+const AIR_SLOTS := 5          # 通道里上下分几档高度轮着出
 const SCRATCH_C := Color(0.78, 0.9, 0.84)
 const SPARK_C := Color(0.95, 0.9, 0.75)
 ## 波次（t = 秒，按 sec / 40 缩放；safe 见文件头）。lane：-1 上道 / +1 下道；g：缝的位置（× _shift，+ = 往下）。
@@ -170,6 +175,11 @@ var _real := false            # --debris_full
 var _air: AudioStreamPlayer   # 稳定的气流声
 var _air_on := 0.0            # 气流（声音 + 线）现在多强 0..1
 var _air_g := 0.0             # 气流线 / 音高现在对着的安全通道（船的偏移，平滑跟着）
+var _air_lines: Array = []    # 飞着的气流线 {x, y, ln, v}：每道独立，出生定 y / 长度，之后只往右匀速飞（见文件头）
+var _air_spawn := 0.0         # 离下一道出生还有多久
+var _air_n := 0               # 出了几道（轮高度档用）
+var _air_qa := false          # --qa_live：核对每道线 x 只增不减、不在船前面消失（只打印异常 + 结束一行汇总）
+var _air_qa_bad := 0
 var _dark: Node2D             # 黑窗：船外背景和碎石上面盖的黑幕（debris_layer 里，z 1）
 var _dark_a := 0.0            # 黑幕现在多深
 var _dark_on := false
@@ -225,6 +235,7 @@ func play(r: Node, st: Dictionary) -> String:
 			if ResourceLoader.exists(p):
 				_rock_tex.append(load(p))
 	_hull = cockpit.far_hull() if _far else cockpit.hull()
+	_air_qa = "--qa_live" in OS.get_cmdline_user_args()
 	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
 	_x1 = float(int(_hull.get("x0", 80)) + tops.size())
 	if _far:
@@ -711,9 +722,7 @@ func _dark_start() -> void:
 	var tw := create_tween()
 	tw.tween_method(_set_dark, 0.0, DARK_A, DARK_IN if not (_auto and not _real) else 0.4).set_trans(Tween.TRANS_SINE)
 	_play("flight_rumble", -8.0)
-	_rumble = _loop("flight_rumble", -60.0)
-	if is_instance_valid(_rumble):
-		_rumble.finished.connect(_rumble.play)
+	_rumble = _loop("flight_rumble", -60.0)          # _loop 已设成真循环，不用 finished → play 重开
 	# 提示换一句（上一句淡出了也重新亮一下，5 秒后淡掉）
 	_hint.text = _tx("dark_hint")
 	_hint.set_meta("out", false)
@@ -790,6 +799,56 @@ func _air_step(delta: float) -> void:
 	if is_instance_valid(_air):
 		_air.volume_db = lerpf(-50.0, -15.0, sqrt(_air_on))
 		_air.pitch_scale = 1.0 - 0.12 * _air_g / maxf(1.0, _shift)        # 通道在上面音高高一点
+	_air_lines_step(delta)
+
+
+## 气流线（每道独立的粒子，11-05 作者：「会突然往回一跳、撞到飞船前直接消失、整体移动」）：
+##   每 AIR_EVERY 秒从屏幕左边外出生一道：按**那一刻**的安全通道（_air_g）在通道里轮 AIR_SLOTS 档高度定 y、定长度和速度，
+##   之后每帧只加 v × delta 往右飞，不回头、不换 y（通道换了只影响后面出生的线）。
+##   删：出了屏幕右边；或者整条都在船身后面（线尾过了这一行上船头 2 像素、线头没露出船尾）——debris_layer 在船后，看不见才删。
+##   穿出去（_ending）以后不再出新的，飞着的照飞（亮度 _air_on 自己慢慢淡掉）。
+func _air_lines_step(delta: float) -> void:
+	_air_spawn -= delta
+	if _air_spawn <= 0.0 and not _ending:
+		_air_spawn = AIR_EVERY
+		var top := float(_hull.get("T", 100)) + _air_g
+		var bot := float(_hull.get("B", 206)) + _air_g
+		var slot := (_air_n * 3) % AIR_SLOTS                                   # 0 3 1 4 2：相邻两道不挨着
+		var y := roundf(lerpf(top + 4.0, bot - 4.0, (float(slot) + 0.5) / float(AIR_SLOTS))) + float(_rng.randi_range(-1, 1))
+		var ln := 10.0 + float((_air_n * 7) % 3) * 5.0
+		_air_lines.append({"x": -ln, "y": y, "ln": ln, "v": 230.0 + float(_air_n % 3) * 35.0})
+		_air_n += 1
+	var sy: float = cockpit.ship_y()
+	var i := _air_lines.size() - 1
+	while i >= 0:
+		var L: Dictionary = _air_lines[i]
+		var x0 := float(L["x"]) + float(L["v"]) * delta
+		if _air_qa and x0 < float(L["x"]):
+			_air_qa_bad += 1
+			print("QA_AIR 气流线往回跳 x %.1f -> %.1f" % [float(L["x"]), x0])
+		L["x"] = x0
+		var x1 := x0 + float(L["ln"])
+		var gone := x0 >= 480.0
+		if not gone:
+			var fx := _hull_front_at(float(L["y"]) - sy)
+			gone = fx >= 0.0 and x0 > fx + 2.0 and x1 < _x1 - 2.0
+			if _air_qa and gone and x0 <= fx:
+				_air_qa_bad += 1
+				print("QA_AIR 气流线在船前面消失 x %.1f 船头 %.1f" % [x0, fx])
+		if gone:
+			_air_lines.remove_at(i)
+		i -= 1
+
+
+## 屏幕第 y 行（船没挪时的坐标）上船身最左那一列的屏幕 x；这一行没有船身 = -1
+func _hull_front_at(y: float) -> float:
+	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
+	var bots: PackedInt32Array = _hull.get("bot", PackedInt32Array())
+	var x0 := int(_hull.get("x0", 80))
+	for i in tops.size():
+		if tops[i] >= 0 and float(tops[i]) <= y and float(bots[i]) >= y:
+			return float(x0 + i)
+	return -1.0
 
 
 # ======================================================================= 收尾
@@ -807,6 +866,8 @@ func dev_skip() -> void:
 func _finish() -> void:
 	if _finished or _ending:
 		return
+	if _air_qa:
+		print("QA_AIR 气流线 出生 %d 道 异常 %d" % [_air_n, _air_qa_bad])
 	_hint_out()
 	if not _far:
 		_done()
@@ -859,14 +920,23 @@ func _play(snd: String, db: float, pitch := 1.0, pan := 0.0) -> void:
 	a.finished.connect(a.queue_free)
 
 
-## 循环的底噪（气流）：自己管音量；缺文件返回 null
+## 循环的底噪（气流、轰鸣）：自己管音量；缺文件返回 null。wav 导入没开循环的（flight_rumble 2.2 秒）复制一份设成真循环——
+## 原来靠 finished → play() 重开，每圈那一帧没在放又响着（--qa_audio hard_start），耳朵里也是断口（11-05）
 func _loop(snd: String, db: float) -> AudioStreamPlayer:
 	var p: String = runner._sfx_path(snd)
 	if p == "":
 		runner.missing_sfx[snd] = true
 		return null
 	var a := AudioStreamPlayer.new()
-	a.stream = load(p)
+	a.name = "Loop_" + snd                           # 复制出来的循环流没有路径，--qa_audio 认不出名字，节点名顶上
+	var s: AudioStream = load(p)
+	if s is AudioStreamWAV and (s as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_DISABLED:
+		var w := (s as AudioStreamWAV).duplicate() as AudioStreamWAV
+		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		w.loop_begin = 0
+		w.loop_end = int(round(w.get_length() * w.mix_rate))
+		s = w
+	a.stream = s
 	a.bus = "SFX"
 	a.volume_db = db
 	add_child(a)
@@ -877,13 +947,13 @@ func _loop(snd: String, db: float) -> AudioStreamPlayer:
 # ======================================================================= 画：预告、气流线、火星
 ## 预告：碎石那条道的高度上，屏幕左边一道划痕（越来越长、一闪一闪，往右一格一格变淡）+ 一个远远的小影子（越来越大，左上一点亮边）。
 ## 10-29 验收：原来 3×1 的点、透明度 .25～.5，在暗云上几乎看不见 → 加粗加亮（仍比碎石本身淡）。
-## 气流线：安全通道那个高度、机头前面几道 1 像素的细线往右流（很淡、不闪）。
+## 气流线：安全通道那个高度、几道 1 像素的细线往右流（很淡、不闪；每道独立，见 _air_lines_step），只画屏幕里的那截，船身自然挡住。
 func _draw_fx() -> void:
 	if _dark_on or _dark_a > 0.05:
 		if _line_a > 0.01:
 			_draw_air(_line_a)                       # 黑窗：气流线只是引路提示（_dark_step 管亮度）
 	elif _air_on > 0.0:
-		_draw_air(floorf(_air_on * 4.0) / 4.0 * 0.32)
+		_draw_air(_air_on * 0.32)                     # 亮度平滑（原来 4 档，一档一跳）
 	for w in _waves:
 		if w["dark"]:
 			continue                                 # 黑墙没有划痕预告
@@ -913,21 +983,14 @@ func _draw_fx() -> void:
 
 
 func _draw_air(a: float) -> void:
-	var top := float(_hull.get("T", 100)) + _air_g
-	var bot := float(_hull.get("B", 206)) + _air_g
-	var nose := _front_x(top, bot)
 	if a <= 0.0:
 		return
-	var n := 5
-	for i in n:
-		var y := roundf(lerpf(top + 4.0, bot - 4.0, (float(i) + 0.5) / float(n)))
-		var ln := 10.0 + float((i * 7) % 3) * 5.0
-		var span := nose - 8.0 + ln
-		var x := fposmod(_t * (230.0 + float(i % 3) * 35.0) + float(i) * 61.0, span) - ln
-		var x0 := maxf(0.0, x)
-		var x1 := minf(nose - 8.0, x + ln)
+	for L in _air_lines:
+		var x0 := maxf(0.0, float(L["x"]))
+		var x1 := minf(480.0, float(L["x"]) + float(L["ln"]))
 		if x1 - x0 < 1.0:
 			continue
+		var y := float(L["y"])
 		_fx.draw_rect(Rect2(roundf(x0), y, roundf(x1 - x0), 1), Color(AIR_C, a))
 		_fx.draw_rect(Rect2(roundf(x1) - 3.0, y, 3, 1), Color(AIR_C, minf(0.5, a * 1.6)))   # 线头亮一点：读得出往右流
 

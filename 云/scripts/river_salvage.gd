@@ -663,7 +663,7 @@ func _release(on: bool) -> void:
 ## 抛出去的那一下收完（剧情要接手的时候不留半截线）；看门狗保证一定收得完
 func _settle() -> void:
 	while cast in ["fly", "wait", "catch", "reel"] and _alive():
-		await rig.get_tree().process_frame
+		await StoryState.frame(rig.get_tree())
 
 
 func _alive() -> bool:
@@ -676,7 +676,7 @@ func _until_phase_change() -> void:
 	if auto_mode and not _mash:
 		await _auto_play(was)
 	while _alive() and str(s["phase"]) == was:
-		await rig.get_tree().process_frame
+		await StoryState.frame(rig.get_tree())
 	await _settle()
 
 
@@ -1015,7 +1015,7 @@ func _catch(id: String) -> void:
 	var t := 0.0
 	var dur := 0.5
 	while t < dur:
-		await rig.get_tree().process_frame
+		await StoryState.frame(rig.get_tree())
 		if g != _gen or not _alive():
 			return
 		t += rig.get_process_delta_time()
@@ -1044,14 +1044,14 @@ func _tug(o: Sprite2D, dx: float, sec: float) -> void:
 	var x0 := o.position.x
 	var t := 0.0
 	while t < sec and _alive():
-		await rig.get_tree().process_frame
+		await StoryState.frame(rig.get_tree())
 		t += rig.get_process_delta_time()
 		var u := clampf(t / sec, 0.0, 1.0)
 		o.position.x = roundf(x0 + dx * u * u * (3.0 - 2.0 * u))
 
 
 func _wait(sec: float) -> void:
-	await rig.get_tree().create_timer(sec * (0.6 if auto_mode else 1.0)).timeout
+	await rig.get_tree().create_timer(sec * (0.6 if auto_mode else 1.0), false).timeout
 
 
 func _cam_nudge(face: int) -> void:
@@ -1241,7 +1241,7 @@ func _auto_play(phase: String) -> void:
 	while _alive() and str(s["phase"]) == phase:
 		var hs := sim.hookable()
 		if hs.is_empty():
-			await rig.get_tree().process_frame
+			await StoryState.frame(rig.get_tree())
 			continue
 		var h: Dictionary = hs[0]
 		for hh in hs:
@@ -1279,7 +1279,7 @@ func _auto_cast(id: String, miss: bool) -> void:
 		if _hold > SWEEP_SEC * 4.0:
 			release_cast(want)                 # 保险：怎么都对不上（不该发生）就直接抛
 			return
-		await rig.get_tree().process_frame
+		await StoryState.frame(rig.get_tree())
 
 
 ## --salvage_mash：乱按的玩家（随机走一会儿、随机按住一会儿再松手），只走同一条按键路径（_btn_down / release_cast）

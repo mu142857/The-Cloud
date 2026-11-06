@@ -1148,7 +1148,7 @@ func ambient_enter(on: bool) -> void:
 			pl.set("volume_db", -60.0)
 			add_child(pl)
 			pl.connect("finished", Callable(pl, "play"))
-			_amb.append({"player": pl, "db": float(ac.get("db", -10))})
+			_amb.append({"player": pl, "db": float(ac.get("db", -10)), "out": float(ac.get("out", AMB_FADE))})   # out：离开时淡多久（城市雨 26 秒，垫到片尾曲）
 	# 换房间时旧房间淡出、新房间淡入是同时开始的（story_world 先 off 再 on，同一帧），两边交叉，中间不空。
 	# 每个声音只留一个 tween：刚淡出又走回来，先停掉「淡完就 stop」的那个，不然它会在淡入中途把声音掐断。
 	for a in _amb:
@@ -1159,7 +1159,7 @@ func ambient_enter(on: bool) -> void:
 		if on and not bool(pl.get("playing")):
 			pl.call("play")
 		var tw := create_tween()
-		tw.tween_property(pl, "volume_db", float(a["db"]) if on else -60.0, AMB_FADE).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(pl, "volume_db", float(a["db"]) if on else -60.0, AMB_FADE if on else float(a.get("out", AMB_FADE))).set_trans(Tween.TRANS_SINE)
 		if not on:
 			tw.tween_callback(Callable(pl, "stop"))
 		pl.set_meta("fade_tw", tw)

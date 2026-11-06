@@ -1,11 +1,12 @@
 extends Node2D
 ## 终章尾声最后一段「回家的列车」：art/home_train/room.json 的 scripts 里放这个（room_stage 建房间时 new 一个，父节点是 room_stage）。
-## 图都是 tools/home_train_art.py 画的。车厢（car.png、glass.png）是 room.json 的层，乘客、吊环是物件（16 帧循环、100ms 一帧）；
-## 这里只管会动、会变的：
-## - 窗外：天空不动；远处的城 / 田野、中景的鸽子笼楼、近处的矮楼顶、一排树、接触网的杆子、高架桥面各按自己的速度往左走（车往右开）。
+## 图都是 tools/home_train_art.py 画的（11-05 按闪回统一：车就是追逐那节车的剖面，人是城里的兜帽人）。车厢（car.png、glass.png）是 room.json 的层，
+## 乘客、吊环是物件（16 帧循环、100ms 一帧）；这里只管会动、会变的：
+## - 窗外的城：直接用作者的 res://art/city/{ridge,far,midfar,mid}.png（不拷、不改；视差比例和 city_test 一样 × 车速 100），
+##   加上这里的远山、一排树、路灯、高架桥面，各按自己的速度往左走（车往右开）。天空是 sky.png（作者 sky 的拷贝 + 雾里的日轮），不动。
 ##   层是左右无缝的长条（960 / 480 宽），按「没绕回之前的坐标」u 画，所以可以只画某一段（城走完、树从右边进来）。
-## - train_window：afternoon_sun（默认）= 还在城里；trees_passing = 出城：中景、近景的楼不再往后续（右边接下去的第一道楼缝就是
-##   城的尽头，最后一栋走完就没了），树从右边一棵棵进来；远处的城在雾里慢慢换成田野、剩下的楼慢慢化进雾里（smoothstep，没有硬切）。
+## - train_window：afternoon_sun（默认）= 还在城里；trees_passing = 出城：两层能看清的楼（midfar、mid）不再往后续（右边接下去的第一道楼缝就是
+##   城的尽头，最后一栋走完就没了），树从右边一棵棵进来；更远的楼在雾里慢慢换成远山、剩下的楼慢慢化进雾里（smoothstep，没有硬切）。
 ## - 光束：每扇窗一束（加法混合），楼 / 树挡住太阳时暗下去，再亮回来（occlusion.json：每一列挡不挡；离太阳越远的窗越晚被挡，
 ##   影子从右往左扫过车厢），亮暗都平滑地跟。挡住也不全黑：天光还在。
 ## - train_seat = sun_on_knees：晨膝上那块太阳慢慢亮起来（knees.png，在晨前面，加法）。
@@ -15,19 +16,20 @@ extends Node2D
 const DIR := "res://art/home_train/"
 const SCREEN_W := 480
 const SUN_X := 96.0
-const EMPTY_BAY := 3            # 空座位那扇窗（beams 的第几束，和 home_train_art.py 一样）
 ## 窗外每层：图、宽、速度（像素 / 秒）、绝对 z。速度越近越快
+const CITY_DIR := "res://art/city/"
 const LAYERS := [
-	{"id": "far_city", "w": 960, "speed": 6.0, "z": -159},
+	{"id": "ridge", "w": 960, "speed": 6.0, "z": -159, "dir": CITY_DIR},
 	{"id": "far_land", "w": 960, "speed": 6.0, "z": -158},
-	{"id": "mid", "w": 960, "speed": 40.0, "z": -157},
-	{"id": "near", "w": 960, "speed": 85.0, "z": -156},
+	{"id": "far", "w": 960, "speed": 18.0, "z": -158, "dir": CITY_DIR},
+	{"id": "midfar", "w": 960, "speed": 38.0, "z": -157, "dir": CITY_DIR},
+	{"id": "mid", "w": 960, "speed": 62.0, "z": -156, "dir": CITY_DIR},
 	{"id": "trees", "w": 960, "speed": 120.0, "z": -155},
 	{"id": "poles", "w": 480, "speed": 240.0, "z": -154},
 	{"id": "deck", "w": 480, "speed": 240.0, "z": -153},
 ]
 ## 影子扫过车厢：窗 k 看的是这一层的 u = 平移量 + SUN_X + (窗的 x − SUN_X) × SWEEP
-const SWEEP := {"mid": 0.5, "near": 0.7, "trees": 0.8}
+const SWEEP := {"midfar": 0.4, "mid": 0.5, "trees": 0.8}
 const LAND_FADE := 6.0          # 出城：远处的城换成田野用几秒
 const CITY_FADE := Vector2(4.0, 12.0)    # 出城：剩下的楼从第几秒到第几秒化进雾里
 const KNEES_FADE := 1.6
@@ -39,6 +41,7 @@ var _L := {}                    # id → {tex, w, speed, s, lo, hi, phase, a, no
 var _beams: Array = []          # [{node, floor: Vector2, win, v}]
 var _knees: Sprite2D
 var _knees_v := 0.0
+var _seat_beam := 4             # 空座位上的太阳从第几束来（occlusion.json 的 seat_beam）
 var _t := 0.0
 var _started := false
 var _trees_t := INF             # 出城那一刻（_t），INF = 还在城里
@@ -50,6 +53,7 @@ func _ready() -> void:
 	var f := FileAccess.get_file_as_string(DIR + "occlusion.json")
 	var j = JSON.parse_string(f)
 	_data = j if j is Dictionary else {}
+	_seat_beam = int(_data.get("seat_beam", 4))
 	var add := CanvasItemMaterial.new()
 	add.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	# 天空：不动，在最后面
@@ -66,7 +70,7 @@ func _ready() -> void:
 		n.z_index = int(c["z"])
 		n.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		add_child(n)
-		var L := {"tex": _tex(str(c["id"]) + ".png"), "w": int(c["w"]), "speed": float(c["speed"]), "s": 0.0,
+		var L := {"tex": _tex(str(c["id"]) + ".png", str(c.get("dir", DIR))), "w": int(c["w"]), "speed": float(c["speed"]), "s": 0.0,
 			"lo": -INF, "hi": INF, "phase": 0, "a": 1.0, "node": n}
 		_L[c["id"]] = L
 		n.draw.connect(_draw_strip.bind(L))
@@ -95,8 +99,8 @@ func _ready() -> void:
 	add_child(_knees)
 
 
-func _tex(file: String) -> Texture2D:
-	var p := DIR + file
+func _tex(file: String, from := DIR) -> Texture2D:
+	var p := from + file
 	if ResourceLoader.exists(p):
 		return load(p)
 	if FileAccess.file_exists(p):                # 刚画出来、还没导入（开发时）
@@ -150,27 +154,28 @@ func _process(delta: float) -> void:
 	if _trees_t != INF:
 		var k := _t - _trees_t
 		var land := smoothstep(0.0, LAND_FADE, k)
-		_L["far_city"]["a"] = 1.0 - land
+		_L["ridge"]["a"] = 1.0 - land
+		_L["far"]["a"] = 1.0 - land
 		_L["far_land"]["a"] = land
 		var fade := 1.0 - smoothstep(CITY_FADE.x, CITY_FADE.y, k)
+		_L["midfar"]["a"] = fade
 		_L["mid"]["a"] = fade
-		_L["near"]["a"] = fade
 	for id in _L:
 		(_L[id]["node"] as Node2D).queue_redraw()
 	_update_beams(delta)
 	var kt := 1.0 if seat == "sun_on_knees" else 0.0
 	if kt > 0.0 and _knees_v == 0.0:
-		print("HOME_TRAIN sun_on_knees t=%.1f seat_beam=%.2f" % [_t, float(_beams[EMPTY_BAY]["v"]) if _beams.size() > EMPTY_BAY else -1.0])
+		print("HOME_TRAIN sun_on_knees t=%.1f seat_beam=%.2f" % [_t, float(_beams[_seat_beam]["v"]) if _beams.size() > _seat_beam else -1.0])
 	_knees_v = move_toward(_knees_v, kt, delta / KNEES_FADE)
-	var seat_beam: float = _beams[EMPTY_BAY]["v"] if _beams.size() > EMPTY_BAY else 1.0
+	var seat_beam: float = _beams[_seat_beam]["v"] if _beams.size() > _seat_beam else 1.0
 	_knees.modulate.a = smoothstep(0.0, 1.0, _knees_v) * lerpf(0.6, 1.0, seat_beam)
 	_chen_light(world)
 
 
-## 出城：中景、近景从右边下一道楼缝起不再往后续；树从屏幕右边开始
+## 出城：两层能看清的楼从右边下一道楼缝起不再往后续；树从屏幕右边开始
 func _leave_city(at: float) -> void:
 	_trees_t = at
-	for id in ["mid", "near"]:
+	for id in ["midfar", "mid"]:
 		var L: Dictionary = _L[id]
 		var solid: Array = _data.get("solid_" + id, [])
 		var u := int(roundf(float(L["speed"]) * maxf(at, 0.0))) + SCREEN_W
@@ -190,9 +195,9 @@ func _leave_city(at: float) -> void:
 		T["lo"] = float(lo)
 		T["phase"] = -lo                         # 树那张图的第 0 列正好从屏幕右边进来
 	# 自测用（headless 也算得出来）：城的尽头离屏幕右边多远、树从哪一列进来
-	print("HOME_TRAIN leave_city t=%.1f mid_end=+%d near_end=+%d trees_lo=%s" % [at,
-		int(float(_L["mid"]["hi"]) - float(_L["mid"]["s"]) - SCREEN_W) if at >= 0.0 else -1,
-		int(float(_L["near"]["hi"]) - float(_L["near"]["s"]) - SCREEN_W) if at >= 0.0 else -1, str(T["lo"])])
+	print("HOME_TRAIN leave_city t=%.1f midfar_end=+%d mid_end=+%d trees_lo=%s" % [at,
+		int(float(_L["midfar"]["hi"]) - float(_L["midfar"]["s"]) - SCREEN_W) if at >= 0.0 else -1,
+		int(float(_L["mid"]["hi"]) - float(_L["mid"]["s"]) - SCREEN_W) if at >= 0.0 else -1, str(T["lo"])])
 
 
 func _occ(id: String, wx: float) -> float:
@@ -212,7 +217,7 @@ func _update_beams(delta: float) -> void:
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for b in _beams:
 		var wx: float = b["win"]
-		var occ := maxf(_occ("mid", wx), maxf(_occ("near", wx) * 0.7, _occ("trees", wx)))
+		var occ := maxf(_occ("mid", wx), maxf(_occ("midfar", wx) * 0.7, _occ("trees", wx)))
 		var target := lerpf(1.0, SHADE, occ)
 		b["v"] = lerpf(float(b["v"]), target, k)
 		(b["node"] as Sprite2D).modulate.a = float(b["v"])

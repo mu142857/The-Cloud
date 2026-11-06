@@ -96,7 +96,7 @@ func _bot_start() -> bool:
 func _bot_run() -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	while board == null:
-		await tree.process_frame
+		await StoryState.frame(tree)
 	await _bot_play()
 	_bot_hold = false
 	_bot_axis = 0
@@ -120,13 +120,51 @@ func _bot_key(code: Key) -> void:
 ## 机器人等：等 sec 秒（面板没了就不等）
 func _bot_wait(sec: float) -> void:
 	if _alive():
-		await board.get_tree().create_timer(sec).timeout
+		await board.get_tree().create_timer(sec, false).timeout
 
 
 ## 机器人等到能按（台词播完、面板收键）
 func _bot_ready() -> void:
 	while _alive() and not _accept:
-		await board.get_tree().process_frame
+		await StoryState.frame(board.get_tree())
+
+
+# ----------------------------------------------------------------------- 夜测：退出自测（--qa_quit，能退出的小游戏才跑）
+## 第 1 次进按 Esc，第 2 次进点 ×（都走 level.gate_event → _on_input，和玩家同一条路），第 3 次进正常做完。
+## 打印 QA_QUIT：设置有没有被打开、没算完成、背包没变；错了打 QA_QUIT_FAIL
+func _qa_quit_start() -> void:
+	if quit_ok and "--qa_quit" in OS.get_cmdline_user_args():
+		_qa_quit_run()
+
+
+func _qa_quit_run() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	while board == null:
+		await StoryState.frame(tree)
+	var n := int(s.get("enter", 0))
+	if n > 2:
+		return
+	var bag: Array = Inventory.owned.duplicate()
+	while _alive() and not _accept:
+		await StoryState.frame(tree)
+	if not _alive():
+		return
+	var e: InputEvent
+	if n == 1:
+		e = InputEventKey.new()
+		(e as InputEventKey).keycode = KEY_ESCAPE
+	else:
+		e = InputEventMouseButton.new()
+		(e as InputEventMouseButton).button_index = MOUSE_BUTTON_LEFT
+		(e as InputEventMouseButton).position = _quit_rect().get_center()
+	e.set("pressed", true)
+	level.gate_event(e)
+	_on_input(e)
+	var settings: bool = level.get("_settings").visible
+	while story.mech_running == ID:
+		await StoryState.frame(tree)
+	var ok := quitted and not settings and not bool(story.mech_load(ID).get("_done", false)) and Inventory.owned == bag
+	print("%s %s enter=%d by=%s settings=%s quitted=%s" % ["QA_QUIT" if ok else "QA_QUIT_FAIL", ID, n, "esc" if n == 1 else "x", settings, quitted])
 
 
 ## 按住：空格 / E / 回车 / Z / 鼠标左键（夜测机器人：_bot_hold）

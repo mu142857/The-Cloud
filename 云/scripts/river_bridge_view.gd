@@ -120,7 +120,7 @@ func _find_spot() -> void:
 	story.free_walk = true
 	level.story_free(true)
 	while not story.ended:
-		await story.get_tree().process_frame
+		await StoryState.frame(story.get_tree())
 		var a := align(step, story.chen.position.x, spot)
 		_set_clear(float(a[1]))
 		if a[0] and absf(story.chen._vel) < 1.0:
@@ -249,7 +249,7 @@ func _elephant_shadow() -> void:
 	if story.has_method("_ui_shot"):
 		story._ui_shot("bridge_shadow", dur * 0.45)
 	while t < dur and is_instance_valid(sh) and not story.ended:
-		await story.get_tree().process_frame
+		await StoryState.frame(story.get_tree())
 		t += story.get_process_delta_time()
 		var u := t / dur
 		sh.position = Vector2(roundf(lerpf(x0, x1, u)), y)

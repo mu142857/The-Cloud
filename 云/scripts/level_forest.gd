@@ -130,6 +130,7 @@ const START_COLOR := Color("#a3b8ad")
 const START_HOT := Color("#e2ebe5")
 const START_SPACING := 2
 const GEAR_A := 0.45
+const GEAR_PLAY_A := 0.6
 const LANG_ON := Color("#a3b8ad")      # 左下角语言切换：当前语言
 const LANG_OFF := Color("#56695f")     # 另一种语言（悬停时亮成 START_HOT）
 
@@ -248,6 +249,8 @@ var _hp_label: Label
 var _hp_any: Label
 var _dim: ColorRect
 var _settings: PanelContainer
+var _pause_gate: CanvasLayer             # 齿轮、设置面板在这一层（scripts/pause_gate.gd）
+var _sett_dim: ColorRect                 # 设置面板后面的暗幕（背包用 _dim，在 UI 层）
 var _settings_widgets := {}
 var _bag: Panel
 var _bag_slots: Array[Button] = []
@@ -301,6 +304,8 @@ var chapter := "forest"
 var _story_chain := false          # --story_chain：自动玩 / 测试时也接下一章（平时玩本来就接）
 var _beat_cli := false             # --beat 是命令行给的（测试 / 截图：不接下一章）
 var _engine_hum: AudioStreamPlayer
+var _hum_done := false          # 往前一冲以后引擎声不再回来（hum_done）
+const HUM_DB := -20.0           # 驾驶舱引擎声多响
 
 # ---- 声音
 var _rain: AudioStreamPlayer
@@ -461,6 +466,9 @@ func _ready() -> void:
 		for line in story.validate():
 			print("STORY_CHECK " + line)
 		print("STORY_CHECK done: %s, %d scenes, %d hotspots" % [story.path, story.scenes.size(), story.hotspot_defs.size()])
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with("--cycle_test="):
+				story.cycle_test(int(a.trim_prefix("--cycle_test=")))
 		get_tree().quit()
 		return
 	# F12 面板「跳节拍 / 重开本章」：重新载入本场景，再在这里接着跳（和 --beat / --stage 同一套）
@@ -561,7 +569,9 @@ func _apply_quality() -> void:
 
 
 # ======================================================================= 声音
-## 循环的环境音（ogg）：编辑器还没导入时直接读文件；ogg 导入默认不循环，这里打开
+## 循环的环境音（ogg / wav）：编辑器还没导入时直接读文件；ogg 导入默认不循环，这里打开。
+## wav 导入没开循环的（flight_engine_loop 4 秒）：复制一份设成 LOOP_FORWARD（不改缓存里那份）——原来靠 finished → play() 重开，
+## 每 4 秒重开那一帧没在放又响着，--qa_audio 报 hard_start（11-05 ch1-fx 三遍都撞到，时间随机），耳朵里也是一下断口。
 static func _ambient_stream(path: String) -> AudioStream:
 	var s: AudioStream = null
 	if ResourceLoader.exists(path):
@@ -570,6 +580,12 @@ static func _ambient_stream(path: String) -> AudioStream:
 		s = AudioStreamOggVorbis.load_from_file(ProjectSettings.globalize_path(path))
 	if s is AudioStreamOggVorbis:
 		(s as AudioStreamOggVorbis).loop = true
+	elif s is AudioStreamWAV and (s as AudioStreamWAV).loop_mode == AudioStreamWAV.LOOP_DISABLED:
+		var w := (s as AudioStreamWAV).duplicate() as AudioStreamWAV
+		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		w.loop_begin = 0
+		w.loop_end = int(round(w.get_length() * w.mix_rate))
+		s = w
 	return s
 
 
@@ -594,6 +610,8 @@ func _sfx(name: String, db := 0.0, pitch := 1.0) -> void:
 	p.bus = "SFX"
 	p.volume_db = db
 	p.pitch_scale = pitch
+	if get_tree().paused:
+		p.process_mode = Node.PROCESS_MODE_ALWAYS   # 设置面板的声音（别的音效跟着暂停停住）
 	add_child(p)
 	p.play()
 	p.finished.connect(p.queue_free)
@@ -625,6 +643,9 @@ func _build_ui() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(root)
+	_pause_gate = (load("res://scripts/pause_gate.gd") as GDScript).new()
+	_pause_gate.level = self
+	add_child(_pause_gate)
 
 	# ---- 电影黑边（先加，在最底下）
 	for i in 2:
@@ -714,11 +735,8 @@ func _build_ui() -> void:
 	_gear.size = Vector2(11, 11)
 	_gear.focus_mode = Control.FOCUS_NONE
 	_gear.modulate = Color(1, 1, 1, 0.0)
-	_gear.visible = false
-	_gear.pressed.connect(_open_settings)
 	_gear.mouse_entered.connect(func(): _gear.self_modulate = Color(1.6, 1.6, 1.6))
 	_gear.mouse_exited.connect(func(): _gear.self_modulate = Color.WHITE)
-	root.add_child(_gear)
 
 	# ---- 左下角语言切换（只在标题界面；设置里也能换）
 	_lang_corner = HBoxContainer.new()
@@ -873,7 +891,14 @@ func _build_ui() -> void:
 	_dim.visible = false
 	_dim.gui_input.connect(_on_dim_input)
 	root.add_child(_dim)
-	_build_settings(root)
+	_sett_dim = ColorRect.new()
+	_sett_dim.color = _dim.color
+	_sett_dim.size = _dim.size
+	_sett_dim.visible = false
+	_sett_dim.gui_input.connect(_on_dim_input)
+	_pause_gate.ui_root.add_child(_sett_dim)
+	_build_settings(_pause_gate.ui_root)
+	_pause_gate.ui_root.add_child(_gear)     # 齿轮在面板上面：开着的时候再点一下 = 关
 	_build_bag(root)
 
 	# ---- 耳机提示（在最上层 Top 里，盖在黑幕上）
@@ -1617,7 +1642,6 @@ func _fade_from_black() -> void:
 func _show_title() -> void:
 	_set_state(S.TITLE)
 	_title_root.visible = true
-	_gear.visible = true
 	_title_root.modulate.a = 1.0
 	_title_k = 0.0
 	_title_label.modulate.a = 0.0
@@ -1635,7 +1659,6 @@ func _show_title() -> void:
 	tw.parallel().tween_property(_title_lines[1], "modulate:a", 1.0, 1.6).set_delay(0.8)
 	tw.parallel().tween_property(_start_btn, "modulate:a", 1.0, 1.2).set_delay(1.6)
 	tw.parallel().tween_property(_credits_btn, "modulate:a", 0.85, 1.2).set_delay(2.0)
-	tw.parallel().tween_property(_gear, "modulate:a", GEAR_A, 1.2).set_delay(1.6)
 	tw.parallel().tween_property(_lang_corner, "modulate:a", 1.0, 1.2).set_delay(1.6)
 	# 不抢焦点：不然「开始」一出来就是高亮的。Enter / 空格照样能开始（见 _input），按方向键才聚焦。
 
@@ -1656,7 +1679,6 @@ func _skip_to_title() -> void:
 	_start_btn.modulate.a = 1.0
 	_credits_btn.modulate.a = 0.85
 	_lang_corner.modulate.a = 1.0
-	_gear.modulate.a = GEAR_A
 
 
 ## 「全剧终」→ 制作人员放完（story_runner._credits_roll 调）：回标题 = 新游戏。名单页已经淡到黑；
@@ -1678,33 +1700,36 @@ func _title_fade_in() -> void:
 	_set_state(S.INTRO)
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 1.0
+	_rain.play()                               # 环境音马上开始淡进来，和还在淡掉的片尾音乐交叉（不留真空）
+	_fade_db(_rain, RAIN_DB, 2.8)
 	_run([
-		[0.2, _rain_in],
 		[0.4, _fade_from_black],
 		[1.0, _show_title],
 	])
 	if _story_auto != "":                      # 自测：看到标题就算走完（不然自动玩会按「开始」又玩一遍）
-		get_tree().create_timer(1.9).timeout.connect(func():
+		get_tree().create_timer(1.9, false).timeout.connect(func():
 			print("TITLE_AFTER_CREDITS state=%s fade=%.2f" % [S.keys()[state], fade.color.a])
 			get_tree().quit())
 
 
 func _open_credits() -> void:
-	if _credits_page != null or state in [S.HEADPHONES, S.INTRO, S.CRASH, S.CINE]:
+	if _credits_page != null or (state in [S.HEADPHONES, S.INTRO, S.CRASH, S.CINE] and not _settings.visible):
 		return
+	var input_was: bool = chen.input_enabled   # 设置是剧情中途开的：回来还是原样，不把晨的输入打开
 	var back: Control = _credits_btn if state == S.TITLE else _settings_widgets["credits"]
 	_settings.visible = false
 	_bag.visible = false
 	_dim.visible = false
+	_sett_dim.visible = false
 	_sfx("ui_click", -10.0)
 	chen.input_enabled = false
 	_credits_page = (load("res://scripts/credits_page.gd") as GDScript).new()
+	_credits_page.process_mode = Node.PROCESS_MODE_ALWAYS   # 从设置进来时游戏是暂停的；关掉回到设置，还是暂停
 	_settings.get_parent().add_child(_credits_page)
 	_credits_page.closed.connect(func():
 		_credits_page = null
 		_sfx("ui_click", -12.0, 0.85)
-		if state == S.PLAY:
-			chen.input_enabled = true
+		chen.input_enabled = input_was
 		if back == _credits_btn:
 			if get_viewport().gui_get_focus_owner() != null:
 				_credits_btn.grab_focus()
@@ -1722,7 +1747,6 @@ func _on_start() -> void:
 # ======================================================================= 3. 开场动画
 func _hide_title() -> void:
 	_title_root.visible = false
-	_gear.visible = false
 
 
 func _start_crash() -> void:
@@ -1730,7 +1754,6 @@ func _start_crash() -> void:
 	_start_btn.release_focus()
 	var tw := _tw()
 	tw.tween_property(_title_root, "modulate:a", 0.0, 0.6)
-	tw.parallel().tween_property(_gear, "modulate:a", 0.0, 0.6)
 	tw.tween_callback(_hide_title)
 	var tc := _tw()
 	tc.tween_property(cam, "position:x", TITLE_CAM_X, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -2171,7 +2194,6 @@ func _skip_crash() -> void:
 	_kill_cine()
 	_title_root.visible = false
 	_title_root.modulate.a = 0.0
-	_gear.visible = false
 	_flash_k = 0.0
 	_impact_k = 0.0
 	ship.visible = false
@@ -2234,8 +2256,6 @@ func _enter_play() -> void:
 	_walk_target = NAN
 	_moved_from = chen.position.x
 	_hint_wait = 0.0
-	_gear.visible = true
-	create_tween().tween_property(_gear, "modulate:a", 0.6, 0.8)
 	if not Inventory.owned.is_empty() and free_roam == "" and not story.bag_locked():       # 自由探索：背包、燃料不出来；第一关新版：背包还没拿回来
 		_bag_btn.visible = true
 		create_tween().tween_property(_bag_btn, "modulate:a", 1.0, 0.5)
@@ -2243,8 +2263,6 @@ func _enter_play() -> void:
 
 
 func _leave_play_ui() -> void:
-	_gear.visible = false
-	_gear.modulate.a = 0.0
 	create_tween().tween_property(_keys_hint, "modulate:a", 0.0, 0.3)
 
 
@@ -2299,8 +2317,8 @@ func _wood_story(h: String) -> void:
 	await story.play_wood(h)
 	StoryState.set_flag("got_wood")
 	while not _seq.is_empty():
-		await get_tree().process_frame
-	await get_tree().create_timer(0.6).timeout
+		await StoryState.frame(get_tree())
+	await get_tree().create_timer(0.6, false).timeout
 	_pickup_done()
 	story.check_fuel_hook()
 
@@ -2463,18 +2481,76 @@ func _update_dialogue(delta: float) -> void:
 
 
 # ======================================================================= 面板
+## 设置 = 暂停（任何时候都能开，scripts/pause_gate.gd）。晨的输入不用动：暂停时晨收不到，关掉原地接着走
 func _open_settings() -> void:
-	if state in [S.HEADPHONES, S.INTRO, S.CRASH, S.CINE] or _settings.visible:
+	if _settings.visible:
 		return
 	_close_panels()
+	_pause_tree(true)
 	_sfx("ui_click", -10.0)
 	_panel_prev_focus = get_viewport().gui_get_focus_owner()
 	_sync_settings()
 	_settings.visible = true
-	_dim.visible = true
+	_sett_dim.visible = true
 	_center_settings()
-	chen.input_enabled = false
 	(_settings_widgets["lang_a"] as Button).grab_focus()
+
+
+## 自动测试靠关卡的 _process 走（乱玩、截图），暂停了就走不动了：这些时候面板照开，不真暂停
+func _pause_tree(on: bool) -> void:
+	if _fuzz > 0.0 or _shot != "" or _shots_dir != "" or _autoplay or _browse > 0 or _debug_stage != "":
+		return
+	get_tree().paused = on
+
+
+## 每帧（pause_gate._process，暂停时也跑）：齿轮一直在，只跟着全黑转场淡；制作人员页盖着时不用
+func gear_tick() -> void:
+	_gear.visible = _credits_page == null
+	_gear.modulate.a = (GEAR_A if state == S.TITLE else GEAR_PLAY_A) * (1.0 - fade.color.a)
+	if _settings.visible and get_tree().paused:
+		var f := get_viewport().gui_get_focus_owner()     # 方向键别把焦点走到面板外面暂停着的按钮（对话的选项）上
+		if f != null and not _settings.is_ancestor_of(f):
+			(_settings_widgets["lang_a"] as Button).grab_focus()
+
+
+## pause_gate._input：比所有小游戏、对话框都先收到。Esc 开 / 关设置，点齿轮开 / 关；暂停时制作人员页的按键也从这里给
+func gate_input(event: InputEvent) -> void:
+	if _autoplay or _shots_dir != "" or _shot != "" or _story_auto != "" or story == null:
+		return
+	gate_event(event)
+
+
+func gate_event(event: InputEvent) -> void:
+	if _credits_page != null:
+		if get_tree().paused:
+			_credits_page.handle(event)
+			_handled()
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and _gear.get_global_rect().grow(2.0).has_point(event.position):
+		if event.pressed:
+			if _settings.visible:
+				_close_panels()
+			else:
+				_open_settings()
+		_handled()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		if _settings.visible or _bag.visible:
+			_close_panels()
+		elif _esc_is_back():
+			return
+		else:
+			_open_settings()
+		_handled()
+
+
+## Esc 只是「退出这个界面」的（通讯器翻聊天记录、能关的特写）：先退出，再按才开设置。
+## 别的（通讯器 / 驾驶舱的选择）Esc 不替玩家选，直接开设置
+func _esc_is_back() -> bool:
+	if story.phone != null and story.phone.is_open() and story.phone.mode == "browse":
+		return true
+	if story.mech_node != null and story.mech_node.has_method("can_quit") and story.mech_node.can_quit():
+		return true                    # 能退出的小游戏（煮锅、来客册）开着：Esc 先退小游戏，面板外才开设置
+	return story.closeup_ui != null and story.closeup_ui.is_open() and story.closeup_ui._can_close()
 
 
 func _toggle_bag() -> void:
@@ -2505,12 +2581,17 @@ func _toggle_bag() -> void:
 
 func _close_panels() -> void:
 	var was := _settings.visible or _bag.visible
+	var bag_was := _bag.visible
+	var settings_was := _settings.visible
 	_settings.visible = false
 	_bag.visible = false
 	_dim.visible = false
+	_sett_dim.visible = false
 	if was:
 		_sfx("ui_click", -12.0, 0.85)
-	if state == S.PLAY:
+	if settings_was:
+		_pause_tree(false)
+	if bag_was and state == S.PLAY:
 		chen.input_enabled = true
 	if state == S.TITLE:
 		if _panel_prev_focus == _start_btn:
@@ -2574,10 +2655,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var k: int = event.keycode
 		if k == KEY_ESCAPE:
-			if _settings.visible or _bag.visible:
+			if _settings.visible or _bag.visible:      # 开设置在 gate_input；走到这里的是通讯器、特写没接的 Esc
 				_close_panels()
-			elif state in [S.TITLE, S.PLAY]:
-				_open_settings()
 			_handled()
 			return
 		if k in TEST_SCENES and state == S.TITLE and OS.is_debug_build() and not (_settings.visible or _bag.visible):
@@ -2903,7 +2982,7 @@ func camera_pan(to: Vector2, sec: float, ease := Tween.EASE_IN_OUT) -> void:
 	while tw.is_valid() and tw.is_running():          # 被别的镜头指令停掉也会返回（停掉的 tween 不发 finished）
 		if not is_inside_tree():
 			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 
 
 var _cam_pan_tw: Tween
@@ -3386,13 +3465,13 @@ func stroll_to(x: float) -> void:
 	var t := 0.0
 	var limit := absf(x - chen.position.x) / STROLL_SPEED + 2.0
 	while not is_nan(_stroll_x) and t < limit:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 	_stroll_x = NAN
 	chen.auto_dir = 0.0
 	t = 0.0
 	while chen._vel > 0.0 and t < 0.5:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 
 
@@ -3545,7 +3624,7 @@ func _pixel_run(sec: float, cover: bool) -> void:
 	fx.queue_redraw()
 	var per := sec / float(PIXEL_STEPS)
 	for i in PIXEL_STEPS:
-		await get_tree().create_timer(per).timeout
+		await get_tree().create_timer(per, false).timeout
 		if not is_instance_valid(fx):
 			return
 		fx.set_meta("k", (i + 1) if cover else (PIXEL_STEPS - 1 - i))
@@ -3584,7 +3663,7 @@ func _fade_go(a: float, sec: float) -> void:
 	_fade_tw = tw
 	tw.tween_property(fade, "color:a", a, sec).set_trans(Tween.TRANS_SINE)
 	while tw.is_valid() and tw.is_running():          # 被后来的停掉也返回（停掉的 tween 不发 finished）
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 
 
 ## 换了位置：黑屏换地方时镜头直接跳过去、雾直接到位（进出屋不黑屏，镜头照常跟）；屋里雨声小一点
@@ -3599,8 +3678,32 @@ func on_room_changed(snap := true) -> void:
 		story.world.fog_k = story.world.fog_at(cam.position.x)
 	if chapter != "forest":
 		_sync_forest_layers()
+		_hum_to(story.world.room == "cockpit")       # 引擎声跟着房间：回驾驶舱淡进来、落地到别的房间淡掉（同一个播放器，不重开）
+		_birds_to(_birds_db_for(story.world.room))   # 鸟叫跟着房间（尾声森林 / 芦苇地 / 停着的驾驶舱），别的房间淡掉
 		return                                       # 驾驶舱里没有雨
 	_fade_db(_rain, RAIN_ROOM_DB if story.world.in_room() else RAIN_DB, 1.2)      # 房间的环境音在 room_stage.ambient_enter 里同时淡进来，两边交叉
+
+
+## 别的章节里的鸟叫（11-05 qa_audio：终章落地后芦苇地 → 尾声森林 57 秒没有任何环境声）：森林章同一条 forest_birds（_rain），
+##   尾声森林 RAIN_DB；芦苇地同一条轻 4 dB（场上没别的环境声）；落地后停在芦苇地的驾驶舱（e1_phone，hum_done 以后）隔着壳 -30；
+##   树屋和别的房间 RAIN_ROOM_DB（-60，作者：进屋鸟叫淡出）。都是 2 秒交叉淡化，同一个播放器只改音量。
+func _birds_db_for(room: String) -> float:
+	if room == "forest":
+		return RAIN_DB
+	if room == "reed_field":
+		return RAIN_DB - 4.0
+	if room == "cockpit" and _hum_done:
+		return -30.0
+	return RAIN_ROOM_DB
+
+
+func _birds_to(db: float) -> void:
+	if _rain == null or not is_instance_valid(_rain):
+		return
+	if db > RAIN_ROOM_DB and not _rain.playing:
+		_rain.volume_db = -60.0
+		_rain.play()
+	_fade_db(_rain, db, 2.0)
 
 
 ## 别的章节里回到森林（终章尾声：森林路口 → 树屋，docs/第三章计划.md 第十节）：_start_chapter 藏起来的森林图层再显示出来，
@@ -3683,35 +3786,35 @@ func _board_ship() -> void:
 		var need := around + BOARD_CHEN_HALF + BOARD_DEER_HALF + 4.0 - (24.0 if moving else 0.0)
 		if deer.position.x >= need or (not moving and deer.position.x < chen.position.x):
 			break
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		wt += get_process_delta_time()
 	if absf(around - chen.position.x) > 8.0:
 		await _cine_walk(around)        # 已经站在船尾边上（和鹿道别的地方）就不再挪那几个像素（起步又停，像抽了一下）
 	# 绕过船尾了：换到飞船后面（船图 Wreck 前面一格；这时晨和船身不重叠）
 	_chen_idx = chen.get_index()
 	move_child(chen, wreck.get_index())
-	await get_tree().create_timer(0.15).timeout
+	await get_tree().create_timer(0.15, false).timeout
 	chen._set_facing(-1)
-	await get_tree().create_timer(0.1).timeout
+	await get_tree().create_timer(0.1, false).timeout
 	var fade_from := hatch + BOARD_FADE
 	chen.auto_dir = -1.0
 	var t := 0.0
 	while chen.position.x > hatch + 2.0 and t < 4.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 		var k := clampf((fade_from - chen.position.x) / BOARD_FADE, 0.0, 1.0)
 		chen.modulate.a = 1.0 - floorf(k * 4.0) / 4.0
 	chen.auto_dir = 0.0
 	chen.visible = false
 	chen.modulate.a = 1.0
-	await get_tree().create_timer(0.35).timeout
+	await get_tree().create_timer(0.35, false).timeout
 	_sfx("metal_clank", -9.0, 0.72)                  # 舱门关上
 	var w0 := wreck.position
 	wreck.position = w0 + Vector2(0, 1)              # 船身轻轻一沉
-	await get_tree().create_timer(0.1).timeout
+	await get_tree().create_timer(0.1, false).timeout
 	_sfx("small_click", -10.0, 0.8)
 	wreck.position = w0
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.3, false).timeout
 	_boarding = false
 
 
@@ -3723,12 +3826,12 @@ func _cine_walk(x: float) -> void:
 	chen.auto_dir = dir
 	var t := 0.0
 	while signf(x - chen.position.x) == dir and absf(x - chen.position.x) > 2.0 + chen.stop_distance() and t < 4.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 	chen.auto_dir = 0.0
 	t = 0.0
 	while chen._vel > 0.0 and t < 1.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 
 
@@ -3795,7 +3898,7 @@ func story_takeoff() -> void:
 		return
 	var t := 0.0
 	while _boarding and t < 6.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		t += get_process_delta_time()
 	chen.visible = false
 	_bars_in(0.6)
@@ -3820,7 +3923,7 @@ func story_takeoff() -> void:
 	while t < TAKEOFF_WARM:
 		if not is_inside_tree():
 			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var dt := get_process_delta_time()
 		t += dt
 		var k := t / TAKEOFF_WARM
@@ -3852,7 +3955,7 @@ func story_takeoff() -> void:
 	while t < TAKEOFF_LIFT:
 		if not is_inside_tree():
 			return                        # 开发者面板重开本章：这个节点已经不在场景树里了
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var dt := get_process_delta_time()
 		t += dt
 		var k := clampf(t / TAKEOFF_LIFT, 0.0, 1.0)
@@ -3881,7 +3984,7 @@ func story_takeoff() -> void:
 	t = 0.0
 	y_prev = hover.y
 	while t < TAKEOFF_HOVER:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var dt := get_process_delta_time()
 		t += dt
 		var y := hover.y - roundf(sin(t / TAKEOFF_HOVER * PI))
@@ -3900,7 +4003,7 @@ func story_takeoff() -> void:
 	var a0 := _lift_ang
 	var p := _lift_pos
 	while t < 5.0:
-		await get_tree().process_frame
+		await StoryState.frame(get_tree())
 		var dt := get_process_delta_time()
 		t += dt
 		_lift_row = 2 + int(t / 0.1) % 2
@@ -3919,7 +4022,7 @@ func story_takeoff() -> void:
 	puffs_back.remove_source("trail")
 	puffs_back.remove_source("trail_sparks")
 	_lift.visible = false
-	await get_tree().create_timer(0.6).timeout
+	await get_tree().create_timer(0.6, false).timeout
 	await fade_to_black(1.6)
 	_restore_chen_order()
 	camera_release()
@@ -4040,17 +4143,17 @@ func _start_chapter(play: bool) -> void:
 	chen.visible = true
 	chen._set_facing(-1 if room == "cockpit" else 1)   # 驾驶舱：机头在左边，看着前窗
 	_snap_camera()
-	# 驾驶舱里低低的引擎声
+	# 驾驶舱里低低的引擎声：一个播放器放整章（真循环，不重开），进出驾驶舱只淡音量（_hum_to；on_room_changed 跟着房间）
 	var hum := "res://audio/sfx/flight_engine_loop.wav"
 	if room == "cockpit" and ResourceLoader.exists(hum):
 		_engine_hum = AudioStreamPlayer.new()
-		_engine_hum.stream = load(hum)
+		_engine_hum.name = "EngineHum"                 # 复制出来的循环流没有路径，--qa_audio 认不出名字，节点名顶上
+		_engine_hum.stream = _ambient_stream(hum)
 		_engine_hum.bus = "SFX"
 		_engine_hum.volume_db = -60.0
 		add_child(_engine_hum)
-		_engine_hum.finished.connect(_engine_hum.play)
 		_engine_hum.play()
-		_fade_db(_engine_hum, -20.0, 2.0)
+		_fade_db(_engine_hum, HUM_DB, 2.0)
 	fade.color.a = 1.0
 	_enter_play()
 	_hud_burn.modulate.a = 0.0
@@ -4324,9 +4427,21 @@ func _free_spawn(id: String) -> void:
 		x = (fw.x + fw.y) / 2.0 if sg.is_house else fw.x + 40.0
 	story._teleport(id, x, [], true)
 	_walk_target = NAN
-	if _engine_hum != null and id != "cockpit":
-		_fade_db(_engine_hum, -60.0, 0.8)          # 终章从驾驶舱起（_start_chapter 开的引擎声），探索直接站到别的房间：淡掉，不掐断
+	_hum_to(id == "cockpit", 0.8)              # 终章从驾驶舱起（_start_chapter 开的引擎声），探索直接站到别的房间：淡掉，不掐断
 	_enter_play()
+
+
+## 驾驶舱引擎声淡进 / 淡出（一直在放，只改音量；重复进出不重开，也不会两个 tween 抢）
+func _hum_to(on: bool, sec := 1.0) -> void:
+	if _engine_hum == null or not is_instance_valid(_engine_hum) or _hum_done:
+		return
+	_fade_db(_engine_hum, HUM_DB if on else -60.0, sec)
+
+
+## 往前一冲以后（船落地 / 离开了）：引擎声淡掉，这一章不再回来——尾声回停着的驾驶舱（e1_phone，窗外 yard_parked）不该再响
+func hum_done() -> void:
+	_hum_to(false, 1.6)
+	_hum_done = true
 
 
 ## 进出口：剧本里 scene 会 fade_to 到别的房间 / 森林另一段的 hotspot（同一个地方、同一个去处只留一个；不看 need / not，

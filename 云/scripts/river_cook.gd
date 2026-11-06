@@ -33,6 +33,7 @@ var _steam: Array = []
 
 func _init() -> void:
 	ID = "river_cook"
+	quit_ok = true
 	panel = Vector2(232, 140)
 
 
@@ -45,10 +46,11 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	_build("RiverCook", [])
 	await _fade_in()
 	await _lines("intro")
-	_set_hint(step.get("hint", HINT))
-	_shot("cook", 0.8)
-	_accept = true
-	while _alive() and idx < ings.size():
+	if not _quit_req:
+		_set_hint(step.get("hint", HINT))
+		_shot("cook", 0.8)
+		_accept = true
+	while _alive() and idx < ings.size() and not _quit_req:
 		if auto_mode and _phase_err() < 0.05:
 			_drop_in()
 		await _frame()
@@ -56,6 +58,10 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	if not _alive():
 		_drop()
 		return
+	if _quit_req:
+		await _quit_out()
+		return
+	quit_ok = false
 	await _wait(0.7)
 	_done()
 	_set_hint({})
@@ -66,6 +72,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	auto_mode = true
 	_bot_start()                         # 夜测 --mech_play：照玩家的节奏按键玩（不快进）
+	_qa_quit_start()
 	await run(lv, w, r, st)
 
 
@@ -74,7 +81,7 @@ func ff(r: Node, st: Dictionary) -> void:
 
 
 func check(r: Node, st: Dictionary) -> Array:
-	var out := _check_lines(r, st, ["intro", "done"])
+	var out := _check_lines(r, st, ["intro", "done"]) + _check_quit(r, st)
 	for g in st.get("ingredients", []):
 		if not g is Dictionary or str(g.get("zh", "")) == "" or str(g.get("en", "")) == "":
 			out.append("ingredients：每样要有 zh / en：%s" % str(g))

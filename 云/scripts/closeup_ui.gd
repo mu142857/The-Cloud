@@ -101,7 +101,7 @@ func open(spec: Dictionary, auto_index := -2) -> String:
 	_hint.text = ""
 	queue_redraw()
 	if auto_index > -2:
-		await get_tree().create_timer(0.3).timeout
+		await get_tree().create_timer(0.3, false).timeout
 		if _open:
 			_finish(str(_zones[auto_index].get("id", "")) if auto_index >= 0 and auto_index < _zones.size() else "")
 		return _result

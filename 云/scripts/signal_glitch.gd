@@ -130,7 +130,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 			n += 1
 			mat.set_shader_parameter("seed", float(n) * 1.618)
 			var dt := minf(RESEED * k, left)
-			await tree.create_timer(dt).timeout
+			await tree.create_timer(dt, false).timeout
 			left -= dt
 	# 最后一下：撕裂收住，整张淡掉
 	mat.set_shader_parameter("amt", 0.2)

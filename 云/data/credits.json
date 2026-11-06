@@ -1,6 +1,6 @@
 {
- "_说明": "第一关奔跑片头的制作人员（scripts/run_credits.gd 读）。每人一个小场景，挂在森林里晨前方的某处：萤火虫聚成名字、雾里用光写出名字、落叶落成名字、一束光一个像素一个像素地画出名字、最后特别感谢像星星一样出现在天上。名字、顺序、职务是作者定的（11-05：木木 程序 & 美术、本2兔 剧情 & 音乐、梧桐 / 奥斯卡 美术；Sothere456 原案 / Original Story）。11-05 作者「都跑到了才显示奥斯卡和梧桐，这肯定来不及」：Shift 跑到背包只要 4 秒多，木木、本2兔、梧桐、奥斯卡都要在跑的时候成形（start 0 / 0.4 / 1.2 / 1.8，pace = 成形快几倍），四个 depth 相同才不会互相追上，分上下两行，都在晨那句「好熟悉的感觉……」（天空 y 45–62，5.6 秒淡完）下面；Sothere456 钉在天上和那句话同高，start 5.7 等它淡完。batch 只是给人看的标记。",
- "_字段": "name / role：{zh, en}，按游戏语言显示一种。style：fireflies / mist / leaves / light / sky。color：名字的颜色（Linger / Oscar Rush 里各人的颜色）。depth：景深（0 = 钉在屏幕上，1 = 和晨脚下一样快；越小在屏幕上走得越慢、停得越久）。dx：轮到它时放在镜头中心右边多少像素（屏幕像素）；也可以写 x 固定在世界坐标。y：世界 y（地面约 228，屏幕中间 135）；sky 用 screen_y。start：从开始跑算起第几秒出现（不写 = 第几个 × gap）。hold：完整停留几秒。",
+ "_说明": "第一关奔跑片头的制作人员（scripts/run_credits.gd 读）。每人一个小场景，挂在森林里晨前方的某处：萤火虫聚成名字、雾里用光写出名字、落叶落成名字、一束光一个像素一个像素地画出名字、最后特别感谢像星星一样出现在天上。名字、顺序、职务是作者定的（11-05：木木 程序 & 美术、本2兔 剧情 & 音乐、梧桐 / 奥斯卡 美术；Sothere456 原案 / Original Story）。11-05 作者「都跑到了才显示奥斯卡和梧桐，这肯定来不及」：Shift 跑到背包只要 4 秒多，木木、本2兔、梧桐、奥斯卡都要在跑的时候成形（start 0 / 0.4 / 1.2 / 1.8，pace = 成形快几倍），四个 depth 相同才不会互相追上，分上下两行，都在晨那句「好熟悉的感觉……」（天空 y 45–62，5.6 秒淡完）下面；11-05 作者：Sothere456 森林这里去掉，只在制作人员页（credits_page）保留，所以写 run: false。batch 只是给人看的标记。",
+ "_字段": "name / role：{zh, en}，按游戏语言显示一种。style：fireflies / mist / leaves / light / sky。color：名字的颜色（Linger / Oscar Rush 里各人的颜色）。depth：景深（0 = 钉在屏幕上，1 = 和晨脚下一样快；越小在屏幕上走得越慢、停得越久）。dx：轮到它时放在镜头中心右边多少像素（屏幕像素）；也可以写 x 固定在世界坐标。y：世界 y（地面约 228，屏幕中间 135）；sky 用 screen_x（不写 = 正中）、screen_y。pace：成形快几倍（默认 1）。run: false：奔跑片头跳过，只在制作人员页出。start：从开始跑算起第几秒出现（不写 = 第几个 × gap）。hold：完整停留几秒。",
  "gap": 2.4,
  "music": "",
  "entries": [
@@ -12,7 +12,7 @@
    "color": "e08638", "depth": 0.15, "dx": 140, "y": 112, "start": 1.2, "pace": 1.4, "hold": 1.8},
   {"id": "oscar", "style": "light", "name": {"zh": "奥斯卡", "en": "Zpbrqols"}, "role": {"zh": "美术", "en": "Art"}, "batch": 2,
    "color": "c8b83b", "depth": 0.15, "dx": 175, "y": 162, "start": 1.8, "pace": 1.4, "hold": 1.8},
-  {"id": "sothere456", "style": "sky", "name": {"zh": "Sothere456", "en": "Sothere456"}, "role": {"zh": "原案", "en": "Original Story"}, "batch": 2,
-   "note": "剧情姐；11-05 作者定的头衔：原案", "color": "d8d4cc", "screen_y": 40, "start": 5.7, "hold": 3.6}
+  {"id": "sothere456", "style": "sky", "name": {"zh": "Sothere456", "en": "Sothere456"}, "role": {"zh": "原案", "en": "Original Story"}, "run": false,
+   "note": "剧情姐；11-05 作者定的头衔：原案", "color": "d8d4cc", "screen_y": 40, "hold": 3.6}
  ]
 }

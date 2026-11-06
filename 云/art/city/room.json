@@ -11,6 +11,6 @@
 	"markers": {"city_station": 80, "city_arrive": 1290, "city_start": 1370},
 	"objects": {},
 	"portals": [],
-	"ambient": [{"name": "rain_loop", "db": -14}],
+	"ambient": [{"name": "rain_loop", "db": -14, "out": 26, "_note": "11-05 qa_audio：出城上火车到片尾曲之间 12 秒真空（火车的 train_run 还没有文件）；雨声慢慢淡 26 秒（约 14 秒后听不见），和片尾曲淡入交织"}],
 	"scripts": [{"script": "res://scripts/city_room.gd", "x": 0, "y": 0, "z": 0}]
 }
