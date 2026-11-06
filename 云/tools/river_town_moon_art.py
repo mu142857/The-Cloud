@@ -2362,6 +2362,8 @@ def oldstreet_json(old):
                    "still": 16, "bubble_3": [0, 3], "bubble_2": [4, 7], "bubble_1": [12, 15], "default": [0, 3]}}
     j["objects"]["oldstreet_height_wall"] = {"x": 880, "y": 160, "w": 20, "h": 12, "frames": 2,
                                              "states": {"default": 0, "seen": 1}}
+    # 11-06 重写稿：水退以后露出来的氧气瓶。图 oldstreet_tank.png 是单独画的（story 主线第 4 段），这个脚本不生成它
+    j["objects"]["oldstreet_tank"] = {"x": 660, "y": 220, "w": 16, "h": 16, "frames": 2, "states": {"default": 0, "revealed": 1}}
     j["objects"]["oldstreet_steps"] = {"x": 0, "y": 0, "w": 1, "h": 1, "frames": 1,
                                        "states": {k: 0 for k in ["default"] + list(WATER)}}
     for k in ("water", "walk", "walk_when", "portals", "ambient", "origin", "scripts"):

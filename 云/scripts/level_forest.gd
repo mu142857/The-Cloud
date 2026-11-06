@@ -3030,8 +3030,6 @@ func _cam_target() -> float:
 	if story != null and story.world.cockpit != null and story.world.in_cockpit():
 		t = story.world.cockpit.center().x           # 驾驶舱一屏：镜头不动
 	var sg: Node2D = story.world.cur_stage() if story != null and story.world != null else null
-	if sg != null and story.mech_running != "" and sg.cfg.has("viewfinder"):
-		t = chen.position.x                             # 南桥取景框（room.json viewfinder 按「镜头正对晨」出的图）：小游戏期间不往前多看
 	if sg != null:
 		if sg.is_house:
 			t = lerpf(t, sg.center().x, 0.55)           # 小屋里往屋子中心收一点（树屋同款）

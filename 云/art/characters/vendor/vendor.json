@@ -13,6 +13,7 @@
  "ms": 100,
  "tint": true,
  "head": 46,
+ "pass": true,
  "speed": 20,
  "color": "#5e6a5a",
  "anims": {

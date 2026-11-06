@@ -18,7 +18,7 @@ extends RefCounted
 ## 板子存在 StoryState 物件状态 "river_board"（JSON：[{k, zh, en, done?, added?, x?}]，x = 试过不对的刻度，写成 ×）。
 ## 各小游戏的中间进度用 story.mech_load / mech_save（约定 3.3），离开再回来、F8 跳节拍都还在。
 ##
-## 共用小工具（river_salvage、river_bridge_view，森林的 side_kit、side_toucan、side_slope、rabbit_dance、ship_repair preload 这个文件用）：
+## 共用小工具（river_salvage，森林的 side_kit、side_toucan、side_slope、rabbit_dance、ship_repair preload 这个文件用）：
 ##   choose(m, story, opts, hint)：等玩家走过去互动一个点（story.wait_interact）；自动玩时直接挑对的（full 先把错的各试一次）。
 ##   steps / lines：播一串剧本步骤（story.run_steps）。node / local_x：物件节点、marker 的房间 x。
 

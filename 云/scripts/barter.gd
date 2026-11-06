@@ -16,6 +16,8 @@ extends RefCounted
 ##   设 flag：barter_<npc>_<trade id>（这一笔）、barter_<npc>（和它换过）、barter_any（换过任何一次），再加 trade.flags；
 ##   最后跳到 trade.then（空 = 接着往下播）。一笔只能换一次；need / not 跟 hotspot 一样看 flag（比如第二笔要先换过第一笔）。
 ##   keep: true = 只是给对方看 / 听一下，东西还留在晨手里（大嘴鸟听一遍音乐盒，回一只鸟哨）。
+##   want: "*" = 什么都收（11-06 市集修补摊换密封圈）：选择条里只摆能给的，任务物品（category quest）和 except 里的不摆，免得主线缺东西。
+##     一件能给的都没有：不收东西白送，播 trade.empty（不让玩家卡在没东西可换上）。
 ## 成就 / 蝴蝶效应：别的剧本只看上面这些 flag（docs/以物易物交换表.md）。flag 跟着 StoryState 存档、换章带过去。
 ##   成就表在 data/achievements.json（all / any 看 flag）；没有单独界面，终章「全剧终」卡下面 show_achievements 列出拿到的几个。
 ## 自动玩 / 跳节拍：一律选「算了」（交换都是可去可不去的，不动背包，主线照常）。
@@ -84,35 +86,54 @@ func run(st: Dictionary) -> String:
 	if open.is_empty():
 		return str(d.get("done", ""))
 	var items: Array = r._bag_items()
+	for t in open:
+		if str(t.get("want", "")) == "*":
+			items = items.filter(func(x): return can_give(t, str(x["id"])))
+			if items.is_empty():
+				return await _trade(who, t, "")
 	var ai := items.size() if r.auto != "" or r.ff else -1      # 自动玩 / 跳节拍：「算了」
 	if r.auto != "" and "--barter_take" in OS.get_cmdline_user_args():
 		for i in items.size():                                   # 测交换那条路：自动玩递第一件某笔要的东西
 			for t in open:
-				if ai == items.size() and str(t.get("want", "")) == str(items[i]["id"]):
+				if ai == items.size() and str(t.get("want", "")) in [str(items[i]["id"]), "*"]:
 					ai = i
 	r._ui_shot("items", 0.35)
 	var it: String = await r.dlg.choose_item(items, I18n.t("barter_none"), ai)
 	if it == "":
 		return await _inline(str(d.get("none", "")))
 	for t in open:
-		if str(t.get("want", "")) != it:
-			continue
-		var g := await _inline(str(t.get("scene", "")))
-		if g != "" or r.ended:
-			return g
-		if not bool(t.get("keep", false)):
-			r._take(it)
-		var got := str(t.get("get", ""))
-		if got != "":
-			await r._give(got)
-		StoryState.set_flag(trade_flag(who, t))
-		StoryState.set_flag("barter_" + who)
-		StoryState.set_flag("barter_any")
-		for f in t.get("flags", []):
-			StoryState.set_flag(str(f))
-		return str(t.get("then", ""))
+		if str(t.get("want", "")) in [it, "*"]:
+			return await _trade(who, t, it)
 	var react: Dictionary = d.get("react", {})
 	return await _inline(str(react.get(it, d.get("wrong", ""))))
+
+
+## want: "*" 的这一笔收不收这件：任务物品、except 里的不收
+func can_give(t: Dictionary, id: String) -> bool:
+	return str(Inventory.item(id).get("category", "")) != "quest" and not (t.get("except", []) as Array).has(id)
+
+
+## 成交：播台词，交出 it（"" = 白送，播 empty），拿到 get，记 flag
+func _trade(who: String, t: Dictionary, it: String) -> String:
+	var g := await _inline(str(t.get("scene" if it != "" else "empty", "")))
+	if g != "" or r.ended:
+		return g
+	var n0: int = Inventory.owned.count(it)
+	var keep := bool(t.get("keep", false)) or it == ""
+	if not keep:
+		r._take(it)
+	var got := str(t.get("get", ""))
+	if got != "":
+		await r._give(got)
+	StoryState.set_flag(trade_flag(who, t))
+	StoryState.set_flag("barter_" + who)
+	StoryState.set_flag("barter_any")
+	for f in t.get("flags", []):
+		StoryState.set_flag(str(f))
+	if "--barter_take" in OS.get_cmdline_user_args():
+		var ok: bool = (keep or Inventory.owned.count(it) == n0 - 1) and (got == "" or Inventory.has(got))
+		print("%s %s.%s gave=%s count=%d->%d got=%s" % ["QA_BARTER" if ok else "QA_BARTER_FAIL", who, t.get("id"), it, n0, Inventory.owned.count(it), got])
+	return str(t.get("then", ""))
 
 
 ## 当台词播一段 scene（和 if 落空的分支一样：播完回来，接着播 barter 后面的步骤；里面 goto 了就跟着跳）
@@ -213,11 +234,14 @@ func validate(id: String, st: Dictionary, refs: Dictionary) -> Array[String]:
 		if ids.has(str(t["id"])):
 			out.append("barter %s：交换 id 重复 %s" % [who, t["id"]])
 		ids[str(t["id"])] = true
+		for iid2 in t.get("except", []):
+			if not Inventory.defined(str(iid2)):
+				out.append("barter %s.%s：except 的物品 %s 不在物品表" % [who, t["id"], iid2])
 		for k in ["want", "get"]:
 			var iid := str(t.get(k, ""))
-			if iid != "" and not Inventory.defined(iid):
+			if iid != "" and iid != "*" and not Inventory.defined(iid):
 				out.append("barter %s.%s：%s 的物品 %s 不在物品表" % [who, t["id"], k, iid])
-		for k in ["scene", "then"]:
+		for k in ["scene", "then", "empty"]:
 			_ref(out, refs, "%s.%s" % [who, t["id"]], str(t.get(k, "")))
 	for k in ["wrong", "none", "done"]:
 		_ref(out, refs, who, str(d.get(k, "")))

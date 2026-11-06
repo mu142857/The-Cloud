@@ -1,5 +1,5 @@
 extends Control
-## 晨头顶的小气泡（剧本 say 带 "bark": true）：不锁人、不用按键，跟着晨走，几秒后自己淡掉；多句排队依次显示。
+## 说话人头顶的小气泡（剧本 say 带 "bark": true；11-06 不只晨，妮芙边跟着走边说也用它）：不锁人、不用按键，跟着说话的人走，几秒后自己淡掉；多句排队依次显示。
 ## story_runner.gd 建它（关卡 UI 层里，对话框下面），_say 碰到 bark 就 push 进来，不等。
 ## 让位：正经对话框 / 点选 / 菜单 / 通讯器 / 背包 / 设置开着时先藏起来、计时停住，关掉以后接着显示（不会被盖掉白念）。
 ## 停多久：1.6 秒 + 每个字 0.11 秒（最多 4.5 秒）；--story_auto 时减半；后面来了新的一句、这句已经看了 1.5 秒，就再 0.3 秒收。出现 / 消失各两格（100ms 一格）。
@@ -42,10 +42,10 @@ func _ready() -> void:
 	add_child(_tail)
 
 
-func push(text: String, added := false) -> void:
+func push(text: String, added := false, who := "chen") -> void:
 	if text == "":
 		return
-	_queue.append({"text": text, "added": added})
+	_queue.append({"text": text, "added": added, "who": who})
 	# 新的一句来了：当前这句已经看了 1.5 秒以上就早点收（台词跟着动作走，不越积越晚）
 	if not _cur.is_empty() and _t > 1.5:
 		_hold = minf(_hold, _t + 0.3)
@@ -135,7 +135,7 @@ func _process(delta: float) -> void:
 
 
 func _place() -> void:
-	var p: Vector2 = story._anchor("chen") if story != null else Vector2(240, 120)
+	var p: Vector2 = story._anchor(str(_cur.get("who", "chen"))) if story != null else Vector2(240, 120)
 	var sz := _box.size
 	var top: float = float(story.dlg.top_limit) if story != null else 4.0
 	var x := clampf(roundf(p.x - sz.x / 2.0), 6.0, 474.0 - sz.x)

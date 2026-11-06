@@ -26,6 +26,8 @@ const GENERIC_ALIAS := {
 	"nod": "nod", "laugh": "laugh", "smile": "laugh", "wave": "wave", "sit": "sit", "crouch": "crouch", "stand": "idle",
 }
 const PH_SIZE := Vector2i(12, 34)
+const HOP_S := 0.36                    # 蹦一下多久
+const HOP_H := 5.0                     # 蹦多高（像素）
 
 var npc_id := ""
 var cfg := {}                          # json 原样
@@ -34,6 +36,7 @@ var cur := {}                          # 合并过的当前形态配置
 var head := 40.0                       # 对话框锚点：脚底往上多少
 var speed := 36.0
 var facing := 1
+var _hop_t := 0.0                      # 还要蹦多久（见 hop）
 var shadow := true
 var ground_fn: Callable                # func(x) -> 地面世界 y（走路时贴地；没有就 y 不变）
 var spr: Sprite2D
@@ -273,6 +276,8 @@ func follow_to(tx: float, look_x: float, delta: float, w := 6.0) -> void:
 	var d := tx - position.x
 	var acc := w * w * d - 2.0 * 0.9 * w * _vel
 	var vmax := minf(speed * 2.2, FOLLOW_MAX)
+	if has_meta("follow_vmax"):            # 剧本 follow 带 vmax：这段路要跟得上晨（南桥跟脚印）
+		vmax = float(get_meta("follow_vmax"))
 	_vel = clampf(_vel + acc * delta, -vmax, vmax)
 	if absf(d) < 1.0 and absf(_vel) < 4.0:
 		_vel = 0.0
@@ -311,8 +316,14 @@ func _snap_y() -> void:
 		position.y = round(float(ground_fn.call(position.x))) + 1.0
 
 
+## 原地蹦两下（剧本 anim hop；南桥妮芙跟着脚印走的时候）
+func hop(times := 2) -> void:
+	_hop_t = HOP_S * times
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	_hop_t = maxf(0.0, _hop_t - delta)
 	if not is_nan(_walk_x):
 		var d := _walk_x - position.x
 		var step := minf(_walk_speed, WALK_MAX) * delta
@@ -338,6 +349,9 @@ func _show_frame() -> void:
 	if spr == null:
 		return
 	var bob: float = -float(cur.get("hover", 0.0)) - roundf(float(get_meta("pass_lift", 0.0)))   # 浮着走过晨的时候从晨头顶飘过去（story_runner._pass_over）
+	if _hop_t > 0.0:                       # 蹦两下：两段抛物线，只动画面不动脚下的位置
+		var hu := fmod(_hop_t / HOP_S, 1.0)
+		bob -= roundf(HOP_H * 4.0 * hu * (1.0 - hu))
 	var amp := float(cur.get("bob", 0.0))
 	if amp > 0.0:
 		bob -= round(amp * (0.5 - 0.5 * cos(TAU * _t / maxf(float(cur.get("bob_s", 2.4)), 0.1))))

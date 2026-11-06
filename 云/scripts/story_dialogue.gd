@@ -772,23 +772,45 @@ func _menu_input(event: InputEvent) -> bool:
 			_menu_choose(n - 1)
 		return true
 	if event is InputEventMouseMotion:
-		for i in _menu_items.size():
-			if _menu_hit(i, event.position):
-				_menu_set(i)
+		var hi := _menu_at(event.position)
+		if hi >= 0:
+			_menu_set(hi)
 		return false
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		for i in _menu_items.size():
-			if _menu_hit(i, event.position):
-				_menu_choose(i)
-				return true
-		_menu_choose(_menu_sel)          # 点在别处 = 确定现在选中的那个
+		var ci := _menu_at(event.position)
+		_menu_choose(ci if ci >= 0 else _menu_sel)          # 点在别处 = 确定现在选中的那个
 		return true
 	return event is InputEventKey
 
 
-func _menu_hit(i: int, p: Vector2) -> bool:
+## 11-06 作者：鼠标停在选项边缘，音效连续不断（--qa_live 量到抖 2 秒响 241 次）。两项的判定框各往外多 2 像素、行距只有 18，交界处两个都算中，
+## 循环里先选上一项再选下一项，鼠标每动一下就响两声。现在一个位置只算一个结果：文字选项按行距接成一条（不留缝、不重叠）；
+## 再留一点粘性：鼠标还在选中那项外面 MENU_STICK 像素以内就不换，手抖、压在交界线上也不会来回切。点击用同一个判定，点到的就是亮着的那项。
+const MENU_STICK := 3.0
+const MENU_LINE_H := 18.0            # 和 _open_menu 里文字选项的行距一样
+
+
+func _menu_rect(i: int) -> Rect2:
 	var c: Control = _menu_items[i]
-	return Rect2(c.position - Vector2(2, 2), c.size + Vector2(4, 4)).has_point(p)
+	if _menu_kind == "lines":
+		return Rect2(c.position.x - 2.0, c.position.y - 1.0, c.size.x + 4.0, MENU_LINE_H)
+	return Rect2(c.position - Vector2(2, 2), c.size + Vector2(4, 4))
+
+
+## 鼠标在哪一项上；不在任何一项上 = -1
+func _menu_at(p: Vector2) -> int:
+	if _menu_sel >= 0 and _menu_sel < _menu_items.size() and _menu_rect(_menu_sel).grow(MENU_STICK).has_point(p):
+		return _menu_sel
+	var best := -1
+	var best_d := INF
+	for i in _menu_items.size():
+		var r := _menu_rect(i)
+		if r.has_point(p):
+			var d := r.get_center().distance_squared_to(p)
+			if d < best_d:
+				best_d = d
+				best = i
+	return best
 
 
 # ======================================================================= 画的特写
@@ -884,10 +906,15 @@ func handle_input(event: InputEvent) -> bool:
 			_set_sel((_pick_sel + 1) % _pick_opts.size())
 			return true
 	elif event is InputEventMouseMotion and _pick_on and not _pick_row.visible:
-		for i in _pick_opts.size():
-			var r: Rect2 = (_pick_opts[i]["rect"] as Callable).call()
-			if _grow_min(r).has_point(event.position):
-				_set_sel(i)
+		# 两个点选物件的判定框叠在一起时同样不来回切（见 _menu_at）：还在选中那个的框里就不换，否则取第一个中的
+		var sel_ok: bool = _pick_sel >= 0 and _pick_sel < _pick_opts.size() \
+				and _grow_min((_pick_opts[_pick_sel]["rect"] as Callable).call()).grow(MENU_STICK).has_point(event.position)
+		if not sel_ok:
+			for i in _pick_opts.size():
+				var r: Rect2 = (_pick_opts[i]["rect"] as Callable).call()
+				if _grow_min(r).has_point(event.position):
+					_set_sel(i)
+					break
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		if _pick_on:
 			if _pick_row.visible:

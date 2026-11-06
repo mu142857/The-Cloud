@@ -90,6 +90,7 @@
   "market_bridge": 830,
   "market_to_oldstreet": 1424,
   "market_from_stairwell": 1398,
+  "market_vendor": 374,
   "market_rat_chef": 1095
  },
  "objects": {
@@ -197,6 +198,11 @@
    "who": "rat_chef",
    "at": "market_rat_chef",
    "face": 1
+  },
+  {
+   "who": "vendor",
+   "at": "market_vendor",
+   "face": -1
   }
  ]
 }

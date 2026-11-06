@@ -50,12 +50,10 @@ GT_SH = os.environ.get("GT_SH", "/private/tmp/claude-501/-Users-jiamulin-Desktop
 
 ## 主线的场景顺序：11-05 河流主线 --story_auto --main_only 实际走过的顺序（普通开头）。
 ## 剧本加了新场景不用改这里：新场景会跟在引用它的场景后面，或者落到后面的分组里。
-MAIN_SPINE = """start_river bank_meet n_meet_plain bank_meet_b bank_cup n_name_p home_enter n_note_p 
-home_bell rb_who_a home_bell_b home_postcard book_peek3 home_deer_msg deer_msg_m home_wait_talk home_drawing dr_el
-home_drawing_b ch_tape_sorry home_tape_wrap n_tank_p home_out market_go niff_chat_market market_to_stairwell
-oldstreet_go sluice sluice_open oldstreet_corner oldstreet_jam warehouse_go warehouse_in home_coat pocket pocket_stone
-home_coat_b tape_fix el_rope tape_sound bank_to_market market_to_oldstreet_again south_walk_in south_go south_dock dock_plates
-dock_plate_12 south_back farewell n_tea_p ch_bye_write farewell_b farewell_phone plane_fix depart n_bye_p""".split()
+MAIN_SPINE = """start_river bank_meet n_meet_plain bank_meet_b bank_cup bank_invite_yes home_enter n_name_p home_who_invite home_asked
+home_find home_who2_chen home_find_b home_out market_go market_to_stairwell stairwell_jelly oldstreet_go sluice sluice_open oldstreet_tank_take
+warehouse_go warehouse_in tape_fix bank_to_market market_to_oldstreet_again south_walk_in south_go south_intro south_arch_right south_trail_start south_trail_end
+south_dock dock_plates dock_plate_12 south_back farewell n_tea_p ch_bye_write farewell_b farewell_phone plane_need_seal plane_fix depart n_bye_p""".split()
 
 ## 步骤里指向别的场景的字段
 REF_KEYS = {"scene", "then", "else", "after", "on_head", "on_seal", "quit_scene"}

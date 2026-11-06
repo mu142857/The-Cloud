@@ -532,7 +532,7 @@ def postman_anims():
 
 CHARS = {               # 阿汀不在这里了：改用奥斯卡的阴险守卫，见 build_ting（--ting 才重做）
     "keeper": (KEEPER, keeper_anims, dict(head=46, speed=30, color="#6a5e54")),
-    "vendor": (VENDOR, vendor_anims, dict(head=46, speed=20, color="#5e6a5a")),
+    "vendor": (VENDOR, vendor_anims, dict(head=46, speed=20, color="#5e6a5a", **{"pass": True})),
     "postman": (POSTMAN, postman_anims, dict(head=46, speed=26, color="#4e5868")),
 }
 

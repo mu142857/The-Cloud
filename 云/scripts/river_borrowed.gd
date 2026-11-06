@@ -114,8 +114,21 @@ func check(r: Node, st: Dictionary) -> Array:
 	return out
 
 
+## 这次要找到哪几样才算完（剧本 need，默认两样都要）。11-06 重写稿：主线只要读取头，密封圈开到就有
 func _all_found() -> bool:
-	return "head" in got and "seal" in got
+	for k in step.get("need", ["head", "seal"]):
+		if not str(k) in got:
+			return false
+	return true
+
+
+## 自动玩开箱的顺序：先开可选的密封圈，再开要找的（找齐就结束）。测试 --river_no_seal：不碰密封圈，走「修飞机时没有」那条路
+func _want_order() -> Array:
+	var order: Array = [] if "--river_no_seal" in OS.get_cmdline_user_args() and not "seal" in step.get("need", []) else ["seal"]
+	for k in step.get("need", ["head", "seal"]):
+		if not str(k) in order:
+			order.append(str(k))
+	return order
 
 
 # ----------------------------------------------------------------------- 箱子
@@ -191,7 +204,7 @@ func _show_caption(t: String) -> void:
 
 ## 自动玩：先开对的那两只
 func _auto_open() -> void:
-	for want in ["head", "seal"]:
+	for want in _want_order():
 		for i in boxes.size():
 			if str(boxes[i]["d"].get("find", "")) == want and not want in got:
 				sel = i
@@ -351,16 +364,18 @@ func _draw_niff(b: Control) -> void:
 
 
 # ----------------------------------------------------------------------- 夜测机器人（--mech_play）
-## 先开错一只，再按 → 一只一只挪过去开读取头、密封圈；她忘了的时候等她想起来
+## 先开错一只，再按 → 一只一只挪过去开密封圈、读取头；她忘了的时候等她想起来
 func _bot_play() -> void:
 	await _bot_ready()
 	await _bot_wait(1.4)
 	var want := {"": -1, "head": -1, "seal": -1}
+	var keys: Array = [""]
+	keys.append_array(_want_order())
 	for i in boxes.size():
 		var f := str(boxes[i]["d"].get("find", ""))
 		if want.has(f) and int(want[f]) < 0:
 			want[f] = i
-	for k in ["", "head", "seal"]:
+	for k in keys:
 		var i := int(want[k])
 		if i < 0 or not _alive():
 			continue

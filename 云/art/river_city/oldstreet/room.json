@@ -178,6 +178,7 @@
   "sluice_wheel_3": 318,
   "sluice_pipes": 370,
   "oldstreet_steps": 470,
+  "oldstreet_tank": 668,
   "oldstreet_signs": 620,
   "oldstreet_corner": 784,
   "oldstreet_height_wall": 878,
@@ -298,6 +299,17 @@
     ]
    }
   },
+  "oldstreet_tank": {
+   "x": 660,
+   "y": 220,
+   "w": 16,
+   "h": 16,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "revealed": 1
+   }
+  },
   "oldstreet_height_wall": {
    "x": 880,
    "y": 160,
@@ -388,7 +400,10 @@
    "to": "warehouse",
    "at": "warehouse_entry",
    "kind": "pan_down",
-   "x": 1066
+   "x": 1066,
+   "need": [
+    "river_tank"
+   ]
   }
  ],
  "ambient": [

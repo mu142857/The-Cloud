@@ -68,13 +68,11 @@ const SEED_FLIGHT1 := {
 ## river 走完（river_done）时多出来的 flags 和物品：10-31 从 story_river.json 的 flag / give / take 静态收出来（河流篇 flag 都是主线必经的），
 ## 不是自动玩跑出来的；只是直接进 final 时的起点
 const SEED_RIVER := {
-	"flags": ["river_ashore", "river_met", "river_salvaged", "river_landed", "river_home_intro", "river_book_drying", "river_peek1", "river_peek2",
-		"river_sat_down", "river_deer_msg", "river_footage_broken", "river_need_head", "river_market", "river_breather", "river_oldstreet",
-		"river_sluice_done", "river_jam", "river_roped", "river_wh_dive", "river_wh_in", "river_back_home", "river_footage_fixed",
-		"river_cup_traced", "river_prints", "river_dock_matched", "river_ship_number", "river_bell", "river_plane_fixed", "river_farewell",
-		"river_done"],
-	"owned": ["biscuits", "waterproof_board", "cup_tracing", "footprint_rubbing", "dock_photo", "copper_bell", "mat_driftwood",
-		"elephant_footage", "river_water"],
+	"flags": ["river_ashore", "river_met", "river_salvaged", "river_landed", "river_home_intro", "river_footage_broken", "river_need_head",
+		"river_market", "river_oldstreet", "river_sluice_done", "river_tank", "river_wh_dive", "river_wh_in", "river_got_head", "river_seal_got",
+		"river_back_home", "river_footage_fixed", "river_cup_traced", "river_prints", "river_dock_matched", "river_ship_number", "river_bell",
+		"river_plane_fixed", "river_farewell", "river_done"],
+	"owned": ["biscuits", "cup_tracing", "footprint_rubbing", "dock_photo", "copper_bell", "mat_driftwood", "elephant_footage", "river_water"],
 }
 
 

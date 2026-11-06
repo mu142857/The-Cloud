@@ -231,8 +231,6 @@ def main() -> None:
         "side_slope": {"hint": {"zh": "← → / A D：跟着鹿的蹄印走（两瓣的那种）", "en": "← → / A D: follow the deer's hoofprints (the split ones)"},
                        "choices": longest_choice(sb, [k for k in json.loads(sb.read_text(encoding="utf-8"))["scenes"] if "slope" in k])},
         "rabbit_dance": {"hint": {"zh": "方向键 / WASD：跟着兔子跳", "en": "Arrow keys / WASD: follow the rabbit"}},
-        "river_bridge_view": {"hud": True, "world": [(480 - 120 - 10 - 2, 34 - 2, 480 - 10 + 2, 34 + 68 + 2)],
-                              "choices": {"zh": ["它是从这里过去的"], "en": ["This is where it went through"]}},
     }
     total = 0
     for name, spec in specs.items():

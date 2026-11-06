@@ -49,6 +49,7 @@ func _process(delta: float) -> void:
 		_pause_test()
 	_dialogue_state()
 	_softlock()
+	_menu_hover_test()
 	if _f % EVERY != 0:
 		return
 	var items: Array = []
@@ -296,6 +297,62 @@ func _flag_once(bucket: Dictionary, key: String, msg: String) -> void:
 
 func summary() -> String:
 	return "QA_LIVE_SUMMARY overlap=%d offscreen=%d dlg_stuck=%d dlg_stale=%d softlock=%d" % [overlaps.size(), offscreen.size(), stuck.size(), stale.size(), softlocks.size()]
+
+
+# ----------------------------------------------------------------------- 选项 hover 音（11-06 作者：鼠标停在选项边缘，音效连续不断）
+## 第一个文字选项菜单打开时跑一次：鼠标放到两项交界，每帧抖 1 像素，抖 HOVER_SEC 秒，数 ui_click 响了几次（> HOVER_MAX = QA_MENU_HOVER_FAIL）。
+## 走真正的输入入口 dlg.handle_input；期间暂停自动选，测完放回去。
+const HOVER_SEC := 2.0
+const HOVER_MAX := 2
+var _hover := 0                  # 0 没开始 / 1 在抖 / 2 测完
+var _hover_f := 0
+var _hover_t := 0.0
+var _hover_clicks := 0
+var _hover_sfx: Callable
+var _hover_auto := -1
+var _hover_moved := false
+var _hover_sel := -1
+
+
+func _menu_hover_test() -> void:
+	if _hover == 2:
+		return
+	var dlg = story.dlg
+	if _hover == 0:
+		if not dlg.menu_open() or str(dlg._menu_kind) != "lines" or (dlg._menu_items as Array).size() < 2 or dlg._menu_done:
+			return
+		_hover = 1
+		_hover_auto = int(dlg._menu_auto)
+		dlg._menu_auto = -1
+		_hover_sfx = dlg.sfx
+		dlg.sfx = func(n: String, db: float, pitch: float) -> void:
+			if n == "ui_click":
+				_hover_clicks += 1
+			_hover_sfx.call(n, db, pitch)
+	_hover_f += 1
+	_hover_t += get_process_delta_time()
+	var c: Control = dlg._menu_items[0]
+	var ev := InputEventMouseMotion.new()
+	ev.position = c.position + Vector2(40.0, 16.0 + float(_hover_f % 2))
+	if not _hover_moved and _hover_t >= HOVER_SEC / 2.0:
+		# 抖到一半真的移到下一项：hover 还得能换（不然 0 次也可能是 hover 坏了），响一声；接着从下一项这边压回交界继续抖，不再响
+		_hover_moved = true
+		var c1: Control = dlg._menu_items[1]
+		ev.position = c1.position + Vector2(40.0, 8.0)
+		dlg.handle_input(ev)
+		_hover_sel = int(dlg._menu_sel)
+		ev = InputEventMouseMotion.new()
+		ev.position = c.position + Vector2(40.0, 17.0)
+	dlg.handle_input(ev)
+	if _hover_t >= HOVER_SEC:
+		_hover = 2
+		var ok := _hover_clicks <= HOVER_MAX and _hover_sel == 1 and _hover_clicks >= 1
+		dlg.sfx = _hover_sfx
+		dlg._menu_auto = _hover_auto
+		dlg._menu_age = 0.0
+		dlg._menu_sel = 0
+		dlg._menu_style()
+		print("%s clicks=%d moved_to=%d frames=%d（鼠标在两项交界每帧抖 1 像素 %.0f 秒，中途移到下一项一次）" % ["QA_MENU_HOVER ok" if ok else "QA_MENU_HOVER_FAIL", _hover_clicks, _hover_sel, _hover_f, HOVER_SEC])
 
 
 func _exit_tree() -> void:

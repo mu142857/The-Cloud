@@ -486,8 +486,10 @@ hotspot 的 `room` 写房间 id；`at` 可以是 marker、物件 id（跟着物�
 - 河岸 → 驾驶舱（`depart` 的 `fade_to cockpit`）：房间物件 `river_bank_plane` 预热（船底泛光、1 像素抖）→ 反重力竖直升 40 像素（ship_glow.gd 泛光）
   → 往左上加速飞出画面 → 淡到黑。没有这个物件就直接淡出。剧本步骤一步没动。
 - 水下：晨移动 ×0.55（只改速度）、嘴边冒泡（underwater_bubbles.gd）、SFX 总线加低通；妮芙自动换 swim。
-- 镜头平时往晨面朝的方向多看 36 像素（森林同款）；房间 room.json 有 `viewfinder` 时，小游戏（mechanic）进行期间镜头正对晨（不多看），
-  所以南桥取景框按「晨站在 chen_x、镜头左边缘 = cam_x = chen_x − 240」出图就对得上（房间两头被夹住的地方除外）。
+- 镜头平时往晨面朝的方向多看 36 像素（森林同款）。11-06 南桥取景框小游戏删了，`viewfinder` 这个键不再有。
+- 南桥「跟着痕迹走」（11-06）：三个桥洞是普通 hotspot（south_arch_left / right / far），脚印是 16 个共用图的物件（`tools/southbridge_trail_art.py` 出图、写 room.json），
+  走到跟前亮下一个用 `trigger: enter` + `nolock` 的 hotspot 串起来（river_trail_N），状态存在物件和 flag 里，读档不丢。南桥 main.png 手改过，别用 river_warehouse_bridge_art.py 重出。
+- 新步骤参数：`{"do": "prop", ..., "fade": 秒}` 物件换状态时淡进来；`say` 带 `bark` 可以是任何说话人（气泡跟着那个人）；`{"do": "anim", "who": 通用角色, "name": "hop"}` 原地蹦两下（不等）。
 - 自动玩（`--story_auto`）在多房间章节会按房间找路（哪个房间还有能推进剧情的点，就沿着出口一路走过去）。
 
 改了这份约定会在共享笔记里留一行（`river-engine.md`）。

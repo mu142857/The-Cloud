@@ -264,10 +264,26 @@
   "southbridge_dock_step": 1704,
   "southbridge_plates": 1892,
   "southbridge_arch_far": 1110,
-  "southbridge_view_spot": 852,
   "southbridge_plate_07": 1872,
   "southbridge_plate_12": 1892,
-  "southbridge_plate_21": 1912
+  "southbridge_plate_21": 1912,
+  "southbridge_lamps": 900,
+  "south_trail_0": 922,
+  "south_trail_1": 980,
+  "south_trail_2": 1038,
+  "south_trail_3": 1094,
+  "south_trail_4": 1152,
+  "south_trail_5": 1208,
+  "south_trail_6": 1266,
+  "south_trail_7": 1322,
+  "south_trail_8": 1380,
+  "south_trail_9": 1438,
+  "south_trail_10": 1494,
+  "south_trail_11": 1552,
+  "south_trail_12": 1608,
+  "south_trail_13": 1658,
+  "south_trail_14": 1696,
+  "south_trail_15": 1734
  },
  "walk": [
   12,
@@ -299,12 +315,6 @@
   }
  ],
  "scripts": [],
- "viewfinder": {
-  "img": "viewfinder.png",
-  "cam_x": 612,
-  "chen_x": 852,
-  "note": "镜头左边缘 = cam_x 时对齐；用这几层按引擎视差公式合成后压成影像（tools/river_warehouse_bridge_art.py 每次重出）"
- },
  "objects": {
   "southbridge_arch": {
    "x": 788,
@@ -324,10 +334,10 @@
    ]
   },
   "southbridge_footprints": {
-   "x": 780,
-   "y": 229,
-   "w": 150,
-   "h": 14,
+   "x": 858,
+   "y": 231,
+   "w": 26,
+   "h": 11,
    "frames": 2,
    "states": {
     "default": 0,
@@ -402,6 +412,216 @@
     "default": 0,
     "back": 0,
     "held": 1
+   }
+  },
+  "southbridge_lamps": {
+   "x": 888,
+   "y": 195,
+   "w": 74,
+   "h": 34,
+   "frames": 1
+  },
+  "southbridge_hair": {
+   "x": 832,
+   "y": 83,
+   "w": 14,
+   "h": 16,
+   "frames": 2,
+   "states": {
+    "default": 0,
+    "shown": 1
+   }
+  },
+  "south_trail_0": {
+   "x": 911,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_1": {
+   "x": 969,
+   "y": 236,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_2": {
+   "x": 1027,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_3": {
+   "x": 1083,
+   "y": 236,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_4": {
+   "x": 1141,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_5": {
+   "x": 1197,
+   "y": 236,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_6": {
+   "x": 1255,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_7": {
+   "x": 1311,
+   "y": 236,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_8": {
+   "x": 1369,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_9": {
+   "x": 1427,
+   "y": 236,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_10": {
+   "x": 1483,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_11": {
+   "x": 1541,
+   "y": 236,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_12": {
+   "x": 1597,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_13": {
+   "x": 1647,
+   "y": 230,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_14": {
+   "x": 1685,
+   "y": 202,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print.png",
+   "states": {
+    "default": 0,
+    "lit": 1
+   }
+  },
+  "south_trail_15": {
+   "x": 1723,
+   "y": 202,
+   "w": 22,
+   "h": 9,
+   "frames": 2,
+   "img": "trail_print_b.png",
+   "states": {
+    "default": 0,
+    "lit": 1
    }
   }
  }

@@ -23,39 +23,37 @@ MAIN = [
     ("start_river", "河面。飞机撞进水道，晨从舱门出来"),
     ("bank_meet", "河岸。晨走到箱子边，妮芙从箱子后面钻出来"),
     ("bank_meet_b", "河岸台阶。捞杯子，捞漂走的东西"),
-    ("bank_cup", "河岸。互相报名字，阿汀冲出来，把飞机拖上岸"),
-    ("home_enter", "妮芙家一楼。进门，本子，泡茶，报名字"),
-    ("home_bell", "妮芙家一楼。铃响，妮芙不认识晨了"),
-    ("home_bell_b", "妮芙家一楼。她翻本子重新认人"),
-    ("home_postcard", "妮芙家。来客册在窗边晾着"),
-    ("book_peek3", "妮芙家三楼窗边。坐下等"),
-    ("home_deer_msg", "妮芙家窗边。鹿发来消息"),
-    ("home_wait_talk", "妮芙家窗边。晨问她「等很久的人怎么办」，闪回"),
-    ("home_drawing", "妮芙家窗边。她看见晨本子上的画"),
-    ("home_drawing_b", "妮芙家二楼。翻柜子，放影像，影像盒卡住"),
-    ("home_tape_wrap", "妮芙家二楼。影像盒要换读取头，她拿出气瓶"),
+    ("bank_cup", "河岸飞机旁。阿汀把飞机拴住，妮芙邀请晨去她家"),
+    ("home_enter", "妮芙家一楼。互相问名字，她马上忘了"),
+    ("home_asked", "妮芙家一楼。晨问本子里有没有大象"),
+    ("home_find", "妮芙家二楼。她翻柜子，录像带放不出，又忘了晨是谁"),
+    ("home_find_b", "妮芙家二楼。记下来，任务开始"),
     ("home_out", "出门，回河岸"),
     ("market_go", "高处市集。路过"),
     ("market_to_stairwell", "市集下楼"),
+    ("stairwell_jelly", "楼梯间。水母飘过来要东西"),
     ("oldstreet_go", "旧街。台阶泡在水里"),
-    ("sluice", "旧街。调水闸"),
-    ("oldstreet_corner", "旧街拐角。果酱店，墙上的身高刻线"),
-    ("warehouse_go", "旧街仓库入口。系绳，下水"),
-    ("warehouse_in", "水下仓库。找读取头和密封圈，发现泄水门记录"),
-    ("home_coat", "妮芙家。阿汀来了，对质是谁开的闸"),
-    ("pocket", "妮芙家。晨摸口袋"),
-    ("home_coat_b", "妮芙家。铃又响，晨打开和朋友的聊天记录"),
-    ("tape_fix", "妮芙家二楼。修好影像盒，看大象"),
-    ("tape_sound", "妮芙家二楼。听见大象的声音"),
+    ("sluice", "旧街。调水闸，水退下去，露出氧气瓶"),
+    ("oldstreet_tank_take", "旧街。捡氧气瓶"),
+    ("warehouse_go", "旧街仓库入口。下水"),
+    ("warehouse_in", "水下仓库。找读取头，回到旧街"),
+    ("tape_fix", "回妮芙家二楼。修好录像带，看大象"),
     ("bank_to_market", "再去市集"),
     ("market_to_oldstreet_again", "再经过楼梯间，到旧街"),
-    ("south_go", "南桥。找机位，看大象灰影，选桥洞，量脚印"),
+    ("south_go", "南桥。到了"),
+    ("south_intro", "南桥。一共三个桥洞"),
+    ("south_arch_left", "南桥。看左边的桥洞（三个洞顺序随便）"),
+    ("south_arch_far", "南桥。看右边的桥洞"),
+    ("south_arch_right", "南桥。看中间的桥洞：对了，量脚印"),
+    ("south_trail_start", "南桥。顺着发亮的脚印走（一共十几个，走到一个亮下一个）"),
+    ("south_trail_end", "南桥。脚印走到旧货台"),
     ("south_dock", "南桥旧货台。查装卸记录"),
     ("dock_plates", "南桥旧货台。选编号牌"),
     ("south_back", "回旧街。妮芙捡到铜铃，送给晨，回河岸"),
     ("farewell", "妮芙家。喝茶，留画，拿礼物"),
     ("farewell_b", "妮芙家。她说画得像水壶"),
     ("farewell_phone", "妮芙家。加通讯录，回河岸"),
+    ("plane_need_seal", "河岸。修飞机：没有密封圈的话先出这个任务（有就跳过这段）"),
     ("plane_fix", "河岸。修飞机"),
     ("depart", "河岸。起飞。第二章完"),
 ]
@@ -63,16 +61,18 @@ MAIN = [
 INLINE_ONLY = {"n_meet_plain", "n_name_p", "n_note_p", "ch_bread_busy", "rb_who_a", "deer_msg_m", "dr_el", "ch_tape_sorry",
                "n_tank_p", "sluice_open", "oldstreet_jam", "pocket_stone", "el_rope", "dock_plate_12", "n_tea_p", "ch_bye_write", "n_bye_p"}
 
+FADE_AT = {"river_bank_toolkit": "飞机旁", "river_home_chen": "妮芙家屋里", "river_home_player_r": "妮芙家二楼柜子旁（不走路，直接到）",
+           "oldstreet_warehouse_entry": "旧街仓库入口"}
 ROOMS = {"river_bank": "河岸", "river_home": "妮芙家", "market": "高处市集", "stairwell": "楼梯间", "oldstreet": "旧街",
          "warehouse": "水下仓库", "southbridge": "南桥", "cockpit": "驾驶舱"}
-WHO = {"chen": "晨", "niff": "妮芙", "ting": "阿汀"}
+WHO = {"chen": "晨", "niff": "妮芙", "ting": "阿汀", "jellyfish": "水母"}
 PLACE = {
     "river_bank_crates": "箱子", "river_bank_plane": "飞机", "river_bank_hatch": "舱门", "river_bank_steps": "台阶", "river_bank_toolkit": "工具箱",
     "river_bank_ting": "岸边", "river_bank_niff": "家门口那边", "river_home_door": "门口", "river_home_table": "桌子", "river_home_kitchen": "厨房",
     "river_home_chair": "窗边的椅子", "river_home_window": "窗边", "river_home_player": "播放器", "river_home_player_r": "播放器右边",
     "river_home_cabinet": "柜子", "river_home_labels": "门边", "river_home_chen": "屋子中间", "river_home_niff": "屋子里", "market_tool_stall": "修补摊",
     "oldstreet_railing": "栏杆边", "oldstreet_corner": "拐角", "oldstreet_steps": "台阶", "oldstreet_height_wall": "墙边",
-    "oldstreet_dry_step": "干的台阶", "oldstreet_warehouse_entry": "仓库入口", "oldstreet_hook": "钩子那儿", "warehouse_broken_box": "破箱子", "warehouse_sluice_door": "泄水门",
+    "oldstreet_dry_step": "干的台阶", "oldstreet_warehouse_entry": "仓库入口", "oldstreet_tank": "氧气瓶那儿", "southbridge_lamps": "歪掉的灯下面", "oldstreet_hook": "钩子那儿", "warehouse_broken_box": "破箱子", "warehouse_sluice_door": "泄水门",
     "southbridge_arch_wrong": "错的桥洞", "southbridge_arch": "对的桥洞", "southbridge_footprints": "脚印那儿", "southbridge_dock": "旧货台",
     "southbridge_dock_step": "货台台阶",
 }
@@ -100,7 +100,7 @@ ANIM = {
         "connect_wire": "接线", "lean_close": "凑近", "tune": "调声音", "tail_up": "尾巴翘起来", "smile_blank": "笑了，但已经忘了为什么", "startle": "吓一跳",
         "laugh": "笑", "palm_table": "手掌贴桌面", "foot_compare": "比脚的大小", "pull_foot": "缩回脚", "count": "数", "sit": "坐下", "swing_feet": "晃脚",
         "cover_ears": "捂耳朵", "hand_bell": "把铜铃递过来", "write_tag": "写标签", "look_long": "看了很久", "label_box": "往影像盒上贴标签", "flip_bottle": "翻过一个瓶子",
-        "hand_bag": "递袋子", "hand_pen": "递笔", "hold_phone": "拿着通讯器", "stick_label": "贴标签", "wave": "挥手", "think": "想了想", "look_screen": "看屏幕", "catch_crumbs": "接饼干渣",
+        "hand_bag": "递袋子", "hand_pen": "递笔", "hold_phone": "拿着通讯器", "stick_label": "贴标签", "wave": "挥手", "hop": "蹦了一下", "think": "想了想", "look_screen": "看屏幕", "catch_crumbs": "接饼干渣",
     },
     "ting": {
         "check": "检查", "hold_shell": "摸外壳", "hand_coat": "递外套", "nod": "点头", "show_record": "指记录", "coat_on_chair": "把外套搭在椅子上", "look_down": "低头",
@@ -112,10 +112,11 @@ SFX = {
     "bell_ring": "铜铃响了", "engine_idle": "发动机转起来", "engine_up": "发动机加速", "hatch_open": "舱门打开", "hatch_close": "舱门关上",
 }
 PROP = {
+    ("oldstreet_tank", "revealed"): "水退后旧街露出一个氧气瓶", ("river_home_player", "camera_tilt"): "镜头转过去", ("southbridge_hair", "shown"): "石沿上挂着一撮毛", ("southbridge_arch", "scratches"): "石沿蹭秃了",
     ("river_bank_crates", "tail_still"): "箱子后面露出一截鲸鱼壳的尾巴", ("river_bank_shallow", "floating"): "水面上漂着东西",
     ("niff_notebook", "tea_arrow"): "本子上画了个先放茶的箭头", ("niff_notebook", "star"): "本子上画了颗星", ("river_home_chair", "by_window"): "椅子拖到窗边",
     ("warehouse_tall_cabinet", "lifted"): "高柜子浮起来", ("warehouse_inner_door", "open"): "里面的门开了", ("river_home_table", "old_pages"): "桌上摊开旧纸页",
-    ("guestbook", "drawing_in"): "画夹进来客册", ("southbridge_routemap", "fallen"): "航线图掉在地上", ("river_bank_plane", "beached"): "飞机被拖上岸", ("river_bank_plane", "straps_drying"): "飞机绑好，晾着", ("river_home_table", "two_bowls_water"): "桌上摆了两碗水",
+    ("guestbook", "drawing_in"): "画夹进来客册", ("southbridge_routemap", "fallen"): "航线图掉在地上", ("river_bank_plane", "beached"): "飞机换到岸边（晨在远处，看不见这一下）", ("river_bank_plane", "straps_drying"): "飞机拴好了", ("river_home_table", "two_bowls_water"): "桌上摆了两碗水",
     ("river_home_hourglass", "running"): "沙漏开始漏", ("river_home_hourglass", "empty"): "沙漏漏完了", ("guestbook", "drying"): "来客册晾在窗边",
     ("river_home_cabinet", "open"): "柜门开了", ("river_home_cabinet", "footage_box"): "柜子里有个影像盒", ("river_home_player", "footage_part1"): "屏幕上是河面的影像",
     ("river_home_player", "stopped"): "画面停了", ("river_home_player", "red_blink"): "红灯闪", ("oldstreet_steps", "submerged"): "台阶泡在水下",
@@ -150,26 +151,30 @@ COND = {
     "burned_commute_card": "飞行一烧了通勤卡的人",
     "river_biscuits": "在市集买了饼干的人",
     "!river_biscuits": "没买饼干的人",
+    "river_robbed": "进门时说了打劫的人",
+    "!river_robbed": "进门时没说打劫的人",
     "river_rule_self": "找阿汀定第十三条时选了「落水的人先捞自己」的人",
     "river_rule_wish": "找阿汀定第十三条时选了「不许对着飞机许愿」的人",
     "river_rule_niff": "找阿汀定第十三条时选了「妮芙说了算」的人",
 }
 OPTIONAL = [
-    "河岸可点：杯子（杯底纸条，叫小姐那句，进妮芙家以后就没了）",
+    "河岸可点：杯子（杯底纸条，叫小姐那句）",
     "河岸可点：门牌、面包店、屋顶窄桥、水底的街，晨说一句或记一句",
-    "河岸可点：飞机（晾着时晨说一句，后面零件、道别各一句）",
+    "河岸可点：飞机（零件、道别各一句）",
     "阿汀：一直跟他说话，就一条一条往下念河岸条例（四十来条）；另有几句跟着进度变的闲聊",
-    "阿汀支线：把影像盒拿给他看，定第十三条（三选一），修飞机时他会念回来",
-    "妮芙闲聊：河岸、妮芙家、旧街、南桥、临走前各有一句；市集里点她是看那块防水板",
-    "妮芙家可点：罐子（盐的标签）、标签、沙漏、厨房、窗边的来客册（还湿的时候）",
+    "阿汀支线：把录像带拿给他看，定第十三条（三选一），修飞机时他会念回来",
+    "妮芙闲聊：河岸、妮芙家、市集、旧街、南桥、临走前各有一句",
+    "妮芙家可点：茶碗（你喝茶吗 / 忘了放茶叶 / 没烧水，上一轮作者写的三句）、罐子（盐的标签）、标签、沙漏、厨房",
+    "妮芙家窗边：来客册（修好录像带以前只说「还是湿的」，修好以后是来客册支线）",
     "市集支线：饼干摊砍价（三选一），买了饼干，旧街拐角会坐下来分着吃",
     "市集支线：料理鼠妈，帮她看锅放料（小游戏），之后可以拿东西换吃的，换了汤终章多一格燃料",
-    "市集可点：吊着的篮子、修补摊、屋顶的桥、摊主",
-    "楼梯间可点：水母",
-    "旧街可点：水位刻线、两层招牌；妮芙聊天",
-    "水下仓库可点：箱子（标签）；妮芙",
-    "来客册支线：修好影像盒以后，回窗边扇干来客册（小游戏），看名单，知道弥洛的朋友寄过信，拿到杯底记号",
-    "南桥可点：灯柱、屋顶装饰；妮芙聊天",
+    "市集修补摊：用任意一件东西换密封圈（什么时候都能换，不用等任务）",
+    "市集可点：吊着的篮子、屋顶的桥、摊主",
+    "楼梯间：水母（没给东西时还能再给；给过以后每次点都说「好像叫寿登耄耋？」）",
+    "旧街可点：拐角（果酱店、身高刻线，买过饼干会坐下来分）、水位刻线、两层招牌",
+    "水下仓库可点：破箱子那儿（标签）；拿到读取头以后可以再下水开「还有箱子」，免费拿密封圈",
+    "来客册支线：修好录像带以后，回窗边扇干来客册（小游戏），看名单，知道弥洛的朋友寄过信，拿到杯底记号",
+    "南桥可点：灯柱、屋顶装饰",
 ]
 
 
@@ -226,7 +231,7 @@ class Writer:
     def fade(self, st):
         room = ROOMS.get(st.get("room"), st.get("room"))
         if st.get("style") == "pixel":
-            return "格子转场，到%s的飞机旁" % room
+            return "格子转场，到%s" % FADE_AT.get(st.get("at"), room)
         return "转场到%s" % room
 
     def steps(self, steps, ind=""):
@@ -301,6 +306,14 @@ class Writer:
             self.choice(st, ind)
         elif do == "mechanic":
             self.mech(st, ind)
+        elif do == "barter":
+            self.flush(ind)
+            d = self.d["barter"][st["npc"]]
+            self.act("弹出背包，选一件东西给它（任务物品和终章要用的不收），也可以选「算了」")
+            self.flush(ind)
+            for t in d.get("trades", [])[:1]:
+                if t.get("scene") in self.sc:
+                    self.branch_body(t["scene"], ind)
         else:
             sys.exit("不认识的步骤：%s" % st)
 
@@ -366,9 +379,6 @@ class Writer:
             self.act("小游戏：水下的箱子漂来漂去，选一只打开，找读取头和浮筒密封圈。妮芙头上的泡泡破光了，标签就变成她的暗号。箱子：" + boxes)
         elif mid == "river_thread":
             self.act("小游戏：拧接头。管子上印着「%s」的箭头，妮芙贴的便条写着「%s」，照箭头拧会松，反着拧才紧" % (st.get("arrow", {}).get("zh", ""), st.get("note", {}).get("zh", "")))
-        elif mid == "river_bridge_view":
-            arches = " / ".join(a["label"]["zh"] for a in st.get("arches", []))
-            self.act("小游戏：走到对的位置，取景框和影像对上，大象的灰影从桥洞底下走过去。然后选它从哪个桥洞过去（%s）" % arches)
         elif mid == "river_explore_order":
             rows = st.get("rows", [])
             if rows:
@@ -404,7 +414,8 @@ class Writer:
         return ""
 
     def entrance(self, name):
-        for h in self.d.get("hotspots", []):
+        hs = sorted(self.d.get("hotspots", []), key=lambda h: h.get("trigger") != "enter")
+        for h in hs:
             if h.get("scene") == name and "_side" not in h:
                 if h.get("trigger") == "enter":
                     return "[玩家走到「%s」那儿，自动开始]" % h["label"]["zh"]

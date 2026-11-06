@@ -21,6 +21,6 @@ echo "==== 字量框（qa_text）"; grep -h "^QA_TEXT" "$OUT/text.log"
 echo "==== 剧本检查（不算 info）"
 for c in forest flight1 river final; do grep -h "^STORY_CHECK" "$OUT/check_$c.log" | grep -v "STORY_CHECK info"; done
 echo "==== 边玩边看（每章一行）"
-grep -h "^QA_LIVE_SUMMARY\|^QA_MOTION_SUMMARY\|^CHAPTER\|STORY_STUCK\|SCRIPT ERROR\|GT_TIMEOUT" "$OUT"/live_*.log
+grep -h "^QA_LIVE_SUMMARY\|^QA_MENU_HOVER\|^QA_MOTION_SUMMARY\|^CHAPTER\|STORY_STUCK\|SCRIPT ERROR\|GT_TIMEOUT" "$OUT"/live_*.log
 echo "==== 具体哪几条"
 grep -h "^QA_OVERLAP\|^QA_OFFSCREEN\|^QA_DLG\|^QA_JUMP\|^QA_CAMJUMP\|^QA_PROP\|^QA_POPIN" "$OUT"/live_*.log | sort -u

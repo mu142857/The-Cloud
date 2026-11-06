@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cnwq26s1i7uge"
-path="res://.godot/imported/viewfinder.png-3e7e2bd2255ab6d58764fb79cb41f68b.ctex"
+uid="uid://cu6rsrgqsi1st"
+path="res://.godot/imported/icon_oxygen_tank.png-d8fff51182443ab8c223937d3f0cb32a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/river_city/southbridge/viewfinder.png"
-dest_files=["res://.godot/imported/viewfinder.png-3e7e2bd2255ab6d58764fb79cb41f68b.ctex"]
+source_file="res://art/river_story/icon_oxygen_tank.png"
+dest_files=["res://.godot/imported/icon_oxygen_tank.png-d8fff51182443ab8c223937d3f0cb32a.ctex"]
 
 [params]
 

@@ -240,7 +240,7 @@ var follow := {}                     # 跟着晨走的：名字 → 间距
 var closeup_ui: Control              # 特写面板（closeup_ui.gd）
 var mech_node = null                 # 正在玩的那个小游戏（side_kit / river_kit 的面板在它的 board 上）：对话框躲面板用
 var _mech_quit := false              # 刚才那个小游戏是退出来的（side_kit 的 quitted）
-var mech_running := ""               # 正在玩的小游戏 id（镜头：房间有 viewfinder 时这期间不往前多看，见 level_forest.gd _cam_target）
+var mech_running := ""               # 正在玩的小游戏 id
 var mech_wait := false               # 小游戏在等玩家互动（wait_interact）：只有临时点能用
 var _mech_spots: Array = []
 var _mech_hit: Dictionary = {}
@@ -817,6 +817,8 @@ func _step(st: Dictionary) -> String:
 				await _prop_glide(st)
 			else:
 				world.set_prop(str(st.get("id", "")), str(st.get("state", "")))
+				if st.has("fade") and not ff:
+					_prop_fade_in(str(st.get("id", "")), float(st["fade"]))
 		"guide":
 			await _guide(st)
 			if not pending_guide.is_empty() and not pending_guide.has("scene"):
@@ -877,6 +879,12 @@ func _step(st: Dictionary) -> String:
 				follow[who_f] = float(st.get("gap", FOLLOW_GAP))
 			else:
 				follow.erase(who_f)
+			var nf_ := npc(who_f)
+			if nf_ != null and st.has("vmax"):
+				if float(st["vmax"]) > 0.0:
+					nf_.set_meta("follow_vmax", float(st["vmax"]))
+				elif nf_.has_meta("follow_vmax"):
+					nf_.remove_meta("follow_vmax")
 		"water":
 			var ws: Node2D = world.stage(str(st.get("room", world.room)))
 			if ws != null:
@@ -1117,7 +1125,7 @@ func _say(st: Dictionary) -> void:
 	if ff:
 		return
 	if st.get("bark", false):
-		bark.push(txt(st), bool(st.get("added", false)) and mark_added)    # 头顶小气泡，不等
+		bark.push(txt(st), bool(st.get("added", false)) and mark_added, str(st["say"]))    # 头顶小气泡，不等
 		return
 	var who := str(st["say"])
 	var tl := txt_lang(st)
@@ -1698,6 +1706,9 @@ func _anim(st: Dictionary) -> void:
 	if _wood_mode and who == "chen" and name == "pickup":
 		return                    # 过场里已经弯过腰了
 	var n := npc(who)
+	if name == "hop" and n != null and n.has_method("hop"):
+		n.hop()                   # 不是帧动画：原地蹦两下（不等，边跟着走边蹦）
+		return
 	var key := "miluo" if n == miluo else who
 	var m: Dictionary = ANIM_MAP.get(key, {})
 	if n == chen and n != null and not m.has(name):
@@ -3471,7 +3482,8 @@ func validate() -> Array[String]:
 					var key := "miluo" if npc(who) == miluo else who
 					if npc(who) != null and npcs.values().has(npc(who)):
 						if not npc(who).has_anim(str(st.get("name", ""))):
-							out.append("info: MISSING_ANIM %s.%s（scene %s：还没有这段动作，播的时候退回待机 / 占位）" % [who, st.get("name"), id])
+							if str(st.get("name", "")) != "hop":      # hop 不是帧动画（npc_generic.hop），剧本 anim 直接调
+								out.append("info: MISSING_ANIM %s.%s（scene %s：还没有这段动作，播的时候退回待机 / 占位）" % [who, st.get("name"), id])
 						continue
 					if npc(who) == chen and chen != null and not (ANIM_MAP["chen"] as Dictionary).has(str(st.get("name", ""))):
 						if chen_anim(str(st.get("name", ""))) == "":
@@ -5336,6 +5348,19 @@ func _reward(st: Dictionary) -> void:
 		fx.queue_redraw()
 	if is_instance_valid(fx):
 		fx.queue_free()
+
+
+## {"do": "prop", ..., "fade": 秒}：物件换到这个状态的时候淡进来（分四档，南桥一路亮起来的脚印；读档直接是亮的）
+func _prop_fade_in(id: String, sec: float) -> void:
+	var pid: String = world.prop_id(id)
+	var sr: String = world.stage_of_prop(pid)
+	var sg: Node2D = world.stage(sr) if sr != "" else null
+	var s: Sprite2D = sg.object(pid) if sg != null else null
+	if s == null or sec <= 0.0:
+		return
+	s.modulate.a = 0.0
+	var tw := s.create_tween()
+	tw.tween_method(func(k: float): s.modulate.a = ceilf(k * 4.0) / 4.0, 0.0, 1.0, sec)
 
 
 # ----------------------------------------------------------------------- 小游戏 {"do": "mechanic"}
