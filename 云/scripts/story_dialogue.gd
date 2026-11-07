@@ -176,11 +176,13 @@ func _mk_label(c: Color) -> Label:
 
 # ======================================================================= 对话
 ## 说一句：等到玩家按确认（第二下）才返回。anchor：func() -> Vector2，说话人头顶的屏幕坐标。
-func say(who_name: String, name_color: Color, text: String, anchor: Callable, added := false) -> void:
+func say(who_name: String, name_color: Color, text: String, anchor: Callable, added := false, typing_sec := 0.0, layout_peer := "") -> void:
 	if instant:
 		return
 	_murmur_t = 0.0
-	_show_line(who_name, name_color, text, anchor, added)
+	_show_line(who_name, name_color, text, anchor, added, layout_peer)
+	if typing_sec > 0.0:
+		_cps = maxf(1.0, float(_text.get_total_character_count()) / typing_sec)
 	_typing = true
 	_open = true
 	_age = 0.0
@@ -197,7 +199,7 @@ func murmur(who_name: String, name_color: Color, text: String, anchor: Callable,
 	_age = 0.0
 
 
-func _show_line(who_name: String, name_color: Color, text: String, anchor: Callable, added: bool) -> void:
+func _show_line(who_name: String, name_color: Color, text: String, anchor: Callable, added: bool, layout_peer := "") -> void:
 	_anchor = anchor
 	_text.add_theme_color_override("font_color", ADDED_C if added else UITheme.TEXT)
 	_name.text = who_name
@@ -206,7 +208,7 @@ func _show_line(who_name: String, name_color: Color, text: String, anchor: Calla
 	_text.text = text
 	# 宽度：一行放得下就按字宽，放不下就固定 MAX_W 自动换行
 	var w := 0.0
-	for line in text.split("\n"):
+	for line in (text + "\n" + layout_peer).split("\n"):
 		w = maxf(w, UITheme.font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
 	if w > MAX_W:
 		_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -214,6 +216,9 @@ func _show_line(who_name: String, name_color: Color, text: String, anchor: Calla
 	else:
 		_text.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_text.custom_minimum_size = Vector2.ZERO
+	if layout_peer != "":
+		var height := maxf(_line_layout_height(text, MAX_W), _line_layout_height(layout_peer, MAX_W))
+		_text.custom_minimum_size = Vector2(minf(ceilf(w), MAX_W), height)
 	_text.visible_characters = 0
 	_chars = 0.0
 	_cps = CPS_ZH if I18n.is_zh() else CPS_EN
@@ -225,6 +230,15 @@ func _show_line(who_name: String, name_color: Color, text: String, anchor: Calla
 	_box.modulate.a = 0.0
 	create_tween().tween_property(_box, "modulate:a", 1.0, 0.15)
 	_place_box()
+
+
+static func _line_layout_height(value: String, width: float) -> float:
+	var font := UITheme.font()
+	var breaks := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	var layout := font.get_multiline_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, width, 14, -1, breaks)
+	var line_height := font.get_height(14)
+	var count := maxi(1, roundi(layout.y / line_height))
+	return ceilf(layout.y) + 2.0 * (count - 1)
 
 
 func close_box() -> void:
@@ -632,29 +646,31 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 				p.add_child(l)
 			_menu_items.append(p)
 	else:
-		var y := 222.0 - (opts.size() - 1) * 18.0
-		# 平时从 x 120 起；最长的那句放不下（英文长句）就整组往左让，不出屏幕右边（11-04）
-		var widest := 0.0
-		for o in opts:
-			widest = maxf(widest, UITheme.font().get_string_size("  " + str(o), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
-		var x0 := clampf(roundf(474.0 - 8.0 - widest), 10.0, 120.0)
-		var xy := _menu_dodge(x0, y, widest, opts.size())
-		x0 = xy.x
-		y = xy.y
-		for i in opts.size():
+		const WIDTH := 308.0
+		const GAP := 3.0
+		var row_heights: Array[float] = []
+		var height := 0.0
+		for option in opts:
 			var l := _mk_label(UITheme.TEXT_DIM)
-			l.text = "  " + str(opts[i])
-			l.position = Vector2(x0, y + i * 18.0)
-			l.size = Vector2(maxf(320.0, widest + 4.0), 16)
+			l.text = "▸ " + str(option)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var row_height := maxf(16.0, _line_layout_height(l.text, WIDTH))
+			row_heights.append(row_height)
+			height += row_height + GAP
+			_menu_items.append(l)
+		var xy := _menu_dodge(120.0, 240.0 - height, WIDTH, height)
+		for i in _menu_items.size():
+			var l: Label = _menu_items[i]
+			l.position = xy
+			l.size = Vector2(WIDTH, row_heights[i])
 			var bg := ColorRect.new()
 			bg.color = Color(BOX_BG, 0.85)
-			bg.position = l.position - Vector2(4, 1)
+			bg.position = xy - Vector2(4, 1)
+			bg.size = Vector2(WIDTH + 8, row_heights[i] + 2)
 			bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var tw := UITheme.font().get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-			bg.size = Vector2(tw + 12.0, 17)
 			_menu_root.add_child(bg)
 			_menu_root.add_child(l)
-			_menu_items.append(l)
+			xy.y += row_heights[i] + GAP
 	_menu_style()
 
 
@@ -666,12 +682,11 @@ const MENU_DODGE_GAP := 8.0
 const MENU_DODGE_MAX := 24.0         # 框边离晨最远多少像素
 
 
-func _menu_dodge(x0: float, y: float, widest: float, n: int) -> Vector2:
+func _menu_dodge(x0: float, y: float, widest: float, h: float) -> Vector2:
 	if not avoid.is_valid():
 		return Vector2(x0, y)
 	var rs: Array = avoid.call()
 	var w := widest + 12.0
-	var h := n * 18.0
 	var band := func(x: float, yy: float) -> Rect2:
 		return Rect2(x - 4.0, yy - 1.0, w, h)
 	var hit := func(r: Rect2) -> bool:
@@ -787,13 +802,12 @@ func _menu_input(event: InputEvent) -> bool:
 ## 循环里先选上一项再选下一项，鼠标每动一下就响两声。现在一个位置只算一个结果：文字选项按行距接成一条（不留缝、不重叠）；
 ## 再留一点粘性：鼠标还在选中那项外面 MENU_STICK 像素以内就不换，手抖、压在交界线上也不会来回切。点击用同一个判定，点到的就是亮着的那项。
 const MENU_STICK := 3.0
-const MENU_LINE_H := 18.0            # 和 _open_menu 里文字选项的行距一样
 
 
 func _menu_rect(i: int) -> Rect2:
 	var c: Control = _menu_items[i]
 	if _menu_kind == "lines":
-		return Rect2(c.position.x - 2.0, c.position.y - 1.0, c.size.x + 4.0, MENU_LINE_H)
+		return Rect2(c.position.x - 2.0, c.position.y - 1.0, c.size.x + 4.0, c.size.y + 2.0)
 	return Rect2(c.position - Vector2(2, 2), c.size + Vector2(4, 4))
 
 

@@ -15,6 +15,9 @@ static var lang := "en"
 
 const STR := {
 	# ---- 开场
+	"pet": ["Pet", "摸一摸"],
+	"talk": ["Talk", "聊一聊"],
+	"view": ["View", "查看"],
 	"headphones": ["Best played with headphones", "建议佩戴耳机游玩"],
 	"press_any": ["Click or press any key", "点击或按任意键继续"],
 	"title": ["The Cloud", "云"],

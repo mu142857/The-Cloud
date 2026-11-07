@@ -101,6 +101,11 @@ const PLAN := [
 	{"t": 28.0, "k": "gap", "g": -0.5},
 	{"t": 31.8, "k": "final", "g": [0.6, -0.1, -0.8]},
 ]
+const PLAN_REPAIR := [
+	{"t": 3.0, "k": "one", "lane": -1},
+	{"t": 6.8, "k": "one", "lane": 1},
+	{"t": 10.6, "k": "pair", "lane": -1},
+]
 const PLAN_AUTO := [
 	{"t": 0.0, "k": "one", "lane": -1},
 	{"t": 2.7, "k": "gap", "g": 0.0},
@@ -163,6 +168,12 @@ var _waves: Array = []        # {safe, at, t0, rocks: [...], bumped, kind}
 var _rng := RandomNumberGenerator.new()
 var _fx: Node2D               # 预告的划痕 + 小影子 + 气流线 + 擦边火星（画在 cockpit.debris_layer 里）
 var _sparks: Array = []       # {p, v, age}
+var _repair_at := ""
+var _repair_x := 0.0
+var _repair_done := false
+var _repair_hint: Label
+var _repair_lane := -1
+
 var _hint: Label
 var _said := 0
 var _auto := false
@@ -225,6 +236,9 @@ func play(r: Node, st: Dictionary) -> String:
 	_auto = r.auto != ""
 	_real = "--debris_full" in OS.get_cmdline_user_args()   # 截图用：自动玩也按真实时长、真实拉远速度播
 	var real := _real
+	_repair_at = str(st.get("repair_at", ""))
+	if _repair_at != "":
+		_repair_x = float(r.world.resolve(_repair_at)["x"])
 	var k := float(st.get("far_scale", FAR_K))
 	var fx := float(st.get("far_x", FAR_X))
 	for a in OS.get_cmdline_user_args():
@@ -232,7 +246,7 @@ func play(r: Node, st: Dictionary) -> String:
 			k = float(a.trim_prefix("--far_scale="))
 		elif a.begins_with("--far_x="):
 			fx = float(a.trim_prefix("--far_x="))
-	_far = k < 0.99 and cockpit.far_ready(k)
+	_far = _repair_at == "" and k < 0.99 and cockpit.far_ready(k)
 	if _far:
 		_zoom_sec = 1.2 if _auto and not real else float(cockpit.FAR_SEC)
 		_ship_cx = roundf(clampf(fx, 0.5, 0.8) * 480.0)
@@ -274,12 +288,21 @@ func play(r: Node, st: Dictionary) -> String:
 			_plan.append(e)
 	else:
 		var sc := clampf(sec / 40.0, 0.75, 1.5)
-		for w in (PLAN_FINAL if final else PLAN):
+		var plan := PLAN_FINAL if final else (PLAN_REPAIR if _repair_at != "" else PLAN)
+		for w in plan:
 			var e: Dictionary = (w as Dictionary).duplicate()
+			if str(st.get("plan", "")) == "dense" and e["k"] == "one" and float(e["t"]) <= 18.6:
+				e["k"] = "pair"
 			e["t"] = float(e["t"]) * sc
 			_plan.append(e)
 	_build()
+	if _repair_at != "":
+		runner.chen.input_enabled = not _auto
+		_build_repair_hint()
 	await done
+	if _repair_at != "":
+		runner.chen.input_enabled = false
+		runner.chen.auto_dir = 0.0
 	StoryState.set_prop(key, str(bumps))
 	cockpit.steering = false
 	if _far and cockpit.far_u() > 0.0:
@@ -295,7 +318,6 @@ func play(r: Node, st: Dictionary) -> String:
 				lp.queue_free()                       # 没在放的直接删
 	if is_instance_valid(_dark):
 		_dark.queue_free()
-	_hum_restore(0.8)
 	var lead := 0.0
 	for v in _lead:
 		lead += float(v) / float(_lead.size())
@@ -329,6 +351,43 @@ func _build() -> void:
 	create_tween().tween_property(_hint, "modulate:a", 0.85, 0.6)
 	_play("flight_rumble", -14.0)
 	_air = _loop("airflow_loop", -60.0)
+	if _repair_at != "":
+		_hint.text = I18n.pick({"zh": "← → 在舱内移动     ↑ ↓ 驾驶飞船", "en": "← → Walk in the cabin     ↑ ↓ Steer the ship"})
+
+
+func _build_repair_hint() -> void:
+	_repair_hint = Label.new()
+	_repair_hint.text = I18n.pick({"zh": "E 修理漏气处", "en": "E   Repair leak"})
+	_repair_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_repair_hint.add_theme_font_size_override("font_size", 13)
+	_repair_hint.add_theme_stylebox_override("normal", UITheme.box(Color("#293332"), Color("#ddc08a"), 1, Vector4(4, 2, 4, 2)))
+	_repair_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_repair_hint)
+
+
+func _repair_step() -> void:
+	if _repair_at == "" or _repair_done:
+		return
+	var distance: float = _repair_x - runner.chen.position.x
+	var near := absf(distance) <= 30.0
+	var screen_x: float = _repair_x - level.cam_left().x
+	_repair_hint.position = Vector2(clampf(screen_x - _repair_hint.size.x / 2.0, 4.0, 476.0 - _repair_hint.size.x),
+		clampf(float(runner.chen.position.y) - level.cam_left().y - 87.0, 32.0, 200.0))
+	_repair_hint.modulate.a = 1.0 if near else 0.65
+	if _auto:
+		runner.chen.auto_dir = signf(distance) if not near else 0.0
+	if near and (_auto or Input.is_key_pressed(KEY_E)):
+		_repair()
+
+
+func _repair() -> void:
+	if _repair_done or absf(_repair_x - runner.chen.position.x) > 30.0:
+		return
+	_repair_done = true
+	_repair_hint.hide()
+	runner.world.set_prop(_repair_at, "fixed")
+	runner._ambient_step({"name": "hiss_thin", "at": _repair_at, "on": false})
+	_play("wrench", -8.0)
 
 
 static func _tx(k: String) -> String:
@@ -343,6 +402,7 @@ func _process(delta: float) -> void:
 		dev_skip()
 		return
 	_t += delta
+	_repair_step()
 	_air_step(delta)
 	_dark_step(delta)
 	_spark_step(delta)
@@ -388,7 +448,14 @@ func _process(delta: float) -> void:
 		if not _wave_clear(w):
 			busy = true
 	_fx.queue_redraw()
-	if (_plan.is_empty() and not busy) or _t > sec * 1.5 + 10.0:
+	if _repair_at != "" and not _repair_done:
+		if _plan.is_empty() and not busy:
+			for w in _waves:
+				_free_wave(w)
+			_waves.clear()
+			_repair_lane *= -1
+			_plan.append({"t": _t + 1.0, "k": "pair", "lane": _repair_lane})
+	elif (_plan.is_empty() and not busy) or _t > sec * 1.5 + 10.0:
 		_finish()
 
 
@@ -1092,6 +1159,10 @@ func _input(event: InputEvent) -> void:
 	if _finished or _auto:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed and is_instance_valid(_repair_hint) and _repair_hint.visible and _repair_hint.get_global_rect().has_point(event.position):
+			_repair()
+			get_viewport().set_input_as_handled()
+			return
 		_push = (-1.0 if event.position.y < 135.0 else 1.0) if event.pressed else 0.0
 		get_viewport().set_input_as_handled()
 	elif event is InputEventScreenTouch:

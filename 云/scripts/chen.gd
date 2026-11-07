@@ -62,6 +62,7 @@ const EYE_CHANCE := 0.25           # 该眨眼时有多大可能换成 idle_eye�
 @onready var spr: AnimatedSprite2D = $Sprite
 
 var facing := 1                    # 1 朝右，-1 朝左
+var intro_run := false
 var auto_dir := 0.0                # 非 0 时自己走（--walk、空格展示模式）
 var input_enabled := true          # false = 不听键盘（过场、打开面板时）；auto_dir 照样能让她走
 var _idle_t := 0.0
@@ -150,7 +151,7 @@ func _process(delta: float) -> void:
 	# 惯性：加速用 ACCEL_TIME（前摇那 3 帧），减速用 DECEL_TIME（后摇那 2 帧）
 	var rate := RUN_SPEED / (ACCEL_TIME if target > _vel else DECEL_TIME)
 	_vel = move_toward(_vel, target, rate * delta)
-	if _vel > 0.0:
+	if _vel > 0.0 and not intro_run:
 		# 别人（过场、调试参数）直接挪过她，就从那里接着走
 		if is_nan(_x) or absf(position.x - roundf(_x)) > 0.5:
 			_x = position.x

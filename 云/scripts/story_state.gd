@@ -13,7 +13,6 @@ static var journal: Array = []
 static var props := {}
 static var used := {}                         # once 的 hotspot 用掉了：id → true
 static var changed := 0                       # 每设一个新 flag 加一（自动玩判断「有进展」用）
-const PHONE := preload("res://scripts/phone_state.gd")   # 通讯器（联系人、记录、未读、草稿）跟着一起 reset / 存档
 
 
 static func reset() -> void:
@@ -23,7 +22,6 @@ static func reset() -> void:
 	props.clear()
 	used.clear()
 	changed = 0
-	PHONE.reset()
 
 
 static func has(f: String) -> bool:
@@ -135,7 +133,7 @@ static func frame(tree: SceneTree) -> void:
 
 static func to_dict() -> Dictionary:
 	return {"flags": flag_order.duplicate(), "journal": journal.duplicate(true), "props": props.duplicate(),
-		"used": used.keys(), "owned": Inventory.owned.duplicate(), "phone": PHONE.to_dict()}
+		"used": used.keys(), "owned": Inventory.owned.duplicate()}
 
 
 static func from_dict(d: Dictionary) -> void:
@@ -148,5 +146,5 @@ static func from_dict(d: Dictionary) -> void:
 		used[str(u)] = true
 	Inventory.owned.clear()
 	for id in d.get("owned", []):
-		Inventory.add(str(id))
-	PHONE.from_dict(d.get("phone", {}))
+		if str(id) != "communicator":
+			Inventory.add(str(id))

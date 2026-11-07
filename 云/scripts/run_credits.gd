@@ -80,13 +80,34 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	if main != null:
 		lv.move_child(roll, main.get_index() + 1)
 	roll.setup(d, speed, r)
-	_start_music(d, lv)
+	if not st.get("intro", false):
+		_start_music(d, lv)
 	print("MECH %s started entries=%d sec=%.1f" % [ID, roll._ms.size(), total_sec(d) / speed])
+	if st.get("intro", false):
+		await _forest_loop(lv, total_sec(d) / speed)
+
+
+func _forest_loop(lv: Node2D, duration: float) -> void:
+	var chen: Node2D = lv.chen
+	chen.intro_run = true
+	chen.auto_dir = 1.0
+	var cycles := {"Far": 1, "MidFar": 1, "Mid": 2, "Main": 3, "Front": 4}
+	var offsets := {}
+	var scroll := lv.create_tween().set_parallel()
+	for layer_name in cycles:
+		var layer := lv.get_node(layer_name) as Parallax2D
+		offsets[layer] = layer.scroll_offset
+		scroll.tween_property(layer, "scroll_offset:x", layer.scroll_offset.x - layer.repeat_size.x * float(cycles[layer_name]), duration)
+	await scroll.finished
+	for layer: Parallax2D in offsets:
+		layer.scroll_offset = offsets[layer]
+	chen.intro_run = false
+	chen.auto_dir = 0.0
 
 
 ## 自动玩：一样不挡，按真实的快慢放（--qa_live 要量名字和晨那句潜意识字叠不叠，快了就不准）
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
-	speed = 1.0
+	speed = 5.0 if st.get("intro", false) else 1.0
 	await run(lv, w, r, st)
 
 
@@ -108,7 +129,7 @@ func check(_story: Node, st: Dictionary) -> Array:
 			out.append("credits %s 的 style %s 不认识（%s）" % [e.get("id"), e.get("style"), ", ".join(Moment.STYLES)])
 		if e.get("role_guess", false):
 			out.append("info: credits %s 的职务是猜的，等作者改" % e.get("id"))
-	if load_music(str(d.get("music", MUSIC))) == null:
+	if not st.get("intro", false) and load_music(str(d.get("music", MUSIC))) == null:
 		out.append("info: 主题曲 %s 还没有，只出字幕" % d.get("music", MUSIC))
 	return out
 

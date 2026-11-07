@@ -425,6 +425,8 @@ func walls(x: float) -> Vector2:
 				and not StoryState.has(str(one_way.get("until", ""))):
 			l = maxf(l, mx(str(one_way["wall"])))      # 拿回背包以后不能回头（第一关新版）
 		return Vector2(l, r)
+	if markers.has("c1_rabbit_gate") and StoryState.has("c1_side_open") and not StoryState.has("c1_to_rabbit"):
+		return Vector2(b_start(), mx("c1_rabbit_gate"))
 	return Vector2(b_start(), mx("wall_right"))
 
 
@@ -1305,6 +1307,10 @@ func _draw_sway() -> void:
 ## 布条：平时静止，每隔 CLOTH_GUST 秒被风吹一下（换到第 2 帧），雾里同时周围亮一点点
 func _update_cloth() -> void:
 	var s: Sprite2D = props["cloth"]
+	if StoryState.has("c1_crashed"):
+		s.hide()
+		_cloth_glow.hide()
+		return
 	var t := fmod(_anim_t, CLOTH_GUST)
 	var gust := t < CLOTH_GUST_T
 	if s.hframes > 1:
