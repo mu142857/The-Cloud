@@ -81,7 +81,7 @@ func play(r: Node, step: Dictionary) -> String:
 	var key := str(st.get("id", "burn_pick"))
 	var kind := str(st.get("kind", ""))
 	var real := bool(st.get("burn", false))      # 选完真的从背包烧掉（加燃料、提示）
-	var again := bool(st.get("repeat", false))   # 一件接一件挑，直到没有可烧的
+	var again := bool(st.get("repeat", false))   # 一件接一件挑，直到没有可烧的（或 until_fuel 燃料够了）
 	var last := ""
 	while true:
 		items = burnable(st.get("items", null), kind)
@@ -105,6 +105,13 @@ func play(r: Node, step: Dictionary) -> String:
 		last = chosen
 		if real:
 			await r._burn_held({"items": [chosen], "no_closeup": true})
+			var after = st.get("after", {})
+			if after is Dictionary and after.has(chosen):
+				for l in r.scenes.get(str(after[chosen]), []):      # 烧完晨的那一句（只放台词，不要 goto）
+					if l is Dictionary:
+						await r._step(l)
+		if bool(st.get("until_fuel", false)) and (not StoryState.fuel_on() or StoryState.fuel() >= StoryState.fuel_need()):
+			break                                        # 燃料够了就不用再烧
 		if not again:
 			break
 	return str(scenes.get(last, then))

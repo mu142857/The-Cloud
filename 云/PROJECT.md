@@ -68,6 +68,28 @@
 - `data/story_forest.json`：`c1_drawing` 的 flashback 加 `"got": {"zh": "地图", "en": "Map"}`（「获得：%s」用的名字；没写 got 的旧 `went_wrong_first` 只是照片淡掉，不飞背包）。
 - 验证：云端 Godot 4.7，`--beat=c1_got_bag --fb_dev=1 --story_auto --fb_full` 按真实时长跑并每 0.2 秒截图：照片 2.2 秒飘进来，路障 / 纸箱各 8 下推开，照片进背包、出「获得：地图」，触手扑过来碰到即黑，接着 `paper_view` → `c1_woke`，0 个脚本报错，全程约 22 秒。快速自动玩（×0.4）也通。森林 `--story_check` 0 错误。手感（8 下够不够、障碍大小）和声音没人实机试过；推的时候城市前景的黑车偶尔会挡住提示约 1 秒（作者之前说前景不动，没改）。
 
+### 2026-11-07（九）· Claude（Code）· 飞船烧东西改成自己挑：背包里所有能烧的，选一个烧一个（burn_pick 加 kind / burn / repeat / until_fuel / after）
+
+需求（作者）：喜欢燃烧教程里熊翻着飘的画面；飞船选烧什么时不要自动烧，也不是二选一——背包里所有能烧的都能选，选一个烧一个（多选多），物品框在最下方，中间是悬空翻转的那一件。
+- `scripts/burn_pick.gd` 新增可选字段：`kind`（只列这一类 fuel_kind）、`burn`（确认后真的从背包烧掉，走 `_burn_held`：加燃料、设 burned_*、提示）、`repeat`（一件接一件挑）、`until_fuel`（燃料够了就停；烧光了也停）、`after`（{物品: scene}，烧完播那段台词，只放台词不要 goto）。每轮前 `_reset()` 清界面。不写这些字段的旧用法（第一关熊）不变。
+- `story_runner.gd`：`_burn_held` 认 `no_closeup`（burn_pick 自带烧的动画，不叠特写）。
+- `data/story_flight1.json`：`flight1_materials` 不再自动烧无关物品，只走到转化装置、设 fuel_short / flight1_fuel_low，然后 goto `flight1_fuel_choice`；`flight1_fuel_choice` = 旁白「放进转化装置的东西，无法取回。」→ `burn_pick {burn, repeat, until_fuel, after}`（背包里所有能烧的）→ flag `flight1_burned` → `flight1_after_burn`。小熊「对不起。」/ 全家福「……我会记起来的。」改放进 `flight1_after_deer_bear` / `flight1_after_family_photo`。旧的 `burn_deer_bear` / `burn_family_photo` / `burn_blue_stone` 等分支留在文件里，不再走到。
+- 没跑：本机没有 godot，只确认 JSON 能解析。**没实机试**，请跑 `--story_check` 和飞行段。注意：燃料需求（`need_held`）按「现有 + 全部无关物品 + 100」算，所以不烧够无关物品、又没烧大件私人物品时燃料不会到，会一直挑到烧光。
+
+### 2026-11-07（八）· Claude（Cowork）· 第一次闪回（追照片）重做：障碍狂按 E、照片进背包、触手一碰就黑
+
+需求（作者）：刚进闪回不出触手，只有场景；跑一段以后照片从右边飘过来，玩家一直追它；中间碰到障碍要按很多次 E 才能过，障碍按现有像素风格画；追到照片后物品加进背包（复用右上角背包那个飞进去的动画），出「获得地图」；然后触手从左边快速靠近，碰到晨的一瞬间直接黑屏。
+
+- `scripts/flashback.gd`（只改第一次，`_photo = id == 1`；二～四次没动）：
+  - 开头不涌触手、不回头看、没有冲刺；晨自己往右跑。`PHOTO_AT` 2.2 秒后照片从屏幕右边外慢慢飘进来，在她前面飘。
+  - 两个障碍（`OBSTACLES`：1150 施工路障、2450 一摞三只纸箱）。撞上就停、出「狂按 E 推开」（提示挪到 y 122，在头顶，不压人）；按 `OB_NEED` = 8 下推开：每下障碍晃一下、往前挪一格、她往前顶一下、扬尘；最后一下路障拍倒在地（换倒地图）往前滑，纸箱散开。鼠标 / 触屏点按也算。`OB_GUARD` 40 秒不按会自己倒（只防软锁）。
+  - 过了最后一个障碍 `CATCH_AFTER` 1.6 秒，照片落回她手里，飞进右上角背包（和剧本 `give` 同一条轨迹：先跳一下再划弧，背包弹一下、`level.bag_bump()` 的「嗒」），出「获得：地图」。
+  - 停 0.5 秒，晨回头，触手从画面左边缘外 1 秒内越来越快地扑过来（心跳、紧张音乐拉满），碰到她直接全黑（不淡），之后接原来的剧本（看照片、翻到地图……）。
+  - 删了原来的空格跳栏（`_barriers` / `_vault`）。新增测试参数 `--fb_shots=目录`、`--fb_shot_every=秒`（闪回里定时存截图）。
+- `tools/flashback_obstacle_art.py`（新）→ `art/flashback/obstacle_barrier.png`、`obstacle_barrier_down.png`、`obstacle_box_a/b/c.png`：照 `city_art.py` / `flashback_train_art.py` 的城市灰，1 倍像素、无描边，暖色只给警示灯和纸箱。
+- `data/story_forest.json`：`c1_drawing` 的 flashback 加 `"got": {"zh": "地图", "en": "Map"}`（「获得：%s」用的名字；没写 got 的旧 `went_wrong_first` 只是照片淡掉，不飞背包）。
+- 验证：云端 Godot 4.7，`--beat=c1_got_bag --fb_dev=1 --story_auto --fb_full` 按真实时长跑并每 0.2 秒截图：照片 2.2 秒飘进来，路障 / 纸箱各 8 下推开，照片进背包、出「获得：地图」，触手扑过来碰到即黑，接着 `paper_view` → `c1_woke`，0 个脚本报错，全程约 22 秒。快速自动玩（×0.4）也通。森林 `--story_check` 0 错误。手感（8 下够不够、障碍大小）和声音没人实机试过；推的时候城市前景的黑车偶尔会挡住提示约 1 秒（作者之前说前景不动，没改）。
+
 ### 2026-11-07（九）· Claude（Code）· 飞船烧东西改成自己挑（burn_pick 加 kind / burn / repeat）
 
 需求（作者）：喜欢燃烧教程里熊翻着飘的画面；飞船选烧什么时不要自动烧，让玩家选，物品框在最下方，中间是悬空翻转的那一件。
