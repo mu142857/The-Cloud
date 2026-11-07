@@ -645,12 +645,12 @@
 				"state": "burn"
 			},
 			{
-				"do": "burn_held",
-				"kind": "unrelated"
-			},
-			{
-				"do": "sfx",
-				"name": "converter_burn"
+				"do": "burn_pick",
+				"id": "flight1_materials_pick",
+				"kind": "unrelated",
+				"burn": true,
+				"repeat": true,
+				"_note": "11-07 作者：飞船选烧什么不再自动烧，用 burn_pick 的界面；一件一件挑，直到无关的东西烧完"
 			},
 			{
 				"do": "wait",

@@ -76,31 +76,61 @@ var _auto_step := 0
 func play(r: Node, step: Dictionary) -> String:
 	runner = r
 	st = step
-	items = burnable(st.get("items", null))
 	var scenes: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}
 	var then := str(st.get("then", ""))
-	if items.is_empty():
-		return then
 	var key := str(st.get("id", "burn_pick"))
-	if r.ff:
-		var pick := items[0]
-		if r._ff_target != "":
-			for id in items:
-				if r._leads_to(str(scenes.get(id, then)), r._ff_target):
-					pick = id
-					break
-		StoryState.set_prop(key, pick)
-		return str(scenes.get(pick, then))
-	_build()
-	r._ui_shot("burn_pick", 0.8)
-	var chosen: String = await done
-	StoryState.set_prop(key, chosen)
-	print("BURN_PICK %s: %s" % [key, chosen])
-	return str(scenes.get(chosen, then))
+	var kind := str(st.get("kind", ""))
+	var real := bool(st.get("burn", false))      # 选完真的从背包烧掉（加燃料、提示）
+	var again := bool(st.get("repeat", false))   # 一件接一件挑，直到没有可烧的
+	var last := ""
+	while true:
+		items = burnable(st.get("items", null), kind)
+		if items.is_empty():
+			return str(scenes.get(last, then)) if last != "" else then
+		var chosen := ""
+		if r.ff:
+			chosen = items[0]
+			if r._ff_target != "":
+				for id in items:
+					if r._leads_to(str(scenes.get(id, then)), r._ff_target):
+						chosen = id
+						break
+		else:
+			_reset()
+			_build()
+			r._ui_shot("burn_pick", 0.8)
+			chosen = await done
+		StoryState.set_prop(key, chosen)
+		print("BURN_PICK %s: %s" % [key, chosen])
+		last = chosen
+		if real:
+			await r._burn_held({"items": [chosen], "no_closeup": true})
+		if not again:
+			break
+	return str(scenes.get(last, then))
+
+
+## 再挑一轮前清掉上一轮的界面
+func _reset() -> void:
+	for c in get_children():
+		c.queue_free()
+	_slots.clear()
+	_more.clear()
+	_ask = null
+	_ask_btns.clear()
+	_sel = 0
+	_win = 0
+	_mode = "pick"
+	_float = null
+	_float_k = 1.0
+	_float_pop = 0.0
+	_flash.clear()
+	_auto_t = 0.0
+	_auto_step = 0
 
 
 ## 背包里能烧的（同一件有两份只摆一格）；list 给了就只在这几件里挑
-static func burnable(list = null) -> Array[String]:
+static func burnable(list = null, kind := "") -> Array[String]:
 	var out: Array[String] = []
 	var src: Array = list if list is Array else Inventory.owned
 	for v in src:
@@ -109,6 +139,8 @@ static func burnable(list = null) -> Array[String]:
 			continue
 		var it := Inventory.item(id)
 		if it.get("no_burn", false):
+			continue
+		if kind != "" and str(it.get("fuel_kind", "")) != kind:
 			continue
 		if int(it.get("keepsake_burn", 0)) > 0 or int(it.get("burn", 0)) > 0:
 			out.append(id)

@@ -68,6 +68,14 @@
 - `data/story_forest.json`：`c1_drawing` 的 flashback 加 `"got": {"zh": "地图", "en": "Map"}`（「获得：%s」用的名字；没写 got 的旧 `went_wrong_first` 只是照片淡掉，不飞背包）。
 - 验证：云端 Godot 4.7，`--beat=c1_got_bag --fb_dev=1 --story_auto --fb_full` 按真实时长跑并每 0.2 秒截图：照片 2.2 秒飘进来，路障 / 纸箱各 8 下推开，照片进背包、出「获得：地图」，触手扑过来碰到即黑，接着 `paper_view` → `c1_woke`，0 个脚本报错，全程约 22 秒。快速自动玩（×0.4）也通。森林 `--story_check` 0 错误。手感（8 下够不够、障碍大小）和声音没人实机试过；推的时候城市前景的黑车偶尔会挡住提示约 1 秒（作者之前说前景不动，没改）。
 
+### 2026-11-07（九）· Claude（Code）· 飞船烧东西改成自己挑（burn_pick 加 kind / burn / repeat）
+
+需求（作者）：喜欢燃烧教程里熊翻着飘的画面；飞船选烧什么时不要自动烧，让玩家选，物品框在最下方，中间是悬空翻转的那一件。
+- `scripts/burn_pick.gd`：新增可选字段 `"kind"`（只列 `fuel_kind` 是这一类的，如 unrelated）、`"burn": true`（确认后真的从背包烧掉：走 `_burn_held`，加燃料 + 提示）、`"repeat": true`（一件接一件挑，直到没有可烧的）。每一轮前 `_reset()` 清界面。没写这些字段的旧用法（第一关熊）行为不变。
+- `story_runner.gd`：`_burn_held` 认 `no_closeup`（burn_pick 自己已经有烧的动画，不再叠特写）。
+- `data/story_flight1.json`：`flight1_materials` 里原来自动烧的 `burn_held {kind: unrelated}` 换成 `burn_pick {kind: unrelated, burn, repeat}`，去掉紧跟着的 `converter_burn` 音效（burn_pick 自带火声）。
+- 没有跑：本机没有 godot，JSON 解析通过，**没实机试**；请跑一次 `--story_check` 和飞行段。`flight1_fuel_choice`（deer_bear / family_photo 二选一）仍是原来的托板界面，没动。
+
 ### 2026-11-07（八）· Claude（Cowork）· 选烧什么的新模板 burn_pick（第一次：弥洛要玩具熊）
 
 需求（作者）：第一次教程选烧什么要有个好模板——用闪回里旋转的地图（照片）那套动法，让小熊在天上飘；上方写「选择你要烧掉的物品」，最下方一排能烧的物品，选的时候显示简介；回车弹出「是否要烧毁 xx」，选了就触发动画、交给蛇女。不是「给 / 不给」两个选项。
