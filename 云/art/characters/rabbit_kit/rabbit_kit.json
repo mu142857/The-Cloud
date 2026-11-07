@@ -1,0 +1,74 @@
+{
+ "_comment": "小兔子（兔子的幼崽）原尺寸图：tools/rabbit_kit_art.py 生成，和兔子同一条暖棕色阶，头大耳朵短。第一章 rabbit_kit_1~3、终章结局回看那一窝都用它（有这个文件就不再把兔子缩 0.57）。只有 idle（呼吸 + 前耳抖一下），别的动作都退回 idle；蹦是引擎整只往上抬。画的是朝右，100ms 一帧。",
+ "frame": [
+  24,
+  30
+ ],
+ "sheet": "rabbit_kit.png",
+ "anchor": [
+  12,
+  28
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": true,
+ "head": 26,
+ "speed": 30,
+ "color": "#f0a98c",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    2,
+    2,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "loop": true
+  }
+ },
+ "alias": {
+  "talk": "idle",
+  "walk": "idle",
+  "nod": "idle",
+  "laugh": "idle",
+  "give": "idle",
+  "hand": "idle",
+  "point": "idle",
+  "shrug": "idle",
+  "bow": "idle"
+ }
+}

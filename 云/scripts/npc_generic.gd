@@ -59,10 +59,21 @@ var _t := 0.0
 var _tex_cache := {}
 
 
+## 用哪个文件夹的图：母兔、小兔子用兔子的图；小兔子有了自己的原尺寸图（art/characters/rabbit_kit/，11-07 请 elephant-sister 画）就用它
+static func art_for(id: String) -> String:
+	if id.begins_with("rabbit_kit_") and has_own_kit_art():
+		return "rabbit_kit"
+	return "rabbit" if id.begins_with("rabbit_") else id
+
+
+static func has_own_kit_art() -> bool:
+	return FileAccess.file_exists((DIR % "rabbit_kit") + "rabbit_kit.json")
+
+
 func setup(id: String) -> void:
 	npc_id = id
 	name = "Npc_" + id
-	var art_id := "rabbit" if id.begins_with("rabbit_") else id
+	var art_id := art_for(id)
 	var p := (DIR % art_id) + art_id + ".json"
 	if FileAccess.file_exists(p):
 		var j = JSON.parse_string(FileAccess.get_file_as_string(p))
@@ -153,7 +164,7 @@ func _sheet(file: String) -> Texture2D:
 		return null
 	if _tex_cache.has(file):
 		return _tex_cache[file]
-	var art_id := "rabbit" if npc_id.begins_with("rabbit_") else npc_id
+	var art_id := art_for(npc_id)
 	var p := file if file.begins_with("res://") else (DIR % art_id) + file
 	var t: Texture2D = null
 	if ResourceLoader.exists(p):

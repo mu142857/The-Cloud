@@ -7,7 +7,9 @@ extends CanvasLayer
 ## 全程一条 smoothstep 曲线，每一层都是整像素；小镇被全黑盖住以后就藏起来、落完整个释放（贴图不留到第一章）。
 
 const VIEW_X := 668.0                     # 标题看到的那一屏：右边大风车；「开始游戏」「制作人员」正好落在远处那排的风车（屏幕 x 199）和小房子（x 271）之间
-const DRIFT := 6.0                        # 50 秒一个来回：比原来的 ±18 小，远处那排漂不到按钮后面
+## 11-07 作者：「标题画面的塔的图层不应该可以动」。原来镜头 ±6 像素左右漂，所有 scroll > 0 的层（塔、房子、风车）都跟着视差晃；
+## 现在镜头定住（DRIFT = 0），画面上动的只剩云层自己的风（room.json 各层的 drift），而且按小数位置平滑走（room_stage.smooth_drift）。
+const DRIFT := 0.0
 const DRIFT_SEC := 50.0
 const TD_IMG := "res://art/cloud_town/title_descent.png"
 const TD_OVER := 20                       # 这张图比小镇底边多往上盖多少行（cloud_town_art.py 的 TD_OVER）
@@ -15,6 +17,7 @@ const TD_X := -40.0                       # 图比一屏宽：左边多出来多
 ## 11-06 作者：「近景的喷泉、地面、水车会挡住按钮，能不能去掉前景，只保留后面的云和房子」。这两层就是喷泉、水车、石板地、长椅、路灯、
 ## 围栏（连同挂在层上的喷泉、水车、风向旗动画）；藏掉以后脚下露出来的是作者的 main 云层，天、云、房子、塔、风车都不动。下落那段同样不画。
 const HIDE_LAYERS := ["town_main", "deck_main", "front"]     # front：最前面那排黑云团（两处都叫 front），比地面还快，就是作者说的「小云彩」
+const STATIC_CLOUD_LAYERS := ["cloud_mid_over", "cloud_midfar_over"] # 标题中最靠前的两排可见云
 const MAX_STEP_SEC := 0.05                # 卡了一下也别一帧跳很远：一帧最多算这么多秒
 const HIDE_TOWN_AT := 320.0               # 落到这里全黑已经盖满，小镇不用画了
 const FOREST_RISE := 300.0                # 森林跟着走的距离系数（见 forest_cam_y）
@@ -48,9 +51,17 @@ func _ready() -> void:
 	_stage = (load("res://scripts/room_stage.gd") as GDScript).new()
 	_root.add_child(_stage)
 	_stage.setup("town", null)
+	_stage.smooth_drift = true
 	for L in _stage._layers:
-		if str((L["cfg"] as Dictionary).get("id", "")) in HIDE_LAYERS:
+		var cfg: Dictionary = L["cfg"]
+		var id := str(cfg.get("id", ""))
+		if id in HIDE_LAYERS:
 			(L["node"] as Sprite2D).visible = false
+		elif id in STATIC_CLOUD_LAYERS:
+			# 保留第一帧构图，把这一层固定在屏幕横向位置上。
+			cfg["x"] = float(cfg.get("x", 0.0)) - VIEW_X * float(cfg.get("scroll", 1.0))
+			cfg["scroll"] = 0.0
+			cfg["drift"] = 0.0
 	if _qa:
 		_check_order()
 	var tex: Texture2D = load(TD_IMG) if ResourceLoader.exists(TD_IMG) else null

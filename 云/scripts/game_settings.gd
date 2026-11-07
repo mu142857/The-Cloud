@@ -10,6 +10,7 @@ class_name GameSettings
 ##   lite：关光柱、萤火虫 10 只、影子动物出现间隔拉长 2.5 倍、烟减半（给差一点的电脑 / 网页版）。
 
 const PATH := "user://settings.cfg"
+const OPENING_BUS := "OpeningSFX"
 
 static var lang := "en"
 static var vol_master := 0.8
@@ -65,6 +66,18 @@ static func ensure_buses() -> void:
 			var i := AudioServer.bus_count - 1
 			AudioServer.set_bus_name(i, name)
 			AudioServer.set_bus_send(i, "Master")
+	if AudioServer.get_bus_index(OPENING_BUS) == -1:
+		AudioServer.add_bus()
+		var opening := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(opening, OPENING_BUS)
+		AudioServer.set_bus_send(opening, "SFX")
+		var cloud_cover := AudioEffectLowPassFilter.new()
+		cloud_cover.cutoff_hz = 18000.0
+		cloud_cover.db = AudioEffectFilter.FILTER_12DB
+		AudioServer.add_bus_effect(opening, cloud_cover)
+		var limiter := AudioEffectHardLimiter.new()
+		limiter.ceiling_db = -3.0
+		AudioServer.add_bus_effect(opening, limiter)
 
 
 static func _db(v: float) -> float:

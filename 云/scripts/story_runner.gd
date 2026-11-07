@@ -114,10 +114,13 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"barter",   # barter：以物易物（scripts/barter.gd，剧本顶层 "barter" 表）
 	"cycle",   # cycle：一次念一句，一直按一直往下念（_cycle_next，阿汀的河岸条例）
 	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
+	"montage",   # 结局回看：公交车 + 每个支线 NPC 一镜，放在 end_chapter 前面（scripts/ending_montage.gd，11-07）
 	"inner", "key_prompt", "reward", "blackout", "burn_held",
+	"burn_pick",   # burn_pick：选一件东西烧掉 / 交出去（scripts/burn_pick.gd；第一关弥洛要玩具熊那一步起用，11-07）
 	"music"]   # music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
+const BURN_PICK_GD := preload("res://scripts/burn_pick.gd")    # burn_pick：选烧什么的模板（_burn_pick）
 const COCKPIT_NAV := "res://scripts/cockpit_nav.gd"   # pick 带 "ui": "nav" / "action"：驾驶舱里的行动选择 + 二次确认（终章）
 const HOOKS := {
 	"crash": ["crash_wake", "wake", "crash", "intro", "opening"],
@@ -151,6 +154,7 @@ const BARK_GD := preload("res://scripts/story_bark.gd")      # say 带 bark：�
 const QUICK_GD := preload("res://scripts/story_quick.gd")    # give 数组、走过去就捡（hotspot pickup）
 const BARTER_GD := preload("res://scripts/barter.gd")         # 以物易物（大嘴鸟、料理鼠妈…）
 const FLASHBACK_GD := preload("res://scripts/flashback.gd")   # 母星闪回（4 次）
+const MONTAGE_GD := preload("res://scripts/ending_montage.gd")   # 结局回看（montage 步骤）
 const BGM_GD := preload("res://scripts/bgm.gd")          # 配乐（{"do": "music"}，scripts/bgm.gd）
 const FLASHBACK_LAYER := 55                                     # 闪回那一层：盖在黑幕（Top 50）上面、F8 面板（60）下面
 ## F8 传送页的「闪回」按钮（dev_panel.gd）：重新载入那一章、跳节拍到 beat，再从 scene 里闪回那一步往前 back 步开始播
@@ -177,6 +181,7 @@ var quick: RefCounted                # story_quick.gd
 var barter: RefCounted               # barter.gd
 var cockpit_ui: Control              # 正在等玩家的驾驶舱步骤（避碎石 / 选纪念品；软锁检测用）
 var flashback_ui: Control            # 闪回停在黑 / 白上、等 flashback_wake 的那一层（flashback.gd，hold）
+var montage_ui: Control              # 结局回看那一层（ending_montage.gd）：开着的时候 Esc / 齿轮不开设置（level_forest.gate_event），不能跳
 var missing_anims := {}              # 剧本要、晨还没有的动作（MISSING_ANIM，给奥斯卡画）
 const CHEN_ALIAS := "res://data/chen_anim_alias.json"
 var _chen_alias = null                # chen_alias() 读进来的别名表
@@ -936,6 +941,9 @@ func _step(st: Dictionary) -> String:
 		"barter":
 			var bs: String = await barter.run(st)
 			return bs
+		"burn_pick":
+			var bp: String = await _burn_pick(st)
+			return bp
 		"music":
 			if not ff:
 				var bgm = BGM_GD.get_bgm(level.get_tree())
@@ -945,6 +953,8 @@ func _step(st: Dictionary) -> String:
 					bgm.play(str(st.get("track", "")), float(st.get("db", NAN)), float(st.get("fade", 1.5)), int(st.get("loop", -1)), str(st.get("then", "")))
 		"flashback":
 			await _flashback(st)
+		"montage":
+			await _montage()
 		"flashback_wake":
 			if st.get("wait", true):
 				await _flashback_wake()
@@ -1032,6 +1042,27 @@ func _flashback(st: Dictionary) -> void:
 		flashback_ui = n
 
 
+## 结局回看（ending_montage.gd）：自己一层（和闪回同一层），放完停在黑上；把关卡的黑幕盖满再删掉这一层，接着 end_chapter 出全剧终卡
+func _montage() -> void:
+	if ff or free_roam:
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "Montage"
+	layer.layer = FLASHBACK_LAYER
+	level.add_child(layer)
+	var n: Control = MONTAGE_GD.new()
+	dlg.close_box()
+	layer.add_child(n)
+	montage_ui = n
+	cockpit_ui = n                           # 软锁检测：这期间不算剧情卡住（F8「跳过」走 dev_skip）
+	await n.play()
+	cockpit_ui = null
+	await level.fade_to_black(0.05)          # 下面的结局画面先盖黑，再拿掉这一层（不闪回原场景）
+	montage_ui = null
+	if is_instance_valid(layer):
+		layer.queue_free()
+
+
 func _flashback_wake() -> void:
 	var n := flashback_ui
 	flashback_ui = null
@@ -1101,6 +1132,20 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 			bgm.play(prev_track, NAN, 2.0)
 		else:
 			bgm.stop(2.0)
+	return r
+
+
+## 选烧什么（burn_pick.gd）：挂在对话界面下（按键先到它那里），等它选完；返回要跳去的 scene（"" = 接着播）
+func _burn_pick(st: Dictionary) -> String:
+	var n: Control = BURN_PICK_GD.new()
+	n.name = "burn_pick"
+	if not ff:
+		dlg.close_box()
+	dlg.add_child(n)
+	cockpit_ui = n                           # 软锁检测：这期间是在等玩家的界面
+	var r: String = await n.play(self, st)
+	cockpit_ui = null
+	n.queue_free()
 	return r
 
 
@@ -2898,8 +2943,8 @@ func _would_progress(s: String, seen: Dictionary) -> bool:
 				for o in st.get("options", []):
 					if _would_progress(str(o.get("scene", "")), seen):
 						return true
-			"keepsake_choice":
-				for v in (st.get("scenes", {}) as Dictionary).values():
+			"keepsake_choice", "burn_pick":
+				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
 					if _would_progress(str(v), seen):
 						return true
 			"barter":
@@ -2959,6 +3004,9 @@ func _reach(s: String, seen: Dictionary) -> Array:
 					_reach(str(o.get("scene", "")), seen)
 			"keepsake_choice":
 				for v in (st.get("scenes", {}) as Dictionary).values():
+					_reach(str(v), seen)
+			"burn_pick":
+				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
 					_reach(str(v), seen)
 			"closeup":
 				for z in st.get("zones", []):
@@ -3438,6 +3486,24 @@ func validate() -> Array[String]:
 							refs[s4] = true
 							if not scenes.has(s4):
 								out.append("scene %s：choice 选项的 scene %s 不存在" % [id, s4])
+				"burn_pick":
+					var bsc = st.get("scenes", {})
+					if not bsc is Dictionary:
+						out.append("scene %s：burn_pick 的 scenes 要是 {物品: scene}" % id)
+						bsc = {}
+					for k8 in bsc:
+						if not Inventory.defined(str(k8)):
+							out.append("scene %s：burn_pick 的物品 %s 不在物品表" % [id, k8])
+						elif int(Inventory.item(str(k8)).get("keepsake_burn", 0)) <= 0 and int(Inventory.item(str(k8)).get("burn", 0)) <= 0:
+							out.append("scene %s：burn_pick 的物品 %s 不能烧（没有 keepsake_burn / burn），界面上不会出现" % [id, k8])
+					for v8 in bsc.values() + [st.get("then", "")]:
+						if str(v8) == "":
+							continue
+						refs[str(v8)] = true
+						if not scenes.has(str(v8)):
+							out.append("scene %s：burn_pick 的 scene %s 不存在" % [id, v8])
+					if st.has("to") and not speakers.has(str(st["to"])) and npc(str(st["to"])) == null:
+						out.append("scene %s：burn_pick 的 to 不认识 %s" % [id, st["to"]])
 				"count":
 					if not st.has("set") or not st.has("flags"):
 						out.append("scene %s：count 要有 flags 和 set" % id)
@@ -3884,7 +3950,7 @@ func _falls_through(s: String) -> bool:
 	if not scenes.has(s):
 		return false
 	for st in scenes[s]:
-		if st is Dictionary and str(st.get("do", "")) in ["goto", "if", "pick", "choice", "guide", "end_chapter", "keepsake_choice"]:
+		if st is Dictionary and str(st.get("do", "")) in ["goto", "if", "pick", "choice", "guide", "end_chapter", "keepsake_choice", "burn_pick"]:
 			return false
 	return true
 
@@ -3934,7 +4000,7 @@ func _generic(who: String) -> Node2D:
 		bow.position = Vector2(1, -44)
 		bow.color = Color("#d88a9c")
 		n.add_child(bow)
-	elif who.begins_with("rabbit_kit_"):
+	elif who.begins_with("rabbit_kit_") and not NPC_GD.has_own_kit_art():   # 小兔子还没有自己的图：兔子缩小
 		n.scale = Vector2(0.57, 0.57)
 		n.head *= 0.57
 	n.visible = false
@@ -3997,6 +4063,9 @@ func _setup_stages() -> void:
 					"choice", "pick":
 						for o in st.get("options", []):
 							nexts.append(str(o.get("scene", "")))
+					"burn_pick":
+						for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
+							nexts.append(str(v))
 					"closeup":
 						for z in st.get("zones", []):
 							nexts.append(str(z.get("scene", "")))
@@ -4669,7 +4738,7 @@ var _qa_cam := {}
 func qa_screen_open() -> bool:
 	if level == null or level.fade.color.a > 0.3 or level.get("_pixel_fx") != null:
 		return false
-	if cockpit_ui != null and is_instance_valid(cockpit_ui) and cockpit_ui.get_script() == FLASHBACK_GD:
+	if cockpit_ui != null and is_instance_valid(cockpit_ui) and cockpit_ui.get_script() in [FLASHBACK_GD, MONTAGE_GD]:
 		return false
 	return true
 
@@ -6075,6 +6144,10 @@ func _would_progress_flags(s: String, seen := {}) -> bool:
 			"choice", "pick":
 				for o in st.get("options", []):
 					if _would_progress_flags(str(o.get("scene", "")), seen):
+						return true
+			"burn_pick":
+				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
+					if _would_progress_flags(str(v), seen):
 						return true
 	return false
 

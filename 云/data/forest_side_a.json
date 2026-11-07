@@ -44,8 +44,8 @@
    "category": "keepsake",
    "keepsake_burn": 40,
    "desc": {
-    "zh": "老松树割口里接的，黏得盖子都拧不开。能烧，就是呛。",
-    "en": "Caught from the old pine's cut. So sticky the lid won't turn. It burns, but it's smoky."
+    "zh": "烧起来很呛，树也有不愿意好好说话的时候。",
+    "en": "It gives off a choking smoke. Even trees have days when they don't feel like talking nicely."
    },
    "added": true,
    "_note": "11-02 支线 1，无关燃料。items.json 的 sap 是旧流程修推进器用的（不能烧），这里另起 id。"
@@ -64,8 +64,8 @@
    "category": "keepsake",
    "keepsake_burn": 30,
    "desc": {
-    "zh": "油渍斑斑。最上面一行还看得清：热汤，一碗。",
-    "en": "Grease-stained. The top line is still legible: hot soup, one bowl."
+    "zh": "「今日特价」写在最上面，已经很多年没换过今日了。",
+    "en": "\"Today's Special\" is at the top. It's been the same \"today\" for years."
    },
    "added": true,
    "_note": "11-02 支线 2a，无关燃料。"
@@ -83,8 +83,8 @@
    "fuel_kind": "none",
    "category": "keepsake",
    "desc": {
-    "zh": "挂在窗台的钉子上。门早就不锁了，钥匙还一直留着。",
-    "en": "It hung on a nail by the window. The door hasn't been locked in years, but they kept the key."
+    "zh": "一直和零钱放在一起，开门之前总要先数一遍钱。",
+    "en": "Always kept with the loose change. Before opening the door, you count the money first."
    },
    "added": true,
    "_note": "11-02 支线 2c，不能烧的纪念品。"

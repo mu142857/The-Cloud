@@ -1736,7 +1736,6 @@
 		],
 		"c1_run": [
 			{"do": "flag", "set": "c1_run"},
-			{"do": "music", "track": "theme", "fade": 0.8},
 			{"do": "camera", "zoom": 1.25, "sec": 1.5, "wait": false},
 			{"do": "inner", "zh": "好熟悉的感觉……", "en": "This feels so familiar...", "style": "fade", "sec": 1.4},
 			{"do": "mechanic", "id": "run_credits", "intro": true},
@@ -1755,7 +1754,7 @@
 		"c1_drawing": [
 			{"do": "music", "stop": true, "fade": 1.5},
 			{"do": "mechanic", "id": "paper_view", "flip": false, "sec": 2.5},
-			{"do": "flashback", "id": 1, "place": "street", "end": "black", "hold": true, "lines": []},
+			{"do": "flashback", "id": 1, "place": "street", "end": "black", "hold": true, "lines": [], "got": {"zh": "地图", "en": "Map"}},
 			{"do": "blackout", "on": true},
 			{"do": "mechanic", "id": "paper_view", "reveal": true},
 			{"do": "flag", "set": "c1_got_map"},
@@ -1795,17 +1794,13 @@
 			{"do": "camera", "zoom": 1.25, "sec": 1.2},
 			{"narr": {"zh": "爱与记忆越深沉的物品，燃烧值越高。", "en": "The deeper the love and memory in a thing, the more it burns."}},
 			{"narr": {"zh": "给出去，就再也回不到你手里了。", "en": "Once you give it away, it never comes back."}},
-			{"do": "choice", "options": [{"zh": "给你", "en": "Here.", "added": true, "scene": "c1_bear_give"}, {"zh": "不给", "en": "No.", "added": true, "scene": "c1_bear_keep"}]}
+			{"do": "burn_pick", "id": "c1_bear_pick", "to": "miluo", "scenes": {"deer_bear": "c1_bear_give"}, "then": "c1_bear_b", "_note": "11-07 作者：第一次选烧什么用新模板（scripts/burn_pick.gd）——上面写「选择你要烧掉的物品」，玩具熊像闪回里的照片那样翻着飘，最下方一排能烧的，回车弹「要烧掉…吗」，确认后飞给弥洛。原来的「给你 / 不给」两个选项和 c1_bear_keep 删了"}
 		],
 		"c1_bear_give": [
 			{"do": "take", "item": "deer_bear"},
 			{"say": "miluo", "zh": "开个玩笑的，这个东西对她很重要，我是不会烧掉它的。", "en": "Just kidding. That thing matters to her. I'd never burn it."},
 			{"do": "give", "item": "deer_bear"},
 			{"do": "flag", "set": "c1_bear_given"},
-			{"do": "goto", "scene": "c1_bear_b"}
-		],
-		"c1_bear_keep": [
-			{"say": "miluo", "zh": "开个玩笑的，这个东西对她很重要，我是不会烧掉它的。", "en": "Just kidding. That thing matters to her. I'd never burn it."},
 			{"do": "goto", "scene": "c1_bear_b"}
 		],
 		"c1_bear_b": [

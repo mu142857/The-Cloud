@@ -1,0 +1,45 @@
+{
+ "_comment": "小水母原尺寸图：tools/jellyfish_small_art.py 生成，颜色全取自美术姐画的大水母，不画光环。终章结局回看水母那一镜用（有这个文件就不再把大水母缩小）。idle 四帧：伞一张一收、触须摆，100ms 一帧；上下浮靠 hover / bob（比大水母小、快一点，几只不会同步）。tint false = 自己会发光，不着色不压暗。anchor = 最下面那根触须的底。",
+ "frame": [
+  14,
+  14
+ ],
+ "sheet": "jellyfish_small.png",
+ "anchor": [
+  6,
+  13
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": false,
+ "pass": true,
+ "hover": 6,
+ "bob": 2,
+ "bob_s": 2.6,
+ "head": 22,
+ "speed": 20,
+ "color": "#e8c8f0",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    2,
+    2,
+    2,
+    3,
+    3,
+    3
+   ],
+   "loop": true
+  }
+ },
+ "alias": {
+  "talk": "idle",
+  "walk": "idle"
+ }
+}

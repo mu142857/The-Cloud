@@ -862,6 +862,12 @@ func _place_layers_y() -> void:
 
 
 # ======================================================================= 每帧
+## 11-07（标题画面，作者「后面的云层应该平滑移动」）：true 时有 drift（风吹着漂）的层不取整，按小数位置走。
+## canvas_items 拉伸下画面按窗口分辨率画，小数位置能走到 1/3 游戏像素（1440 宽时），慢云不再一格一格地跳。
+## 默认 false：游戏里的房间照旧整像素（和人物、地面的像素格对齐）。
+var smooth_drift := false
+
+
 func update(delta: float, cam_center: Vector2) -> void:
 	_t += delta
 	if not is_house:
@@ -871,12 +877,14 @@ func update(delta: float, cam_center: Vector2) -> void:
 			var s: Sprite2D = L["node"]
 			var sc := float(c.get("scroll", 1.0))
 			var x := float(c.get("x", 0)) + float(c.get("drift", 0.0)) * _t
+			var smooth := smooth_drift and float(c.get("drift", 0.0)) != 0.0
 			if L["tile"]:
 				var w: float = L["w"]
-				var sx := fposmod(roundf(x - cl * sc), w) - w
+				var sx := fposmod(x - cl * sc if smooth else roundf(x - cl * sc), w) - w
 				s.position.x = roundf(cl) + sx
 			else:
-				s.position.x = roundf(x + cl * (1.0 - sc))
+				var px := x + cl * (1.0 - sc)
+				s.position.x = px if smooth else roundf(px)
 		if _layers.size() > 0 and _t < delta * 1.5:
 			_place_layers_y()
 	else:

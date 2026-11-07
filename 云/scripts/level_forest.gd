@@ -9,8 +9,8 @@ extends Node2D
 ## 开场一起坠毁的外星人同伴（Alien）在森林里不出现（ALIEN_IN_FOREST = false，代码留着，以后河边用）。
 ##
 ## 流程（state）：
-##   HEADPHONES  黑屏，「建议佩戴耳机」+「点击或按任意键继续」（顺便解锁网页版的声音）
-##   INTRO       风声淡入 → 两声远雷（风暴在云层底下）→ 黑屏淡入云层小镇（scripts/title_cloud.gd）
+##   HEADPHONES  黑屏显示「建议佩戴耳机」，停留后自动继续。
+##   INTRO       黑屏先听见清晰的雷雨，淡入云层小镇时雷雨慢慢变闷，云风淡入。
 ##   TITLE       标题界面：背景是云层小镇，游戏名、正中「开始游戏」、右下角设置齿轮；镜头慢慢左右漂
 ##   CRASH       点开始：画面往下落，穿过云层到全黑，再落就是森林（风和鸟叫交叉）。落到位接开场动画（上下黑边）：
 ##               三次闪电 + 近雷 → 冒烟的飞船从右上斜着坠下 → 撞地（震屏、尘土、浓烟）
@@ -141,6 +141,7 @@ const FLASH_LAYERS := {"Sky": 1.0, "Ridge": 0.9, "Far": 0.75, "MidFar": 0.45, "M
 const FLASH_GAIN := Color(0.35, 0.62, 0.9)      # 闪到最亮时远景乘 (1+0.35, 1+0.62, 1+0.9)：偏青蓝，不是白
 const FLASH_TINT := Color(0.55, 0.72, 0.86)      # 整屏那层薄薄的冷光
 const FLASH_TINT_A := 0.09                       # 它最多这么不透明
+const SKY_FLASH_A := 0.22                        # 下落途中（盖着开始界面）那层冷光最多这么不透明：全黑那段要靠它才看得出闪
 const IMPACT_TINT := Color(1.0, 0.72, 0.45)      # 撞地那一下是暖的、很弱
 const BAR_H := 26             # 电影黑边高度
 const BAG_SLOTS := 24         # 背包格子 4 × 6
@@ -253,8 +254,6 @@ var _burn_shown := 0.0
 var _fuel_shown := -1.0                  # 飞行段燃料表正在滚的数（-1 = 不在滚，直接读 StoryState）
 var _fuel_tw: Tween
 var _hp_root: Control
-var _hp_label: Label
-var _hp_any: Label
 var _dim: ColorRect
 var _settings: PanelContainer
 var _pause_gate: CanvasLayer             # 齿轮、设置面板在这一层（scripts/pause_gate.gd）
@@ -317,7 +316,22 @@ const HUM_DB := -20.0           # 驾驶舱引擎声多响
 
 # ---- 声音
 var _rain: AudioStreamPlayer
+var _title_rain: AudioStreamPlayer
 var _title_wind: AudioStreamPlayer
+var _opening_rain_fx: GPUParticles2D
+var _opening_rain_tw: Tween
+## 11-07 作者：「从云层往森林落的时候就要下雨、打雷、屏幕闪」。雨原来挂在 Overlay（第 10 层）最底下，可下落时开始界面的
+## 云层小镇（title_cloud.gd）在第 11 层，雨和闪电的冷光都被盖住。所以雨单独一层 _opening_sky：下落时在 12（盖过小镇，
+## 在界面 20 和黑边下面），落到森林、小镇释放后降到 9（森林世界之上、Overlay 的暗角和闪电冷光之下，和原来的叠法一样）。
+## 同一层里还有一块冷光 _sky_flash：下落时闪电让整屏亮一下（小镇的 _root 也跟着提亮，见 _apply_flash）。
+const SKY_LAYER_DESCENT := 12
+const SKY_LAYER_FOREST := 9
+var _opening_sky: CanvasLayer
+var _sky_flash: ColorRect
+var _descended := false                    # 这次坠毁是不是从开始界面落下来的（--stage=crash 等跳关直接到坠毁时为 false）
+var _opening_filter: AudioEffectLowPassFilter
+var _opening_filter_tw: Tween
+var _title_thunder_at := 7.0
 var _title_bg: Node                       # 开始界面的云层小镇（scripts/title_cloud.gd），落完就释放
 var _crackle: AudioStreamPlayer2D
 
@@ -459,6 +473,11 @@ func _ready() -> void:
 	_build_audio()
 	_build_ui()
 	_build_story()
+	# 11-07 作者：跟着鹿去找背包那段的原地循环（不按 Shift 跑就出不去）+ 一直不跑的结局「倔强的灵魂」；片头 CG 也在它的跑步机上跑。见 scripts/c1_loop.gd
+	var c1_loop: Node = (load("res://scripts/c1_loop.gd") as GDScript).new()
+	c1_loop.name = "C1Loop"
+	c1_loop.set("level", self)
+	add_child(c1_loop)
 	_retext()
 	if not Engine.has_meta(TITLE_FADE_META):   # 耳机提示只在启动第一次进标题时出现；全剧终 / 设置「返回标题」回来不再出（11-07 作者）
 		_enter_headphones()
@@ -607,10 +626,18 @@ func _build_audio() -> void:
 	_rain.bus = "SFX"
 	_rain.volume_db = -80.0
 	add_child(_rain)
+	var opening_bus := AudioServer.get_bus_index(GameSettings.OPENING_BUS)
+	_opening_filter = AudioServer.get_bus_effect(opening_bus, 0) as AudioEffectLowPassFilter
+	_title_rain = AudioStreamPlayer.new()
+	_title_rain.name = "TitleRain"
+	_title_rain.stream = _ambient_stream(SFX_DIR + "rain_loop.wav")
+	_title_rain.bus = GameSettings.OPENING_BUS
+	_title_rain.volume_db = -60.0
+	add_child(_title_rain)
 	_title_wind = AudioStreamPlayer.new()
 	_title_wind.name = "TitleWind"
 	_title_wind.stream = _ambient_stream("res://audio/sfx/cloud_wind.ogg")
-	_title_wind.bus = "SFX"
+	_title_wind.bus = GameSettings.OPENING_BUS
 	_title_wind.volume_db = -60.0
 	add_child(_title_wind)
 	_crackle = AudioStreamPlayer2D.new()
@@ -622,10 +649,10 @@ func _build_audio() -> void:
 	_crackle.position = Vector2(8, -14)
 
 
-func _sfx(name: String, db := 0.0, pitch := 1.0) -> void:
+func _sfx(name: String, db := 0.0, pitch := 1.0, bus := "SFX") -> void:
 	var p := AudioStreamPlayer.new()
 	p.stream = load(SFX_DIR + name + ".wav")
-	p.bus = "SFX"
+	p.bus = bus
 	p.volume_db = db
 	p.pitch_scale = pitch
 	if get_tree().paused:
@@ -635,13 +662,18 @@ func _sfx(name: String, db := 0.0, pitch := 1.0) -> void:
 	p.finished.connect(p.queue_free)
 
 
-func _fade_db(p: Node, to_db: float, sec: float) -> void:
+func _opening_sfx(name: String, db: float, pitch := 1.0) -> void:
+	_sfx(name, db, pitch, GameSettings.OPENING_BUS)
+
+
+func _fade_db(p: Node, to_db: float, sec: float) -> Tween:
 	var old = (p.get_meta("fade_tw") if p.has_meta("fade_tw") else null)               # 同一个声音只留一个音量 tween（两个抢着改会跳）
 	if old is Tween and (old as Tween).is_valid():
 		(old as Tween).kill()
 	var tw := create_tween()
 	tw.tween_property(p, "volume_db", to_db, sec).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	p.set_meta("fade_tw", tw)
+	return tw
 
 
 # ======================================================================= 界面搭建
@@ -943,16 +975,17 @@ func _build_ui() -> void:
 	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hp_root.add_child(icon)
-	_hp_label = _label("", 14, UITheme.TEXT)
-	_hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hp_root.add_child(_hp_label)
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 10)
-	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hp_root.add_child(gap)
-	_hp_any = _label("", 14, UITheme.TEXT_DIM)
-	_hp_any.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hp_root.add_child(_hp_any)
+	var copy := VBoxContainer.new()
+	copy.add_theme_constant_override("separation", 3)
+	copy.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hp_root.add_child(copy)
+	var headphones: Array = I18n.STR["headphones"]
+	var english := _label(headphones[0], 14, UITheme.TEXT)
+	english.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	copy.add_child(english)
+	var chinese := _label(headphones[1], 11, UITheme.TEXT_DIM)
+	chinese.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	copy.add_child(chinese)
 	$Top.add_child(_hp_root)
 
 
@@ -1138,6 +1171,7 @@ func _build_bag(root: Control) -> void:
 	var tl := _label("", 14, UITheme.WARM)
 	tot.add_child(tl)
 	_bag_w["total"] = tl
+	_bag_w["total_row"] = tot
 	_bag.add_child(tot)
 	# 关闭：不用字体里的「×」（按钮里的字会被排到半格上，糊成「)(」），画一个 7×7 的像素叉，
 	# 按钮 15×15、叉居中正好落在整像素上（和「60 / 200」的数字同高）
@@ -1153,6 +1187,7 @@ func _build_bag(root: Control) -> void:
 	x.focus_mode = Control.FOCUS_NONE
 	x.pressed.connect(_close_panels)
 	_bag.add_child(x)
+	_bag_w["close"] = x
 	var sep := ColorRect.new()
 	sep.color = Color(0.3, 0.4, 0.35, 0.6)
 	sep.position = Vector2(8, 23)
@@ -1256,6 +1291,12 @@ func _bag_refresh() -> void:
 	_bag_w["title"].text = I18n.t("bag")
 	var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true) or StoryState.fuel_on()
 	_bag_w["total"].text = I18n.t("burn_total") % hud_fuel() if fuel_ok else ""     # 第一关新版没有燃料表（背包标题旁边不写「10 / 200」）
+	# 11-07 作者「最开始打开背包的时候，默认不显示背包的关闭按钮和火焰 icon，从第二次手动打开背包才可以关闭」：
+	# 第一次 = 捡到背包后自动打开、必须先看那张照片的那一次（_first_photo_pending，本来就关不掉）。
+	# 这时右上角的关闭叉和燃烧值（火焰 + 数字）都藏起来；看完照片以后再手动打开就照常显示、能关。
+	var locked_open := _first_photo_pending()
+	_bag_w["close"].visible = not locked_open
+	_bag_w["total_row"].visible = not locked_open
 	for i in _bag_slots.size():
 		var b := _bag_slots[i]
 		var ic: TextureRect = b.get_meta("icon")
@@ -1452,16 +1493,12 @@ func _retext() -> void:
 	_title_label.text = I18n.t("title")
 	_title_sub.text = I18n.t("title_sub")
 	_start_btn.text = I18n.t("start")
-	_hp_label.text = I18n.t("headphones")
-	_hp_any.text = I18n.t("press_any")
 	_skip_label.text = I18n.t("skip_again")
 	_layout_title()
 	for l in _lang_btns:
 		var on: bool = l == GameSettings.lang
 		(_lang_btns[l] as Button).add_theme_color_override("font_color", LANG_ON if on else LANG_OFF)
 		(_lang_btns[l] as Button).mouse_default_cursor_shape = Control.CURSOR_ARROW if on else Control.CURSOR_POINTING_HAND
-	_even(_hp_label, _hp_label.text, 14)
-	_even(_hp_any, _hp_any.text, 14)
 	_even(_burn_pop_sub, _burn_pop_sub.text, 14)
 	_burn_pop_sub.text = I18n.t("to_launch") % Inventory.get_launch_burn()
 	_update_hud()
@@ -1677,21 +1714,102 @@ func _enter_headphones() -> void:
 	Engine.set_meta(HP_SHOWN_META, true)
 	var tw := _tw()
 	tw.tween_interval(0.3)
+	tw.tween_callback(_start_headphone_rain)
 	tw.tween_property(_hp_root, "modulate:a", 1.0, 1.2)
+	tw.tween_interval(1.2)
+	tw.tween_callback(_leave_headphones)
+
+
+func _start_headphone_rain() -> void:
+	_opening_filter_to(OPENING_CLEAR_HZ)
+	_title_rain_in(1.2)
 
 
 func _leave_headphones() -> void:
+	if state != S.HEADPHONES:
+		return
 	_set_state(S.INTRO)
 	_title_bg_on()
 	var tw := _tw()
 	tw.tween_property(_hp_root, "modulate:a", 0.0, 0.8)
 	_run([
-		[0.6, _wind_in],
-		[1.8, func(): _sfx("thunder_far_1", -7.0)],
-		[4.4, func(): _sfx("thunder_far_2", -10.0, 0.92)],
+		[1.8, func(): _opening_sfx("thunder_near_1", -16.0)],
+		[4.4, func(): _opening_sfx("thunder_near_2", -17.0)],
 		[5.4, _fade_from_black],
 		[7.6, _show_title],
 	])
+
+
+func _title_rain_in(sec: float) -> void:
+	if not _title_rain.playing:
+		_title_rain.play()
+	_fade_db(_title_rain, TITLE_RAIN_DB, sec)
+
+
+func _opening_rain_to(alpha: float, sec: float) -> void:
+	if not is_instance_valid(_opening_rain_fx):
+		if alpha == 0.0:
+			return
+		# 沿用城市细雨的柔边雨丝，放在森林暗角、闪电和界面下面。
+		var fx := preload("res://scripts/city_rain.gd").new()
+		fx.name = "OpeningRain"
+		fx.amount = 240
+		fx.lifetime = 1.9
+		fx.seed = 81
+		fx.area = Rect2(-32, -12, 544, 290)
+		fx.bottom = 278.0
+		fx.y_dim = 278.0
+		fx.speed = 132.0
+		fx.slant = 0.14
+		fx.length = 10.0
+		fx.width = 1.3
+		fx.color = Color(0.66, 0.70, 0.82, 0.55)
+		fx.modulate.a = 0.0
+		_opening_sky_layer().add_child(fx)
+		_opening_sky_layer().move_child(fx, 0)
+		_opening_rain_fx = fx
+	if _opening_rain_tw != null and _opening_rain_tw.is_valid():
+		_opening_rain_tw.kill()
+	if alpha == 0.0 and sec == 0.0:
+		_opening_rain_fx.queue_free()
+		_opening_rain_fx = null
+		return
+	_opening_rain_tw = _opening_rain_fx.create_tween()
+	_opening_rain_tw.tween_property(_opening_rain_fx, "modulate:a", alpha, sec)
+	if alpha == 0.0:
+		_opening_rain_tw.tween_callback(func():
+			_opening_rain_fx.queue_free()
+			_opening_rain_fx = null)
+
+
+## 雨和下落时闪电冷光的那一层（见 _opening_sky 的说明）。第一次用时建。
+func _opening_sky_layer() -> CanvasLayer:
+	if _opening_sky == null:
+		_opening_sky = CanvasLayer.new()
+		_opening_sky.name = "OpeningSky"
+		_opening_sky.layer = SKY_LAYER_DESCENT if _title_bg != null else SKY_LAYER_FOREST
+		add_child(_opening_sky)
+		_sky_flash = ColorRect.new()
+		_sky_flash.name = "SkyFlash"
+		_sky_flash.size = Vector2(480, 270)
+		_sky_flash.color = Color(FLASH_TINT, 0.0)
+		_sky_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_opening_sky.add_child(_sky_flash)
+	return _opening_sky
+
+
+func _opening_filter_to(hz: float, sec := 0.0) -> void:
+	if _opening_filter_tw != null and _opening_filter_tw.is_valid():
+		_opening_filter_tw.kill()
+	if sec <= 0.0:
+		_opening_filter.cutoff_hz = hz
+		return
+	# 按对数扫频，穿过云层时高频逐步回来。
+	_opening_filter_tw = _tw()
+	_opening_filter_tw.tween_method(
+		func(value: float): _opening_filter.cutoff_hz = exp(value),
+		log(_opening_filter.cutoff_hz), log(hz), sec
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _wind_in(sec := 3.5) -> void:
@@ -1722,18 +1840,25 @@ func _title_bg_off() -> void:
 	_title_bg.queue_free()
 	_title_bg = null
 	_title_forest_visible(true)
+	if _opening_sky != null:
+		_opening_sky.layer = SKY_LAYER_FOREST
 	if _title_wind.playing:
-		_fade_db(_title_wind, -60.0, 1.2)
-		get_tree().create_timer(1.3, false).timeout.connect(_title_wind.stop)
+		_fade_db(_title_wind, -60.0, 1.2).tween_callback(_title_wind.stop)
+	if _title_rain.playing:
+		_fade_db(_title_rain, -60.0, 3.5).tween_callback(_title_rain.stop)
 
 
 func _fade_from_black() -> void:
+	_opening_filter_to(OPENING_CLOUD_HZ, 2.2)
+	if not _title_wind.playing:
+		_wind_in(2.2)
 	_tw().tween_property(fade, "color:a", 0.0, 3.2).set_trans(Tween.TRANS_SINE)
 
 
 # ======================================================================= 2. 标题
 func _show_title() -> void:
 	_set_state(S.TITLE)
+	_title_thunder_at = 7.0
 	_title_root.visible = true
 	_title_root.modulate.a = 1.0
 	_title_k = 0.0
@@ -1761,6 +1886,8 @@ func _skip_to_title() -> void:
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 0.0
 	_title_bg_on()
+	_opening_filter_to(OPENING_CLOUD_HZ)
+	_title_rain_in(1.2)
 	_wind_in(1.2)                                      # 跳过片头也淡进来，不一下子响
 	_show_title()
 	_kill_cine()
@@ -1805,7 +1932,7 @@ func _back_to_title() -> void:
 	(load("res://scripts/audio_fade.gd") as GDScript).silence(self, BACK_VEIL)
 	var w := AudioStreamPlayer.new()
 	w.stream = _title_wind.stream
-	w.bus = "SFX"
+	w.bus = GameSettings.OPENING_BUS
 	w.volume_db = -60.0
 	w.process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().root.add_child(w)
@@ -1833,6 +1960,8 @@ func _title_fade_in() -> void:
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 1.0
 	_title_bg_on()
+	_opening_filter_to(OPENING_CLOUD_HZ)
+	_title_rain_in(2.8)
 	_wind_in(2.8)                              # 环境音马上开始淡进来，和还在淡掉的片尾音乐交叉（不留真空）
 	_run([
 		[0.4, _fade_from_black],
@@ -1899,19 +2028,34 @@ func _start_descent() -> void:
 	set_meta("qa_skip_t", story._game_t if story != null else 0.0)     # --qa_live：镜头这一下跳到落下去的高度，上面盖着整张小镇，看不见
 	cam.position.x = TITLE_CAM_X
 	_title_bg.descend(DESCENT_SEC)
+	_descended = true
+	_opening_filter_to(OPENING_CLEAR_HZ, DESCENT_SEC * 0.88)
+	# 11-07 作者：雨不是落到底才有，一进云层就开始下（先稀、越往下越密，落到全黑之前已经是满的）；
+	# 一路三次闪电：云里远的一下（暗、雷声晚到）→ 全黑里一下（整屏冷光）→ 快到林冠时近的一下（亮、雷几乎同时）。
+	# 闪电的亮度和颜色跟坠毁时的 _flash 一样（偏青蓝的冷光，不是白闪）。
 	_run([
-		[DESCENT_SEC * 0.18, func(): _fade_db(_title_wind, -60.0, DESCENT_SEC * 0.7)],
-		[DESCENT_SEC * 0.3, func():
+		[DESCENT_SEC * 0.12, func(): _opening_rain_to(0.45, DESCENT_SEC * 0.25)],
+		[DESCENT_SEC * 0.18, func(): _fade_db(_title_wind, -60.0, DESCENT_SEC * 0.5)],
+		[DESCENT_SEC * 0.30, func(): _flash(0.35)],
+		[DESCENT_SEC * 0.30 + 0.45, func(): _opening_sfx("thunder_near_2", -19.0, 0.9)],
+		[DESCENT_SEC * 0.40, func(): _opening_rain_to(1.0, DESCENT_SEC * 0.3)],
+		[DESCENT_SEC * 0.52, func(): _flash(0.7)],
+		[DESCENT_SEC * 0.52 + 0.2, func(): _opening_sfx("thunder_near_3", -15.0, 0.95)],
+		[DESCENT_SEC * 0.64, func():
 			_rain.volume_db = -60.0
 			_rain.play()
-			_fade_db(_rain, RAIN_DB, DESCENT_SEC * 0.7)],
-		[DESCENT_SEC * 0.52, func(): _sfx("thunder_far_2", -14.0, 0.92)],
-		[DESCENT_SEC + 0.25, _start_crash],
+			_fade_db(_rain, RAIN_DB, DESCENT_SEC * 0.55)],
+		[DESCENT_SEC * 0.70, func(): _flash(1.0)],
+		[DESCENT_SEC * 0.72, func(): _opening_sfx("thunder_near_1", -12.0)],
 	])
 
 
 func _start_crash() -> void:
+	_opening_filter_to(OPENING_CLEAR_HZ)
 	_title_bg_off()
+	if _title_rain.playing:                   # 11-07：雨声不随小镇一起淡掉，留到起身 QTE 里和雨丝一起停（qte_weather）
+		_fade_db(_title_rain, CRASH_RAIN_DB, 1.0)
+	_opening_rain_to(1.0, 0.65)
 	if not _rain.playing:                     # 跳关直接到这（--stage、--beat）：没走下落
 		_rain.play()
 		_fade_db(_rain, RAIN_DB, 1.2)
@@ -1922,25 +2066,39 @@ func _start_crash() -> void:
 	tw.tween_callback(_hide_title)
 	var tc := _tw()
 	tc.tween_property(cam, "position:x", TITLE_CAM_X, 1.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_bars_in(0.8)
-	_run([
-		[0.7, func(): _flash(0.6)],
-		[0.78, func(): _sfx("thunder_near_1", -6.0)],
-		[1.3, func(): _flash(0.3)],
-		[1.36, func(): _sfx("thunder_near_2", -9.0, 1.05)],
-		[2.15, func(): _flash(1.0)],
-		[2.2, func(): _sfx("thunder_near_3", -4.0, 0.95)],
-		[2.75, _ship_in],
-		[2.75 + SHIP_TIME, _impact],
-		[2.75 + SHIP_TIME + ALIEN_THROW_DELAY, _alien_thrown if ALIEN_IN_FOREST else func(): pass],
+	# 11-07 作者：落到底、停住以后才进电影视角（黑边 BARS_SEC 滑入），黑边到位再等 SHIP_WAIT 秒飞船才进来。
+	# 打雷挪到了下落途中（_start_descent）；这里只在跳关直接到坠毁（没走下落）时补那三下闪电，不然开场一声雷都没有。
+	_bars_in(BARS_SEC)
+	var seq: Array = []
+	if not _descended:
+		seq += [
+			[0.7, func(): _flash(0.6)],
+			[0.78, func(): _opening_sfx("thunder_near_1", -11.0)],
+			[1.3, func(): _flash(0.3)],
+			[1.36, func(): _opening_sfx("thunder_near_2", -14.0, 1.05)],
+			[2.15, func(): _flash(1.0)],
+			[2.2, func(): _opening_sfx("thunder_near_3", -10.0, 0.95)],
+		]
+	seq += [
+		[SHIP_AT, _ship_in],
+		[SHIP_AT + SHIP_TIME, _impact],
+		[SHIP_AT + SHIP_TIME + ALIEN_THROW_DELAY, _alien_thrown if ALIEN_IN_FOREST else func(): pass],
 		[ALIEN_GETUP_AT, _alien_get_up if ALIEN_IN_FOREST else func(): pass],
-		[2.75 + SHIP_TIME + THROW_T + THROW_SETTLE + 0.25, _begin_getup_qte],
-	])
+		[SHIP_AT + SHIP_TIME + THROW_T + THROW_SETTLE + 0.25, _begin_getup_qte],
+	]
+	_run(seq)
 
 
 const SHIP_TIME := 2.4
+const BARS_SEC := 0.8                     # 落到底以后电影黑边滑入多久
+const SHIP_WAIT := 2.0                    # 11-07 作者：黑边到位后等这么久飞船才进来
+const SHIP_AT := BARS_SEC + SHIP_WAIT     # 飞船进场（相对 _start_crash）。原来是 2.75
 const DESCENT_SEC := 7.5                  # 开始界面落到森林：760 像素，最快约 150 像素 / 秒
-const TITLE_WIND_DB := -14.0              # 开始界面的风（audio/sfx/cloud_wind.ogg，tools/cloud_wind_ambient.py 合成）
+const OPENING_CLEAR_HZ := 18000.0
+const OPENING_CLOUD_HZ := 2300.0
+const TITLE_RAIN_DB := -5.0
+const CRASH_RAIN_DB := -9.0               # 落进森林以后的雨声（比标题时退一点，让鸟叫、雷、飞船出来）
+const TITLE_WIND_DB := -27.0              # 云风只作标题背景，雨声在前
 const TITLE_HIDE_LAYERS := ["Sky", "Ridge", "Far", "MidFar", "Mid", "Main", "Front"]    # 标题盖着时不画的满屏层
 
 
@@ -1962,6 +2120,13 @@ func _apply_flash() -> void:
 		flash.color = Color(IMPACT_TINT, _impact_k * 0.16)
 	else:
 		flash.color = Color(FLASH_TINT, k * FLASH_TINT_A)
+	# 下落途中：森林被开始界面盖着，闪电提亮的是小镇 / 云层那张图（同样偏青蓝），再加一层比森林稍厚的冷光（全黑那段只有它看得见）
+	var tb: Node2D = _title_bg.get("_root") if _title_bg != null else null
+	if tb != null:
+		var g2 := k * 0.8
+		tb.modulate = Color(1.0 + FLASH_GAIN.r * g2, 1.0 + FLASH_GAIN.g * g2, 1.0 + FLASH_GAIN.b * g2)
+	if _sky_flash != null:
+		_sky_flash.color = Color(FLASH_TINT, k * SKY_FLASH_A if _title_bg != null else 0.0)
 
 
 # 飞船飞行图的中心到机头 / 喷口（tools/level1_art.py 跑完会打印这些数：斜 16°，船长 140）
@@ -1977,7 +2142,7 @@ const WRECK_CENTER := Vector2(0, -14)     # 船身中心（飞行图最后对齐
 # 另一个外星人：比晨晚一点被甩出来（弧线低、落得近），比晨早一点爬起来
 const ALIEN_THROW_DELAY := 0.16
 const ALIEN_THROW_TIME := 0.5
-const ALIEN_GETUP_AT := 6.9               # 晨是 8.4
+const ALIEN_GETUP_AT := SHIP_AT + 4.15    # 原来 6.9（飞船 2.75 进场时）；晨是飞船进场后 5.65 秒
 
 
 func _ship_end() -> Vector2:
@@ -1993,7 +2158,7 @@ func _ship_in() -> void:
 	ship.visible = true
 	ship.frame = 0
 	ship.position = _ship_start()
-	_sfx("ship_whoosh", -3.0)
+	_opening_sfx("ship_whoosh", -12.0)
 	puffs_back.add_source("trail", ship.position + SHIP_ENGINE, 46.0, puffs_back.PRESETS.trail)
 	puffs_back.add_source("trail_sparks", ship.position + SHIP_ENGINE, 10.0, puffs_back.PRESETS.ember)
 	_path_a = _ship_start()
@@ -2023,7 +2188,7 @@ func _impact() -> void:
 	puffs_back.remove_source("trail_sparks")
 	_show_wreck()
 	var nose := wreck.position + WRECK_NOSE
-	_sfx("ship_impact", -1.0)
+	_opening_sfx("ship_impact", -7.0)
 	_shake = 0.9
 	_shake_amp = 6.0
 	_flash_k = 0.0
@@ -2272,6 +2437,8 @@ var _getup_qte: Node
 func _begin_getup_qte() -> void:
 	if state != S.CRASH or is_instance_valid(_getup_qte):
 		return
+	# 11-07 作者：雨和雷不在 QTE 一开始就收掉，而是在按 Q 的过程中慢慢停（每按一下雨稀一点、雷远一点，站起来时停完）。
+	# 见 qte_weather / qte_thunder（getup_qte.gd 调）。
 	_getup_qte = preload("res://scripts/getup_qte.gd").new()
 	_getup_qte.name = "GetupQTE"
 	_getup_qte.level = self
@@ -2287,6 +2454,29 @@ func _begin_getup_qte() -> void:
 ## 再慢慢拉回 1 倍，位置交给平时的跟随（本来就是缓缓跟过去的）。
 var _qte_cam: Array = []
 const QTE_UNZOOM := 0.6
+
+
+## 起身 QTE 里的天气：k = 还剩多少（1 = 刚开始满雨，0 = 停了）。雨丝透明度和雨声一起跟着降；0 时雨丝、雨声都收掉。
+func qte_weather(k: float, sec := 0.4) -> void:
+	k = clampf(k, 0.0, 1.0)
+	_opening_rain_to(k, sec)
+	if _title_rain.playing:
+		if k <= 0.0:
+			_fade_db(_title_rain, -60.0, sec).tween_callback(_title_rain.stop)
+		else:
+			_fade_db(_title_rain, maxf(-60.0, CRASH_RAIN_DB + linear_to_db(k)), sec)
+
+
+## 起身 QTE 里隔一阵的雷：k 同上，越往后闪得越暗、雷越远越轻（音调也低一点）
+func qte_thunder(k: float) -> void:
+	if k <= 0.05:
+		return
+	_flash(0.6 * k)
+	var n := "thunder_near_%d" % (1 + randi() % 3)
+	var db := -13.0 + linear_to_db(k)
+	get_tree().create_timer(0.15 + 0.6 * (1.0 - k), false).timeout.connect(func():
+		if state == S.CRASH:
+			_opening_sfx(n, db, 0.85 + 0.15 * k))
 
 
 func _qte_soft_end() -> void:
@@ -2360,6 +2550,9 @@ func _skip_crash() -> void:
 	# 跳过：直接到「晨已经站起来、对话刚出现」
 	set_meta("qa_skip_t", story._game_t if story != null else 0.0)     # --qa_live：跳过时黑边一下子收起，不算镜头跳
 	_kill_cine()
+	_opening_rain_to(0.0, 0.0)
+	if _title_rain.playing:
+		_fade_db(_title_rain, -60.0, 0.8).tween_callback(_title_rain.stop)
 	_title_root.visible = false
 	_title_root.modulate.a = 0.0
 	_flash_k = 0.0
@@ -2673,7 +2866,7 @@ func _pause_tree(on: bool) -> void:
 
 ## 每帧（pause_gate._process，暂停时也跑）：齿轮一直在，只跟着全黑转场淡；制作人员页盖着时不用
 func gear_tick() -> void:
-	_gear.visible = _credits_page == null
+	_gear.visible = _credits_page == null and not (story != null and story.montage_ui != null)   # 结局回看不能跳：齿轮也收起来
 	_gear.modulate.a = (GEAR_A if state == S.TITLE else GEAR_PLAY_A) * (1.0 - fade.color.a)
 	if _settings.visible and get_tree().paused:
 		var f := get_viewport().gui_get_focus_owner()     # 方向键别把焦点走到面板外面暂停着的按钮（对话的选项）上
@@ -2695,6 +2888,10 @@ func gate_event(event: InputEvent) -> void:
 	if _credits_page != null:
 		if get_tree().paused:
 			_credits_page.handle(event)
+			_handled()
+		return
+	if story != null and story.montage_ui != null:  # 结局回看（ending_montage.gd）：和制作人员一样不能跳，Esc / 齿轮不开设置
+		if (event is InputEventKey and event.keycode == KEY_ESCAPE) or event is InputEventMouseButton:
 			_handled()
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and _gear.get_global_rect().grow(2.0).has_point(event.position):
@@ -2855,12 +3052,9 @@ func _input(event: InputEvent) -> void:
 	if _settings.visible or _bag.visible:
 		return
 	var confirm: bool = event.is_action_pressed("ui_accept") or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT)
-	var anykey: bool = (event is InputEventKey and event.pressed and not event.echo) or (event is InputEventMouseButton and event.pressed)
 	match state:
 		S.HEADPHONES:
-			if anykey and _state_t > 0.4:
-				_leave_headphones()
-				_handled()
+			_handled()
 		S.TITLE:
 			# 「开始」平时不拿焦点（不然一出来就是高亮的）：Enter / 空格直接开始，方向键才把焦点给它
 			if event.is_action_pressed("ui_accept"):
@@ -2871,9 +3065,8 @@ func _input(event: InputEvent) -> void:
 				_handled()
 				_start_btn.grab_focus()
 		S.INTRO:
-			if confirm and _state_t > 0.5:
-				_skip_to_title()
-				_handled()
+			if confirm:
+				_handled()                        # 11-07 作者：耳机提示 → 标题这一段不许用空格 / 回车 / 点击跳过（_skip_to_title 只留给 --stage=title）
 		S.CRASH:
 			if confirm:
 				_handled()                        # 11-04 作者：开场坠机是关键演出，不许跳过（_skip_crash 只留给 --stage / 自动玩）
@@ -3038,9 +3231,8 @@ func _process(delta: float) -> void:
 			if n2 != null:
 				n2.self_modulate.a = _hud_dim
 
-	# 耳机提示的「按任意键」慢慢呼吸
+	# 耳机提示：一次启动只出一次，第二次进来黑着 0.3 秒就自己往下走（远端 chapter1 update 已去掉「按任意键」那行字，这里不再呼吸它）
 	if state == S.HEADPHONES:
-		_hp_any.modulate.a = 0.45 + 0.35 * sin(_t * 2.4)
 		if _hp_again and _state_t > 0.3:
 			_leave_headphones()
 	elif state != S.INTRO and _hp_root.visible:
@@ -3048,8 +3240,12 @@ func _process(delta: float) -> void:
 		#                              过了耳机那一段（INTRO 里还在淡出）就整个藏掉，不管哪条路残留了透明度或者 tween，都冒不出来
 	if state == S.TITLE or _title_root.visible:
 		_update_title(delta)
-	if _title_bg != null and state in [S.PLAY, S.CINE]:      # F12 跳关之类从标题直接进了游戏
-		_title_bg_off()
+	if _title_bg != null:
+		# 11-07：下落在低帧率时会放慢，等画面滚动结束再拉电影黑边。
+		if state == S.CRASH and _title_bg.finished():
+			_start_crash()
+		elif state in [S.PLAY, S.CINE]:      # F12 跳关之类从标题直接进了游戏
+			_title_bg_off()
 
 	_debug_tick()
 	if _fuzz > 0.0:
@@ -3058,6 +3254,9 @@ func _process(delta: float) -> void:
 
 
 func _update_title(delta: float) -> void:
+	if state == S.TITLE and _state_t >= _title_thunder_at:
+		_title_thunder_at += 11.0
+		_opening_sfx("thunder_near_2", -17.0)
 	# 标题：淡入时往上飘 3 像素（整像素）；之后很慢地呼吸（7 秒一次，亮度只差一点）
 	var breath := 0.9 + 0.1 * sin(_t * TAU / 7.0)
 	_title_label.modulate.a = _title_k * breath

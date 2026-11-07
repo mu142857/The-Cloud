@@ -1104,6 +1104,7 @@
 			{"narr": {"zh": "第一页：「我一定要找到大象，因为」", "en": "The first page: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 3.0},
 			{"do": "flag", "set": "final_done"},
+			{"do": "montage", "_note": "11-07 作者：结局回看（母星公交车 + 每个支线 NPC 一镜，做了任务是好结果那一版，不能跳），三个去处都放，全剧终卡之前（scripts/ending_montage.gd）"},
 			{"do": "end_chapter"}
 		],
 		"final_soup_fuel": [
@@ -1265,6 +1266,7 @@
 		"final_end_town": [
 			{"do": "wait", "sec": 2.0},
 			{"do": "flag", "set": "final_done"},
+			{"do": "montage"},
 			{"do": "end_chapter", "_note": "11-07 作者结局重构：三个去处（芦苇地 / 云层小镇 / 回母星），砍结局二、四；晨的独白要少，留下的打在屏幕上：云层小镇停在小镇，不回访、不上列车"}
 		],
 		"ending_home": [
