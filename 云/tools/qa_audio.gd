@@ -113,7 +113,8 @@ func _paper_step() -> void:
 			return
 		_paper_press = -1
 		var use: Button = lv.get("_bag_w")["use"]
-		print("QA_PAPER press chapter=%s t=%.1f button=%s visible=%s viewable=%s" % [lv.get("chapter"), _t, use.text, use.visible, story.paper_viewable("elephant_drawing")])
+		var hp: Control = lv.get("_hp_root")
+		print("QA_PAPER press chapter=%s t=%.1f button=%s visible=%s viewable=%s headphones=%s/%.2f" % [lv.get("chapter"), _t, use.text, use.visible, story.paper_viewable("elephant_drawing"), hp.visible, hp.modulate.a])
 		var viewable: bool = story.paper_viewable("elephant_drawing")
 		use.pressed.emit()
 		_paper_wait = viewable    # 森林追逐以前走的是剧本 item_views（c1_drawing），看完不回背包，不等

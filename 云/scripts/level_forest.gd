@@ -1662,10 +1662,19 @@ func _set_state(s: S) -> void:
 
 
 # ======================================================================= 1. 耳机提示
+const HP_SHOWN_META := "level_forest_headphones_shown"
+var _hp_again := false
+
+
 func _enter_headphones() -> void:
 	_set_state(S.HEADPHONES)
 	fade.color.a = 1.0
 	_hp_root.modulate.a = 0.0
+	if Engine.has_meta(HP_SHOWN_META):         # 耳机提示一次启动只出一次（11-07 作者）。之后的重新载入：换章节、回标题、测试场景回来
+		_hp_root.visible = false               # 在 _ready 里接着就换走了；还停在这一段的（F8 之类直接重开森林），黑着 0.3 秒自己往下走
+		_hp_again = true
+		return
+	Engine.set_meta(HP_SHOWN_META, true)
 	var tw := _tw()
 	tw.tween_interval(0.3)
 	tw.tween_property(_hp_root, "modulate:a", 1.0, 1.2)
@@ -2801,9 +2810,7 @@ func _input(event: InputEvent) -> void:
 			if _fuzz > 0.0:
 				_fuzz_t = _fuzz                    # 乱玩：走到结束卡就算玩完
 				return
-			CHAPTER_GD.reset()                     # 回标题 = 新游戏（从森林开始）
-			(load("res://scripts/audio_fade.gd") as GDScript).release(self, 0.8)   # 还在响的长声音淡掉，不被重新载入掐断
-			get_tree().reload_current_scene.call_deferred()
+			title_after_credits()                  # 回标题 = 新游戏（从森林开始）；和全剧终 / 设置「返回标题」同一条路，标题从黑里淡出，不再过耳机提示
 		return
 	# 剧情在播：按键 / 点击给对话框（确认、点选）；鹿带路时方向键照常走
 	if story.busy and not _settings.visible and not _bag.visible:
@@ -3034,6 +3041,11 @@ func _process(delta: float) -> void:
 	# 耳机提示的「按任意键」慢慢呼吸
 	if state == S.HEADPHONES:
 		_hp_any.modulate.a = 0.45 + 0.35 * sin(_t * 2.4)
+		if _hp_again and _state_t > 0.3:
+			_leave_headphones()
+	elif state != S.INTRO and _hp_root.visible:
+		_hp_root.visible = false     # 11-07 作者截图：耳机提示压在地图（paper_view）上。提示在 Top 层（50），比纸（40）、背包、设置都高；
+		#                              过了耳机那一段（INTRO 里还在淡出）就整个藏掉，不管哪条路残留了透明度或者 tween，都冒不出来
 	if state == S.TITLE or _title_root.visible:
 		_update_title(delta)
 	if _title_bg != null and state in [S.PLAY, S.CINE]:      # F12 跳关之类从标题直接进了游戏

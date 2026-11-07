@@ -5,8 +5,9 @@
 正面（drawing_closeup.png，妹妹画的大象）不动。
 
 - 纸 = 正面那张纸左右镜像（elephant_drawing_art.paper()），折痕、折角、深浅都在一个位置；颜料乘纸色，折痕从星球上穿过去。
-- 六处：母星（灰色鸽子笼 + 高架列车）→ 森林星（一层层树冠、雾带、树屋一点灯）→ 绕开碎石带 → 河流星（月夜水道、石桥、黄灯）
-  → 云层星（云海、云里的大象）→ 分到 芦苇地（亮色湿地、大蒲公英）和 小镇（紫色黄昏、尖塔）。配色取自各章场景。
+- 五颗星：母星（灰色鸽子笼 + 高架列车）→ 森林星（一层层树冠、雾带、树屋一点灯）→ 绕开碎石带 → 河流星（月夜水道、石桥、黄灯）
+  → 云层星（云海、云上的大象，云海里立着小镇的紫色尖塔）→ 分叉点分三路：小镇（就在云层星上）/ 芦苇星（亮色湿地、大蒲公英）/ 沿纸底回母星。
+  11-07 作者：「小镇我以为属于云层星」→ 小镇不再单独成星；「芦苇地为什么不叫 xx 星」→ 芦苇星（占位名，等作者定）。配色取自各章场景。
 - 航线红褐虚线（和驾驶舱里那张小航图 cockpit_map 同色）；被碎石封住的旧航线是铅笔细线，打了个叉（飞行一「旧航线中断」）。
 - 地名不画进图里，由 paper_view.gd 用游戏字体叠上去（中英文跟设置走），坐标见 LABELS（和 paper_view.gd 的 BACK_LABELS 保持一致）。
 
@@ -40,22 +41,24 @@ ROUTE_D = (92, 48, 38)
 PENCIL = (136, 128, 116)
 REF = np.array([206.0, 197.0, 178.0])    # 颜料「乘纸色」的基准：纸的中间一档，浅的一片颜料亮一点，暗的一片暗一点
 
-# 星球：cx, cy, r
+# 星球：cx, cy, r（11-07 作者：小镇在云层星上，不单独成星；芦苇地是一颗独立的星）
 HOME = (26, 80, 15)
 FOREST = (58, 40, 19)
-RIVER = (101, 74, 19)
+RIVER = (101, 72, 19)
 CLOUD = (149, 34, 20)
-TOWN = (131, 86, 12)
-REED = (168, 83, 14)
+REED = (163, 80, 16)
+FORK = (149, 58)             # 云层星底下的分叉点：小镇（就在云层星上）/ 芦苇星 / 回母星
+TOWN_TAG = (179, 41)         # 「小镇」地名：在云层星右边，一条短点线引到云上的尖塔
 
 # 地名（paper_view.gd 的 BACK_LABELS 同步）：中心 x、上沿 y，纸上坐标（游戏里 ×2）
+# 「芦苇星」是占位名，等作者定了再换字
 LABELS = [
     ("母星", "Home", 26, 97),
     ("森林星", "Forest", 58, 3),
-    ("河流星", "River", 101, 95),
+    ("河流星", "River", 101, 93),
     ("云层星", "Clouds", 149, 5),
-    ("小镇", "Town", 131, 99),
-    ("芦苇地", "Reeds", 168, 98),
+    ("小镇", "Town", 179, 37),
+    ("芦苇星", "Reeds", 163, 98),
 ]
 
 
@@ -367,7 +370,9 @@ def draw_cloud(cv):
         cv.px(x_, y_, (128, 118, 160))
     # 云海：一排排云团，后面紫、前面亮奶油，迎光面高光
     cl = [(124, 106, 162), (160, 142, 186), (200, 184, 208), (234, 222, 222), (252, 246, 232)]
-    for yy, base, spread in ((cy - 1, 0.2, 5), (cy + 3, 0.36, 6), (cy + 7, 0.52, 7), (cy + 12, 0.68, 7), (cy + 18, 0.82, 8)):
+    for row, (yy, base, spread) in enumerate(((cy - 1, 0.2, 5), (cy + 3, 0.36, 6), (cy + 7, 0.52, 7), (cy + 12, 0.68, 7), (cy + 18, 0.82, 8))):
+        if row == 4:
+            draw_cloud_town(cv)                                # 小镇立在云海里：最前一排云盖住塔脚
         x = cx - r - 3 + rng.integers(0, 4)
         while x < cx + r + 4:
             rr = rng.integers(3, spread)
@@ -436,43 +441,47 @@ def draw_reed(cv):
                 c = (112, 176, 224) if d > 20 else (196, 226, 244) if (dx - 1) ** 2 + (dy + 1) ** 2 > 9 else (252, 252, 246)
                 cv.px(sx + dx, sy + dy, c)
     cv.px(sx, sy + 1, (246, 214, 120))
-    finish_disc(cv, mask, cx, cy, r)
-
-
-def draw_town(cv):
-    cx, cy, r = TOWN
-    mask = disc_mask(cx, cy, r, 17)
-    cv.clip = mask
+    # 是一颗星，不是一扇窗：背光那半边压暗（和别的星球一样月光从右上来），档间棋盘格
     ys, xs = np.nonzero(mask)
-    pal = [(62, 44, 94), (98, 62, 110), (150, 84, 112), (214, 124, 100), (244, 176, 116)]
-    for y, x in zip(ys, xs):                                   # 紫色黄昏，地平线发橙
-        cv.px(x, y, ramp_px(pal, (y - (cy - r)) / (1.5 * r), x, y))
-    # 三座尖塔：黑紫塔身 + 右沿一道亮 + 红紫尖顶 + 亮窗
-    wall, wall2, roof, roof2, win = (40, 28, 62), (92, 66, 104), (48, 28, 62), (116, 66, 100), (252, 214, 118)
-    for dx, base, w, top in ((-8, 7, 4, -3), (-1, 7, 3, 1), (4, 7, 4, -5)):
+    for y, x in zip(ys, xs):
+        l = lit(cx, cy, r, x, y)
+        f = 1.0
+        if l < -0.62 or (l < -0.48 and (x + y) % 2 == 0):
+            f = 0.66
+        elif l < -0.28 or (l < -0.14 and (x + y) % 2 == 0):
+            f = 0.82
+        cv.rgb[y, x] *= f
+    finish_disc(cv, mask, cx, cy, r, rim=(250, 252, 236))
+
+
+def draw_cloud_town(cv):
+    """云层星上的小镇（art/cloud_town 那种）：紫色尖塔、木筋小楼立在云上，亮着几扇黄窗，塔尖一点金。"""
+    cx, cy, _ = CLOUD
+    wall, wall2, roof, roof2 = (54, 40, 76), (96, 74, 112), (66, 44, 86), (118, 82, 122)
+    win, tip = (252, 214, 118), (214, 170, 110)
+    base = cy + 14
+    # (dx, 宽, 塔身高, 类型)  spire = 细塔 + 尖顶；house = 两层小楼 + 人字顶
+    for dx, w, h, kind in ((-6, 3, 7, "spire"), (-2, 4, 5, "house"), (3, 3, 10, "spire"), (7, 4, 6, "house"), (12, 3, 6, "spire")):
         x = cx + dx
-        y0 = cy + top
-        cv.rect(x, y0, w, base - top + 1, wall)
-        cv.rect(x + w - 1, y0, 1, base - top + 1, wall2)
-        h = 6
-        for i in range(h):                                     # 尖顶：往上收成一个点
-            hw = (w + 2) * (h - i) / (2.0 * h)
-            xa, xb = x + w / 2.0 - hw, x + w / 2.0 + hw
-            for xx in range(int(round(xa)), int(round(xb))):
-                cv.px(xx, y0 - h + i + 1 - 1, roof2 if xx >= x + w / 2.0 else roof)
-        cv.rect(x + 1, y0 + 2, 1, 2, win)
-        if base - top > 7:
-            cv.px(x + 1, y0 + 6, win)
-    # 紫色树丛和地面
-    rng = np.random.default_rng(51)
-    for x in range(cx - r, cx + r + 1, 3):
-        cv.blob(x + rng.integers(-1, 2), cy + 8 + rng.integers(0, 2), rng.integers(2, 4), (58, 30, 72))
-    for x in range(cx - r + 1, cx + r, 4):
-        cv.px(x, cy + 6, (124, 70, 120))
-    cv.rect(cx - r, cy + 10, 2 * r + 1, r, (38, 20, 50))
-    for x in (cx - 5, cx + 2, cx + 7):                         # 路灯
-        cv.px(x, cy + 9, win)
-    finish_disc(cv, mask, cx, cy, r, rim=(236, 170, 130))
+        y0 = base - h
+        cv.rect(x, y0, w, h + 1, wall)
+        cv.rect(x + w - 1, y0, 1, h + 1, wall2)
+        if kind == "spire":
+            m = x + 1                                          # 塔身 3 格宽，尖顶 1/3/3/5 往下放宽，顶上一点金
+            for i, hw in enumerate((0, 1, 1, 2)):
+                for xx in range(m - hw, m + hw + 1):
+                    cv.px(xx, y0 - 4 + i, roof2 if xx > m or (xx == m and i == 0) else roof)
+            cv.px(m, y0 - 5, tip)
+            cv.px(m, y0 + 2, win)
+        else:
+            for i in range(3):                                 # 人字顶
+                xa, xb = x + 1 - i, x + w - 2 + i
+                for xx in range(xa, xb + 1):
+                    cv.px(xx, y0 - 3 + i, roof2 if xx >= x + w / 2.0 else roof)
+            cv.px(x + 1, y0 + 1, win)
+            cv.px(x + 2, y0 + 1, win)
+            if h > 5:
+                cv.px(x + 1, y0 + 3, win)
 
 
 def draw_chart(cv):
@@ -495,12 +504,14 @@ def draw_chart(cv):
 def draw_stars(cv):
     rng = np.random.default_rng(61)
     keep = np.ones((H, W), bool)
-    for (cx, cy, r) in (HOME, FOREST, RIVER, CLOUD, TOWN, REED):
+    for (cx, cy, r) in (HOME, FOREST, RIVER, CLOUD, REED):
         ys, xs = np.ogrid[:H, :W]
         keep &= (xs - cx) ** 2 + (ys - cy) ** 2 > (r + 5) ** 2
     for row in LABELS:
         keep[max(0, row[3] - 2):row[3] + 10, max(0, row[2] - 26):row[2] + 26] = False
-    keep[50:74, 120:182] = False                                # 云层星往下的点线一带
+    for pts in route_paths().values():                          # 航线两边各让 4 格
+        for x, y in pts:
+            keep[max(0, y - 4):y + 5, max(0, x - 4):x + 5] = False
     ys, xs = np.ogrid[:H, :W]
     keep &= np.abs((xs - 67) * 36 + (ys - 76) * 28) / math.hypot(36, 28) > 9      # 碎石带一条
     n = 0
@@ -567,7 +578,7 @@ def rock(cv, x, y, r):
         cv.px(x + dx, y + dy, c)
 
 
-XMARK = (79, 61)
+XMARK = (79, 59)
 
 
 def draw_debris(cv):
@@ -586,28 +597,56 @@ def draw_debris(cv):
         t += rng.uniform(0.035, 0.07)
 
 
+def route_paths():
+    """所有航线的像素路径（画线和让星星都用这一份）。"""
+    fx, fy = FORK
+    home_back = (bezier((fx - 1, fy + 2), (140, 80), (142, 103), (124, 103))
+                 + line_pts(123, 103, 54, 103)
+                 + bezier((53, 103), (45, 103), (42, 98), (40, 92)))
+    return {
+        "home_forest": bezier((35, 66), (37, 63), (39, 61), (41, 58)),
+        "old1": bezier((70, 54), (72, 55), (74, 56), (75, 57)),
+        "old2": bezier((83, 61), (83, 61), (84, 62), (84, 62)),
+        "detour": bezier((77, 33), (92, 20), (113, 24), (106, 43)),
+        "river_fork": bezier((120, 66), (128, 63), (135, 60), (141, 59)),
+        "town": line_pts(fx, fy - 2, fx, fy - 9),
+        "town_tag": line_pts(169, TOWN_TAG[1], 163, TOWN_TAG[1]),
+        "reed": bezier((fx + 2, fy), (156, 58), (159, 59), (160, 61)),
+        "home_back": home_back,
+    }
+
+
 def draw_routes(cv):
+    rp = route_paths()
     # 母星 → 森林星
-    dash(cv, bezier((35, 66), (37, 63), (39, 61), (41, 58)), ROUTE)
+    dash(cv, rp["home_forest"], ROUTE)
     arrow(cv, 44, 55, 1, -1, ROUTE)
     # 旧航线：铅笔细线穿过碎石带，打叉
-    dash(cv, bezier((70, 56), (72, 58), (74, 59), (75, 59)), PENCIL, 2, 1, 0.95)
-    dash(cv, bezier((83, 63), (84, 64), (85, 65), (86, 66)), PENCIL, 2, 1, 0.6)
+    dash(cv, rp["old1"], PENCIL, 2, 1, 0.95)
+    dash(cv, rp["old2"], PENCIL, 2, 1, 0.6)
     for i in range(-2, 3):
         cv.px(XMARK[0] + i, XMARK[1] + i, ROUTE_D)
         cv.px(XMARK[0] + i, XMARK[1] - i, ROUTE_D)
     # 绕路：从森林星右上出来，翻过碎石带顶上，再下到河流星
-    dash(cv, bezier((77, 33), (92, 20), (113, 26), (106, 47)), ROUTE)
-    arrow(cv, 105, 52, -0.15, 1, ROUTE)
-    # 河流星 → 云层星
-    dash(cv, bezier((118, 64), (123, 62), (127, 60), (129, 56)), ROUTE)
-    arrow(cv, 133, 52, 0.7, -1, ROUTE)
-    # 云层星往下分两处：细墨点线
-    for a, b in (((139, 56), (134, 72)), ((160, 55), (166, 67))):
-        pts = line_pts(*a, *b)
-        for i, (x, y) in enumerate(pts):
-            if i % 3 == 0:
-                cv.px(x, y, INK)
+    dash(cv, rp["detour"], ROUTE)
+    arrow(cv, 105, 48, -0.15, 1, ROUTE)
+    # 河流星 → 云层星底下的分叉点
+    dash(cv, rp["river_fork"], ROUTE)
+    arrow(cv, 145, 58, 1, -0.15, ROUTE)
+
+
+def draw_branches(cv):
+    """分叉点分三路（细墨点线）：往上进云层星的小镇；往右下芦苇星；往下沿纸底回母星。画在星球之后，压在云上。"""
+    rp = route_paths()
+    fx, fy = FORK
+    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):        # 分叉点：一个小墨圈
+        cv.px(fx + dx, fy + dy, INK_D)
+    for key, step in (("town", 2), ("reed", 3), ("home_back", 3), ("town_tag", 2)):
+        for i, (x, y) in enumerate(rp[key]):
+            if i % step == 0:
+                cv.px(x, y, INK_D if key in ("town", "town_tag") else INK)
+    arrow(cv, 160, 63, 0.1, 1, INK)
+    arrow(cv, 40, 90, -0.15, -1, INK)
 
 
 def build():
@@ -621,10 +660,10 @@ def build():
     draw_home(cv)
     draw_river(cv)
     draw_cloud(cv)
-    draw_town(cv)
     draw_reed(cv)
     draw_forest(cv)
     cv.clip = None
+    draw_branches(cv)
     draw_compass(cv, 14, 29)
     img = cv.image()
     img.save(OUT)

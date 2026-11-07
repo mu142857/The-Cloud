@@ -1218,13 +1218,25 @@ def travel_map():
         c.line(x0, y0, x1, y1, col)
         if pressed:
             c.line(x0 + 1, y0, x1 + 1, y1, "#5a3228")
-        # 航线上的星球（大图 art/forest_story/paper_map.png 的缩小版，tools/paper_map_art.py）：母星灰、森林绿、河流深蓝、云层紫，云层旁边一点芦苇黄
+        # 航线上的星球（大图 art/forest_story/paper_map.png 的缩小版，tools/paper_map_art.py）：母星灰、森林绿、河流深蓝、云层紫
         for t, col, big in ((0.02, "#5c5e62", False), (0.34, "#3e5e48", True), (0.66, "#32466a", True), (1.0, "#7a6a92", True)):
             px_, py_ = int(round(x0 + (x1 - x0) * t)), int(round(y0 + (y1 - y0) * t))
             c.px(px_, py_, col)
             for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)) if big else ((1, 0), (0, -1), (1, -1)):
                 c.px(px_ + dx, py_ + dy, col)
-        c.px(x1 - 1, y1 + 3, "#8e9456")
+        # 11-07：云层星顶上一格深紫 = 上面的小镇（不单独成星）；云层星往下分三路：
+        # 右下一颗芦苇星（黄绿），往下再沿纸底一路墨点回母星
+        ink = "#3a466c"
+        c.px(x1, y1 - 1, "#463858")
+        c.px(x1 + 1, y1 + 2, ink)
+        rx, ry = x1 + 1, y1 + 5
+        for dx, dy in ((0, 0), (0, -1), (1, 0), (0, 1), (-1, 0)):
+            c.px(rx + dx, ry + dy, "#8e9456")
+        c.px(rx + 1, ry - 1, "#b4b878")
+        for y in range(y1 + 3, y0 + 1, 2):
+            c.px(x1 - 2, y, ink)
+        for x in range(x1 - 4, x0, -2):
+            c.px(x, y0 + 1, ink)
 
     c = frame(W_, H_)
     sheet(c, 0, 3, 13, False)
