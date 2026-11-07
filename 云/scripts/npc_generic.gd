@@ -60,7 +60,8 @@ var _tex_cache := {}
 func setup(id: String) -> void:
 	npc_id = id
 	name = "Npc_" + id
-	var p := (DIR % id) + id + ".json"
+	var art_id := "rabbit" if id.begins_with("rabbit_") else id
+	var p := (DIR % art_id) + art_id + ".json"
 	if FileAccess.file_exists(p):
 		var j = JSON.parse_string(FileAccess.get_file_as_string(p))
 		if j is Dictionary:
@@ -134,7 +135,8 @@ func _sheet(file: String) -> Texture2D:
 		return null
 	if _tex_cache.has(file):
 		return _tex_cache[file]
-	var p := file if file.begins_with("res://") else (DIR % npc_id) + file
+	var art_id := "rabbit" if npc_id.begins_with("rabbit_") else npc_id
+	var p := file if file.begins_with("res://") else (DIR % art_id) + file
 	var t: Texture2D = null
 	if ResourceLoader.exists(p):
 		t = load(p)

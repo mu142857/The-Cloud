@@ -186,10 +186,8 @@
 		],
 		"final_niff_msg_b": [
 			{"do": "anim", "who": "chen", "name": "fold_bag"},
-			{"do": "phone_open", "contact": "friend"},
 			{"do": "anim", "who": "chen", "name": "finger_still"},
 			{"do": "wait", "sec": 1.5},
-			{"do": "phone_msg", "id": "final_msg_nifu_2", "from": "nifu", "zh": "阿汀让我提醒你，到地方记得晾浮筒哦。", "en": "Ting says to remind you: dry out the floats when you land.", "reply": {"zh": "记下了，到了就晾。", "en": "Got it. I'll dry them when I land.", "added": true}},
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "journal", "zh": "维修：到地方先晾浮筒（阿汀说的）。", "en": "Repairs: dry the floats first thing after landing (Ting said).", "added": true},
 			{"do": "flag", "set": "final_niff_msg"},
@@ -505,13 +503,9 @@
 		"approach_page": [
 			{"narr": {"zh": "第一页：「我一定要找到大象，因为」", "en": "The first page: \"I have to find the elephant, because\""}},
 			{"do": "wait", "sec": 2.5},
-			{"do": "prop", "id": "cockpit_phone", "state": "screen_on"},
 			{"do": "wait", "sec": 2.0},
 			{"do": "prop", "id": "cockpit_drawing", "state": "under_page"},
-			{"do": "anim", "who": "chen", "name": "glance_phone"},
 			{"do": "wait", "sec": 1.5},
-			{"do": "anim", "who": "chen", "name": "flip_phone"},
-			{"do": "prop", "id": "cockpit_phone", "state": "face_down"},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
 			{"do": "flashback", "id": 4, "place": "street", "end": "still", "hold": true, "lines": [{"zh": "可大象就算在那儿，她也不一定回我啊。", "en": "But even if the elephant's there, she might not write back."}], "added": true},
 			{"do": "flashback_wake", "wait": false},
@@ -637,12 +631,9 @@
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "chen", "name": "lips"},
 			{"do": "wait", "sec": 2.0},
-			{"do": "anim", "who": "chen", "name": "take_phone"},
-			{"do": "phone_open", "contact": "friend"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "elephant", "name": "eat"},
 			{"do": "wait", "sec": 1.0},
-			{"do": "anim", "who": "chen", "name": "hold_phone"},
 			{"do": "show", "who": "passerby", "at": "yard_passerby", "fade": 0.6},
 			{"do": "face", "who": "chen", "to": "passerby"},
 			{"say": "passerby", "zh": "背包别放那么近，它爱翻有吃的味道的袋子。", "en": "Don't keep your bag so close. It likes digging through anything that smells like food.", "added": true},
@@ -764,12 +755,7 @@
 		"e1_phone": [
 			{"do": "prop", "id": "cockpit_window", "state": "yard_parked"},
 			{"do": "fade_to", "room": "cockpit", "at": "cockpit_seat"},
-			{"do": "anim", "who": "chen", "name": "type"},
-			{"do": "wait", "sec": 1.0},
-			{"do": "anim", "who": "chen", "name": "delete"},
-			{"do": "wait", "sec": 0.8},
-			{"do": "phone_draft", "to": "friend", "zh": "我找到大象了。", "en": "I found the elephant.", "flag": "sent_found"},
-			{"do": "anim", "who": "chen", "name": "pocket"},
+			{"say": "chen", "zh": "我找到大象了。", "en": "I found the elephant."},
 			{"do": "face", "who": "chen", "to": "cockpit_window"},
 			{"do": "prop", "id": "cockpit_window", "state": "yard_elephant_far"},
 			{"do": "wait", "sec": 2.0},
@@ -822,7 +808,6 @@
 			{"say": "chen", "zh": "我现在看得见。", "en": "I can see it right now."},
 			{"do": "anim", "who": "chen", "name": "take_cup"},
 			{"do": "wait", "sec": 1.0},
-			{"do": "phone_open", "contact": "friend"},
 			{"do": "anim", "who": "chen", "name": "reach_camera"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "anim", "who": "chen", "name": "hand_still"},
@@ -1070,8 +1055,6 @@
 			{"do": "wait", "sec": 1.0},
 			{"do": "face", "who": "chen", "to": "town_fountain"},
 			{"do": "wait", "sec": 1.5},
-			{"do": "anim", "who": "chen", "name": "take_phone"},
-			{"do": "phone_open", "contact": "friend"},
 			{"do": "anim", "who": "chen", "name": "finger_still"},
 			{"do": "wait", "sec": 1.5},
 			{"do": "anim", "who": "chen", "name": "pocket"},
@@ -1184,7 +1167,6 @@
 			{"do": "anim", "who": "chen", "name": "release"},
 			{"say": "chen", "zh": "这次先到这里吧。", "en": "That's enough for this time."},
 			{"do": "wait", "sec": 1.5},
-			{"do": "prop", "id": "cockpit_phone", "state": "seat_screen_up"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "closed"},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "open"},
@@ -1538,8 +1520,6 @@
 			{"do": "goto", "scene": "epi_home_phone"}
 		],
 		"epi_home_phone": [
-			{"do": "anim", "who": "chen", "name": "take_phone"},
-			{"do": "phone_open", "contact": "friend"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "anim", "who": "chen", "name": "pocket"},
 			{"do": "walk", "who": "chen", "to": "train_seat"},
@@ -1574,10 +1554,10 @@
 			{"do": "goto", "scene": "final_niff_msg_b", "_note": "11-02 这两段里按河流篇的称呼分了四个 if，不再算「播完回来」的分支，播完显式接回去"}
 		],
 		"final_nifu1_plain_p": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1", "from": "nifu", "zh": "晨，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Chen, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "还没。路上没地方烧水。", "en": "Not yet. Nowhere to boil water out here.", "added": true}}
+			{"do": "journal", "zh": "妮芙总惦记我有没有喝上热的。路上还没找到烧水的地方。", "en": "Niff always wondered if I had anything hot to drink. I still haven’t found anywhere to boil water.", "added": true}
 		],
 		"final_nifu1_plain_c": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_courier", "from": "nifu", "zh": "取件员，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Courier, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "还没。路上没地方烧水。", "en": "Not yet. Nowhere to boil water out here.", "added": true}, "added": true}
+			{"do": "journal", "zh": "妮芙总惦记我有没有喝上热的。路上还没找到烧水的地方。", "en": "Niff always wondered if I had anything hot to drink. I still haven’t found anywhere to boil water.", "added": true}
 		],
 		"final_niff_msg_soup": [
 			{"do": "if", "flag": "river_n_courier", "then": "final_nifu1_soup_c"},
@@ -1585,10 +1565,10 @@
 			{"do": "goto", "scene": "final_niff_msg_b", "_note": "11-02 这两段里按河流篇的称呼分了四个 if，不再算「播完回来」的分支，播完显式接回去"}
 		],
 		"final_nifu1_soup_p": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_soup", "from": "nifu", "zh": "晨，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Chen, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}}
+			{"do": "journal", "zh": "要是妮芙问起来，我就说鼠妈的汤还是热的。", "en": "If Niff asks, I’ll tell her Mama Rat’s soup is still warm.", "added": true}
 		],
 		"final_nifu1_soup_c": [
-			{"do": "phone_msg", "id": "final_msg_nifu_1_soup_courier", "from": "nifu", "zh": "取件员，本子上写着你喝过茶啦，那现在呢，喝上热的了吗？", "en": "Courier, my notebook says you had tea. What about now, got something hot?", "reply": {"zh": "喝了。鼠妈的汤，还是热的。", "en": "I did. Mama Rat's soup. Still warm.", "added": true}, "added": true}
+			{"do": "journal", "zh": "要是妮芙问起来，我就说鼠妈的汤还是热的。", "en": "If Niff asks, I’ll tell her Mama Rat’s soup is still warm.", "added": true}
 		],
 		"look_toucan_feather": [
 			{"do": "show_item", "item": "toucan_feather"},

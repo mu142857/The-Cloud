@@ -327,6 +327,8 @@ static func click_rect(p: Dictionary) -> Rect2:
 func auto_trigger(cx: float) -> Dictionary:
 	for p in available():
 		var h: Dictionary = p["h"]
+		if str(h.get("id", "")) == "c1_run" and runner.auto == "":
+			continue
 		if not is_enter(h):
 			continue
 		var id := str(h["id"])

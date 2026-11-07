@@ -7,11 +7,11 @@
   {"id": "mumu", "style": "fireflies", "name": {"zh": "木木", "en": "Mumu"}, "role": {"zh": "程序 & 美术", "en": "Code & Art"}, "batch": 1,
    "color": "39e47a", "depth": 0.15, "dx": 40, "y": 112, "start": 0.0, "hold": 2.0},
   {"id": "bentootoo", "style": "mist", "name": {"zh": "本2兔", "en": "Bentootoo"}, "role": {"zh": "剧情 & 音乐", "en": "Story & Music"}, "batch": 1,
-   "color": "3bbcc8", "depth": 0.15, "dx": 20, "y": 162, "start": 0.4, "hold": 1.8},
+   "color": "3bbcc8", "depth": 0.15, "dx": 45, "y": 136, "start": 4.2, "hold": 1.8},
   {"id": "wutong", "style": "leaves", "name": {"zh": "梧桐", "en": "Wutong"}, "role": {"zh": "美术", "en": "Art"}, "batch": 2,
-   "color": "e08638", "depth": 0.15, "dx": 140, "y": 112, "start": 1.2, "pace": 1.4, "hold": 1.8},
+   "color": "e08638", "depth": 0.15, "dx": 42, "y": 112, "start": 8.4, "pace": 1.4, "hold": 1.8},
   {"id": "oscar", "style": "light", "name": {"zh": "奥斯卡", "en": "Zpbrqols"}, "role": {"zh": "美术", "en": "Art"}, "batch": 2,
-   "color": "c8b83b", "depth": 0.15, "dx": 175, "y": 162, "start": 1.8, "pace": 1.4, "hold": 1.8},
+   "color": "c8b83b", "depth": 0.15, "dx": 42, "y": 136, "start": 12.6, "pace": 1.4, "hold": 1.8},
   {"id": "sothere456", "style": "sky", "name": {"zh": "Sothere456", "en": "Sothere456"}, "role": {"zh": "原案", "en": "Original Story"}, "run": false,
    "note": "剧情姐；11-05 作者定的头衔：原案", "color": "d8d4cc", "screen_y": 40, "hold": 3.6}
  ]

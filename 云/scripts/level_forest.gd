@@ -221,8 +221,14 @@ var _lang_btns := {}
 var _bag_btn: TextureButton
 var _hud_burn: HBoxContainer
 var _hud_burn_label: Label
+const ACHIEVEMENT_SAVE := "user://achievements.cfg"
+var _achievement_data: Array = []
+var _achievement_seen := ConfigFile.new()
+var _achievement_progress := -1
+var _achievement_toasts: CanvasLayer
+
 var _hud_obj: Label
-var _hud_side: Label                    # 「（可选）」支线那一行
+var _hud_side: RichTextLabel                    # 任务列表
 var _hud_dim := 1.0                     # 对话框盖到左上角目标时淡下去（_hud_covered）
 const HUD_UNDER := 0.0
 var _hud_flame: TextureRect
@@ -434,6 +440,7 @@ func _ready() -> void:
 	if chapter != "forest" and (_story_path == "" or Engine.has_meta(CHAPTER_GD.PICK_META)):
 		_story_path = str(CHAPTER_GD.info(chapter)["story"])   # 换章 / F12 跳章：用那一章的剧本（命令行 --story= 只管起头那一章）
 	CHAPTER_GD.restore(chapter)
+	_load_achievements()
 	# 光柱照到晨身上（lite 档光柱关了就是 0；树屋室内没有光柱）
 	chen.set_env("forest", func(c):
 		if story != null and story.world != null and story.world.in_room():
@@ -764,14 +771,21 @@ func _build_ui() -> void:
 	_hud_burn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud_burn.add_theme_constant_override("separation", 4)
 	# 当前目标（剧本 objectives）：在燃烧值前面；没有 objectives 就藏着，左上角照旧只显示燃烧值
-	_hud_obj = _label("", 14, UITheme.TEXT)
+	_hud_obj = _label("", 13 if chapter == "forest" else 14, UITheme.TEXT)
 	_hud_obj.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.6))
 	_hud_obj.add_theme_constant_override("shadow_offset_x", 0)
 	_hud_obj.add_theme_constant_override("shadow_offset_y", 1)
 	_hud_obj.visible = false
 	_hud_burn.add_child(_hud_obj)
 	# 支线（第一关）：主目标下面一行、暗一点，「（可选）…」；挂在目标那行底下，跟着它淡入淡出
-	_hud_side = _label("", 14, UITheme.TEXT_DIM)
+	_hud_side = RichTextLabel.new()
+	_hud_side.bbcode_enabled = true
+	_hud_side.fit_content = true
+	_hud_side.scroll_active = false
+	_hud_side.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hud_side.size.x = 255
+	_hud_side.add_theme_color_override("default_color", UITheme.TEXT_DIM)
+	_hud_side.add_theme_font_size_override("normal_font_size", 11)
 	_hud_side.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.6))
 	_hud_side.add_theme_constant_override("shadow_offset_x", 0)
 	_hud_side.add_theme_constant_override("shadow_offset_y", 1)
@@ -1225,11 +1239,18 @@ func _bag_refresh() -> void:
 	for i in _bag_slots.size():
 		var b := _bag_slots[i]
 		var ic: TextureRect = b.get_meta("icon")
+		var required := false
 		if i < Inventory.owned.size():
 			ic.texture = Inventory.icon(Inventory.owned[i])
+			required = _first_photo_pending() and Inventory.owned[i] == "elephant_drawing"
 		else:
 			ic.texture = null
-		b.add_theme_stylebox_override("normal", b.get_meta("sel_box") if i == _bag_sel else b.get_meta("box"))
+		var box: StyleBoxFlat = b.get_meta("sel_box") if i == _bag_sel else b.get_meta("box")
+		if required:
+			box = box.duplicate()
+			box.border_color = Color("#f3d481")
+			box.set_border_width_all(2)
+		b.add_theme_stylebox_override("normal", box)
 	var big: TextureRect = _bag_w["big"]
 	if _bag_sel < Inventory.owned.size():
 		var it := Inventory.item(Inventory.owned[_bag_sel])
@@ -1264,8 +1285,9 @@ func _bag_refresh() -> void:
 		var use: Button = _bag_w["use"]
 		use.text = I18n.t("use")
 		use.visible = iid not in ["journal", "deer_bear"] and state == S.PLAY
-		if iid == story.phone.ITEM_ID or story.item_view(iid) != "":
-			use.text = story.phone.t("view")        # 通讯器：「查看」打开聊天界面；剧本 item_views（大象的画）：「查看」播那段
+		if story.item_view(iid) != "":
+			use.text = I18n.t("view")
+		use.modulate = Color("#ffe097") if iid == "elephant_drawing" and _first_photo_pending() else Color.WHITE
 	else:
 		big.texture = null
 		_bag_w["name"].text = ""
@@ -1334,11 +1356,10 @@ func _on_use_item() -> void:
 	var id := Inventory.owned[_bag_sel]
 	if id == "deer_bear":
 		return
-	if id == story.phone.ITEM_ID:
-		story.phone.open_browse()                     # 通讯器：开在背包上面，关掉回到背包
-		return
-	_close_panels()
 	var vs: String = story.item_view(id)
+	if _first_photo_pending() and id != "elephant_drawing":
+		return
+	_close_panels(id == "elephant_drawing" and vs != "")
 	if vs != "":
 		story.play(vs)                                # 剧本 item_views：大象的画 → 全屏看画 → 闪回
 		return
@@ -1541,11 +1562,19 @@ func _update_objective() -> void:
 	if opening:
 		return
 	var o: Dictionary = story.objective()
-	var side_txt: Array = []
-	for so in story.side_objectives():
-		side_txt.append(story.txt(so))
-	var side_line := _side_line(side_txt)
-	var key := "" if o.is_empty() else str(o.get("zh", "")) + "|" + str(o.get("show_fuel", false))
+	var side_lines: PackedStringArray = []
+	for so in story.side_objectives(chapter == "forest"):
+		var line: String = story.txt(so)
+		side_lines.append("•  " + ("[s]" + line + "[/s]" if so.get("completed", false) else line))
+	if chapter == "forest" and StoryState.has("c1_rabbit_done"):
+		var practice := I18n.pick({"zh": "陪兔子练舞", "en": "Practice dancing with the rabbit"})
+		side_lines.append("•  " + ("[s]" + practice + "[/s]" if StoryState.has("c1_rabbit_helped") else practice))
+	var side_line := ""
+	if not side_lines.is_empty():
+		side_line = I18n.pick({"zh": "支线", "en": "Side quests"}) + "\\n" + "\\n".join(side_lines)
+	if chapter == "forest" and StoryState.has("c1_fixed"):
+		side_line = "[font_size=13][s]" + I18n.pick({"zh": "修好飞船", "en": "Repair the ship"}) + "[/s][/font_size]\n" + side_line
+	var key: String = str(not side_line.is_empty()) if o.is_empty() else str(story.txt(o)) + "|" + str(o.get("show_fuel", false))
 	if _hud_side.text != side_line:
 		_hud_side.text = side_line
 		if side_line != "" and not _hud_side.visible:
@@ -1557,12 +1586,13 @@ func _update_objective() -> void:
 	var first := _obj_key == "-"
 	_obj_key = key
 	if o.is_empty():
-		_hud_obj.visible = false
+		_hud_obj.text = I18n.pick({"zh": "主线已完成", "en": "Main objective complete"}) if not side_line.is_empty() else ""
+		_hud_obj.visible = not side_line.is_empty()
 		var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true)    # 河流篇没有燃料表
 		_hud_flame.visible = fuel_ok
 		_hud_burn_label.visible = fuel_ok
 		return
-	_hud_obj.text = story.txt(o)
+	_hud_obj.text = (I18n.pick({"zh": "主线 · ", "en": "Main · "}) if chapter == "forest" else "") + story.txt(o)
 	_hud_obj.visible = true
 	var fuel: bool = o.get("show_fuel", false)
 	_hud_flame.visible = fuel
@@ -2483,7 +2513,7 @@ func _update_dialogue(delta: float) -> void:
 # ======================================================================= 面板
 ## 设置 = 暂停（任何时候都能开，scripts/pause_gate.gd）。晨的输入不用动：暂停时晨收不到，关掉原地接着走
 func _open_settings() -> void:
-	if _settings.visible:
+	if _settings.visible or (_bag.visible and _first_photo_pending()):
 		return
 	_close_panels()
 	_pause_tree(true)
@@ -2546,8 +2576,6 @@ func gate_event(event: InputEvent) -> void:
 ## Esc 只是「退出这个界面」的（通讯器翻聊天记录、能关的特写）：先退出，再按才开设置。
 ## 别的（通讯器 / 驾驶舱的选择）Esc 不替玩家选，直接开设置
 func _esc_is_back() -> bool:
-	if story.phone != null and story.phone.is_open() and story.phone.mode == "browse":
-		return true
 	if story.mech_node != null and story.mech_node.has_method("can_quit") and story.mech_node.can_quit():
 		return true                    # 能退出的小游戏（煮锅、来客册）开着：Esc 先退小游戏，面板外才开设置
 	return story.closeup_ui != null and story.closeup_ui.is_open() and story.closeup_ui._can_close()
@@ -2579,7 +2607,14 @@ func _toggle_bag() -> void:
 		_bag_btn.modulate = Color(1, 1, 1, 1)
 
 
-func _close_panels() -> void:
+func _first_photo_pending() -> bool:
+	return chapter == "forest" and StoryState.has("c1_got_bag") and not StoryState.has("c1_chase_done") \
+		and Inventory.owned.has("elephant_drawing") and story.item_view("elephant_drawing") != ""
+
+
+func _close_panels(viewing_photo := false) -> void:
+	if _bag.visible and _first_photo_pending() and not viewing_photo:
+		return
 	var was := _settings.visible or _bag.visible
 	var bag_was := _bag.visible
 	var settings_was := _settings.visible
@@ -2673,12 +2708,6 @@ func _input(event: InputEvent) -> void:
 			_desc_scroll(-1 if k == KEY_UP else 1)
 			_handled()
 			return
-		# 背包里选着通讯器：E / 空格 / 回车 / Z = 「查看」
-		if _bag.visible and k in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and _bag_sel < Inventory.owned.size() \
-				and Inventory.owned[_bag_sel] == story.phone.ITEM_ID:
-			_handled()
-			story.phone.open_browse()
-			return
 		if _bag.visible and k in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and _bag_sel < Inventory.owned.size() \
 				and story.item_view(Inventory.owned[_bag_sel]) != "":
 			_handled()
@@ -2751,9 +2780,72 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _load_achievements() -> void:
+	var data = JSON.parse_string(FileAccess.get_file_as_string("res://data/achievements.json"))
+	if data is Dictionary:
+		_achievement_data = data.get("achievements", [])
+	_achievement_seen.load(ACHIEVEMENT_SAVE)
+	_achievement_progress = StoryState.progress()
+	for entry: Dictionary in _achievement_data:
+		if _achievement_met(entry):
+			_achievement_seen.set_value("unlocked", str(entry["id"]), true)
+
+
+func _achievement_met(entry: Dictionary) -> bool:
+	var any_flags: Array = entry.get("any", [])
+	return StoryState.all_of(entry.get("all", [])) and (any_flags.is_empty() or not StoryState.none_of(any_flags))
+
+
+func _update_achievements() -> void:
+	if _achievement_progress == StoryState.progress() or story.ff:
+		return
+	_achievement_progress = StoryState.progress()
+	for entry: Dictionary in _achievement_data:
+		var id := str(entry["id"])
+		if _achievement_seen.has_section_key("unlocked", id) or not _achievement_met(entry):
+			continue
+		_achievement_seen.set_value("unlocked", id, true)
+		if not GameSettings.no_save:
+			_achievement_seen.save(ACHIEVEMENT_SAVE)
+		_show_achievement(entry)
+
+
+func _show_achievement(entry: Dictionary) -> void:
+	if not is_instance_valid(_achievement_toasts):
+		_achievement_toasts = CanvasLayer.new()
+		_achievement_toasts.layer = 58
+		add_child(_achievement_toasts)
+		var stack := VBoxContainer.new()
+		stack.position = Vector2(312, 14)
+		stack.size.x = 154
+		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_achievement_toasts.add_child(stack)
+	var stack := _achievement_toasts.get_child(0) as VBoxContainer
+	var toast := PanelContainer.new()
+	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast.add_theme_stylebox_override("panel", UITheme.box(Color("#1e2926"), Color("#cdb57e"), 1, Vector4(6, 4, 6, 4)))
+	stack.add_child(toast)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast.add_child(row)
+	var icon := _label("★", 19, Color("#ffd779"))
+	row.add_child(icon)
+	var text := _label(I18n.pick({"zh": "成就解锁", "en": "Achievement unlocked"}) + "\n" + I18n.pick(entry), 12, UITheme.TEXT)
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(text)
+	toast.modulate.a = 0.0
+	var tween := toast.create_tween()
+	tween.tween_property(toast, "modulate:a", 1.0, 0.25)
+	tween.tween_interval(2.5)
+	tween.tween_property(toast, "modulate:a", 0.0, 0.55)
+	tween.tween_callback(toast.queue_free)
+
+
 # ======================================================================= 每帧
 func _process(delta: float) -> void:
 	_t += delta
+	_update_achievements()
 	_update_stroll(delta)             # 要在晨自己的 _process 之前（晨是这个节点的子节点，排在后面）
 	_state_t += delta
 	_stage_t += delta
@@ -3086,6 +3178,11 @@ func _update_world(delta: float) -> void:
 func _update_interact() -> void:
 	if story.busy or _settings.visible or _bag.visible:
 		return
+	if chapter == "forest" and _story_auto == "" and story.world.room == "forest" \
+			and StoryState.has("c1_follow") and not StoryState.has("c1_run") and not StoryState.has("c1_got_bag") \
+			and Input.is_key_pressed(KEY_SHIFT):
+		story.play("c1_run")
+		return
 	if not _pending_hs.is_empty():
 		var p: Dictionary = _pending_hs
 		var h: Dictionary = p["h"]
@@ -3362,26 +3459,6 @@ func story_end() -> void:
 		_toggle_bag()
 
 
-## 「（可选）」那一行：一行放不下就只列放得下的几件，后面写「等 N 件」（11-04 --qa_text：支线全开着时 938 像素，出屏）
-const SIDE_LINE_W := 440.0
-
-
-func _side_line(parts: Array) -> String:
-	if parts.is_empty():
-		return ""
-	var head := I18n.pick({"zh": "（可选）", "en": "(Optional) "})
-	var sep := "　" if I18n.is_zh() else " / "
-	var f := UITheme.font()
-	var shown: Array = []
-	for i in parts.size():
-		var rest := parts.size() - i - 1
-		var tail := "" if rest == 0 else (I18n.pick({"zh": "　等 %d 件", "en": " +%d more"}) % rest)
-		var cand := head + sep.join(shown + [parts[i]]) + tail
-		if f.get_string_size(cand, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x > SIDE_LINE_W and not shown.is_empty():
-			break
-		shown.append(parts[i])
-	var left := parts.size() - shown.size()
-	return head + sep.join(shown) + ("" if left == 0 else I18n.pick({"zh": "　等 %d 件", "en": " +%d more"}) % left)
 
 
 ## 对话框 / 头顶气泡现在压没压到左上角的目标那一块（主目标、「（可选）」、燃料表）
@@ -3567,7 +3644,7 @@ func _update_key_prompt(delta: float) -> void:
 		var did := false
 		match _kp_until:
 			"run":
-				did = chen._vel > CHEN_GD.RUN_SPEED * 1.1 or (_story_auto != "" and chen._vel > 0.0)
+				did = StoryState.has("c1_run") or StoryState.has("c1_got_bag") or chen._vel > CHEN_GD.RUN_SPEED * 1.1
 			"bag":
 				did = _bag.visible or (_story_auto != "" and _kp_left < 12.0)
 			"photo":
@@ -4862,7 +4939,7 @@ func _softlock_tick(delta: float) -> void:
 		why = "鹿带路时晨收不到输入"
 	elif state == S.CINE and not story.busy and _seq.is_empty() and is_nan(_cine_target):
 		why = "过场状态但没有剧情在播"
-	elif story.busy and not story.free_walk and not story.dlg.is_open() and not story.dlg.picking() and not story.phone.waiting() and story.cockpit_ui == null and not story.closeup_ui.is_open() and story.step_t > 20.0:
+	elif story.busy and not story.free_walk and not story.dlg.is_open() and not story.dlg.picking() and story.cockpit_ui == null and not story.closeup_ui.is_open() and story.step_t > 20.0:
 		why = "剧情一步停了 20 秒（STUCK_SCENE）"
 	if why == "":
 		_lock_t = 0.0

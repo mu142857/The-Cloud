@@ -26,7 +26,6 @@ const BOX := {
 	"item_name": {"w": 160.0, "wrap": false},               # 背包详情名字（x 130，旁边还有【纪念品】/【任务】）
 	"item_desc": {"w": 212.0, "wrap": true, "lines": 12},   # 背包描述框 212 宽（能滚，太长也难读）
 	"journal": {"w": 200.0, "wrap": true, "lines": 6},      # 日记一条（描述框 212 减去「· 」）
-	"phone": {"w": 140.0, "wrap": true, "lines": 6},        # phone_ui.gd BUBBLE_MAX（一条气泡）
 	"flashback": {"w": 460.0, "wrap": false},               # flashback.gd：一句一行居中，不换行
 	"credits": {"w": 440.0, "wrap": false},
 }
@@ -49,7 +48,6 @@ func run() -> Array:
 		var d = _json(p)
 		if d is Dictionary:
 			_items(d.get("items", []), str(p).get_file())
-	_phone_file()
 	_credits_file()
 	return found
 
@@ -170,8 +168,6 @@ func _step(where: String, st: Dictionary) -> void:
 			check("key_prompt", where, st)
 		"journal":
 			check("journal", where, st)
-		"phone_msg":
-			_phone_text(where, st)
 		"flashback":
 			for l in st.get("lines", []):
 				check("flashback", where, l)
@@ -184,26 +180,12 @@ func _step(where: String, st: Dictionary) -> void:
 							for s2 in lk[key]:
 								if s2 is Dictionary:
 									_step(where + "." + str(key), s2)
-			for k2 in ["put_back", "route_look"]:
+			for k2 in ["put_back"]:
 				for s3 in st.get(k2, []):
 					if s3 is Dictionary:
 						_step(where, s3)
 
 
-func _phone_text(where: String, st: Dictionary) -> void:
-	for lang in ["zh", "en"]:
-		var t := str(st.get(lang, ""))
-		if t == "":
-			t = str(st.get("zh", ""))
-		for para in t.split("\n"):           # 换行 = 几条连续气泡，一条一条量
-			if para != "":
-				_one("phone", where, lang, para)
-	var rp = st.get("reply", null)
-	if rp is Dictionary:
-		check("phone", where + "(reply)", rp)
-
-
-## 「（可选）」那一行：最坏的时候支线目标全开着，拼成一行（level_forest.gd _update_objective 的拼法）
 func _side_line() -> void:
 	if _side_objs.is_empty():
 		return
@@ -250,20 +232,6 @@ func _items(arr: Array, fn: String) -> void:
 		var nm = it.get("name", {})
 		if nm is Dictionary:
 			check("toast", where + "(获得)", {"zh": "获得：" + str(nm.get("zh", "")), "en": "Got: " + str(nm.get("en", "")) if str(nm.get("en", "")) != "" else ""})
-
-
-func _phone_file() -> void:
-	var d = _json("res://data/phone.json")
-	if not d is Dictionary:
-		return
-	var cs = d.get("contacts", {})
-	for cid in (cs if cs is Dictionary else {}):
-		var c = cs[cid]
-		if not c is Dictionary:
-			continue
-		for m in c.get("history", []):
-			if m is Dictionary:
-				_phone_text("phone.json:" + str(cid), m)
 
 
 func _credits_file() -> void:

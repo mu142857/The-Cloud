@@ -2,7 +2,7 @@ extends RefCounted
 ## 章节之间怎么接（level_forest.gd 用；章节都在 scenes/level_forest.tscn 这一个关卡里播，换章 = 带着状态重新载入本场景）。
 ##   forest   木星森林：开场 → 坠毁 → 修船 → 起飞（data/story_forest.json）。剧本 end_chapter：照旧播起飞，黑屏以后接 flight1。
 ##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：往前一冲（cockpit_dash）、淡到黑、
-##            「第一章 完」卡（end_card：go() 在黑屏上淡入、停一会儿，载入下一章以后再淡掉），接 river。
+##            「第一章结束」淡出后留三秒黑场，再出「第二章开始」，淡入 river。
 ##   river    河流篇「妮芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
 ##            end_chapter：驾驶舱里写完日记，「第二章 完」卡，接 final。
 ##   final    终章「还剩下什么 · 四个结局 · 尾声」（data/story_final.json，入口 start_final，从驾驶舱开始；多房间，计划见 docs/第三章计划.md）。
@@ -29,7 +29,7 @@ const CHAPTERS := {
 	"forest": {"story": "res://data/story_forest.json", "next": "flight1", "hud_fuel": false},   # 11-05 夜测：第一关新版没有燃料表，没目标的时候左上角别冒出「10 / 200」
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
 		"carry_flags": BARTER_FOREST + C1_FLAGS, "items_extra": ["res://data/items_later.json"],
-		"end_card": {"zh": "第一章　完", "en": "End of Chapter One"}},
+		"end_card": {"zh": "第一章结束", "en": "End of Chapter One"}},
 	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "final",
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass"] + BARTER_FOREST + C1_FLAGS, "hud_fuel": false,
 		"items_extra": ["res://data/items_later.json"],
@@ -49,7 +49,7 @@ const CHAPTERS := {
 ## 河流篇 / 终章里看旧 flag 的分支（burned_blue_stone 这些）照旧由 SEED_FLIGHT1 给。
 const SEED := {
 	"flags": ["crashed", "c1_crashed", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
-		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_danced", "c1_got_wood",
+		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_danced", "c1_got_wood", "c1_rabbit_done", "c1_rabbit_helped",
 		"c1_fixed", "c1_seed", "c1_ready", "launched"],
 	"owned": ["elephant_drawing", "deer_bear", "rabbit_fur", "floorboard", "floorboard",
 		"miluo_letter", "clear_seed", "miluo_note"],
@@ -136,14 +136,15 @@ static func go(tree: SceneTree, ch: String) -> void:
 	Engine.set_meta(PICK_META, true)          # 换章也要压过命令行 --chapter=（不然 --chapter=flight1 --story_chain 演完又回到 flight1 开头）
 	for prev in CHAPTERS:
 		if CHAPTERS[prev].get("next", "") == ch and CHAPTERS[prev].has("end_card"):
-			await _end_card(tree, CHAPTERS[prev]["end_card"])
+			var opening := {"zh": "第二章开始", "en": "Chapter Two Begins"} if ch == "river" else {}
+			await _end_card(tree, CHAPTERS[prev]["end_card"], opening)
 	(load("res://scripts/audio_fade.gd") as GDScript).release(tree.current_scene, 0.8)   # 还在响的长声音（引擎、冲刺）淡掉，不被重新载入掐断
 	tree.reload_current_scene.call_deferred()
 
 
-## 上一章的结束卡（「第一章 完」）：挂在根节点上的黑底 + 两行字（当前语言一行、另一种语言小字一行），在已经黑了的屏幕上淡入、停住；
+## 章节转场卡：挂在根节点上的黑底 + 两行字（当前语言一行、另一种语言小字一行），在已经黑了的屏幕上淡入、停住；
 ## 换章重新载入时它不在场景里，留着盖住，新章节开始以后再慢慢淡掉、删掉。
-static func _end_card(tree: SceneTree, card: Dictionary) -> void:
+static func _end_card(tree: SceneTree, card: Dictionary, opening: Dictionary) -> void:
 	var cl := CanvasLayer.new()
 	cl.layer = 120
 	var root := Control.new()
@@ -154,6 +155,8 @@ static func _end_card(tree: SceneTree, card: Dictionary) -> void:
 	bg.color = Color.BLACK
 	bg.size = Vector2(480, 270)
 	root.add_child(bg)
+	var titles := Control.new()
+	root.add_child(titles)
 	var other := "en" if I18n.is_zh() else "zh"
 	for i in 2:
 		var l := Label.new()
@@ -164,13 +167,24 @@ static func _end_card(tree: SceneTree, card: Dictionary) -> void:
 		l.size = Vector2(480, 32 if i == 0 else 16)
 		l.position = Vector2(0, 112 if i == 0 else 150)
 		l.modulate.a = 0.0
-		root.add_child(l)
+		titles.add_child(l)
 		tree.create_tween().tween_property(l, "modulate:a", 1.0, 1.4).set_delay(0.4 + 0.5 * i).set_trans(Tween.TRANS_SINE)
 	cl.add_child(root)
 	tree.root.add_child(cl)
 	await tree.create_timer(3.6, false).timeout
+	if not opening.is_empty():
+		var ending := cl.create_tween()
+		ending.tween_property(titles, "modulate:a", 0.0, 0.8)
+		await ending.finished
+		await tree.create_timer(3.0, false).timeout
+		(titles.get_child(0) as Label).text = I18n.pick(opening)
+		(titles.get_child(1) as Label).text = str(opening[other])
+		var beginning := cl.create_tween()
+		beginning.tween_property(titles, "modulate:a", 1.0, 0.8)
+		beginning.tween_interval(1.5)
+		await beginning.finished
 	var tw := tree.create_tween()
-	tw.tween_interval(0.6)                       # 新章节载入、自己的黑屏接上以后
+	tw.tween_interval(0.1 if not opening.is_empty() else 0.6)
 	tw.tween_property(root, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_SINE)
 	tw.tween_callback(cl.queue_free)
 

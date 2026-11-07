@@ -6,7 +6,8 @@
 		"miluo": {"zh": "弥洛", "en": "Milo"},
 		"voice": {"zh": "屋里的声音", "en": "A voice inside"},
 		"toucan": {"zh": "大嘴鸟", "en": "Toucan"},
-		"rabbit": {"zh": "兔子", "en": "Rabbit"}
+		"rabbit": {"zh": "兔子", "en": "Rabbit"},
+		"rabbit_doe": {"zh": "母兔", "en": "Doe"}
 	},
 	"markers": {
 		"glade_toucan": 2600,
@@ -112,9 +113,14 @@
 		"c1_bag": 520,
 		"c1_bag_wall": 470,
 		"c1_deer_bag": 600,
-		"c1_rabbit": 860,
-		"c1_rabbit_chen": 790,
-		"c1_rabbit_deer": 740
+		"c1_rabbit_gate": 4484,
+		"c1_rabbit": 4516,
+		"c1_rabbit_chen": 4460,
+		"c1_rabbit_deer": 4495,
+		"c1_rabbit_doe": 4375,
+		"c1_rabbit_kit_1": 4270,
+		"c1_rabbit_kit_2": 4140,
+		"c1_rabbit_kit_3": 3990
 	},
 	"objectives": [
 		{"need": ["c1_ready"], "not": ["launched"], "zh": "起飞", "en": "Take off", "show_fuel": false, "added": true, "_c1": true},
@@ -180,19 +186,28 @@
 	"barter": {"toucan": {"_note": "10-31 以物易物（scripts/barter.gd），作者按 docs/以物易物交换表.md 定稿。flag：barter_toucan_<id>；终章、飞行一看这些 flag。", "trades": [{"id": "feather", "want": "mat_scrap", "get": "toucan_feather", "scene": "toucan_take_scrap"}, {"id": "whistle", "want": "music_box", "get": "bird_whistle", "scene": "toucan_hear_musicbox", "need": ["musicbox_fixed"], "keep": true}, {"id": "rain", "want": "blue_stone", "get": "rain_glass", "scene": "toucan_take_stone"}], "react": {"elephant_drawing": "toucan_react_drawing"}, "wrong": "toucan_wrong", "none": "toucan_none", "done": "toucan_done"}},
 	"hotspots": [
 		{"id": "c1_wreck_look", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"}, "need": ["c1_asked_bag"], "not": ["c1_run"], "once": false, "scene": "c1_wreck_look", "bark_y": 62},
-		{"id": "c1_run", "at": "c1_run_go", "room": "forest", "label": {"zh": "", "en": ""}, "need": ["c1_follow"], "not": ["c1_run"], "once": false, "scene": "c1_run", "trigger": "enter", "range": 24, "nolock": true},
-		{"id": "c1_bag", "at": "c1_bag", "room": "forest", "label": {"zh": "背包", "en": "Backpack"}, "need": ["c1_run"], "not": ["c1_got_bag"], "once": false, "scene": "c1_got_bag", "trigger": "enter", "range": 16},
+		{"id": "c1_run", "at": "c1_run_go", "room": "forest", "label": {"zh": "", "en": ""}, "need": ["c1_follow"], "not": ["c1_run"], "once": false, "scene": "c1_run", "trigger": "enter", "range": 24, "cutscene": true},
+		{"id": "c1_bag", "at": "c1_bag", "room": "forest", "label": {"zh": "背包", "en": "Backpack"}, "need": ["c1_follow"], "not": ["c1_got_bag"], "once": false, "scene": "c1_got_bag", "trigger": "enter", "range": 16},
 		{"id": "c1_exit", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_need_wood"], "not": ["c1_to_rabbit", "c1_side_open"], "once": false, "scene": "c1_exit"},
 		{"id": "c1_reexit_1", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_reexit"},
 		{"id": "c1_reenter_1", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_reenter"},
 		{"id": "c1_reexit_2", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_reexit"},
 		{"id": "c1_reenter_2", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_reenter"},
-		{"id": "c1_fix", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_got_wood"], "not": ["c1_fixed"], "once": false, "scene": "c1_fix"},
+		{"id": "c1_fix", "at": "treehouse", "room": "forest", "label": {"zh": "树屋", "en": "Treehouse"}, "need": ["c1_rabbit_done"], "not": ["c1_fixed"], "once": false, "scene": "c1_fix"},
 		{"id": "c1_deer_go", "at": "deer", "room": "forest", "label": {"zh": "鹿", "en": "Deer"}, "need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "once": false, "scene": "c1_deer_go"},
+		{"id": "c1_rabbit_gate", "at": "c1_rabbit_gate", "room": "forest", "label": {"zh": "林子深处", "en": "Deep forest"}, "need": ["c1_side_open"], "not": ["c1_to_rabbit"], "once": true, "scene": "c1_rabbit_gate", "trigger": "enter", "range": 12, "auto": false},
+		{"id": "c1_rabbit_practice", "at": "rabbit", "room": "forest", "label": {"zh": "兔子", "en": "Rabbit"}, "need": ["c1_rabbit_done"], "not": ["c1_rabbit_helped"], "once": false, "scene": "c1_rabbit_offer", "pet": "rabbit"},
+		{"id": "c1_rabbit_chat", "at": "rabbit", "room": "forest", "label": {"zh": "兔子", "en": "Rabbit"}, "need": ["c1_rabbit_helped"], "not": [], "once": false, "scene": "c1_rabbit_chat", "pet": "rabbit"},
+		{"id": "c1_rabbit_doe", "at": "rabbit_doe", "room": "forest", "label": {"zh": "母兔", "en": "Doe"}, "need": ["c1_rabbit_helped"], "not": [], "once": false, "scene": "c1_rabbit_family", "pet": "rabbit_doe"},
+		{"id": "c1_rabbit_kit_1", "at": "rabbit_kit_1", "room": "forest", "label": {"zh": "小兔子", "en": "Kit"}, "need": ["c1_rabbit_helped"], "once": false, "scene": "c1_rabbit_kit", "pet": "rabbit_kit_1"},
+		{"id": "c1_rabbit_kit_2", "at": "rabbit_kit_2", "room": "forest", "label": {"zh": "小兔子", "en": "Kit"}, "need": ["c1_rabbit_helped"], "once": false, "scene": "c1_rabbit_kit", "pet": "rabbit_kit_2"},
+		{"id": "c1_rabbit_kit_3", "at": "rabbit_kit_3", "room": "forest", "label": {"zh": "小兔子", "en": "Kit"}, "need": ["c1_rabbit_helped"], "once": false, "scene": "c1_rabbit_kit", "pet": "rabbit_kit_3"},
+		{"id": "c1_miluo_pet", "at": "miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["c1_need_wood"], "once": false, "pet": "miluo", "pet_only": true, "auto": false},
+		{"id": "c1_deer_pet", "at": "deer", "room": "forest", "label": {"zh": "鹿", "en": "Deer"}, "need": ["c1_rabbit_done"], "not": ["c1_out2"], "once": false, "pet": "deer", "pet_only": true, "auto": false},
 		{"id": "c1_out2", "at": "room_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["c1_seed"], "not": ["c1_out2"], "once": false, "scene": "c1_out2"},
 		{"id": "c1_go_home", "at": "deer", "room": "forest", "label": {"zh": "鹿：回飞船", "en": "Deer: back to the ship"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_go_home"},
 		{"id": "c1_home_alone", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"}, "need": ["c1_out2"], "not": ["c1_ready"], "once": false, "scene": "c1_home_alone"},
-		{"id": "c1_to_trees", "at": "cloth", "room": "forest", "label": {"zh": "沿着布条走", "en": "Follow the cloth"}, "need": ["c1_side_open"], "not": [], "once": false, "scene": "to_treehouse"},
+		{"id": "c1_to_trees", "at": "cloth", "room": "forest", "label": {"zh": "通往树屋的小径", "en": "Path to the treehouse"}, "need": ["c1_side_open"], "not": [], "once": false, "scene": "to_treehouse"},
 		{"id": "c1_to_road", "at": "house_return", "room": "forest", "label": {"zh": "回旧路", "en": "Back to the old road"}, "need": ["c1_side_open"], "not": [], "once": false, "scene": "to_road"},
 		{"id": "c1_launch", "at": "wreck", "room": "forest", "label": {"zh": "飞船", "en": "Ship"}, "need": ["c1_ready"], "not": ["launched"], "once": false, "scene": "c1_launch", "range": 120},
 		{"id": "toucan_again", "at": "glade_toucan", "room": "forest", "label": {"zh": "大嘴鸟", "en": "Toucan"}, "need": ["met_toucan"], "not": [], "once": false, "scene": "toucan_again", "retired": true},
@@ -392,8 +407,7 @@
 		"luggage": [
 			{"do": "anim", "who": "chen", "name": "pickup"},
 			{"say": "chen", "zh": "好，行李全摔出来了，都不用我翻了", "en": "Great. The luggage unpacked itself", "bark": true},
-			{"do": "give", "items": ["communicator", "species_query", "commute_card", "home_photo", "music_box", "blue_stone", "travel_map"], "toast": "luggage_items"},
-			{"do": "phone_open", "contact": "friend"},
+			{"do": "give", "items": ["species_query", "commute_card", "home_photo", "music_box", "blue_stone", "travel_map"], "toast": "luggage_items"},
 			{"do": "sfx", "name": "small_click"},
 			{"do": "sfx", "name": "musicbox_stuck"},
 			{"do": "sfx", "name": "tap"},
@@ -1605,24 +1619,6 @@
 			{"do": "walk", "who": "chen", "to": "room_door"},
 			{"say": "miluo", "zh": "没长出来也可以回来啊，又没说一定得长出来", "en": "You can come back even if it doesn't sprout. Nobody said it had to"},
 			{"do": "wait", "sec": 0.8},
-			{"say": "miluo", "zh": "等等。通讯器拿来。", "en": "Wait. Give me your communicator.", "added": true},
-			{"do": "face", "who": "chen", "to": "miluo"},
-			{"do": "walk", "who": "miluo", "to": "room_chair_free"},
-			{"do": "show_item", "item": "communicator"},
-			{"do": "sfx", "name": "small_click"},
-			{"say": "miluo", "zh": "接头再响就发这里。", "en": "If the joint starts making noise again, message here."},
-			{"say": "miluo", "zh": "把哪边响、什么时候响写清楚，别一上来就喊救命。", "en": "Say which side and when. Don't just open with \"help.\""},
-			{"do": "phone_add", "id": "miluo", "zh": "弥洛", "en": "Milo"},
-			{"do": "wait", "sec": 1.0},
-			{"do": "phone_add", "id": "miluo", "zh": "弥洛·修理", "en": "Milo · Repairs"},
-			{"say": "miluo", "zh": "修理。省得你把它当许愿箱。", "en": "Repairs. So you don't treat it like a wishing well."},
-			{"do": "show", "who": "deer", "at": "room_deer_out"},
-			{"do": "walk", "who": "deer", "to": "room_deer_in", "speed": 90},
-			{"do": "face", "who": "deer", "to": "chen"},
-			{"say": "deer", "zh": "也给咱留个位置，咱有事就来这儿找她发。", "en": "Save a spot for me too. If I need something, I'll come get her to send it."},
-			{"do": "face", "who": "miluo", "to": "deer"},
-			{"say": "miluo", "zh": "你先把蹄子擦干净再进来。", "en": "Wipe your hooves before you come in."},
-			{"do": "phone_open", "contact": "miluo"},
 			{"do": "flag", "set": "farewell_done"}
 		],
 		"go_home": [
@@ -1703,7 +1699,7 @@
 			{"do": "music", "track": "forest", "fade": 4.0},
 			{"do": "flag", "set": "c1_crashed"},
 			{"do": "camera", "hold": true},
-			{"do": "inner", "zh": "我是……谁？", "en": "Who... am I?", "style": "spin", "wait": true},
+			{"do": "inner", "zh": "我是……谁？", "en": "Who... am I?", "style": "spin", "wait": true, "sec": 1.15},
 			{"do": "show", "who": "deer", "at": "c1_deer_in"},
 			{"do": "walk", "who": "deer", "to": "c1_deer_meet", "speed": 90},
 			{"do": "face", "who": "deer", "to": "chen"},
@@ -1732,7 +1728,7 @@
 			{"do": "camera", "at": "c1_bag_view", "sec": 3.2},
 			{"do": "flag", "set": "c1_saw_bag"},
 			{"do": "wait", "sec": 0.4},
-			{"do": "inner", "zh": "我要……拿回背包。", "en": "I need... to get my backpack back.", "style": "spin", "wait": true},
+			{"do": "inner", "zh": "我要……拿回背包。", "en": "I need... to get my backpack back.", "style": "spin", "wait": true, "sec": 1.45},
 			{"do": "camera", "at": "c1_cam_home", "sec": 2.6},
 			{"do": "camera", "release": true},
 			{"do": "choice", "options": [{"zh": "孩子，把你的背包给我，我需要一个背包", "en": "Child, give me your backpack. I need a backpack.", "need": ["c1_mom"]}, {"zh": "妈妈，你有没有见过一个背包？", "en": "Mom, have you seen a backpack?", "need": ["c1_child"]}]},
@@ -1741,7 +1737,7 @@
 			{"do": "flag", "set": "c1_asked_bag"},
 			{"do": "guide", "to": "c1_deer_wait", "speed": 90},
 			{"say": "deer", "zh": "跟上我的步伐", "en": "Keep up with me"},
-			{"do": "key_prompt", "zh": "按住 Shift 奔跑", "en": "Hold Shift to run", "until": "run"},
+			{"do": "key_prompt", "zh": "按 Shift 开始奔跑", "en": "Press Shift to run", "until": "run"},
 			{"do": "walk", "who": "deer", "to": "c1_deer_bag", "speed": 200, "wait": false},
 			{"do": "flag", "set": "c1_follow"}
 		],
@@ -1751,9 +1747,10 @@
 		"c1_run": [
 			{"do": "flag", "set": "c1_run"},
 			{"do": "music", "track": "theme", "fade": 0.8},
-			{"do": "mechanic", "id": "run_credits", "wait": false},
-			{"do": "inner", "zh": "好熟悉的感觉……", "en": "This feels so familiar...", "style": "fade", "sec": 3.5},
-			{"do": "camera", "zoom": 1.25, "sec": 3.0, "wait": false}
+			{"do": "camera", "zoom": 1.25, "sec": 1.5, "wait": false},
+			{"do": "inner", "zh": "好熟悉的感觉……", "en": "This feels so familiar...", "style": "fade", "sec": 1.4},
+			{"do": "mechanic", "id": "run_credits", "intro": true},
+			{"do": "camera", "zoom": 1.0, "sec": 0.65}
 		],
 		"c1_got_bag": [
 			{"do": "camera", "zoom": 1.0, "sec": 0.6, "wait": false},
@@ -1774,11 +1771,11 @@
 			{"do": "flag", "set": "c1_got_map"},
 			{"do": "mechanic", "id": "signal_glitch"},
 			{"do": "sfx", "name": "heartbeat", "db": -6},
-			{"do": "inner", "zh": "我是……晨", "en": "I am... Chen", "style": "fade", "sec": 2.6, "wait": true},
+			{"do": "inner", "zh": "我是……晨", "en": "I am... Chen", "style": "fade", "sec": 1.05, "wait": true},
 			{"do": "sfx", "name": "heartbeat", "db": -9},
-			{"do": "inner", "zh": "我想要……找到大象", "en": "I want... to find the elephant", "style": "fade", "sec": 2.6, "wait": true},
+			{"do": "inner", "zh": "我想要……找到大象", "en": "I want... to find the elephant", "style": "fade", "sec": 1.45, "wait": true},
 			{"do": "sfx", "name": "heartbeat", "db": -12},
-			{"do": "inner", "zh": "为什么……", "en": "Why...", "style": "fade", "sec": 2.6, "wait": true},
+			{"do": "inner", "zh": "为什么……", "en": "Why...", "style": "fade", "sec": 1.05, "wait": true},
 			{"do": "flag", "set": "c1_chase_done"},
 			{"do": "fade_to", "room": "treehouse", "at": "room_chen_bench", "place": {"miluo": "room_miluo"}},
 			{"do": "blackout", "on": false},
@@ -1790,7 +1787,7 @@
 			{"do": "face", "who": "miluo", "to": "chen"},
 			{"say": "miluo", "zh": "你可真行啊，就这样去欺骗小鹿。", "en": "Impressive. Lying to the little deer like that."},
 			{"say": "miluo", "zh": "可怜的失忆者啊，你应该庆幸是小鹿找到的你。", "en": "Poor amnesiac. You should be glad it was the deer who found you."},
-			{"do": "choice", "options": [{"zh": "我真的是她妈妈，她基因突变了", "en": "I really am her mom. She's a genetic mutation.", "need": ["c1_mom"], "scene": "c1_woke_mad"}, {"zh": "啊，我原来不是小鹿的女儿么", "en": "Wait, so I'm not the deer's daughter?", "need": ["c1_child"], "scene": "c1_woke_mad"}, {"zh": "对不起，请你放过我，我找回了一点我的记忆", "en": "I'm sorry. Please let me go. I've got a bit of my memory back.", "scene": "c1_woke_ok"}, {"zh": "你能够告诉我发生了什么事情么，我找回了一点我的记忆", "en": "Can you tell me what happened? I've got a bit of my memory back.", "scene": "c1_woke_ok"}]}
+			{"do": "choice", "options": [{"zh": "我真的是她妈妈，她基因突变了", "en": "I really am her mom. She's a genetic mutation.", "need": ["c1_mom"], "scene": "c1_woke_mad"}, {"zh": "啊，我原来不是小鹿的女儿么", "en": "Wait, so I'm not the deer's daughter?", "need": ["c1_child"], "scene": "c1_woke_mad"}, {"zh": "对不起，请你放过我，我找回了一点我的记忆", "en": "I'm sorry. Please let me go. I've got a bit of my memory back.", "scene": "c1_woke_ok"}]}
 		],
 		"c1_woke_mad": [
 			{"say": "miluo", "zh": "……还演？", "en": "...Still acting?", "added": true},
@@ -1802,7 +1799,7 @@
 		],
 		"c1_woke_b": [
 			{"say": "miluo", "zh": "你是从这个飞船来的，想必你应该也想要从这个飞船飞走吧", "en": "You came from that ship. I bet you want to fly off in it, too."},
-			{"do": "inner", "zh": "她说的没错，我想要修好这个飞船，我是……晨", "en": "She's right. I want to fix the ship. I am... Chen", "style": "fade", "sec": 3.4, "wait": true},
+			{"do": "inner", "zh": "她说的没错，我想要修好这个飞船，我是……晨", "en": "She's right. I want to fix the ship. I am... Chen", "style": "fade", "sec": 2.35, "wait": true},
 			{"do": "flag", "set": "c1_woke"},
 			{"say": "miluo", "zh": "那么……这样吧，把小鹿送给你的玩具给我，我就帮你修复飞船", "en": "Then... how about this. Give me the toy the deer gave you, and I'll fix your ship."},
 			{"do": "camera", "zoom": 1.25, "sec": 1.2},
@@ -1859,22 +1856,78 @@
 			{"do": "face", "who": "deer", "to": "chen"},
 			{"say": "deer", "zh": "我来带你去找永燃之木", "en": "I'll take you to find the Everburning Wood"},
 			{"do": "flag", "set": "c1_to_rabbit"},
-			{"do": "flag", "clear": "c1_side_open"},
-			{"do": "fade_to", "room": "forest", "at": "c1_rabbit_chen", "style": "pixel", "place": {"deer": "c1_rabbit_deer"}},
+			{"do": "fade_to", "room": "forest", "at": 4390, "style": "pixel", "place": {"deer": 4420}},
+			{"do": "guide", "to": "c1_rabbit_deer", "speed": 95, "wait": false},
+			{"do": "walk", "who": "chen", "to": "c1_rabbit_chen", "speed": 105},
 			{"do": "goto", "scene": "c1_rabbit"}
 		],
+		"c1_rabbit_gate": [
+			{"say": "chen", "zh": "前面太深了。我一个人会迷路，得让小鹿带我过去。", "en": "It's too deep in there. I'd get lost on my own. I should ask the deer to take me.", "bark": true, "added": true}
+		],
 		"c1_rabbit": [
-			{"do": "face", "who": "chen", "to": "c1_rabbit"},
-			{"do": "face", "who": "deer", "to": "c1_rabbit"},
+			{"do": "show", "who": "rabbit", "at": "c1_rabbit", "fade": 0.35},
+			{"do": "face", "who": "rabbit", "to": "chen"},
+			{"say": "rabbit", "zh": "站住，你想要干什么？", "en": "Stop! What do you want?", "added": true},
+			{"do": "choice", "options": [{"zh": "你知道永燃之木么？", "en": "Do you know where the Everburning Wood is?", "scene": "c1_rabbit_wood"}, {"zh": "我是来抢劫的。", "en": "I'm here to rob you.", "scene": "c1_rabbit_punch"}]}
+		],
+		"c1_rabbit_punch": [
+			{"say": "rabbit", "zh": "抢劫么，有点意思……", "en": "A robbery? Interesting...", "added": true},
+			{"do": "walk", "who": "rabbit", "to": 4467, "speed": 155},
+			{"do": "anim", "who": "rabbit", "name": "hop"},
+			{"do": "sfx", "name": "pat"},
+			{"do": "anim", "who": "chen", "name": "lie"},
+			{"do": "wait", "sec": 0.65},
+			{"do": "anim", "who": "chen", "name": "getup"},
+			{"do": "walk", "who": "rabbit", "to": "c1_rabbit", "speed": 115},
+			{"do": "goto", "scene": "c1_rabbit_wood"}
+		],
+		"c1_rabbit_wood": [
+			{"say": "rabbit", "zh": "永燃之木是我们一族的至宝，只有首领才能拿。", "en": "The Everburning Wood is our clan's treasure. Only the chief can have it.", "added": true},
+			{"do": "choice", "options": [{"zh": "谁是首领？", "en": "Who's the chief?", "scene": "c1_rabbit_challenge"}, {"zh": "我是首领。", "en": "I'm the chief.", "scene": "c1_rabbit_challenge"}]}
+		],
+		"c1_rabbit_challenge": [
+			{"say": "rabbit", "zh": "……我是首领。来比比舞步。", "en": "...I'm the chief. Let's see you dance.", "added": true},
 			{"do": "music", "track": "rabbit_beat", "fade": 0.8},
-			{"do": "mechanic", "id": "rabbit_dance", "at": "c1_rabbit", "chen_at": "c1_rabbit_chen", "sets": ["c1_danced"]},
+			{"do": "mechanic", "id": "rabbit_dance", "at": "c1_rabbit", "chen_at": "c1_rabbit_chen", "retry": true, "sets": ["c1_danced"]},
 			{"do": "music", "track": "forest", "fade": 2.5},
-			{"do": "flag", "set": "c1_danced"},
 			{"do": "reward", "item": "glowing_wood"},
-			{"do": "give", "items": ["glowing_wood", "rabbit_fur"], "toast": "got_items"},
-			{"do": "wait", "sec": 0.8},
+			{"do": "give", "items": ["glowing_wood"], "toast": "got_items"},
 			{"do": "flag", "set": "c1_got_wood"},
-			{"do": "fade_to", "room": "forest", "at": "treehouse_arrive", "style": "pixel", "place": {"deer": "deer_door"}}
+			{"do": "goto", "scene": "c1_rabbit_offer"}
+		],
+		"c1_rabbit_offer": [
+			{"say": "rabbit", "zh": "首领，你跳舞真的很好。可不可以教我？", "en": "Chief, you're really good at dancing. Could you teach me?", "added": true},
+			{"say": "chen", "zh": "为什么？", "en": "Why?", "added": true},
+			{"say": "rabbit", "zh": "你看那边。", "en": "Look over there.", "added": true},
+			{"do": "show", "who": "rabbit_doe", "at": "c1_rabbit_doe", "fade": 0.35},
+			{"do": "camera", "at": "c1_rabbit_doe", "sec": 0.9},
+			{"say": "rabbit", "zh": "我想跳给她看，可我一紧张就忘步子。", "en": "I want to dance for her, but I forget my steps when I get nervous.", "added": true},
+			{"do": "camera", "release": true},
+			{"do": "choice", "options": [{"zh": "好，我陪你练。", "en": "Sure. Let's practice.", "scene": "c1_rabbit_practice"}, {"zh": "下次吧。", "en": "Maybe next time.", "scene": "c1_rabbit_leave"}]}
+		],
+		"c1_rabbit_practice": [
+			{"do": "music", "track": "rabbit_beat", "fade": 0.8},
+			{"do": "mechanic", "id": "rabbit_dance", "save_key": "rabbit_practice", "at": "c1_rabbit", "chen_at": "c1_rabbit_chen", "retry": true, "seqs": [["left", "up", "down", "right", "up"], ["down", "left", "right", "up", "right", "down"], ["right", "up", "left", "down", "up", "left", "right"]], "sets": ["c1_rabbit_helped"]},
+			{"do": "music", "track": "forest", "fade": 2.5},
+			{"say": "rabbit", "zh": "我记住啦！这个送你。", "en": "I've got it! Here, this is for you.", "added": true},
+			{"do": "give", "items": ["rabbit_fur"], "toast": "got_items"},
+			{"do": "show", "who": "rabbit_kit_1", "at": "c1_rabbit_kit_1"},
+			{"do": "show", "who": "rabbit_kit_2", "at": "c1_rabbit_kit_2"},
+			{"do": "show", "who": "rabbit_kit_3", "at": "c1_rabbit_kit_3"},
+			{"do": "goto", "scene": "c1_rabbit_leave"}
+		],
+		"c1_rabbit_leave": [
+			{"do": "flag", "set": "c1_rabbit_done"},
+			{"do": "show", "who": "deer", "at": "deer_door"}
+		],
+		"c1_rabbit_chat": [
+			{"say": "rabbit", "zh": "首领，回来啦！", "en": "Chief! You're back!", "added": true}
+		],
+		"c1_rabbit_kit": [
+			{"say": "chen", "zh": "你也会跳舞吗？", "en": "Can you dance too?", "added": true}
+		],
+		"c1_rabbit_family": [
+			{"say": "rabbit_doe", "zh": "孩子们，给首领让个道。", "en": "Make way for the chief, little ones.", "added": true}
 		],
 		"c1_fix": [
 			{"do": "fade_to", "room": "treehouse", "at": "room_door", "place": {"miluo": "room_miluo"}},

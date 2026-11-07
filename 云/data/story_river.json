@@ -706,15 +706,14 @@
 			{"do": "anim", "who": "chen", "name": "draw"},
 			{"do": "sfx", "name": "pencil"},
 			{"do": "wait", "sec": 0.5},
-			{"do": "prop", "id": "river_home_table", "state": "phone_corner"},
 			{"do": "flag", "set": "river_deer_msg"},
 			{"do": "goto", "scene": "home_wait_talk"}
 		],
 		"deer_msg_m": [
-			{"do": "phone_msg", "id": "river_msg_deer_m", "from": "miluo", "zh": "鹿借用：妈妈，到了没？今天没人让咱孝敬，有点不习惯。", "en": "Deer borrowing: Mom, you there yet? Nobody to wait on today. Feels weird.", "reply": {"zh": "到了。你乖。", "en": "Here. Be good."}, "added": true}
+			{"do": "journal", "zh": "到了。小鹿要是在这里，大概又要喊我妈妈。", "en": "I made it. If the deer were here, it would probably call me Mom again.", "added": true}
 		],
 		"deer_msg_c": [
-			{"do": "phone_msg", "id": "river_msg_deer_c", "from": "miluo", "zh": "鹿借用：孩子，到了没？到了回一句，咱好睡觉。", "en": "Deer borrowing: kid, you there yet? Send one word so I can sleep.", "reply": {"zh": "到了。你睡吧。", "en": "Here. Go to sleep."}, "added": true}
+			{"do": "journal", "zh": "到了。要是小鹿知道了，应该就能安心睡觉了。", "en": "I made it. If the deer knew, maybe it could get some sleep.", "added": true}
 		],
 		"home_wait_talk": [
 			{"do": "face", "who": "chen", "to": "niff"},
@@ -1195,11 +1194,9 @@
 			{"do": "anim", "who": "chen", "name": "close_journal"},
 			{"do": "anim", "who": "chen", "name": "hold_paper"},
 			{"do": "wait", "sec": 0.6},
-			{"do": "phone_open", "contact": "friend"},
 			{"do": "anim", "who": "chen", "name": "freeze_hand"},
 			{"do": "wait", "sec": 0.6},
-			{"do": "journal", "zh": "我老记着她最后没回我，前面我们到底说过什么，反倒一直没往回看。", "en": "I keep thinking about how she never wrote back. I never scrolled up to see what we'd said before that."},
-			{"do": "prop", "id": "river_home_table", "state": "phone_under_journal"},
+			{"do": "journal", "zh": "我老记着她最后没回我，前面我们到底说过什么，反倒快忘了。", "en": "I keep thinking about how she never wrote back. I can barely remember what we said before that."},
 			{"do": "walk", "who": "chen", "to": "river_home_kitchen"},
 			{"do": "walk", "who": "niff", "to": "river_home_niff", "wait": false},
 			{"do": "walk", "who": "chen", "to": "river_home_chen"},
@@ -1706,14 +1703,7 @@
 			{"do": "goto", "scene": "farewell_phone"}
 		],
 		"farewell_phone": [
-			{"do": "anim", "who": "niff", "name": "hold_phone"},
-			{"do": "phone_add", "id": "nifu", "zh": "妮芙", "en": "Niff"},
-			{"do": "anim", "who": "niff", "name": "stick_label"},
-			{"say": "niff", "zh": "这样你发消息，我就知道是你啦。要写清楚哦，光发一个‘到了’，我会想好久的。", "en": "This way I'll know it's you when you message. Write it clearly. If you just send 'here,' I'll wonder for ages."},
-			{"do": "wait", "sec": 0.6},
-			{"do": "anim", "who": "chen", "name": "type"},
-			{"do": "phone_add", "id": "nifu", "zh": "妮芙·河岸", "en": "Niff · Riverbank"},
-			{"do": "anim", "who": "niff", "name": "nod"},
+			{"say": "niff", "zh": "下次路过河岸，记得来看我们。", "en": "Come see us next time you pass the riverbank.", "added": true},
 			{"do": "flag", "set": "river_farewell"},
 			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post", "niff": "river_bank_niff"}}
 		],

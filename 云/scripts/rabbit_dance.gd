@@ -73,7 +73,7 @@ static func act(step: Dictionary, s: Dictionary, dir: String) -> Dictionary:
 		return {"kind": "done" if finished(step, s) else "round", "k": k}
 	s["miss"] = int(s["miss"]) + 1
 	s["k"] = 0
-	if int(s["miss"]) >= max_miss(step):
+	if not step.get("retry", false) and int(s["miss"]) >= max_miss(step):
 		s["gave_up"] = true
 		return {"kind": "give_up", "k": -1}
 	return {"kind": "wrong", "k": -1}
@@ -152,7 +152,7 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	world = w
 	story = r
 	step = st
-	s = story.mech_load(ID)
+	s = story.mech_load(str(step.get("save_key", ID)))
 	if not s.has("round"):
 		s = fresh()
 	await _setup()
@@ -167,7 +167,7 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 		await _lines("round_%d" % (i + 1))
 		await _play_round(rs[i])
 	s["done"] = true
-	story.mech_save(ID, s)
+	story.mech_save(str(step.get("save_key", ID)), s)
 	_set_flags(step)
 	await _finish()
 	print("MECH %s done miss=%d gave_up=%s" % [ID, int(s["miss"]), str(s["gave_up"])])
@@ -188,7 +188,7 @@ func ff(r: Node, st: Dictionary) -> void:
 	var t := fresh()
 	t["round"] = seqs(st).size()
 	t["done"] = true
-	r.mech_save(ID, t)
+	r.mech_save(str(st.get("save_key", ID)), t)
 	_set_flags(st)
 
 
@@ -241,7 +241,7 @@ func _turn(seq: Array) -> String:
 		var expect := str(seq[int(s["k"])])
 		var d: String = await _next_key(expect)
 		var res := act(step, s, d)
-		story.mech_save(ID, s)
+		story.mech_save(str(step.get("save_key", ID)), s)
 		var kind := str(res["kind"])
 		if kind in ["wrong", "give_up"]:
 			_tap(d, -10.0, 0.75, SFX_MISS)
@@ -285,7 +285,7 @@ func _auto_rest() -> void:
 			await _wait(STEP_SEC + 0.1)
 		s["round"] = r + 1
 		s["k"] = 0
-		story.mech_save(ID, s)
+		story.mech_save(str(step.get("save_key", ID)), s)
 		await _round_clear()
 
 

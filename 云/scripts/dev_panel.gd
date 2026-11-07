@@ -818,8 +818,6 @@ func _build_switches(v: VBoxContainer) -> void:
 	v.add_child(_btn("重开本章", _restart))
 	v.add_child(_btn("给齐本章所有物品", _give_all))
 	v.add_child(_btn("燃料加满", _fuel_full))
-	v.add_child(_btn("打开通讯器", func(): story.phone.dev_open()))          # 通讯器（phone_ui.gd）
-	v.add_child(_btn("模拟一条消息", func(): story.phone.dev_simulate()))
 	_sync_switches()
 
 
@@ -1019,14 +1017,7 @@ func _test_buttons() -> void:
 		_switch(str(k))
 	_give_all()
 	_fuel_full()
-	# 通讯器剧情播放中不开（open_browse 的规矩）：flight1 一进来就在播起飞过场，先让它自己播到能自由走再试
 	await _settle(90.0)
-	story.phone.dev_open()
-	await _wait(0.3)
-	var phone_ok: bool = story.phone.is_open()
-	story.phone.close()
-	level._close_panels()
-	print("DEV_TEST phone open=%s" % phone_ok)
 	for n in story.world.markers:
 		level.dev_teleport(str(n))
 		await _wait(0.05)

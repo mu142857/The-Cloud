@@ -116,7 +116,6 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
 	"inner", "key_prompt", "reward", "blackout", "burn_held",
 	"music"]   # music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
-const PHONE_STEPS := ["phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft"]   # 通讯器：phone_ui.gd
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
 const COCKPIT_NAV := "res://scripts/cockpit_nav.gd"   # pick 带 "ui": "nav" / "action"：驾驶舱里的行动选择 + 二次确认（终章）
@@ -148,7 +147,6 @@ const AUTO_LINE := 0.6
 const WORLD_GD := preload("res://scripts/story_world.gd")
 const HOTSPOTS_GD := preload("res://scripts/hotspots.gd")
 const DIALOGUE_GD := preload("res://scripts/story_dialogue.gd")
-const PHONE_GD := preload("res://scripts/phone_ui.gd")
 const BARK_GD := preload("res://scripts/story_bark.gd")      # say 带 bark：晨头顶的小气泡（不锁人）
 const QUICK_GD := preload("res://scripts/story_quick.gd")    # give 数组、走过去就捡（hotspot pickup）
 const BARTER_GD := preload("res://scripts/barter.gd")         # 以物易物（大嘴鸟、料理鼠妈…）
@@ -174,7 +172,6 @@ var all_hotspot_defs: Array = []         # 连 retired 的旧点也在（自由�
 var world: Node2D
 var hotspots: Node2D
 var dlg: Control
-var phone: Control                   # 通讯器界面（phone_ui.gd）
 var bark: Control                    # 头顶小气泡（story_bark.gd）
 var quick: RefCounted                # story_quick.gd
 var barter: RefCounted               # barter.gd
@@ -356,11 +353,15 @@ func side_auto() -> bool:
 
 
 ## 「（可选）」那一行：支线文件 objectives 里现在满足条件的（Array of {zh, en}）
-func side_objectives() -> Array:
+func side_objectives(include_completed := false) -> Array:
 	var out: Array = []
 	for o in data.get("side_objectives", []):
-		if o is Dictionary and StoryState.all_of(o.get("need", [])) and StoryState.none_of(o.get("not", [])):
-			out.append(o)
+		if o is Dictionary and StoryState.all_of(o.get("need", [])):
+			var done := not StoryState.none_of(o.get("not", []))
+			if include_completed or not done:
+				var entry: Dictionary = o.duplicate()
+				entry["completed"] = done
+				out.append(entry)
 	return out
 
 
@@ -401,11 +402,6 @@ func setup(lv: Node2D, ui_root: Control) -> void:
 	dlg.panel_rect = mech_panel_rect
 	ui_root.add_child(dlg)
 	hotspots.setup(self, world, hotspot_defs, ui_root)
-	phone = PHONE_GD.new()
-	phone.name = "Phone"
-	phone.story = self
-	phone.level = lv
-	ui_root.add_child(phone)
 	bark = BARK_GD.new()
 	bark.name = "StoryBark"
 	bark.story = self
@@ -935,11 +931,11 @@ func _step(st: Dictionary) -> String:
 			if c >= int(st.get("at_least", 1)) and st.has("set"):
 				StoryState.set_flag(str(st["set"]))
 		"fuel":
+			if level.chapter == "flight1" and st.has("burn") and not ff:
+				await _burn_closeup(str(st["burn"]))
 			_fuel_step(st)
 		"camera":
 			await _camera(st)
-		"phone_add", "phone_msg", "phone_send", "phone_open", "phone_draft":
-			await phone.step(st)
 		"debris_steer", "keepsake_choice", "cockpit_dash":
 			var cs2: String = await _cockpit_step(d, st)     # 驾驶舱的两个小玩法（cockpit_debris.gd / cockpit_keepsake.gd）
 			return cs2
@@ -1139,7 +1135,9 @@ func _say(st: Dictionary) -> void:
 	var gn: Node2D = n if n != null and npcs.values().has(n) else null
 	if gn != null:
 		gn.talk(true)
-	await dlg.say(nm, NAME_COLORS.get(who, UITheme.ACCENT), text, _anchor.bind(who), bool(st.get("added", false)) and mark_added)
+	var source_text := txt_in(st, "zh")
+	var typing_sec := clampf(float(source_text.length()) / dlg.CPS_ZH, 0.25, 4.0)
+	await dlg.say(nm, NAME_COLORS.get(who, UITheme.ACCENT), text, _anchor.bind(who), bool(st.get("added", false)) and mark_added, typing_sec, txt_in(st, "en" if I18n.is_zh() else "zh"))
 	if gn != null and is_instance_valid(gn):
 		gn.talk(false)
 	speaking = ""
@@ -2466,12 +2464,18 @@ func trigger(p: Dictionary) -> void:
 		await quick.pickup(p)           # 走过去就捡：不锁人
 		return
 	var id := str(h.get("id", ""))
+	var pet := str(h.get("pet", {"deer": "deer", "miluo": "miluo", "glade_toucan": "toucan"}.get(str(h.get("at", "")), "")))
+	if level.chapter == "forest" and not ff and auto == "" and pet != "" and not hotspots.is_enter(h):
+		if await _pet_menu(pet, h):
+			return
 	var barks := _bark_only(str(h.get("scene", "")))
 	if not barks.is_empty() and bark.busy() and _bark_hot == id:
 		bark.skip()                         # 同一个点的那句还飘着，又按了一下：收掉，不再叠一遍（作者「对话框消不掉」）
 		return
 	if not barks.is_empty():
 		_bark_hot = id
+		if h.get("once", false):
+			StoryState.mark_used(id)
 		# 只浮一句（飞船上方）：不锁人、不停游戏
 		_visited[id] = StoryState.progress()
 		hotspots_used += 1
@@ -2544,6 +2548,40 @@ func trigger(p: Dictionary) -> void:
 	_enter_scene = false
 	_visited[id] = StoryState.progress()
 	_visit_gain[id] = StoryState.progress() - p0
+
+
+func _pet_menu(who: String, h: Dictionary) -> bool:
+	var n := npc(who)
+	if n == null or not n.visible:
+		return false
+	busy = true
+	hotspots.active = false
+	level.story_begin(false)
+	var options := [I18n.t("pet"), I18n.t("just_look")] if h.get("pet_only", false) else [I18n.t("talk"), I18n.t("pet")]
+	var choice: int = await dlg.choose_line(options)
+	if choice == (0 if h.get("pet_only", false) else 1):
+		chen._set_facing(1 if n.position.x > chen.position.x else -1)
+		chen.spr.play(&"reach")
+		var response := {"zh": "嘿嘿。", "en": "Hehe."}
+		match who:
+			"deer":
+				response = {"zh": "妈妈，再摸一下嘛。", "en": "One more time, Mom."} if StoryState.has("c1_mom") else {"zh": "乖孩子，轻一点。", "en": "Easy, kiddo. Be gentle."}
+			"miluo":
+				response = {"zh": "轻点，我可不是绒毛玩偶。", "en": "Easy. I'm no stuffed toy."}
+			"toucan":
+				response = {"zh": "翅膀可以，别碰喙。", "en": "The wing's fine. Mind the beak."}
+			"rabbit", "rabbit_doe":
+				response = {"zh": "小心，耳朵怕痒。", "en": "Careful. My ears are ticklish."}
+			_:
+				n.hop()
+		response["say"] = who if not who.begins_with("rabbit_kit_") else "chen"
+		if who.begins_with("rabbit_kit_"):
+			response = {"say": "chen", "zh": "好软。", "en": "So soft."}
+		await _say(response)
+		dlg.close_box()
+	busy = false
+	level.story_end()
+	return h.get("pet_only", false) or choice != 0
 
 
 ## 背包里选中一件按「使用」：用在晨身边那个 hotspot 上
@@ -2702,7 +2740,8 @@ func _choice(st: Dictionary) -> String:
 	if not ff:
 		var tl := txt_lang(o)
 		await dlg.say(txt_in(speakers.get("chen", "chen"), str(tl[1])), NAME_COLORS["chen"], str(tl[0]), _anchor.bind("chen"),
-			bool(o.get("added", false)) and mark_added)
+			bool(o.get("added", false)) and mark_added, clampf(float(txt_in(o, "zh").length()) / dlg.CPS_ZH, 0.25, 4.0),
+			txt_in(o, "en" if I18n.is_zh() else "zh"))
 	return str(o.get("scene", ""))
 
 
@@ -3272,8 +3311,6 @@ func validate() -> Array[String]:
 			if st is Dictionary and str(st.get("do", "")) == "burn_held":
 				for f7 in st.get("items", []):
 					set_flags["burned_" + str(f7)] = true
-			if st is Dictionary and str(st.get("do", "")) == "phone_draft" and str(st.get("flag", "")) != "":
-				set_flags[str(st["flag"])] = true
 			if st is Dictionary and str(st.get("do", "")) == "mechanic":
 				for f5 in st.get("sets", []):
 					set_flags[str(f5)] = true
@@ -3301,7 +3338,7 @@ func validate() -> Array[String]:
 				and not world.is_stage(str(h.get("room", ""))):
 			out.append("hotspot %s：room 只能是 forest / treehouse%s（%s）" % [hid, " / cockpit" if world.cockpit != null else "", h.get("room")])
 		var sc := str(h.get("scene", ""))
-		if not scenes.has(sc) and not (sc == "" and h.has("closeup")):
+		if not scenes.has(sc) and not (sc == "" and (h.has("closeup") or h.get("pet_only", false))):
 			out.append("hotspot %s：没有 scene %s" % [hid, sc])
 		refs[sc] = true
 		for key in ["need", "not"]:
@@ -3333,7 +3370,7 @@ func validate() -> Array[String]:
 				out.append("scene %s：步骤不是对象 %s" % [id, str(st)])
 				continue
 			var kind := "say" if st.has("say") else ("narr" if st.has("narr") else str(st.get("do", "")))
-			if not kind in STEPS and not kind in PHONE_STEPS and not COCKPIT_STEPS.has(kind):
+			if not kind in STEPS and not COCKPIT_STEPS.has(kind):
 				out.append("scene %s：不支持的步骤 %s" % [id, JSON.stringify(st)])
 				continue
 			if COCKPIT_STEPS.has(kind):
@@ -3604,7 +3641,6 @@ func validate() -> Array[String]:
 		for f in hs:
 			if not set_flags.has(str(f)):
 				out.append("hints：flag %s 没有地方设" % f)
-	out.append_array(PHONE_GD.validate(scenes))
 	out.append_array(_validate_fuel())
 	if not missing_sfx.is_empty():
 		out.append("info: 缺音效文件（静默跳过）：" + ", ".join(missing_sfx.keys()))
@@ -3655,10 +3691,9 @@ func _validate_cockpit(id: String, kind: String, st: Dictionary, refs: Dictionar
 		for k in look:
 			groups.append(look[k])
 	groups.append(st.get("put_back", []))
-	groups.append(st.get("route_look", []))
 	for g in groups:
 		if not g is Array:
-			out.append("scene %s：keepsake_choice 的 look / put_back / route_look 要是台词数组" % id)
+			out.append("scene %s：keepsake_choice 的 look / put_back 要是台词数组" % id)
 			continue
 		for l in g:
 			if l is Dictionary and l.has("say") and not speakers.has(str(l["say"])):
@@ -3889,6 +3924,16 @@ func _generic(who: String) -> Node2D:
 		return null
 	var n: Node2D = NPC_GD.new()
 	n.setup(who)
+	if who == "rabbit_doe":
+		var bow := Polygon2D.new()
+		bow.polygon = PackedVector2Array([Vector2(-6, -4), Vector2(0, -1), Vector2(6, -4),
+			Vector2(6, 3), Vector2(0, 1), Vector2(-6, 3)])
+		bow.position = Vector2(1, -44)
+		bow.color = Color("#d88a9c")
+		n.add_child(bow)
+	elif who.begins_with("rabbit_kit_"):
+		n.scale = Vector2(0.57, 0.57)
+		n.head *= 0.57
 	n.visible = false
 	level.add_child(n)
 	level.move_child(n, chen.get_index())       # 和晨同一层、排在晨后面（晨在前）
@@ -5198,6 +5243,72 @@ func _blackout_step(on: bool) -> void:
 		_blackout = null
 
 
+func _burn_closeup(id: String) -> void:
+	var texture := Inventory.icon(id)
+	if texture == null:
+		return
+	dlg.close_box()
+	var layer := CanvasLayer.new()
+	layer.layer = 54
+	level.add_child(layer)
+	var capture := BackBufferCopy.new()
+	capture.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	layer.add_child(capture)
+	var backdrop := ColorRect.new()
+	backdrop.size = Vector2(480, 270)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shader := Shader.new()
+	shader.code = """
+		shader_type canvas_item;
+		uniform sampler2D burn_screen : hint_screen_texture, filter_nearest;
+		uniform float amount = 0.0;
+		void fragment() {
+			vec3 rgb = texture(burn_screen, SCREEN_UV).rgb;
+			float grey = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+			COLOR = vec4(mix(rgb, vec3(grey * 0.58), amount), 1.0);
+		}
+	"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	backdrop.material = material
+	layer.add_child(backdrop)
+	var item := Sprite2D.new()
+	item.texture = texture
+	item.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	item.position = Vector2(240, 134)
+	var zoom := minf(6.0, 82.0 / maxf(texture.get_width(), texture.get_height()))
+	item.scale = Vector2.ONE * zoom * 0.65
+	item.modulate.a = 0.0
+	layer.add_child(item)
+	var display := layer.create_tween().set_parallel().set_speed_scale(3.0 if auto != "" else 1.0)
+	display.tween_method(func(value: float): material.set_shader_parameter("amount", value), 0.0, 1.0, 0.38)
+	display.tween_property(item, "modulate:a", 1.0, 0.38)
+	display.tween_property(item, "scale", Vector2.ONE * zoom, 0.72).set_trans(Tween.TRANS_SINE)
+	display.tween_method(func(turn: float): item.scale.x = zoom * maxf(0.12, absf(cos(turn))), 0.0, TAU, 0.78).set_delay(0.75)
+	await display.finished
+	_sfx({"name": "fire_flare", "db": -8.0})
+	var fire := layer.create_tween().set_parallel().set_speed_scale(3.0 if auto != "" else 1.0)
+	for n in 24:
+		var ember := ColorRect.new()
+		ember.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ember.size = Vector2.ONE * (2 + n % 4)
+		ember.position = item.position + Vector2(float(n * 17 % 55 - 27), float(n * 11 % 26))
+		ember.color = Color("#ffcc77") if n % 3 == 0 else Color("#e66d3b")
+		ember.modulate.a = 0.0
+		layer.add_child(ember)
+		var delay := float(n % 8) * 0.035
+		fire.tween_property(ember, "modulate:a", 0.95, 0.08).set_delay(delay)
+		fire.tween_property(ember, "position", ember.position + Vector2(float(n % 9 - 4) * 4.0, -42.0 - float(n % 5) * 7.0), 0.65).set_delay(delay)
+		fire.tween_property(ember, "modulate:a", 0.0, 0.4).set_delay(delay + 0.24)
+	fire.tween_property(item, "modulate", Color(0.6, 0.19, 0.06, 0.0), 0.66).set_delay(0.1)
+	fire.tween_property(item, "scale", Vector2.ONE * zoom * 0.56, 0.68)
+	await fire.finished
+	var restore := layer.create_tween()
+	restore.tween_method(func(value: float): material.set_shader_parameter("amount", value), 1.0, 0.0, 0.38)
+	await restore.finished
+	layer.queue_free()
+
+
 func _burn_held(st: Dictionary) -> void:
 	var total := 0
 	var names: Array = []
@@ -5211,6 +5322,8 @@ func _burn_held(st: Dictionary) -> void:
 		var id := str(it)
 		if not Inventory.has(id):
 			continue
+		if level.chapter == "flight1" and not ff:
+			await _burn_closeup(id)
 		Inventory.remove(id)
 		total += fuel_of(id)
 		StoryState.set_flag("burned_" + id)

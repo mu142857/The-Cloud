@@ -52,12 +52,10 @@ const CITY_SCENE := "res://scenes/city_test.tscn"
 const ENV_LIGHT := preload("res://scripts/env_light.gd")
 const SCREEN_SH := preload("res://scripts/flashback_screen.gdshader")
 const VIEW_SH := preload("res://scripts/flashback_view.gdshader")
-const ACH_PATH := "res://data/achievements.json"
 const PAPER_TEX := preload("res://art/forest_story/icon_drawing.png")
-const TRAIN_CAR := preload("res://art/flashback/train_car.png")
 const TRAIN_DOOR_L := preload("res://art/flashback/train_door_l.png")
 const TRAIN_DOOR_R := preload("res://art/flashback/train_door_r.png")
-const SOUNDS := ["heartbeat", "flashback_tense", "train_door_close"]
+const SOUNDS := ["heartbeat", "flashback_tense", "door_touch"]
 const GROUND := 228.0
 const CHEN_SX := 300.0          # 晨在屏幕上的 x：中间偏右一点，左边一直看得见触手
 const FOLLOW := 8.0             # 镜头跟得多紧（冲的时候跟慢一点，就是往前一推）
@@ -121,15 +119,13 @@ const T_ROOT := -46.0           # 根在屏幕左边外面多远
 const PAPER_LEAD := 95.0        # 在晨前面多远飘（前后再晃 ±18）
 const PAPER_Y := 190.0          # 飘的高度（脚底 228，晨 60 高：胸口到头顶那么高）
 const PAPER_HAND := Vector2(9.0, 201.0)   # 晨手的位置（相对她的 x、世界 y）：开头从这儿被吹走，结束落回这儿
-# 第二次：列车（art/flashback/train_car.png 400×132；安全线在第 127、128 行 = 晨脚底）
+# 第二次：车站闪回的公交和车门
 const TRAIN_Y := 100.0
-const TRAIN_W := 400.0
-const TRAIN_LINK := 6.0         # 两节车厢中间的折棚
 const DOOR_POS := Vector2(24, 22)   # 尾门门洞在车厢图里的左上角；36×96，门扇各 18
 const DOOR_HALF := 18.0
 const DOOR_H := 96.0
 const TRAIN_GAP := 160.0        # 跑的时候尾门在晨前面多远（屏幕 x 460）
-const DOOR_CLOSE_AT := 80.0     # 结束时晨离门这么远，门开始关
+const DOOR_CLOSE_AT := 54.0     # 结束时晨离门这么远，门开始关
 const DOOR_STOP := 26.0         # 晨最多跑到离门这么近
 const LAMP_C := Color(0.95, 0.62, 0.3)
 const SPILL_C := Color(0.62, 0.46, 0.28)
@@ -183,7 +179,6 @@ var _shown := 0
 var _fall_i := -1                 # 掉到第几个字（-1 = 还没开始掉）
 var _fall_t := 0.0
 var _flush_next := 0.0
-var _toast: Label
 var _prompt: Control
 var _key: Control
 var _prompt_a := 0.0
@@ -238,6 +233,10 @@ var _paper_off := Vector2.ZERO    # 相对晨的 x、世界 y（平滑跟着目�
 var _paper_mode := ""             # "" 还在手里（藏着）/ fly 飘 / catch 落回手里 / done
 # 第二次：列车
 var _train: Node2D
+var _stop_sign: Node2D
+var _barriers: Array[Node2D] = []
+var _barrier_jump := 0.0
+var _barrier_help: Label
 var _train_wx := 0.0
 var _train_v := V_BASE
 var _train_mode := ""             # "" 跟着跑 / stop 停下来等 / go 开走
@@ -334,10 +333,6 @@ func _build() -> void:
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_veil.color = Color(BLACK_C, 0.0)
 	add_child(_veil)
-	_toast = _label("", UITheme.WARM)
-	_toast.position = Vector2(0, 16)
-	_toast.modulate.a = 0.0
-	add_child(_toast)
 	_build_lines()
 
 
@@ -365,6 +360,13 @@ func _build_city() -> void:
 		_light = _node2d("FlashbackLight", _draw_light, true)
 		_world.move_child(_light, _chen.get_index() + 1)
 	if id == 1:
+		for distance in [620.0, 1720.0]:
+			var barrier := Node2D.new()
+			barrier.position = Vector2(_chen.position.x + distance, GROUND)
+			barrier.draw.connect(_draw_barrier.bind(barrier))
+			_world.add_child(barrier)
+			_world.move_child(barrier, _chen.get_index())
+			_barriers.append(barrier)
 		_paper = Sprite2D.new()
 		_paper.name = "FlashbackPaper"
 		_paper.texture = PAPER_TEX
@@ -391,25 +393,17 @@ func _node2d(nm: String, fn: Callable, add := false) -> Node2D:
 	return n
 
 
-## 第二次：两节车厢（尾门开着、里面亮；后面那节的门都关着），中间一段折棚；门扇单独两张图，关门时从两边滑出来
+## 车身和站牌固定在街上，尾门的两片门扇各自滑动。
 func _build_train() -> void:
 	_train = Node2D.new()
 	_train.name = "FlashbackTrain"
 	_world.add_child(_train)
 	_world.move_child(_train, _chen.get_index())
-	for i in 2:
-		var c := Sprite2D.new()
-		c.texture = TRAIN_CAR
-		c.centered = false
-		c.position = Vector2(float(i) * (TRAIN_W + TRAIN_LINK), 0)
-		_train.add_child(c)
-		if i == 1:                              # 后面那节的尾门关着
-			for d in [[TRAIN_DOOR_L, 0.0], [TRAIN_DOOR_R, DOOR_HALF]]:
-				var s := Sprite2D.new()
-				s.texture = d[0]
-				s.centered = false
-				s.position = DOOR_POS + Vector2(float(d[1]), 0)
-				c.add_child(s)
+	_stop_sign = _node2d("BusStop", _draw_stop)
+	_stop_sign.hide()
+	var body := Node2D.new()
+	body.draw.connect(_draw_bus.bind(body))
+	_train.add_child(body)
 	_door_l = _leaf(TRAIN_DOOR_L)
 	_door_r = _leaf(TRAIN_DOOR_R)
 	var deco := Node2D.new()                    # 折棚、门楣上的灯、门口地上的光
@@ -472,6 +466,10 @@ func _build_prompt() -> void:
 	_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_prompt.modulate.a = 0.0
 	add_child(_prompt)
+	_barrier_help = _label(I18n.pick({"zh": "空格　跨过障碍", "en": "Space   Vault the barrier"}), Color("#ffe0a0"))
+	_barrier_help.position = Vector2(0, PROMPT_Y - 23)
+	_barrier_help.hide()
+	add_child(_barrier_help)
 	var txt := _tx("hint")
 	var w := UITheme.font().get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	var x0 := roundf(240.0 - (13.0 + 5.0 + w) / 2.0)
@@ -638,6 +636,8 @@ func _run_step(dt: float) -> void:
 		if px >= 1.0:
 			_chen.position.x += px
 			_extra -= px
+	if id == 1:
+		_barrier_step(dt)
 	if run:
 		_ran = true
 		_still_t = 0.0
@@ -669,6 +669,44 @@ func _run_step(dt: float) -> void:
 	elif _run_t >= RUN * _k:
 		result = "escaped"
 		_running = false
+
+
+func _draw_barrier(n: Node2D) -> void:
+	n.draw_rect(Rect2(-16, -5, 32, 5), Color("#3a3234"))
+	n.draw_rect(Rect2(-13, -21, 4, 21), Color("#797478"))
+	n.draw_rect(Rect2(9, -21, 4, 21), Color("#797478"))
+	n.draw_rect(Rect2(-16, -24, 32, 8), Color("#694b44"))
+	for x in [-13, -3, 7]:
+		n.draw_rect(Rect2(x, -23, 5, 3), Color("#d0a473"))
+
+
+func _vault() -> void:
+	if _running and not _lock and _barrier_help.visible and _barrier_jump <= 0.0:
+		_barrier_jump = 0.42
+		_play("tap", -10.0)
+
+
+func _barrier_step(dt: float) -> void:
+	_barrier_jump = maxf(0.0, _barrier_jump - dt)
+	_spr.position.y = -roundf(sin(PI * _barrier_jump / 0.42) * 29.0)
+	if _barriers.is_empty():
+		_barrier_help.hide()
+		return
+	var next := _barriers[0]
+	var gap: float = next.position.x - _chen.position.x
+	_barrier_help.visible = gap >= 0.0 and gap < 103.0
+	if _auto and not _auto_caught and gap >= 0.0 and gap < 48.0:
+		_vault()
+	if gap > 6.0:
+		return
+	_barriers.pop_front()
+	_barrier_help.hide()
+	if _barrier_jump <= 0.03:
+		_front += 36.0
+		_boost = 0.0
+		_kick = 8.0
+		_play("pat", -10.0)
+		next.rotation = -0.28
 
 
 ## 车：跑的时候尾门一直在她前面 TRAIN_GAP 左右（她冲近了车就快一点、慢下来车也慢一点，都是平滑的）
@@ -708,14 +746,22 @@ func _input(e: InputEvent) -> void:
 			return
 		if k.pressed and not k.echo and (k.keycode == KEY_E or k.physical_keycode == KEY_E):
 			_press()
+		if k.pressed and not k.echo and k.keycode == KEY_SPACE and id == 1:
+			_vault()
 		get_viewport().set_input_as_handled()      # 闪回里别的键不给关卡（背包、对话推进）
 	elif e is InputEventMouseButton and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
-			_press()
+			if id == 1 and _barrier_help.visible:
+				_vault()
+			else:
+				_press()
 		get_viewport().set_input_as_handled()
 	elif e is InputEventScreenTouch:
 		if e.pressed:
-			_press()
+			if id == 1 and _barrier_help.visible:
+				_vault()
+			else:
+				_press()
 		get_viewport().set_input_as_handled()
 
 
@@ -1079,6 +1125,8 @@ func _quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, col: Color) -> void:
 
 # ======================================================================= 结束
 func _ending() -> void:
+	_barrier_help.hide()
+	_spr.position.y = 0.0
 	_chen.auto_dir = 0.0 if result != "escaped" else _chen.auto_dir
 	if _paper_mode == "fly":
 		_paper_mode = "catch"                       # 第一次：画落回她手里（被抓也一样，接剧本里的地图翻面）
@@ -1089,6 +1137,9 @@ func _ending() -> void:
 			_bpm = 0.0
 			_music_off(0.6)
 			await _sleep(0.6)
+			if end_kind == "door":
+				await _end_door(false)
+				return
 			await _flush_lines()
 			_end_color = BLACK_C
 			await _veil_to(BLACK_C, 1.0)
@@ -1128,17 +1179,21 @@ func _ending() -> void:
 					await _veil_to(BLACK_C, 1.8)
 
 
-## 第二次跑掉了：车慢下来停住，晨跑到尾门跟前，门在她面前关上（门楣的灯亮），车开走，再黑
-func _end_door() -> void:
-	_chen.auto_dir = 1.0
+## 车站闪回的结尾：公交靠站，关门后驶离。
+func _end_door(approach := true) -> void:
+	_chen.auto_dir = 1.0 if approach else 0.0
+	if not approach:
+		create_tween().tween_property(self, "_look", 70.0, 0.9).set_trans(Tween.TRANS_SINE)
 	if not _train.visible:
 		_goal_train()
 	_train_mode = "stop"
+	_stop_sign.position = Vector2(_train_wx + _train_v * _train_v / 380.0 + DOOR_POS.x - 27.0, GROUND)
+	_stop_sign.show()
 	var guard := 0.0
-	while _train_wx + DOOR_POS.x + DOOR_HALF - _chen.position.x > DOOR_CLOSE_AT and guard < 5.0:
+	while (_train_v > 0.5 or (approach and _train_wx + DOOR_POS.x + DOOR_HALF - _chen.position.x > DOOR_CLOSE_AT)) and guard < 5.0:
 		await StoryState.frame(get_tree())
 		guard += get_process_delta_time()
-	_play("train_door_close", -6.0)
+	_play("door_touch", -6.0)
 	var tw := create_tween()
 	tw.tween_property(self, "_lamp", 1.0, 0.15)
 	tw.tween_method(_set_door, 0.0, 1.0, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -1203,13 +1258,34 @@ func _set_door(v: float) -> void:
 	_door_r.position = DOOR_POS + Vector2(DOOR_HALF * 2.0 - w, 0)
 
 
-## 车上程序画的那几样：两节中间的折棚（一道道褶）、尾门门楣的指示灯（关门时亮）、门口站台上一小片暖光（门关上就没了）
+func _draw_stop() -> void:
+	_stop_sign.draw_rect(Rect2(-2, -93, 4, 93), Color("#899290"))
+	_stop_sign.draw_rect(Rect2(-13, -106, 26, 24), Color("#375b5c"))
+	_stop_sign.draw_rect(Rect2(-12, -105, 24, 22), Color("#c0bfa7"), false)
+	_stop_sign.draw_rect(Rect2(-7, -100, 14, 10), Color("#ece0b4"))
+	_stop_sign.draw_rect(Rect2(-5, -98, 10, 4), Color("#375b5c"))
+	_stop_sign.draw_rect(Rect2(-6, -90, 3, 2), Color("#ece0b4"))
+	_stop_sign.draw_rect(Rect2(3, -90, 3, 2), Color("#ece0b4"))
+
+
+func _draw_bus(n: Node2D) -> void:
+	n.draw_rect(Rect2(9, 11, 273, 103), Color("#141c20"))
+	n.draw_rect(Rect2(3, 21, 288, 90), Color("#27343a"))
+	n.draw_rect(Rect2(4, 70, 286, 4), Color("#6c7866"))
+	n.draw_rect(Rect2(24, 22, 36, 96), Color("#795d44"))
+	n.draw_rect(Rect2(28, 26, 28, 83), Color("#ad875d"))
+	for x in [71, 116, 161, 206, 251]:
+		n.draw_rect(Rect2(x, 24, 34, 41), Color("#182329"))
+		n.draw_rect(Rect2(x + 2, 26, 30, 34), Color("#6f6051"))
+		n.draw_line(Vector2(x + 10, 60), Vector2(x + 29, 27), Color("#94826b"), 1.0)
+	for x in [81, 239]:
+		n.draw_circle(Vector2(x, 111), 16, Color("#101518"))
+		n.draw_circle(Vector2(x, 111), 7, Color("#444e50"))
+	n.draw_rect(Rect2(4, 88, 4, 7), Color("#b06352"))
+	n.draw_rect(Rect2(286, 87, 4, 8), Color("#dbbd7d"))
+
+
 func _draw_train_deco(n: Node2D) -> void:
-	var x := TRAIN_W
-	n.draw_rect(Rect2(x, 16, TRAIN_LINK, 94), Color8(6, 8, 9))
-	for j in range(16, 110, 4):
-		n.draw_rect(Rect2(x, j, TRAIN_LINK, 2), Color8(16, 19, 21))
-	n.draw_rect(Rect2(x, 16, TRAIN_LINK, 1), Color8(40, 46, 48))
 	if _lamp > 0.0:
 		n.draw_rect(Rect2(DOOR_POS.x + DOOR_HALF - 3.0, DOOR_POS.y - 9.0, 6, 2), Color(LAMP_C, _lamp))
 		n.draw_rect(Rect2(DOOR_POS.x + DOOR_HALF - 5.0, DOOR_POS.y - 10.0, 10, 4), Color(LAMP_C, 0.18 * _lamp))
@@ -1238,25 +1314,8 @@ func _veil_to(c: Color, sec: float) -> void:
 	await tw.finished
 
 
-## 成就：flag 记下来（「全剧终」卡下面 barter.gd show_achievements 列出来），第一次拿到时屏幕上面一行字
 func _achieve(flag: String) -> void:
-	var first := not StoryState.has(flag)
-	StoryState.set_flag(flag)
-	print("FLASHBACK_ACH %s first=%s" % [flag, first])
-	if not first:
-		return
-	var nm := flag
-	var f := FileAccess.get_file_as_string(ACH_PATH)
-	var j = JSON.parse_string(f)
-	if j is Dictionary:
-		for a in j.get("achievements", []):
-			if (a.get("all", []) as Array) == [flag]:
-				nm = str(a.get("zh" if I18n.is_zh() else "en", flag))
-	_toast.text = "%s　%s" % [_tx("ach"), nm]
-	var tw := create_tween()
-	tw.tween_property(_toast, "modulate:a", 1.0, 0.5)
-	tw.tween_interval(2.2)
-	tw.tween_property(_toast, "modulate:a", 0.0, 0.8)
+	print("FLASHBACK_ACH %s first=%s" % [flag, StoryState.set_flag(flag)])
 
 
 func _sleep(sec: float) -> void:

@@ -75,8 +75,6 @@ func _paused() -> bool:
 	var d = story.dlg
 	if d.is_open() or d.picking() or d.menu_open():
 		return true
-	if story.phone != null and story.phone.is_open():
-		return true
 	var lv = story.level
 	for n in ["_bag", "_settings"]:
 		var p = lv.get(n) if lv != null else null
