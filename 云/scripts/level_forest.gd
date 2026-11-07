@@ -473,6 +473,11 @@ func _ready() -> void:
 	_build_audio()
 	_build_ui()
 	_build_story()
+	# 11-07 作者：跟着鹿去找背包那段的原地循环（不按 Shift 跑就出不去）+ 一直不跑的结局「倔强的灵魂」；片头 CG 也在它的跑步机上跑。见 scripts/c1_loop.gd
+	var c1_loop: Node = (load("res://scripts/c1_loop.gd") as GDScript).new()
+	c1_loop.name = "C1Loop"
+	c1_loop.set("level", self)
+	add_child(c1_loop)
 	_retext()
 	if not Engine.has_meta(TITLE_FADE_META):   # 耳机提示只在启动第一次进标题时出现；全剧终 / 设置「返回标题」回来不再出（11-07 作者）
 		_enter_headphones()
@@ -1166,6 +1171,7 @@ func _build_bag(root: Control) -> void:
 	var tl := _label("", 14, UITheme.WARM)
 	tot.add_child(tl)
 	_bag_w["total"] = tl
+	_bag_w["total_row"] = tot
 	_bag.add_child(tot)
 	# 关闭：不用字体里的「×」（按钮里的字会被排到半格上，糊成「)(」），画一个 7×7 的像素叉，
 	# 按钮 15×15、叉居中正好落在整像素上（和「60 / 200」的数字同高）
@@ -1181,6 +1187,7 @@ func _build_bag(root: Control) -> void:
 	x.focus_mode = Control.FOCUS_NONE
 	x.pressed.connect(_close_panels)
 	_bag.add_child(x)
+	_bag_w["close"] = x
 	var sep := ColorRect.new()
 	sep.color = Color(0.3, 0.4, 0.35, 0.6)
 	sep.position = Vector2(8, 23)
@@ -1284,6 +1291,12 @@ func _bag_refresh() -> void:
 	_bag_w["title"].text = I18n.t("bag")
 	var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true) or StoryState.fuel_on()
 	_bag_w["total"].text = I18n.t("burn_total") % hud_fuel() if fuel_ok else ""     # 第一关新版没有燃料表（背包标题旁边不写「10 / 200」）
+	# 11-07 作者「最开始打开背包的时候，默认不显示背包的关闭按钮和火焰 icon，从第二次手动打开背包才可以关闭」：
+	# 第一次 = 捡到背包后自动打开、必须先看那张照片的那一次（_first_photo_pending，本来就关不掉）。
+	# 这时右上角的关闭叉和燃烧值（火焰 + 数字）都藏起来；看完照片以后再手动打开就照常显示、能关。
+	var locked_open := _first_photo_pending()
+	_bag_w["close"].visible = not locked_open
+	_bag_w["total_row"].visible = not locked_open
 	for i in _bag_slots.size():
 		var b := _bag_slots[i]
 		var ic: TextureRect = b.get_meta("icon")
@@ -2025,7 +2038,6 @@ func _start_descent() -> void:
 			_fade_db(_rain, RAIN_DB, DESCENT_SEC * 0.55)],
 		[DESCENT_SEC * 0.70, func(): _flash(1.0)],
 		[DESCENT_SEC * 0.72, func(): _opening_sfx("thunder_near_1", -12.0)],
-		[DESCENT_SEC + 0.25, _start_crash],
 	])
 
 
@@ -3042,9 +3054,8 @@ func _input(event: InputEvent) -> void:
 				_handled()
 				_start_btn.grab_focus()
 		S.INTRO:
-			if confirm and _state_t > 0.5:
-				_skip_to_title()
-				_handled()
+			if confirm:
+				_handled()                        # 11-07 作者：耳机提示 → 标题这一段不许用空格 / 回车 / 点击跳过（_skip_to_title 只留给 --stage=title）
 		S.CRASH:
 			if confirm:
 				_handled()                        # 11-04 作者：开场坠机是关键演出，不许跳过（_skip_crash 只留给 --stage / 自动玩）
@@ -3211,8 +3222,12 @@ func _process(delta: float) -> void:
 
 	if state == S.TITLE or _title_root.visible:
 		_update_title(delta)
-	if _title_bg != null and state in [S.PLAY, S.CINE]:      # F12 跳关之类从标题直接进了游戏
-		_title_bg_off()
+	if _title_bg != null:
+		# 11-07：下落在低帧率时会放慢，等画面滚动结束再拉电影黑边。
+		if state == S.CRASH and _title_bg.finished():
+			_start_crash()
+		elif state in [S.PLAY, S.CINE]:      # F12 跳关之类从标题直接进了游戏
+			_title_bg_off()
 
 	_debug_tick()
 	if _fuzz > 0.0:

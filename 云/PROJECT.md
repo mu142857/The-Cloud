@@ -54,6 +54,92 @@
 
 ## 5. 改动记录（新的写在最上面）
 
+### 2026-11-07（八）· Claude（Cowork）· 第一次闪回（追照片）重做：障碍狂按 E、照片进背包、触手一碰就黑
+
+需求（作者）：刚进闪回不出触手，只有场景；跑一段以后照片从右边飘过来，玩家一直追它；中间碰到障碍要按很多次 E 才能过，障碍按现有像素风格画；追到照片后物品加进背包（复用右上角背包那个飞进去的动画），出「获得地图」；然后触手从左边快速靠近，碰到晨的一瞬间直接黑屏。
+
+- `scripts/flashback.gd`（只改第一次，`_photo = id == 1`；二～四次没动）：
+  - 开头不涌触手、不回头看、没有冲刺；晨自己往右跑。`PHOTO_AT` 2.2 秒后照片从屏幕右边外慢慢飘进来，在她前面飘。
+  - 两个障碍（`OBSTACLES`：1150 施工路障、2450 一摞三只纸箱）。撞上就停、出「狂按 E 推开」（提示挪到 y 122，在头顶，不压人）；按 `OB_NEED` = 8 下推开：每下障碍晃一下、往前挪一格、她往前顶一下、扬尘；最后一下路障拍倒在地（换倒地图）往前滑，纸箱散开。鼠标 / 触屏点按也算。`OB_GUARD` 40 秒不按会自己倒（只防软锁）。
+  - 过了最后一个障碍 `CATCH_AFTER` 1.6 秒，照片落回她手里，飞进右上角背包（和剧本 `give` 同一条轨迹：先跳一下再划弧，背包弹一下、`level.bag_bump()` 的「嗒」），出「获得：地图」。
+  - 停 0.5 秒，晨回头，触手从画面左边缘外 1 秒内越来越快地扑过来（心跳、紧张音乐拉满），碰到她直接全黑（不淡），之后接原来的剧本（看照片、翻到地图……）。
+  - 删了原来的空格跳栏（`_barriers` / `_vault`）。新增测试参数 `--fb_shots=目录`、`--fb_shot_every=秒`（闪回里定时存截图）。
+- `tools/flashback_obstacle_art.py`（新）→ `art/flashback/obstacle_barrier.png`、`obstacle_barrier_down.png`、`obstacle_box_a/b/c.png`：照 `city_art.py` / `flashback_train_art.py` 的城市灰，1 倍像素、无描边，暖色只给警示灯和纸箱。
+- `data/story_forest.json`：`c1_drawing` 的 flashback 加 `"got": {"zh": "地图", "en": "Map"}`（「获得：%s」用的名字；没写 got 的旧 `went_wrong_first` 只是照片淡掉，不飞背包）。
+- 验证：云端 Godot 4.7，`--beat=c1_got_bag --fb_dev=1 --story_auto --fb_full` 按真实时长跑并每 0.2 秒截图：照片 2.2 秒飘进来，路障 / 纸箱各 8 下推开，照片进背包、出「获得：地图」，触手扑过来碰到即黑，接着 `paper_view` → `c1_woke`，0 个脚本报错，全程约 22 秒。快速自动玩（×0.4）也通。森林 `--story_check` 0 错误。手感（8 下够不够、障碍大小）和声音没人实机试过；推的时候城市前景的黑车偶尔会挡住提示约 1 秒（作者之前说前景不动，没改）。
+
+### 2026-11-07（八）· Claude（Cowork）· 选烧什么的新模板 burn_pick（第一次：弥洛要玩具熊）
+
+需求（作者）：第一次教程选烧什么要有个好模板——用闪回里旋转的地图（照片）那套动法，让小熊在天上飘；上方写「选择你要烧掉的物品」，最下方一排能烧的物品，选的时候显示简介；回车弹出「是否要烧毁 xx」，选了就触发动画、交给蛇女。不是「给 / 不给」两个选项。
+
+- 新文件 `scripts/burn_pick.gd`（剧本步骤 `burn_pick`，用法写在文件头）：整屏压暗；上方标题；中间选中的那件放大 4 倍，按 `flashback.gd` 里照片的动法翻着飘（前后晃、上下两层正弦、rotation、scale.x 窄宽翻面），换一件时从下面浮上来；下面名字 + 简介（物品 desc）；最下方一排格子（驾驶舱托板同样式），←/→ 或鼠标挑。回车 / E / 空格 / 单击 → 确认框「要烧掉「名字」吗？」烧掉 / 再想想（Esc = 再想想）。确认后：写了 `to` 就沿弧线飞到那个人跟前、缩回原大小淡掉；没写 `to` 就就地烧掉（变暖、散火星）。然后 goto `scenes[物品]`，没有就 `then`。能烧 = `keepsake_burn` / `burn` > 0（大象照片、地图这些不出现）。
+- `story_runner.gd`：`STEPS` 加 `burn_pick`、`_burn_pick()`；跳节拍 / 可达性 / `--story_check`（`_would_progress`、`_reach`、`_falls_through`、房间推断、`_would_progress_flags`、validate）都认它的 `scenes` + `then`。
+- `data/story_forest.json`：`c1_woke_b` 的「给你 / 不给」换成 `{"do": "burn_pick", "id": "c1_bear_pick", "to": "miluo", "scenes": {"deer_bear": "c1_bear_give"}, "then": "c1_bear_b"}`；前面两句旁白照旧；`c1_bear_keep` 删了（`dev_names.json` 里那条也删了）。`c1_bear_give` 没动（take → 弥洛「开个玩笑的」→ 还回来）。
+- 验证（云端 Godot 4.7，电脑上最新的改动覆盖 git HEAD）：四章 `--story_check` 0 错误；`--beat=c1_got_bag --story_auto` 中英文截图：标题、熊翻着飘、简介、确认框、熊飞到弥洛手边、`c1_bear_give` → `c1_bear_b` 正常；临时多塞 4 件东西测了一排 5 格、换选、「再想想」回去再确认（`--story_auto=full --burn_pick_back`，测完删掉了）；`--story_auto --qa_live --main_only` 森林跑完，softlock 0，overlap 4 条都是原来就有的（片头名字、成就条）。**没实机手感**：熊翻面时有一瞬间很窄（和照片同样的 0.2 倍），觉得怪可以把 `_process` 里 0.6 + 0.4·cos 调小幅度。
+
+### 2026-11-07 · Codex · 导出第一章完整剧本
+
+- 生成 `outputs/云 第一章完整剧本.docx`。主线从开场写到飞行一的「第一章结束」，之后单列森林支线、隐藏结局和可选互动。保留当前台词、选项及回应，方括号概述演出和小游戏。
+- 对照现行 JSON 核查 138 个场景的中文内容，使用 Word 渲染检查 12 页排版。全家福的燃料分支按需持有标注，现行开场流程未发放该物品。
+
+### 2026-11-07（八）· Claude（Cowork）· 跟鹿那段原地循环 + 结局「倔强的灵魂」；片头 CG 改回自动跑
+
+需求（作者）：CG 开始以后自动跑，不用一直按 Shift（推翻（六）里「按住 Shift 才播」）；从走路那里就无限循环，往回走无所谓，往前走必须按 Shift 跑才能出去；走一段时间还不跑就出「如果不奔跑的话，或许就再也出不去了……」；那句出来了还不跑，就让回忆的触手追上来，碰到之前直接结束，弹成就「倔强的灵魂」，重新开始游戏。
+
+- 新 `scripts/c1_loop.gd`（level_forest `_ready` 里建，节点名 C1Loop）：c1_follow 之后、c1_run 之前，晨走到 c1_run_go 左边 40 像素（x -440）再往前走就上「跑步机」：世界 x 钉住（`chen.intro_run`），虚拟位移 d 往前加，所有 Parallax2D 按自己的 scroll_scale 往后卷 dd×scale（和镜头真的往前走一样），脚按 `ground_fn(x + d)` 贴地。地面和 Main 都是 960 一圈，所以 d 是 960 整数倍时画面和世界完全对得上。
+  - 跑步机上按 Shift 跑起来 → 直接播 c1_run（CG）；从左边一路 Shift 跑过来的照旧撞 c1_run 的 hotspot。
+  - 往回走：先倒着卷回上一个整圈再放开，然后真的在世界里往左走（残骸还在原地）。
+  - 往前走累计 18 秒 → 潜意识字「如果不奔跑的话，或许就再也出不去了……」；再往前走 15 秒 → 结局。
+  - 自动玩（--story_auto / --autoplay）不上跑步机、不出结局。
+- 新 `scripts/c1_stubborn_end.gd`：结局。晨被锁住继续往前走，左边一团黑里伸出触手（画法、颜色直接照 flashback.gd 的触手），越追越快，心跳（heartbeat.mp3）越来越快越响，bgm 和鸟叫退下；触手尖离她 20 像素时整屏一下黑、声音全停 → flag `c1_stubborn` → 成就卡 → 4.2 秒后 `title_after_credits()` 回标题重新开始。
+- `data/achievements.json`：加 `stubborn_soul`（倔强的灵魂 / Stubborn Soul，all: c1_stubborn）。
+- `scripts/run_credits.gd`：去掉（六）的 Shift 门控和「Shift」键帽；intro 有 C1Loop 时 `loop.cg_begin(时长)`，CG 在跑步机上自动跑，速度算好让结束时 d 正好是整圈（至少卷 2880），放开以后无缝；没有 C1Loop 时退回原来的 tween。c1_run 删掉切 theme 的那步（（六）做的）保留。
+- 验证（云端 Godot 4.7，`--beat=c1_follow`，模拟按键）：只按 → ：晨钉在 -440，d 一直涨，18 秒出那句，再 15 秒触手追上，黑屏 + 成就卡「Stubborn Soul」，然后重新载入（截图核对过）；走 7 秒后按 Shift：进 c1_run，CG 自动跑，结束 d = 4800（5 圈），晨接着跑到背包、c1_got_bag 正常；走 7 秒后按 ←：卷回 d = 960 后在世界里往左走到墙。`--story_check` 0 错误，`--story_auto --beat=c1_follow` 跑完整章。
+
+### 2026-11-07 · Codex · 导入新版中英文物品描述
+
+- 按审核表的物品 ID 和来源更新 `items.json`、`items_later.json`、`forest_side_a.json`、`forest_side_b.json` 的 62 条描述，包括照片背面的地图和修好后的音乐盒。终章的日记首页和借来的纸使用 `items_later.json` 中优先注册的主表版本。
+- Godot headless 逐条通过背包详情核对 62 条中英文，森林、飞行一、河流和终章的 `--story_check` 均完成。
+
+### 2026-11-07（七）· Claude（Cowork）· 第一次打开背包不显示关闭叉和燃烧值
+
+需求（作者）：最开始打开背包的时候，默认不显示背包的关闭按钮和火焰 icon，从第二次手动打开背包才可以关闭。
+
+- `level_forest.gd`：`_bag_refresh()` 里按 `_first_photo_pending()` 藏起右上角的关闭叉（`_bag_w["close"]`）和燃烧值那一行（火焰 + 数字，`_bag_w["total_row"]`）。「第一次」= 捡到背包后自动打开、必须先看大象照片的那一次（这时 Esc / Tab / 点背包图标本来就关不掉）；看完照片（`c1_chase_done`）以后再手动打开，叉和燃烧值照常显示、能关。
+- 验证：云端 Godot 4.7（以电脑上最新的 3 个改动脚本覆盖 git HEAD）`--beat=c1_got_bag --open_bag=elephant_drawing` 截图：没有叉、没有火焰；`--beat=c1_need_wood` 同样打开：叉和火焰都在。`--story_check` 完成。
+
+### 2026-11-07（六）· Claude（Cowork）· 奔跑片头：不换 bgm，按住 Shift 才播
+
+需求（作者）：c1_run 自动播制作人员那段不要切 bgm，保留森林的；必须按住 Shift 跑才往下播，不跑就停；地图本来是循环的，原地无缝循环跑，跑完接着玩，不用往回走一大段。
+
+- `data/story_forest.json`：c1_run 删掉 `{"do": "music", "track": "theme", "fade": 0.8}`，森林 bgm（c1_crash 起的）接着放。
+- `scripts/run_credits.gd`（intro 模式的 `_forest_loop`）：原来是一个固定时长的 tween 自动卷背景、自动跑。现在每帧看 Shift：
+  - 按住 → 晨原地跑（`intro_run`，世界 x 不变），Far / MidFar / Mid / Main / Front 按进度往后卷，名字的钟（`Roll.gate`）走；
+  - 松开 → 晨按惯性停下，背景和名字一起停住（名字整个冻住）；停 0.6 秒后屏幕下方出「Shift」键帽（和 Q 键帽同样式），跑起来淡掉；
+  - 进度和名字共用一个钟，播完时每层正好卷整数圈（1/1/2/3/4），放回原 offset 不跳；晨站在进 c1_run 的位置接着玩。自动玩当成一直按着。
+- 验证（云端 Godot 4.7，`--beat=c1_follow`，模拟按住 Shift + →）：进 c1_run 后晨 x 一直是 -509；中途松开 3 秒，Main 的 offset 和名字的钟都停住、键帽亮到 1.0；再按住继续；满 18 秒（Main 卷 2880 = 3 圈）后 offset 回到 0，晨接着跑到背包、`c1_got_bag` 正常触发。`--story_check` 0 错误。
+
+### 2026-11-07 · Codex · 等下落滚动结束再进电影视角
+
+- `level_forest.gd` 用标题背景的 `finished()` 接坠毁过场。低帧率下标题背景会放慢滚动，固定倒计时可能在落到底前切走。
+- Godot headless 固定 60 / 15 FPS 验证：下落途中有雨丝、闪光和雷声，滚动结束后才拉黑边，黑边到位约两秒后飞船入场，起身提示只有 Q，雨丝随按键淡出。`--story_check` 完成。闪光和雨丝的实际观感待实机确认。
+
+### 2026-11-07（五）· Claude（Cowork）· 标题画面：塔不动，云平滑漂
+
+需求（作者）：标题画面塔的图层不应该动；后面云层的移动要平滑。
+
+- `title_cloud.gd`：`DRIFT` 6 → 0。原来镜头 50 秒一个来回左右漂 ±6 像素，塔、房子、风车（town_far / town_back 等 scroll > 0 的层）都跟着视差晃；现在镜头定住，只有云层按 room.json 里自己的 `drift` 漂。
+- `room_stage.gd`：新增 `smooth_drift`（默认 false，游戏里的房间不受影响）。标题打开它：有 drift 的层用小数位置，不再每帧取整，慢云不再一格一格跳（canvas_items 拉伸下能走到 1/3 游戏像素）。
+- 验证：云端 Godot 4.7 `--stage=title` 连续 12 秒记录各层 x：town_far / town_back / spires 一直不变；streaks / far / midfar / mid / near 按小数连续移动。
+
+### 2026-11-07（四）· Claude（Cowork）· 耳机提示 → 标题这段不能跳过
+
+需求（作者）：开场从耳机提示到标题画面，不能用空格跳过（之前 INTRO 阶段按空格 / 回车 / 点击会直接 `_skip_to_title()`）。
+
+- `level_forest.gd` 的 `_input`：`S.INTRO` 只吞掉确认键，不再跳到标题。`S.HEADPHONES` 本来就不能跳。`_skip_to_title()` 保留给 `--stage=title` 等调试入口。
+- 本次以电脑上最新的 `level_forest.gd` 为底改（里面已有别人 11-07 加的「返回标题不再出耳机提示」等改动，原样保留）。
+- 验证：云端 Godot 4.7 从启动跑起，在耳机和 INTRO 阶段各按几次空格，状态都没有提前跳到 TITLE，按原来的节奏进标题。
+
 ### 2026-11-07（三）· Claude（Cowork）· 修复起身 QTE 卡死
 
 现象（作者）：QTE 变得特别卡。

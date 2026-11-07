@@ -7,7 +7,9 @@ extends CanvasLayer
 ## 全程一条 smoothstep 曲线，每一层都是整像素；小镇被全黑盖住以后就藏起来、落完整个释放（贴图不留到第一章）。
 
 const VIEW_X := 668.0                     # 标题看到的那一屏：右边大风车；「开始游戏」「制作人员」正好落在远处那排的风车（屏幕 x 199）和小房子（x 271）之间
-const DRIFT := 6.0                        # 50 秒一个来回：比原来的 ±18 小，远处那排漂不到按钮后面
+## 11-07 作者：「标题画面的塔的图层不应该可以动」。原来镜头 ±6 像素左右漂，所有 scroll > 0 的层（塔、房子、风车）都跟着视差晃；
+## 现在镜头定住（DRIFT = 0），画面上动的只剩云层自己的风（room.json 各层的 drift），而且按小数位置平滑走（room_stage.smooth_drift）。
+const DRIFT := 0.0
 const DRIFT_SEC := 50.0
 const TD_IMG := "res://art/cloud_town/title_descent.png"
 const TD_OVER := 20                       # 这张图比小镇底边多往上盖多少行（cloud_town_art.py 的 TD_OVER）
@@ -49,6 +51,7 @@ func _ready() -> void:
 	_stage = (load("res://scripts/room_stage.gd") as GDScript).new()
 	_root.add_child(_stage)
 	_stage.setup("town", null)
+	_stage.smooth_drift = true
 	for L in _stage._layers:
 		var cfg: Dictionary = L["cfg"]
 		var id := str(cfg.get("id", ""))

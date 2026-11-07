@@ -18,6 +18,10 @@ extends RefCounted
 ##   11-05 作者：Sothere456 森林这里去掉；特别感谢是一个大列表，只在制作人员页（credits.json 的 special_thanks 写 "run": false：片头跳过，credits_page 按 id 读）。--qa_live 打印 QA_CREDITS（每个名字 begin / formed、晨跑到背包），
 ##   并且量名字（qa_label）和别的字叠不叠。
 ##
+## 11-07 作者（intro 模式 = 森林里 c1_run 那段「原地循环跑」）：不换配乐（c1_run 里切 theme 的那步删了）；CG 一开始就自动跑，不用一直按 Shift。
+##   「必须按 Shift 才能出去」放到了 CG 之前的走路那段（scripts/c1_loop.gd 的跑步机）。CG 也在那个跑步机上跑（loop.cg_begin），
+##   结束时各层正好卷到整圈，晨站在原地接着玩；没有 C1Loop 节点时退回原来的 tween 卷三圈。
+##
 ## 剧本步骤：{"do": "mechanic", "id": "run_credits", "wait": false}
 ##   可选："file": 名单文件（默认 res://data/credits.json）。
 ##   不挡剧情：run() 把这一层挂到关卡上就返回（自己往下播），runner 照常 await 也不会卡住。
@@ -84,7 +88,14 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 		_start_music(d, lv)
 	print("MECH %s started entries=%d sec=%.1f" % [ID, roll._ms.size(), total_sec(d) / speed])
 	if st.get("intro", false):
-		await _forest_loop(lv, total_sec(d) / speed)
+		var loop := lv.get_node_or_null("C1Loop")
+		if loop != null and loop.has_method("cg_begin"):
+			# 第一关：跑步机（scripts/c1_loop.gd）上自动跑，卷的速度算好，播完正好卷到整圈，放开以后画面不跳
+			loop.cg_begin(total_sec(d) / speed)
+			while is_instance_valid(loop) and loop.cg_running():
+				await lv.get_tree().process_frame
+		else:
+			await _forest_loop(lv, total_sec(d) / speed)
 
 
 func _forest_loop(lv: Node2D, duration: float) -> void:

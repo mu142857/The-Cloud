@@ -34,6 +34,9 @@ extends Control
 ##   5. 醒：hold = 停在黑 / 白上，等剧本自己放好原场景、叫醒她的声音，再 flashback_wake：眼皮从上下慢慢睁开
 ##      （睁一半、又合一点、再睁开），糊的画面一起变清楚。没写 hold 就自己接着醒。
 ##   没有失败、不会卡关：每一段都有时长上限，追上了也接着播剧情。一次 20～35 秒。
+## 第一次（11-07 作者重做，_photo，详见「第一次：追照片、障碍」那一节）：没有触手追、没有冲刺。晨自己跑，照片从右边飘进来，
+##   路上两个障碍（施工路障、一摞纸箱，tools/flashback_obstacle_art.py）撞上就停，狂按 E 推开；追到照片飞进右上角背包、
+##   出「获得：地图」（剧本 got），然后触手从左边越来越快地扑过来，碰到她直接黑屏。下面「右边要追的东西」里第一次那条只对旧的 went_wrong_first 有用。
 ## 右边一直有个要追的东西：第一次 大象的画（art/forest_story/icon_drawing.png 当纸）被风吹走，在晨前面一点飘，结束时落回她手里
 ##   （接剧本里的地图翻面）；第二次 一列要开走的车（art/flashback/train_car.png，tools/flashback_train_art.py；尾门开着、里面亮），
 ##   一直在前面一点，她冲近了车就快一点；第三次 远处一点暖光（白漫过来时跟着淡掉）。第四次没有。
@@ -55,6 +58,11 @@ const VIEW_SH := preload("res://scripts/flashback_view.gdshader")
 const PAPER_TEX := preload("res://art/forest_story/icon_drawing.png")
 const TRAIN_DOOR_L := preload("res://art/flashback/train_door_l.png")
 const TRAIN_DOOR_R := preload("res://art/flashback/train_door_r.png")
+const OB_BARRIER := preload("res://art/flashback/obstacle_barrier.png")
+const OB_BARRIER_DOWN := preload("res://art/flashback/obstacle_barrier_down.png")
+const OB_BOX := [preload("res://art/flashback/obstacle_box_a.png"), preload("res://art/flashback/obstacle_box_b.png"),
+	preload("res://art/flashback/obstacle_box_c.png")]
+const TEX_BAG := preload("res://art/forest_story/c1_bag.png")   # 和右上角背包按钮同一张（level_forest.gd TEX_BAG）
 const SOUNDS := ["heartbeat", "flashback_tense", "door_touch"]
 const GROUND := 228.0
 const CHEN_SX := 300.0          # 晨在屏幕上的 x：中间偏右一点，左边一直看得见触手
@@ -119,6 +127,17 @@ const T_ROOT := -46.0           # 根在屏幕左边外面多远
 const PAPER_LEAD := 95.0        # 在晨前面多远飘（前后再晃 ±18）
 const PAPER_Y := 190.0          # 飘的高度（脚底 228，晨 60 高：胸口到头顶那么高）
 const PAPER_HAND := Vector2(9.0, 201.0)   # 晨手的位置（相对她的 x、世界 y）：开头从这儿被吹走，结束落回这儿
+# 第一次：追照片（11-07 作者重做，见文件头「第一次」）
+const PHOTO_AT := 2.2           # 开跑多久以后照片从右边飘进来
+const PHOTO_FROM := 520.0       # 从屏幕 x 多少飘进来（画面外右边）
+const PHOTO_LEAD_BLOCKED := 150.0   # 被障碍挡住时照片飘得远一点（在前面等）
+const OBSTACLES := [[1150.0, "barrier"], [2450.0, "boxes"]]   # [离起点多远（世界 x），哪种]
+const OB_NEED := 8              # 每个障碍按几下 E 推开
+const OB_STOP := 10.0           # 晨的中心停在障碍左边缘前多远
+const OB_GUARD := 40.0          # 一直不按：这么多秒以后障碍自己倒（防软锁，正常玩碰不到）
+const CATCH_AFTER := 1.6        # 过了最后一个障碍再跑多久，照片落下来、被她抓住
+const RUSH := 1.0               # 触手从画面左边缘扑到她身上要多久（越来越快）
+const RUSH_WAIT := 0.5          # 照片进背包以后停多久，触手才来（晨回头）
 # 第二次：车站闪回的公交和车门
 const TRAIN_Y := 100.0
 const DOOR_POS := Vector2(24, 22)   # 尾门门洞在车厢图里的左上角；36×96，门扇各 18
@@ -139,6 +158,7 @@ const FLASH_HOLD := 0.9         # 满白以后残像停多久
 const GHOST_OUT := 1.4          # 残像淡掉要多久
 # 提示：「狂按 E 冲刺」+ E 键帽，在对话那一带（story_dialogue.gd BAND_TOP 184）上面
 const PROMPT_Y := 164.0
+const PROMPT_Y_PHOTO := 122.0   # 追照片那次：提示放在晨和障碍头顶上（164 会压在她身上）
 const KEY_C := Color(0.82, 0.86, 0.84)
 const KEY_FACE := Color(0.1, 0.12, 0.12)
 const KEY_SIDE := Color(0.38, 0.42, 0.42)
@@ -147,6 +167,7 @@ const DUST_C := Color(0.4, 0.44, 0.44)
 const GHOST_C := Color(0.6, 0.78, 0.82)
 const TXT := {
 	"hint": ["Mash E to dash", "狂按 E 冲刺"],
+	"push": ["Mash E to push through", "狂按 E 推开"],
 	"ach": ["Achievement", "成就"],
 }
 
@@ -221,6 +242,11 @@ var _end_color := BLACK_C
 var _look := 240.0 - CHEN_SX      # 镜头中心 = 晨 + _look
 var _avoid_k := 0.0
 var _tside: Array = []            # 第四次绕开她：每条触手走上面（-1）还是下面（1），第一次绕的时候定
+var _shot_dir := ""
+var _shot_every := 0.5
+var _shot_next := 0.0
+var _toast_l: Label                # 「获得：地图」
+var _force_tension := 0.0        # 追照片最后触手扑过来：心跳、紧张的音乐直接拉满（那时已经不在跑的循环里）
 var _kick := 0.0                  # 冲的时候镜头多往前推一点（平滑退回去）
 # 冲刺特效
 var _fx: Control                  # 速度线（屏幕坐标，盖在画面上）
@@ -231,12 +257,14 @@ var _dust_p: Array = []           # [{p, v, life, max, s}]
 var _paper: Sprite2D
 var _paper_off := Vector2.ZERO    # 相对晨的 x、世界 y（平滑跟着目标走）
 var _paper_mode := ""             # "" 还在手里（藏着）/ fly 飘 / catch 落回手里 / done
+var _photo := false               # 第一次：追照片（没有触手追，路上有障碍，抓到照片以后触手扑上来、一碰就黑）
+var _obs: Array = []              # 障碍：[{n: Node2D, kind, x: 左边缘世界 x, hits, done, parts: [Sprite2D…], lamp: Node2D}]
+var _block := -1                  # 正被第几个障碍挡着（-1 = 没有）
+var _block_t := 0.0
+var _clear_t := -1.0              # 最后一个障碍推开以后跑了多久（-1 = 还没推开完）
 # 第二次：列车
 var _train: Node2D
 var _stop_sign: Node2D
-var _barriers: Array[Node2D] = []
-var _barrier_jump := 0.0
-var _barrier_help: Label
 var _train_wx := 0.0
 var _train_v := V_BASE
 var _train_mode := ""             # "" 跟着跑 / stop 停下来等 / go 开走
@@ -256,6 +284,7 @@ func play(r: Node, step: Dictionary) -> void:
 	place = str(st.get("place", "street"))
 	end_kind = str(st.get("end", "black"))
 	_lines = st.get("lines", [])
+	_photo = id == 1
 	var args := OS.get_cmdline_user_args()
 	_auto = r.auto != ""
 	_auto_caught = "--fb_caught" in args
@@ -266,6 +295,10 @@ func play(r: Node, step: Dictionary) -> void:
 	for a in args:
 		if a.begins_with("--fb_rate="):
 			_k = 1.0
+		elif a.begins_with("--fb_shots="):
+			_shot_dir = a.trim_prefix("--fb_shots=")
+		elif a.begins_with("--fb_shot_every="):
+			_shot_every = float(a.trim_prefix("--fb_shot_every="))
 	_bus = "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -294,6 +327,9 @@ func _build() -> void:
 	_front = _chen.position.x - (GAP0 if id == 4 else GAP_FROM)
 	if id == 4:
 		_tv = STILL_CREEP
+	if _photo:                                  # 追照片：开头不出触手，最后才从画面外扑进来
+		_front = _chen.position.x - 2000.0
+		_tent_a = 0.0
 	# 母星那一屏
 	_view = TextureRect.new()
 	_view.texture = _vp.get_texture()
@@ -360,13 +396,8 @@ func _build_city() -> void:
 		_light = _node2d("FlashbackLight", _draw_light, true)
 		_world.move_child(_light, _chen.get_index() + 1)
 	if id == 1:
-		for distance in [620.0, 1720.0]:
-			var barrier := Node2D.new()
-			barrier.position = Vector2(_chen.position.x + distance, GROUND)
-			barrier.draw.connect(_draw_barrier.bind(barrier))
-			_world.add_child(barrier)
-			_world.move_child(barrier, _chen.get_index())
-			_barriers.append(barrier)
+		for o in OBSTACLES:
+			_build_obstacle(_chen.position.x + float(o[0]), str(o[1]))
 		_paper = Sprite2D.new()
 		_paper.name = "FlashbackPaper"
 		_paper.texture = PAPER_TEX
@@ -462,15 +493,11 @@ func _build_lines() -> void:
 func _build_prompt() -> void:
 	_prompt = Control.new()
 	_prompt.size = Vector2(480, 16)
-	_prompt.position = Vector2(0, PROMPT_Y)
+	_prompt.position = Vector2(0, PROMPT_Y_PHOTO if _photo else PROMPT_Y)
 	_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_prompt.modulate.a = 0.0
 	add_child(_prompt)
-	_barrier_help = _label(I18n.pick({"zh": "空格　跨过障碍", "en": "Space   Vault the barrier"}), Color("#ffe0a0"))
-	_barrier_help.position = Vector2(0, PROMPT_Y - 23)
-	_barrier_help.hide()
-	add_child(_barrier_help)
-	var txt := _tx("hint")
+	var txt := _tx("push" if _photo else "hint")
 	var w := UITheme.font().get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	var x0 := roundf(240.0 - (13.0 + 5.0 + w) / 2.0)
 	_key = Control.new()
@@ -556,7 +583,7 @@ func _run() -> void:
 	_running = true
 	if id == 4:
 		_prompt_on(0.6 * _k)
-	else:
+	elif not _photo:                            # 追照片：直接跑，提示等撞上障碍才出
 		_surge_in()
 	runner._ui_shot("flashback%d" % id, 3.0 * _k)
 	while _running:
@@ -617,6 +644,9 @@ func _goal_on() -> void:
 
 
 func _run_step(dt: float) -> void:
+	if _photo:
+		_photo_step(dt)
+		return
 	_run_t += dt
 	if _auto and not _lock and not _auto_caught and id != 4:
 		_auto_press_t -= dt
@@ -636,8 +666,6 @@ func _run_step(dt: float) -> void:
 		if px >= 1.0:
 			_chen.position.x += px
 			_extra -= px
-	if id == 1:
-		_barrier_step(dt)
 	if run:
 		_ran = true
 		_still_t = 0.0
@@ -671,42 +699,288 @@ func _run_step(dt: float) -> void:
 		_running = false
 
 
-func _draw_barrier(n: Node2D) -> void:
-	n.draw_rect(Rect2(-16, -5, 32, 5), Color("#3a3234"))
-	n.draw_rect(Rect2(-13, -21, 4, 21), Color("#797478"))
-	n.draw_rect(Rect2(9, -21, 4, 21), Color("#797478"))
-	n.draw_rect(Rect2(-16, -24, 32, 8), Color("#694b44"))
-	for x in [-13, -3, 7]:
-		n.draw_rect(Rect2(x, -23, 5, 3), Color("#d0a473"))
+# ======================================================================= 第一次：追照片、障碍
+## 11-07 作者：「刚刚进入场景的时候不会显示触手，只有场景，前进一段时间以后，会有一个照片从右边飘过来……玩家只需要一直追这个照片……
+## 中间会碰到障碍物，这个时候需要按E很多次来通过……追到照片以后，会把物品加入到背包……然后触手会从左边快速的靠近玩家，碰到玩家的一瞬间直接黑屏」。
+## 晨自己一直往右跑；PHOTO_AT 秒后照片从屏幕右边外飘进来，在她前面一点飘；撞上障碍就停住，出「狂按 E 推开」，
+## 按 OB_NEED 下推开（每下障碍晃一下、往前挪一格，她往前顶一下）；过了最后一个障碍 CATCH_AFTER 秒，照片落回她手里，
+## 飞进右上角的背包（和剧本 give 同一个动画：runner._fly_to_bag 的那套轨迹 + level.bag_bump），出「获得：地图」（剧本 got）；
+## 然后她回头，触手从左边画面外越来越快地扑过来，一碰到她，整屏直接黑（不淡）。
+func _photo_step(dt: float) -> void:
+	_run_t += dt
+	if _paper_mode == "" and _run_t >= PHOTO_AT * _k:
+		_photo_in()
+	if _block >= 0:
+		var o: Dictionary = _obs[_block]
+		_block_t += dt
+		_chen.auto_dir = 0.0
+		_chen.set("_vel", 0.0)
+		_chen.position.x = minf(_chen.position.x, float(o["x"]) - OB_STOP)
+		if _auto and not _auto_caught:
+			_auto_press_t -= dt
+			if _auto_press_t <= 0.0:
+				_auto_press_t = _auto_every
+				_ob_push()
+		if _block >= 0 and _block_t >= OB_GUARD:
+			_ob_break(_block)
+	else:
+		_chen.auto_dir = 1.0
+		var vel := float(_chen.get("_vel"))
+		if vel > 1.0:
+			_extra += RUN_BONUS * dt
+			var px := floorf(_extra)
+			if px >= 1.0:
+				_chen.position.x += px
+				_extra -= px
+		for i in _obs.size():
+			var o: Dictionary = _obs[i]
+			if bool(o["done"]):
+				continue
+			if _chen.position.x >= float(o["x"]) - OB_STOP:
+				_ob_hit(i)
+			break
+	if _clear_t >= 0.0:
+		_clear_t += dt
+		if _clear_t >= CATCH_AFTER * _k and _paper_mode == "fly":
+			_paper_mode = "catch"
+	if _paper_mode == "done" or _run_t >= 150.0:
+		result = "caught"
+		_running = false
 
 
-func _vault() -> void:
-	if _running and not _lock and _barrier_help.visible and _barrier_jump <= 0.0:
-		_barrier_jump = 0.42
-		_play("tap", -10.0)
+## 照片从屏幕右边外飘进来，飘到她前面
+func _photo_in() -> void:
+	var left := _cam.position.x - 240.0
+	_paper_off = Vector2(left + PHOTO_FROM - _chen.position.x, PAPER_Y - 26.0)
+	_paper.position = Vector2(_chen.position.x + _paper_off.x, _paper_off.y)
+	_paper.visible = true
+	_paper_mode = "fly"
+	print("FLASHBACK_PHOTO in t=%.1f" % _run_t)
 
 
-func _barrier_step(dt: float) -> void:
-	_barrier_jump = maxf(0.0, _barrier_jump - dt)
-	_spr.position.y = -roundf(sin(PI * _barrier_jump / 0.42) * 29.0)
-	if _barriers.is_empty():
-		_barrier_help.hide()
+func _build_obstacle(x: float, kind: String) -> void:
+	var n := Node2D.new()
+	n.name = "Obstacle_" + kind
+	_world.add_child(n)
+	_world.move_child(n, _chen.get_index())     # 在晨后面：她顶上去的时候身子压在它前面一点
+	var o := {"n": n, "kind": kind, "x": x, "hits": 0, "done": false, "parts": [], "lamp": null}
+	if kind == "barrier":
+		n.position = Vector2(x + 22.0, GROUND)  # 原点在底边中间：晃的时候绕着脚晃
+		var s := Sprite2D.new()
+		s.texture = OB_BARRIER
+		s.centered = false
+		s.position = Vector2(-22, -34)
+		n.add_child(s)
+		o["parts"] = [s]
+		var lamp := Node2D.new()                # 警示灯：一闪一闪（加色）
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		lamp.material = m
+		lamp.position = Vector2(12, -28)
+		lamp.draw.connect(_draw_ob_lamp.bind(lamp))
+		n.add_child(lamp)
+		o["lamp"] = lamp
+	else:
+		n.position = Vector2(x, GROUND)
+		# 三只摞起来，齐她胸口
+		for p in [[0, Vector2(12, -8.5)], [1, Vector2(13.5, -24)], [2, Vector2(11, -36.5)]]:
+			var s := Sprite2D.new()
+			s.texture = OB_BOX[int(p[0])]
+			s.position = p[1]
+			n.add_child(s)
+			o["parts"].append(s)
+	_obs.append(o)
+
+
+func _draw_ob_lamp(l: Node2D) -> void:
+	var on := fmod(_t, 0.9) < 0.45
+	if not on:
 		return
-	var next := _barriers[0]
-	var gap: float = next.position.x - _chen.position.x
-	_barrier_help.visible = gap >= 0.0 and gap < 103.0
-	if _auto and not _auto_caught and gap >= 0.0 and gap < 48.0:
-		_vault()
-	if gap > 6.0:
+	l.draw_circle(Vector2(0.5, 0.5), 6.0, Color(LAMP_C, 0.08))
+	l.draw_circle(Vector2(0.5, 0.5), 3.5, Color(LAMP_C, 0.16))
+	l.draw_rect(Rect2(-1, -1, 3, 3), Color(LAMP_C, 0.8))
+
+
+## 撞上障碍：停住、往回弹一下，出提示
+func _ob_hit(i: int) -> void:
+	_block = i
+	_block_t = 0.0
+	_chen.auto_dir = 0.0
+	_chen.set("_vel", 0.0)
+	_chen.position.x = float(_obs[i]["x"]) - OB_STOP
+	_kick = -6.0
+	_play("pat", -8.0)
+	_shake_ob(_obs[i], 0.06)
+	_prompt_on(0.15)
+	print("FLASHBACK_OBSTACLE hit %d %s t=%.1f" % [i, _obs[i]["kind"], _run_t])
+
+
+## 按一下 E：障碍晃一下、往前挪一格，她往前顶一下；够 OB_NEED 下就推开
+func _ob_push() -> void:
+	if _block < 0 or not _running:
 		return
-	_barriers.pop_front()
-	_barrier_help.hide()
-	if _barrier_jump <= 0.03:
-		_front += 36.0
-		_boost = 0.0
-		_kick = 8.0
-		_play("pat", -10.0)
-		next.rotation = -0.28
+	var o: Dictionary = _obs[_block]
+	_presses += 1
+	o["hits"] = int(o["hits"]) + 1
+	_key_down = 0.09
+	var k := float(o["hits"]) / float(OB_NEED)
+	o["x"] = float(o["x"]) + 1.0
+	(o["n"] as Node2D).position.x += 1.0
+	_chen.position.x = float(o["x"]) - OB_STOP
+	_shake_ob(o, 0.05 + 0.06 * k)
+	if _spr != null:                            # 往前顶一下
+		var tw := _spr.create_tween()
+		tw.tween_property(_spr, "position:x", 2.0, 0.04)
+		tw.tween_property(_spr, "position:x", 0.0, 0.1)
+	_kick = minf(_kick + 3.0, 8.0)
+	var feet := Vector2(_chen.position.x - 4.0, GROUND - 1.0)
+	for j in 3:
+		_dust_p.append({"p": feet + Vector2(randf_range(-4.0, 4.0), 0.0),
+			"v": Vector2(randf_range(-90.0, -30.0), randf_range(-50.0, -15.0)),
+			"life": randf_range(0.25, 0.4), "max": 0.4, "s": 1.0})
+	_play("tap", -12.0)
+	if int(o["hits"]) >= OB_NEED:
+		_ob_break(_block)
+
+
+## 晃一下：路障绕着脚歪过去再回来（越推越歪），纸箱一只只抖，上面那只抖得最厉害
+func _shake_ob(o: Dictionary, amp: float) -> void:
+	var k := float(o["hits"]) / float(OB_NEED)
+	if str(o["kind"]) == "barrier":
+		var n: Node2D = o["n"]
+		var tw := n.create_tween()
+		tw.tween_property(n, "rotation", amp, 0.05)
+		tw.tween_property(n, "rotation", 0.03 * k, 0.14).set_trans(Tween.TRANS_SINE)
+	else:
+		var parts: Array = o["parts"]
+		for j in parts.size():
+			var s: Sprite2D = parts[j]
+			var a := amp * (2.2 if j == 1 else 0.8)
+			var tw := s.create_tween()
+			tw.tween_property(s, "rotation", a, 0.05)
+			tw.tween_property(s, "rotation", (0.06 * k if j == 1 else 0.0), 0.14).set_trans(Tween.TRANS_SINE)
+
+
+## 推开：路障拍倒在地上往前滑；纸箱散开（上面那只飞出去翻个身，下面那只滑开，小的滚走）。她接着跑
+func _ob_break(i: int) -> void:
+	var o: Dictionary = _obs[i]
+	o["done"] = true
+	_block = -1
+	_prompt_a = 0.0
+	_kick = 10.0
+	_play("pat", -4.0)
+	var n: Node2D = o["n"]
+	if str(o["kind"]) == "barrier":
+		var s: Sprite2D = o["parts"][0]
+		var lamp: Node2D = o["lamp"]
+		var tw := n.create_tween()
+		tw.tween_property(n, "rotation", 0.32, 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_callback(func():
+			n.rotation = 0.0
+			s.texture = OB_BARRIER_DOWN
+			s.position = Vector2(-22, -10)
+			lamp.visible = false)
+		tw.tween_property(n, "position:x", n.position.x + 18.0, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	else:
+		var parts: Array = o["parts"]
+		var a: Sprite2D = parts[0]
+		var b: Sprite2D = parts[1]
+		var c: Sprite2D = parts[2]
+		_box_arc(b, Vector2(58, -9.5), 14.0, 0.42)           # 中间那只翻个身落在前面
+		_box_arc(c, Vector2(92, -7.0), 24.0, 0.5)            # 最上面那只飞得最远
+		a.create_tween().tween_property(a, "position", Vector2(34, -8.5), 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var last := true
+	for q in _obs:
+		if not bool(q["done"]):
+			last = false
+	if last:
+		_clear_t = 0.0
+	print("FLASHBACK_OBSTACLE clear %d hits=%d t=%.1f" % [i, int(o["hits"]), _run_t])
+
+
+func _box_arc(s: Sprite2D, to: Vector2, h: float, sec: float) -> void:
+	var p0 := s.position
+	var tw := s.create_tween().set_parallel()
+	tw.tween_method(func(v: float):
+		s.position = (p0.lerp(to, v) - Vector2(0, sin(v * PI) * h)).round(), 0.0, 1.0, sec)
+	tw.tween_property(s, "rotation", PI / 2.0, sec).set_trans(Tween.TRANS_QUAD)
+
+
+## 追到照片：照片飞进右上角的背包（和剧本 give 一样：先往上一跳，再划个弧飞过去，背包弹一下、「嗒」一声），出「获得：地图」；
+## 然后她回头，触手从左边画面外越来越快地扑过来，碰到她的那一下直接黑屏。
+func _end_photo() -> void:
+	_chen.auto_dir = 0.0
+	_prompt_a = 0.0
+	if st.has("got"):
+		await _photo_to_bag()
+	elif _paper != null:
+		create_tween().tween_property(_paper, "modulate:a", 0.0, 0.3)
+	if not _line_rows.is_empty():
+		await _flush_lines()
+	await _sleep(RUSH_WAIT)
+	# 触手：画面外 → 她身上，越来越快
+	_chen._set_facing(-1)                       # 回头
+	if _toast_l != null:
+		create_tween().tween_property(_toast_l, "modulate:a", 0.0, 0.3)
+	_tent_a = 1.0
+	_front = _cam.position.x - 240.0 - 10.0     # 尖刚好在画面左边缘外：一回头就看得见它们伸进来
+	_force_tension = 1.0
+	var tw := create_tween()
+	tw.tween_property(self, "_front", _chen.position.x - 6.0, RUSH * _k).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await tw.finished
+	# 碰到她：一下子全黑（不淡）
+	_veil.color = Color(BLACK_C, 1.0)
+	_end_color = BLACK_C
+	_bpm = 0.0
+	_force_tension = 0.0
+	_music_off(0.05)
+	print("FLASHBACK_PHOTO tentacle hit t=%.1f" % _t)
+
+
+func _photo_to_bag() -> void:
+	var cam_tl := _cam.position - Vector2(240.0, 135.0)
+	var from := _paper.position - cam_tl - PAPER_TEX.get_size() / 2.0
+	_paper.visible = false
+	var bag := TextureRect.new()                # 右上角背包按钮（这一层盖在 HUD 上面，看不见原来那个，画一个一样的）
+	bag.texture = TEX_BAG
+	bag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bag.position = Vector2(480 - 8 - 13, 7)
+	bag.size = Vector2(13, 12)
+	bag.pivot_offset = Vector2(6.5, 6)
+	bag.modulate.a = 0.0
+	add_child(bag)
+	move_child(bag, _veil.get_index())
+	create_tween().tween_property(bag, "modulate:a", 1.0, 0.25)
+	var tr := TextureRect.new()
+	tr.texture = PAPER_TEX
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.position = from.round()
+	add_child(tr)
+	move_child(tr, _veil.get_index())
+	var to := bag.position + bag.size / 2.0 - PAPER_TEX.get_size() / 2.0
+	var tw := create_tween()
+	tw.tween_property(tr, "position:y", from.y - 12.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_method(func(v: float):
+		var p := Vector2(from.x, from.y - 12.0).lerp(to, v)
+		p.y -= sin(v * PI) * 16.0
+		tr.position = p.round(), 0.0, 1.0, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await tw.finished
+	tr.queue_free()
+	bag.scale = Vector2(1.5, 1.5)
+	create_tween().tween_property(bag, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if runner.level != null and runner.level.has_method("bag_bump"):
+		runner.level.bag_bump()                 # 「嗒」一声（原来那个按钮也跟着弹）
+	var name_d = st.get("got")
+	var text := I18n.t("got_item") % (runner.txt(name_d) if name_d is Dictionary else str(name_d))
+	var toast := _label(text, Color("#d8e2dc"))
+	toast.position = Vector2(0, 40)
+	toast.modulate.a = 0.0
+	add_child(toast)
+	move_child(toast, _veil.get_index())
+	create_tween().tween_property(toast, "modulate:a", 1.0, 0.25)
+	_toast_l = toast
+	print("FLASHBACK_PHOTO to_bag t=%.1f" % _t)
+	await _sleep(0.9)
 
 
 ## 车：跑的时候尾门一直在她前面 TRAIN_GAP 左右（她冲近了车就快一点、慢下来车也慢一点，都是平滑的）
@@ -745,24 +1019,24 @@ func _input(e: InputEvent) -> void:
 		if k.keycode == KEY_F8 or k.keycode == KEY_ESCAPE:
 			return
 		if k.pressed and not k.echo and (k.keycode == KEY_E or k.physical_keycode == KEY_E):
-			_press()
-		if k.pressed and not k.echo and k.keycode == KEY_SPACE and id == 1:
-			_vault()
+			_e_pressed()
 		get_viewport().set_input_as_handled()      # 闪回里别的键不给关卡（背包、对话推进）
 	elif e is InputEventMouseButton and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
-			if id == 1 and _barrier_help.visible:
-				_vault()
-			else:
-				_press()
+			_e_pressed()
 		get_viewport().set_input_as_handled()
 	elif e is InputEventScreenTouch:
 		if e.pressed:
-			if id == 1 and _barrier_help.visible:
-				_vault()
-			else:
-				_press()
+			_e_pressed()
 		get_viewport().set_input_as_handled()
+
+
+## 按 E（鼠标 / 触屏点按也算）：追照片那次只在障碍前有用（推开），别的几次是冲刺
+func _e_pressed() -> void:
+	if _photo:
+		_ob_push()
+	else:
+		_press()
 
 
 # ======================================================================= 冲刺特效
@@ -868,6 +1142,9 @@ func _process(delta: float) -> void:
 		"pass":
 			_front += PASS_V / _k * delta
 	_tents.queue_redraw()
+	for o in _obs:
+		if o["lamp"] != null:
+			(o["lamp"] as Node2D).queue_redraw()
 	# 左边压暗那一片：跟着触手（前沿在触手尖后面一点）；第四次过去时有后沿
 	_vmat.set_shader_parameter("grey_x", _front - 70.0 - left)
 	_vmat.set_shader_parameter("grey_tail", _tail - left)
@@ -878,6 +1155,9 @@ func _process(delta: float) -> void:
 		_train_step(delta)                      # 跑完了车还要接着动（慢下来停住 / 开走）：跑的时候 _run_step 里推（11-05 夜测：之前跑完车当场定住、也开不走）
 	_fx_step(delta)
 	_prompt_step(delta)
+	if _shot_dir != "" and _t >= _shot_next:   # --fb_shots=目录：每 --fb_shot_every 秒存一张（看画面用）
+		_shot_next = _t + _shot_every
+		get_viewport().get_texture().get_image().save_png(_shot_dir.path_join("fb%d_%05.1f.png" % [id, _t]))
 	_heart(delta)
 	_lines_step(delta)
 
@@ -888,17 +1168,19 @@ func _goals_step(delta: float, left: float) -> void:
 		var want := PAPER_HAND
 		var rate := 2.6                         # 落回手里：一秒多一点
 		if _paper_mode == "fly":
-			want = Vector2(PAPER_LEAD + 18.0 * sin(_t * 0.8), PAPER_Y + 7.0 * sin(_t * 2.3) + 3.0 * sin(_t * 5.1))
-			rate = 2.2
+			var lead := PHOTO_LEAD_BLOCKED if _block >= 0 else PAPER_LEAD
+			want = Vector2(lead + 18.0 * sin(_t * 0.8), PAPER_Y + 7.0 * sin(_t * 2.3) + 3.0 * sin(_t * 5.1))
+			rate = 1.1 if _photo else 2.2       # 追照片：从右边慢慢飘过来
 		_paper_off = _paper_off.lerp(want, 1.0 - exp(-rate * delta))   # 相对晨平滑地追：她跑多快，画都在前面一点
 		_paper.position = Vector2(roundf(_chen.position.x + _paper_off.x), roundf(_paper_off.y))
 		var flut := 0.0 if _paper_mode == "done" else (0.25 if _paper_mode == "catch" else 1.0)   # 落到手里就不晃了
 		_paper.rotation = 0.2 * sin(_t * 3.1) * flut
 		_paper.scale.x = lerpf(1.0, 0.6 + 0.4 * cos(_t * 3.7), flut)            # 翻着飘（窄一下宽一下）
 		if _paper_mode == "catch" and _paper_off.distance_to(PAPER_HAND) < 3.0:
-			_paper_mode = "done"                    # 落回手里：淡掉（她攥住了）
+			_paper_mode = "done"                    # 落回手里：淡掉（她攥住了）；追照片那次接着飞进背包（_end_photo）
 			print("FLASHBACK_PAPER caught t=%.1f" % _t)
-			create_tween().tween_property(_paper, "modulate:a", 0.0, 0.3 * maxf(_k, 0.5)).set_trans(Tween.TRANS_SINE)
+			if not _photo:
+				create_tween().tween_property(_paper, "modulate:a", 0.0, 0.3 * maxf(_k, 0.5)).set_trans(Tween.TRANS_SINE)
 	if _train != null and _train.visible:
 		_train.get_node("Deco").queue_redraw()
 	if _light != null:
@@ -938,6 +1220,10 @@ func _heart(delta: float) -> void:
 			_bpm = move_toward(_bpm, 0.0, HEART_BPM.x / (STILL * _k * 1.4) * delta)   # 第四次站着：心跳慢慢停下
 		else:
 			_bpm = lerpf(HEART_BPM.x, HEART_BPM.y, tension)
+		_heart_db = lerpf(HEART_DB.x, HEART_DB.y, tension)
+	if _force_tension > 0.0:
+		tension = _force_tension
+		_bpm = lerpf(HEART_BPM.x, HEART_BPM.y, tension)
 		_heart_db = lerpf(HEART_DB.x, HEART_DB.y, tension)
 	# 紧张的音乐：一直平滑地追目标音量（淡进来也是它管）
 	if _music != null and str(_music.get_meta("snd", "")) == "flashback_tense":
@@ -1125,8 +1411,10 @@ func _quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, col: Color) -> void:
 
 # ======================================================================= 结束
 func _ending() -> void:
-	_barrier_help.hide()
-	_spr.position.y = 0.0
+	_spr.position = Vector2.ZERO
+	if _photo:
+		await _end_photo()
+		return
 	_chen.auto_dir = 0.0 if result != "escaped" else _chen.auto_dir
 	if _paper_mode == "fly":
 		_paper_mode = "catch"                       # 第一次：画落回她手里（被抓也一样，接剧本里的地图翻面）

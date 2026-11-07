@@ -115,9 +115,11 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"cycle",   # cycle：一次念一句，一直按一直往下念（_cycle_next，阿汀的河岸条例）
 	"flashback", "flashback_wake",   # 母星闪回（scripts/flashback.gd）
 	"inner", "key_prompt", "reward", "blackout", "burn_held",
+	"burn_pick",   # burn_pick：选一件东西烧掉 / 交出去（scripts/burn_pick.gd；第一关弥洛要玩具熊那一步起用，11-07）
 	"music"]   # music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
+const BURN_PICK_GD := preload("res://scripts/burn_pick.gd")    # burn_pick：选烧什么的模板（_burn_pick）
 const COCKPIT_NAV := "res://scripts/cockpit_nav.gd"   # pick 带 "ui": "nav" / "action"：驾驶舱里的行动选择 + 二次确认（终章）
 const HOOKS := {
 	"crash": ["crash_wake", "wake", "crash", "intro", "opening"],
@@ -936,6 +938,9 @@ func _step(st: Dictionary) -> String:
 		"barter":
 			var bs: String = await barter.run(st)
 			return bs
+		"burn_pick":
+			var bp: String = await _burn_pick(st)
+			return bp
 		"music":
 			if not ff:
 				var bgm = BGM_GD.get_bgm(level.get_tree())
@@ -1101,6 +1106,20 @@ func _cockpit_step(kind: String, st: Dictionary) -> String:
 			bgm.play(prev_track, NAN, 2.0)
 		else:
 			bgm.stop(2.0)
+	return r
+
+
+## 选烧什么（burn_pick.gd）：挂在对话界面下（按键先到它那里），等它选完；返回要跳去的 scene（"" = 接着播）
+func _burn_pick(st: Dictionary) -> String:
+	var n: Control = BURN_PICK_GD.new()
+	n.name = "burn_pick"
+	if not ff:
+		dlg.close_box()
+	dlg.add_child(n)
+	cockpit_ui = n                           # 软锁检测：这期间是在等玩家的界面
+	var r: String = await n.play(self, st)
+	cockpit_ui = null
+	n.queue_free()
 	return r
 
 
@@ -2898,8 +2917,8 @@ func _would_progress(s: String, seen: Dictionary) -> bool:
 				for o in st.get("options", []):
 					if _would_progress(str(o.get("scene", "")), seen):
 						return true
-			"keepsake_choice":
-				for v in (st.get("scenes", {}) as Dictionary).values():
+			"keepsake_choice", "burn_pick":
+				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
 					if _would_progress(str(v), seen):
 						return true
 			"barter":
@@ -2959,6 +2978,9 @@ func _reach(s: String, seen: Dictionary) -> Array:
 					_reach(str(o.get("scene", "")), seen)
 			"keepsake_choice":
 				for v in (st.get("scenes", {}) as Dictionary).values():
+					_reach(str(v), seen)
+			"burn_pick":
+				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
 					_reach(str(v), seen)
 			"closeup":
 				for z in st.get("zones", []):
@@ -3438,6 +3460,24 @@ func validate() -> Array[String]:
 							refs[s4] = true
 							if not scenes.has(s4):
 								out.append("scene %s：choice 选项的 scene %s 不存在" % [id, s4])
+				"burn_pick":
+					var bsc = st.get("scenes", {})
+					if not bsc is Dictionary:
+						out.append("scene %s：burn_pick 的 scenes 要是 {物品: scene}" % id)
+						bsc = {}
+					for k8 in bsc:
+						if not Inventory.defined(str(k8)):
+							out.append("scene %s：burn_pick 的物品 %s 不在物品表" % [id, k8])
+						elif int(Inventory.item(str(k8)).get("keepsake_burn", 0)) <= 0 and int(Inventory.item(str(k8)).get("burn", 0)) <= 0:
+							out.append("scene %s：burn_pick 的物品 %s 不能烧（没有 keepsake_burn / burn），界面上不会出现" % [id, k8])
+					for v8 in bsc.values() + [st.get("then", "")]:
+						if str(v8) == "":
+							continue
+						refs[str(v8)] = true
+						if not scenes.has(str(v8)):
+							out.append("scene %s：burn_pick 的 scene %s 不存在" % [id, v8])
+					if st.has("to") and not speakers.has(str(st["to"])) and npc(str(st["to"])) == null:
+						out.append("scene %s：burn_pick 的 to 不认识 %s" % [id, st["to"]])
 				"count":
 					if not st.has("set") or not st.has("flags"):
 						out.append("scene %s：count 要有 flags 和 set" % id)
@@ -3884,7 +3924,7 @@ func _falls_through(s: String) -> bool:
 	if not scenes.has(s):
 		return false
 	for st in scenes[s]:
-		if st is Dictionary and str(st.get("do", "")) in ["goto", "if", "pick", "choice", "guide", "end_chapter", "keepsake_choice"]:
+		if st is Dictionary and str(st.get("do", "")) in ["goto", "if", "pick", "choice", "guide", "end_chapter", "keepsake_choice", "burn_pick"]:
 			return false
 	return true
 
@@ -3997,6 +4037,9 @@ func _setup_stages() -> void:
 					"choice", "pick":
 						for o in st.get("options", []):
 							nexts.append(str(o.get("scene", "")))
+					"burn_pick":
+						for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
+							nexts.append(str(v))
 					"closeup":
 						for z in st.get("zones", []):
 							nexts.append(str(z.get("scene", "")))
@@ -6075,6 +6118,10 @@ func _would_progress_flags(s: String, seen := {}) -> bool:
 			"choice", "pick":
 				for o in st.get("options", []):
 					if _would_progress_flags(str(o.get("scene", "")), seen):
+						return true
+			"burn_pick":
+				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
+					if _would_progress_flags(str(v), seen):
 						return true
 	return false
 
