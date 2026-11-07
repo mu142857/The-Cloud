@@ -641,34 +641,8 @@
 			},
 			{
 				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "burn"
-			},
-			{
-				"do": "burn_held",
-				"kind": "unrelated"
-			},
-			{
-				"do": "sfx",
-				"name": "converter_burn"
-			},
-			{
-				"do": "wait",
-				"sec": 1.5
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_converter",
-				"state": "idle"
-			},
-			{
-				"do": "prop",
 				"id": "cockpit_nav",
 				"state": "fuel_short"
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
 			},
 			{
 				"do": "flag",
@@ -688,18 +662,46 @@
 				"added": true
 			},
 			{
-				"do": "keepsake_choice",
-				"id": "flight1_choice",
-				"items": [
-					"deer_bear",
-					"family_photo"
-				],
-				"route": true,
-				"scenes": {
-					"deer_bear": "burn_deer_bear",
-					"family_photo": "burn_family_photo"
+				"do": "burn_pick",
+				"id": "flight1_pick",
+				"burn": true,
+				"repeat": true,
+				"until_fuel": true,
+				"after": {
+					"deer_bear": "flight1_after_deer_bear",
+					"family_photo": "flight1_after_family_photo"
 				},
-				"_c1": "11-02 二改：无关的东西在 flight1_materials 里已经烧掉（burn_held），这里只剩私人物品；蓝色石头 / 通勤卡 / 雨玻璃的分支（burn_blue_stone、flight1_fuel_choice_glass…）留在文件里，不再走到"
+				"_note": "11-07 作者：背包里所有能烧的都能选，选一个烧一个，燃料够了就停（多选多，不是二选一）；界面是 burn_pick（中间翻着飘、最下面一排物品）"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_burned"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_after_burn"
+			}
+		],
+		"flight1_after_deer_bear": [
+			{
+				"do": "inner",
+				"zh": "对不起。",
+				"en": "I'm sorry.",
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
+				"added": true
+			}
+		],
+		"flight1_after_family_photo": [
+			{
+				"do": "inner",
+				"zh": "……我会记起来的。",
+				"en": "...I'll remember.",
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
+				"added": true
 			}
 		],
 		"burn_blue_stone": [

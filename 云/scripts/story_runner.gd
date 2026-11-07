@@ -5399,7 +5399,7 @@ func _burn_held(st: Dictionary) -> void:
 		var id := str(it)
 		if not Inventory.has(id):
 			continue
-		if level.chapter == "flight1" and not ff:
+		if level.chapter == "flight1" and not ff and not bool(st.get("no_closeup", false)):
 			await _burn_closeup(id)
 		Inventory.remove(id)
 		total += fuel_of(id)
