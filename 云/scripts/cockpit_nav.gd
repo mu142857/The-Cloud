@@ -11,6 +11,8 @@ extends Control
 ##   两种都是：选了以后卡片下面换成确认（选项的 confirm 文字，没有就是「选项名？」）+「确认」/「再想想」。
 ##   再想想（或 Esc）= 回到挑的界面，可以换。确认 = 闪一下 + 确认音，界面淡掉，返回选了第几个。这两次选择决定结局，所以要确认。
 ##   界面开着的时候导航屏物件 cockpit_nav 换成 nav_state（nav 默认 landing_zone），晨转过去看它；关掉以后换回原来的状态。
+## 选项可带 "fuel_need": n（11-07 终章结局重构：芦苇地要全收集、全烧）：燃料（StoryState.fuel）不到 n 的灰掉，
+##   名字后面写「（燃料还差 X）」，选它只响一声闷的、卡片下面提示一下，不进确认；自动玩选的是灰的就换第一个不灰的。
 ## story_runner._pick 建它（挂在对话界面下，按键先到这里）：var i = await play(runner, st, auto_i)。跳节拍不建（直接用 auto_i）。
 ## 自动玩：main 过一会儿直接选 auto_i、确认；full 先挑一个别的、在确认里点「再想想」，再选 auto_i 确认（「再想想」那条路也走一遍）。
 
@@ -29,6 +31,8 @@ const TXT := {
 	"back": ["Not yet", "再想想"],
 	"keys_nav": ["← → choose   E select", "← → 选   E 确定"],
 	"keys_action": ["↑ ↓ choose   E select", "↑ ↓ 选   E 确定"],
+	"short": [" (%d more fuel needed)", "（燃料还差 %d）"],
+	"locked": ["Not enough fuel: %d short.", "燃料不够，还差 %d。"],
 }
 
 var runner: Node
@@ -51,6 +55,7 @@ var _nav_was := ""
 var _auto_i := -1
 var _auto_plan: Array = []
 var _auto_t := 0.0
+var _lock_t := 0.0                     # 点了灰的选项：提示还亮多久
 
 
 func play(r: Node, step: Dictionary, auto_i := -1) -> int:
@@ -59,6 +64,11 @@ func play(r: Node, step: Dictionary, auto_i := -1) -> int:
 	st = step
 	opts = st.get("options", [])
 	nav = str(st.get("ui", "")) == "nav"
+	if auto_i >= 0 and auto_i < opts.size() and _short(auto_i) > 0:
+		for j in opts.size():
+			if _short(j) <= 0:
+				auto_i = j
+				break
 	_auto_i = auto_i
 	_build()
 	if cockpit != null:
@@ -104,7 +114,15 @@ func _tx(k: String) -> String:
 
 
 func _opt_label(i: int) -> String:
-	return runner.txt(opts[i].get("label", opts[i].get("id", "")))
+	var s: String = runner.txt(opts[i].get("label", opts[i].get("id", "")))
+	var d := _short(i)
+	return s + (_tx("short") % d if d > 0 else "")
+
+
+## 这个选项还差多少燃料（0 = 够了 / 不要求）
+func _short(i: int) -> int:
+	var n := int(opts[i].get("fuel_need", 0))
+	return maxi(0, n - StoryState.fuel()) if n > 0 else 0
 
 
 func _build() -> void:
@@ -179,12 +197,12 @@ func _style() -> void:
 	for i in _rows.size():
 		var on := i == _sel
 		_rows[i].text = ("▸ " if on else "  ") + _opt_label(i)
-		_rows[i].add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
-		_rows[i].modulate.a = 1.0 if _mode == "pick" or on else 0.45
+		_rows[i].add_theme_color_override("font_color", UITheme.TEXT if on and _short(i) <= 0 else UITheme.TEXT_DIM)
+		_rows[i].modulate.a = (1.0 if _mode == "pick" or on else 0.45) * (0.55 if _short(i) > 0 else 1.0)
 	if _name != null:
 		_name.text = _opt_label(_sel)
-	_keys.visible = _mode == "pick"
-	_prompt.visible = _mode != "pick"
+	_keys.visible = _mode == "pick" and _lock_t <= 0.0
+	_prompt.visible = _mode != "pick" or _lock_t > 0.0
 	for i in _btns.size():
 		var on := i == _btn_sel
 		var l := _btns[i]
@@ -278,6 +296,10 @@ func _pt(i: int) -> Vector2:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _lock_t > 0.0:
+		_lock_t -= delta
+		if _lock_t <= 0.0:
+			_style()
 	_auto_tick(delta)
 
 
@@ -302,6 +324,13 @@ func _step_sel(d: int) -> void:
 func _choose() -> void:
 	if _mode != "pick":
 		return
+	if _short(_sel) > 0:
+		_sound("tick", -6.0, 0.6)          # 灰的：闷一声，提示还差多少，不进确认
+		_prompt.text = _tx("locked") % _short(_sel)
+		_lock_t = 2.2
+		_style()
+		return
+	_lock_t = 0.0
 	_mode = "confirm"
 	_sound("tick", -6.0, 1.0)
 	_prompt.text = _confirm_text(_sel)

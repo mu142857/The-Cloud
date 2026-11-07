@@ -2424,6 +2424,10 @@ func _update_nudge(delta: float) -> void:
 		if not _nudged.has(key):
 			_nudged[key] = true
 			var who := str(hl.get("who", "chen"))
+			if who == "chen" and data.get("hints_inner", false):
+				# 11-07 作者：晨的独白不出对话框，打在屏幕上（剧本顶层 "hints_inner": true 的章节）
+				_inner({"zh": str(hl.get("zh", "")), "en": str(hl.get("en", "")), "style": "fade", "sec": 2.4})
+				return
 			var tl := txt_lang(hl)
 			dlg.murmur(txt_in(speakers.get(who, who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
 				_anchor.bind(who), bool(hl.get("added", false)) and mark_added)

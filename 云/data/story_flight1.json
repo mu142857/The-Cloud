@@ -1,5 +1,5 @@
 {
-	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。 11-02 第一关新版：燃料二选一先摆新物品（全家福 / 玩具熊 / 告白信 / 兔子皮毛 / 地板，只摆背包里有的；地板两块一起放 = 100），每件一句 look、一句 burn（burn_<id>），日志 flight1_log_pick 按 burned_<id> 分；旧的蓝色石头 / 通勤卡 / 雨玻璃分支不删。 11-02 二改（作者：选项太多）：flight1_materials 先 burn_held 一口气烧掉无关的（两块地板、兔子皮毛、告白信，共 275），改航线需要 570（= 200 − 5 + 275 + 100），烧完还差约 100；二选一只剩玩具熊 / 全家福。 11-02 夜（支线）：需要的燃料改成按背包算（fuel need_held unrelated + 100），无关的用 burn_held kind unrelated 全烧（支线带来的无关燃料也算），烧完永远还差 100。 11-07（作者：「手机没有用，删掉」）：通讯器全删——flight1_miluo_msg（弥洛来消息）整段删了，记完日志直接 goto flight1_drawing；flight1_drawing 只留看画（拿通讯器、对朋友说「等我找到，给你拍张清楚的」、打字又删、把通讯器放到仪表旁都删了），cockpit_phone 在飞行一不再出现。flag flight1_miluo_msg 不再设（全剧本没有地方读它）。",
+	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。 11-02 第一关新版：燃料二选一先摆新物品（全家福 / 玩具熊 / 告白信 / 兔子皮毛 / 地板，只摆背包里有的；地板两块一起放 = 100），每件一句 look、一句 burn（burn_<id>），日志 flight1_log_pick 按 burned_<id> 分；旧的蓝色石头 / 通勤卡 / 雨玻璃分支不删。 11-02 二改（作者：选项太多）：flight1_materials 先 burn_held 一口气烧掉无关的（两块地板、兔子皮毛、告白信，共 275），改航线需要 570（= 200 − 5 + 275 + 100），烧完还差约 100；二选一只剩玩具熊 / 全家福。 11-02 夜（支线）：需要的燃料改成按背包算（fuel need_held unrelated + 100），无关的用 burn_held kind unrelated 全烧（支线带来的无关燃料也算），烧完永远还差 100。 11-07（作者：「手机没有用，删掉」）：通讯器全删——flight1_miluo_msg（弥洛来消息）整段删了，记完日志直接 goto flight1_drawing；flight1_drawing 只留看画（拿通讯器、对朋友说「等我找到，给你拍张清楚的」、打字又删、把通讯器放到仪表旁都删了），cockpit_phone 在飞行一不再出现。flag flight1_miluo_msg 不再设（全剧本没有地方读它）。 11-07 二（作者：「晨的自我独白一定要少」）：晨一个人说的 28 句删到 10 句，留下的都改成 inner（fade，打在屏幕上，不出对话框）；纪念品卡的 look / put_back / route_look 台词全删（卡上的说明已经写了）；只剩一句、删了就空的可点场景（副驾驶座后来那次、维修记录、转化装置两次、窗外）连热点一起删。",
 	"speakers": {
 		"chen": {
 			"zh": "晨",
@@ -186,6 +186,24 @@
 	],
 	"hotspots": [
 		{
+			"id": "leak",
+			"at": "cockpit_leak",
+			"room": "cockpit",
+			"label": {
+				"zh": "冒白汽的接口",
+				"en": "Steaming joint"
+			},
+			"need": [
+				"flight1_leak_wait"
+			],
+			"not": [
+				"flight1_leak_fixed"
+			],
+			"once": true,
+			"scene": "flight1_leak_fix",
+			"added": true
+		},
+		{
 			"id": "seat",
 			"at": "cockpit_seat",
 			"room": "cockpit",
@@ -207,23 +225,6 @@
 			"added": true
 		},
 		{
-			"id": "copilot_late",
-			"at": "cockpit_copilot",
-			"room": "cockpit",
-			"label": {
-				"zh": "副驾驶座",
-				"en": "Copilot's seat"
-			},
-			"need": [
-				"flight1_burned"
-			],
-			"not": [
-				"flight1_done"
-			],
-			"once": false,
-			"scene": "copilot_look_late"
-		},
-		{
 			"id": "copilot",
 			"at": "cockpit_copilot",
 			"room": "cockpit",
@@ -239,23 +240,6 @@
 			],
 			"once": false,
 			"scene": "copilot_look"
-		},
-		{
-			"id": "repair_log",
-			"at": "cockpit_repair_log",
-			"room": "cockpit",
-			"label": {
-				"zh": "维修记录",
-				"en": "Repair log"
-			},
-			"need": [
-				"flight1_reroute"
-			],
-			"not": [
-				"flight1_done"
-			],
-			"once": false,
-			"scene": "repair_log_look"
 		},
 		{
 			"id": "toolbox",
@@ -275,41 +259,6 @@
 			"scene": "toolbox_look"
 		},
 		{
-			"id": "converter_late",
-			"at": "cockpit_converter",
-			"room": "cockpit",
-			"label": {
-				"zh": "转化装置",
-				"en": "Converter"
-			},
-			"need": [
-				"flight1_burned"
-			],
-			"not": [
-				"flight1_done"
-			],
-			"once": false,
-			"scene": "converter_look_late"
-		},
-		{
-			"id": "converter",
-			"at": "cockpit_converter",
-			"room": "cockpit",
-			"label": {
-				"zh": "转化装置",
-				"en": "Converter"
-			},
-			"need": [
-				"flight1_started"
-			],
-			"not": [
-				"flight1_fuel_low",
-				"flight1_done"
-			],
-			"once": false,
-			"scene": "converter_look"
-		},
-		{
 			"id": "window_approach",
 			"at": "cockpit_window",
 			"room": "cockpit",
@@ -326,24 +275,6 @@
 			"once": true,
 			"scene": "flight1_approach",
 			"added": true
-		},
-		{
-			"id": "window",
-			"at": "cockpit_window",
-			"room": "cockpit",
-			"label": {
-				"zh": "窗外",
-				"en": "Window"
-			},
-			"need": [
-				"flight1_started"
-			],
-			"not": [
-				"flight1_journal",
-				"flight1_landing"
-			],
-			"once": false,
-			"scene": "window_look"
 		},
 		{
 			"id": "console",
@@ -420,9 +351,14 @@
 				"name": "pat"
 			},
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "这次不错。别刚夸完就出事。",
-				"en": "Not bad this time. Don't break the second I say that."
+				"en": "Not bad this time. Don't break the second I say that.",
+				"style": "fade",
+				"sec": 3.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			},
 			{
 				"do": "prop",
@@ -486,8 +422,6 @@
 				"do": "debris_steer",
 				"id": "flight1_debris",
 				"sec": 40,
-				"far_scale": 0.55,
-				"plan": "dense",
 				"fuel_per_bump": 1,
 				"fuel_max_loss": 5
 			},
@@ -547,13 +481,7 @@
 			{
 				"do": "flag",
 				"set": "flight1_leak_wait"
-			},
-			{"do": "debris_steer", "id": "flight1_repair", "sec": 20, "far_scale": 1.0, "plan": "repair", "repair_at": "cockpit_leak"},
-			{"do": "ambient", "name": "hiss_thin", "at": "cockpit_leak", "on": false},
-			{"do": "prop", "id": "cockpit_leak", "state": "fixed"},
-			{"do": "flag", "set": "flight1_leak_fixed"},
-			{"say": "chen", "zh": "看吧，这次一遍就好了。", "en": "See? Got it in one this time."},
-			{"do": "journal", "zh": "右侧接口：松开螺丝，重新对准，漏气停了。", "en": "Right-side joint: loosened the screws, lined it back up, leak stopped.", "added": true}
+			}
 		],
 		"flight1_seat": [
 			{
@@ -712,13 +640,13 @@
 				"to": "cockpit_converter"
 			},
 			{
-				"do": "burn_held",
-				"kind": "unrelated"
-			},
-			{
 				"do": "prop",
 				"id": "cockpit_converter",
 				"state": "burn"
+			},
+			{
+				"do": "burn_held",
+				"kind": "unrelated"
 			},
 			{
 				"do": "sfx",
@@ -741,12 +669,6 @@
 			{
 				"do": "wait",
 				"sec": 1.0
-			},
-			{
-				"say": "chen",
-				"zh": "这些都烧了，还是不够。",
-				"en": "Burned all of it. Still not enough.",
-				"added": true
 			},
 			{
 				"do": "flag",
@@ -777,25 +699,6 @@
 					"deer_bear": "burn_deer_bear",
 					"family_photo": "burn_family_photo"
 				},
-				"look": {
-					"deer_bear": [
-						{
-							"say": "chen",
-							"zh": "小鹿塞给我的。",
-							"en": "The deer pushed this into my hands.",
-							"added": true
-						}
-					],
-					"family_photo": [
-						{
-							"say": "chen",
-							"zh": "上面的脸，我还是想不起来。",
-							"en": "I still can't place the faces.",
-							"added": true
-						}
-					]
-				},
-				"put_back": [],
 				"_c1": "11-02 二改：无关的东西在 flight1_materials 里已经烧掉（burn_held），这里只剩私人物品；蓝色石头 / 通勤卡 / 雨玻璃的分支（burn_blue_stone、flight1_fuel_choice_glass…）留在文件里，不再走到"
 			}
 		],
@@ -870,12 +773,12 @@
 				"state": "closed"
 			},
 			{
-				"do": "fuel",
-				"burn": "blue_stone"
-			},
-			{
 				"do": "sfx",
 				"name": "converter_burn"
+			},
+			{
+				"do": "fuel",
+				"burn": "blue_stone"
 			},
 			{
 				"narr": {
@@ -894,9 +797,14 @@
 				"sec": 1.0
 			},
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "原来你还真能发光。",
-				"en": "So you really can glow."
+				"en": "So you really can glow.",
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			},
 			{
 				"do": "flag",
@@ -931,9 +839,14 @@
 				"item": "seat_chart"
 			},
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "「第三节车厢的门关得很响。」",
-				"en": "\"The third car's doors slam.\""
+				"en": "\"The third car's doors slam.\"",
+				"style": "fade",
+				"sec": 3.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			},
 			{
 				"do": "face",
@@ -985,12 +898,12 @@
 				"state": "card_curl"
 			},
 			{
-				"do": "fuel",
-				"burn": "commute_card"
-			},
-			{
 				"do": "sfx",
 				"name": "converter_burn"
+			},
+			{
+				"do": "fuel",
+				"burn": "commute_card"
 			},
 			{
 				"narr": {
@@ -1233,12 +1146,6 @@
 				"name": "adjust_console"
 			},
 			{
-				"say": "chen",
-				"zh": "走吧。",
-				"en": "Let's go.",
-				"added": true
-			},
-			{
 				"do": "cockpit_dash"
 			},
 			{
@@ -1256,68 +1163,26 @@
 				"to": "cockpit_copilot"
 			},
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "总觉得以前有人坐这儿，修完老问：「这回真修好了？」",
 				"en": "I keep feeling someone used to sit here and ask after every fix: \"Is it really fixed this time?\"",
-				"added": true
-			}
-		],
-		"copilot_look_late": [
-			{
-				"do": "face",
-				"who": "chen",
-				"to": "cockpit_copilot"
-			},
-			{
-				"say": "chen",
-				"zh": "还是空着。",
-				"en": "Still empty.",
-				"added": true
-			}
-		],
-		"repair_log_look": [
-			{
-				"say": "chen",
-				"zh": "右侧接口，又一个勾。",
-				"en": "Right-side joint. Another tick.",
-				"added": true
+				"style": "fade",
+				"sec": 3.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			}
 		],
 		"toolbox_look": [
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "弥洛的工具，用完得放回原处，不然她要骂人。",
 				"en": "Milo's tools. Put them back or she'll yell.",
-				"added": true
-			}
-		],
-		"converter_look": [
-			{
-				"say": "chen",
-				"zh": "烧东西的地方。",
-				"en": "Where things get burned.",
-				"added": true
-			}
-		],
-		"converter_look_late": [
-			{
-				"say": "chen",
-				"zh": "里面已经没有了。",
-				"en": "Nothing left inside.",
-				"added": true
-			}
-		],
-		"window_look": [
-			{
-				"do": "face",
-				"who": "chen",
-				"to": "cockpit_window"
-			},
-			{
-				"say": "chen",
-				"zh": "树屋早就看不见了。",
-				"en": "The treehouse is long out of sight.",
-				"added": true
+				"style": "fade",
+				"sec": 3.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			}
 		],
 		"console_pat": [
@@ -1331,9 +1196,90 @@
 				"name": "pat"
 			},
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "没说你。",
 				"en": "Wasn't talking about you.",
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
+			}
+		],
+		"flight1_leak_fix": [
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "pickup"
+			},
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_leak"
+			},
+			{
+				"do": "ambient",
+				"name": "hiss_thin",
+				"at": "cockpit_leak",
+				"on": false
+			},
+			{
+				"do": "sfx",
+				"name": "wrench"
+			},
+			{
+				"do": "wait",
+				"sec": 0.8
+			},
+			{
+				"do": "sfx",
+				"name": "wrench"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_leak",
+				"state": "fixed"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "flag",
+				"set": "flight1_leak_fixed"
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_copilot"
+			},
+			{
+				"do": "wait",
+				"sec": 1.0
+			},
+			{
+				"do": "anim",
+				"who": "chen",
+				"name": "smile_small"
+			},
+			{
+				"do": "inner",
+				"zh": "看吧，这次一遍就好了。",
+				"en": "See? Got it in one this time.",
+				"style": "fade",
+				"sec": 3.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
+			},
+			{
+				"do": "wait",
+				"sec": 1.5
+			},
+			{
+				"do": "journal",
+				"zh": "右侧接口：松开螺丝，重新对准，漏气停了。",
+				"en": "Right-side joint: loosened the screws, lined it back up, leak stopped.",
 				"added": true
 			}
 		],
@@ -1350,56 +1296,6 @@
 					"rain_glass": "burn_rain_glass",
 					"commute_card": "burn_commute_card"
 				},
-				"look": {
-					"rain_glass": [
-						{
-							"say": "chen",
-							"zh": "河里冲圆的。干着也亮。",
-							"en": "The river wore it round. It shines even dry.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "大嘴鸟说，这样就不用一直弄湿它了。",
-							"en": "The toucan said I wouldn't have to keep it wet anymore.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "……石头留在森林里了。",
-							"en": "...The stone stayed in the forest.",
-							"added": true
-						}
-					],
-					"commute_card": [
-						{
-							"say": "chen",
-							"zh": "几百次，都是同一个站。",
-							"en": "Hundreds of times. Always the same station.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "为了等下午的太阳，坐过了站。",
-							"en": "Missed my stop once, waiting for the afternoon sun.",
-							"added": true
-						},
-						{
-							"say": "chen",
-							"zh": "最后一天没有刷。",
-							"en": "Didn't tap it on the last day.",
-							"added": true
-						}
-					]
-				},
-				"put_back": [
-					{
-						"say": "chen",
-						"zh": "……再看看。",
-						"en": "...Let me think.",
-						"added": true
-					}
-				],
 				"retired": true
 			}
 		],
@@ -1474,12 +1370,12 @@
 				"state": "closed"
 			},
 			{
-				"do": "fuel",
-				"burn": "rain_glass"
-			},
-			{
 				"do": "sfx",
 				"name": "converter_burn"
+			},
+			{
+				"do": "fuel",
+				"burn": "rain_glass"
 			},
 			{
 				"narr": {
@@ -1498,10 +1394,14 @@
 				"sec": 1.0
 			},
 			{
-				"say": "chen",
+				"do": "inner",
 				"zh": "……干着也亮。",
 				"en": "...Shines even dry.",
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
 				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）",
 				"_todo": "待剧情姐补：烧雨玻璃的那一句（蓝色石头那一版是「原来你还真能发光。」）"
 			},
 			{
@@ -1566,18 +1466,22 @@
 				"state": "closed"
 			},
 			{
-				"do": "fuel",
-				"burn": "family_photo"
-			},
-			{
 				"do": "sfx",
 				"name": "converter_burn"
 			},
 			{
-				"say": "chen",
+				"do": "fuel",
+				"burn": "family_photo"
+			},
+			{
+				"do": "inner",
 				"zh": "……我会记起来的。",
 				"en": "...I'll remember.",
-				"added": true
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			},
 			{
 				"do": "flag",
@@ -1637,18 +1541,22 @@
 				"state": "closed"
 			},
 			{
-				"do": "fuel",
-				"burn": "deer_bear"
-			},
-			{
 				"do": "sfx",
 				"name": "converter_burn"
 			},
 			{
-				"say": "chen",
+				"do": "fuel",
+				"burn": "deer_bear"
+			},
+			{
+				"do": "inner",
 				"zh": "对不起。",
 				"en": "I'm sorry.",
-				"added": true
+				"style": "fade",
+				"sec": 2.6,
+				"wait": true,
+				"added": true,
+				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
 			},
 			{
 				"do": "flag",

@@ -39,7 +39,8 @@ const CHAPTERS := {
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "saw_rock", "musicbox_fixed",
 			"sa_sign_done", "sa_radio_done",   # 11-05：尾声鹿 / 弥洛按新第一关「送回路标 / 收音机」支线分支（旧版的 returned_all / returned_any 新版不设了）
 			"river_cup_traced",             # 11-02 河流篇来客册改成可选：epi_miluo 按它分支
-			"river_n_courier"]   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
+			"river_n_courier",   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
+			"river_seal_cabinet", "river_seal_market", "river_jelly_given"]   # 11-07 终章真结局：密封圈从绿柜子 / 市集来、给没给水母东西
 			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,
 		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},
 }

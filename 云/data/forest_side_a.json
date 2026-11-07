@@ -239,7 +239,9 @@
    ],
    "not": [],
    "once": false,
-   "scene": "sa_pine_after"
+   "scene": "sa_pine_after",
+   "retired": true,
+   "_retired": "11-07 晨独白要少：做完再点只有一句自言自语，整个点去掉"
   },
   {
    "id": "sa_stall",
@@ -272,7 +274,9 @@
    ],
    "not": [],
    "once": false,
-   "scene": "sa_stall_after"
+   "scene": "sa_stall_after",
+   "retired": true,
+   "_retired": "11-07 晨独白要少：做完再点只有一句自言自语，整个点去掉"
   },
   {
    "id": "sa_sign_base",
@@ -305,7 +309,9 @@
    ],
    "not": [],
    "once": false,
-   "scene": "sa_sign_after"
+   "scene": "sa_sign_after",
+   "retired": true,
+   "_retired": "11-07 晨独白要少：做完再点只有一句自言自语，整个点去掉"
   },
   {
    "id": "sa_house",
@@ -338,7 +344,9 @@
    ],
    "not": [],
    "once": false,
-   "scene": "sa_house_after"
+   "scene": "sa_house_after",
+   "retired": true,
+   "_retired": "11-07 晨独白要少：做完再点只有一句自言自语，整个点去掉"
   }
  ],
  "scenes": {
@@ -696,9 +704,11 @@
   ],
   "sa_stall_look": [
    {
-    "say": "chen",
+    "do": "inner",
     "zh": "棚子倒还撑得住",
-    "en": "The stall's still standing, at least"
+    "en": "The stall's still standing, at least",
+    "style": "fade",
+    "sec": 2.6
    }
   ],
   "sa_radio_return": [
@@ -989,9 +999,11 @@
   ],
   "sa_sign_look": [
    {
-    "say": "chen",
+    "do": "inner",
     "zh": "这底座空着呢",
-    "en": "The base is empty"
+    "en": "The base is empty",
+    "style": "fade",
+    "sec": 2.6
    }
   ],
   "sa_sign_return": [
@@ -1100,16 +1112,6 @@
     "do": "prop",
     "id": "placed_sign",
     "state": "placed"
-   },
-   {
-    "say": "chen",
-    "zh": "底座旁边，压着半张车票",
-    "en": "Half a ticket, tucked by the base"
-   },
-   {
-    "say": "chen",
-    "zh": "车票终点都泡花了，这可怎么找",
-    "en": "The destination's washed out. No way to know where they went"
    },
    {
     "do": "journal",
@@ -1256,14 +1258,11 @@
   ],
   "sa_house_look": [
    {
-    "say": "chen",
-    "zh": "门槛上积了这么厚的灰",
-    "en": "So much dust on the doorstep"
-   },
-   {
-    "say": "chen",
-    "zh": "连个脚印都找不着",
-    "en": "Not a single footprint"
+    "do": "inner",
+    "zh": "门槛上积了这么厚的灰，连个脚印都找不着",
+    "en": "So much dust on the doorstep. Not a single footprint",
+    "style": "fade",
+    "sec": 3.2
    }
   ],
   "sa_house_lamp": [

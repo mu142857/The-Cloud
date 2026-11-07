@@ -125,7 +125,7 @@ const PLAN_FINAL := [
 const PLAN_AUTO_DARK := [
 	{"t": 0.0, "k": "one", "lane": -1},
 	{"t": 2.7, "k": "dark_on"},
-	{"t": 3.2, "k": "dark", "g": 1.0, "last": true},
+	{"t": 3.2, "k": "dark", "g": -1.0, "last": true},   # 和上一波的安全通道（下面）正好相反：自动玩先「迷路」，日志里有偏航时的声音
 ]
 const FINAL_ROW := 2.4        # 结尾那几排隔多少秒
 const PAIR_DT := 0.9          # pair 两块隔多少秒
@@ -849,32 +849,94 @@ func _dark_wave() -> Dictionary:
 func _dark_step(delta: float) -> void:
 	var w := _dark_wave()
 	var want_line := 0.0
+	_dark_ctl = false
 	if not w.is_empty() and _dark_on:
-		var d := absf(cockpit.ship_goal - float(w["safe"])) / maxf(1.0, _shift)     # 0 = 正在航道里，2 = 最远
+		_dark_ctl = true
+		var off: float = (float(cockpit.ship_goal) - float(w["safe"])) / maxf(1.0, _shift)      # + = 船在缝下面（撞下面那片），- = 在上面
+		var d := absf(off)                                                          # 0 = 正在航道里，2 = 最远
+		var k := clampf(d, 0.0, 1.0)
 		var lost := d > DARK_NEAR
 		var since := _t - float(w["t0"])
 		if lost and since > DARK_HINT2:
 			_hint_lv = 2
 		elif lost and since > DARK_HINT1:
 			_hint_lv = maxi(_hint_lv, 1)
-		# 往目标音量平滑地靠（每秒最多 40 dB）：进黑雾那一下不再从 -60 一帧跳到 -36（11-04 --qa_audio）
+		# 往目标音量平滑地靠（每秒最多 40 dB）：进黑雾那一下不再从 -60 一帧跳上去（11-04 --qa_audio）
+		# 轰鸣：越偏越响；音高 = 撞的是哪片碎石（船在缝上面 → 上面那片 → 高；在下面 → 低）
 		if is_instance_valid(_rumble):
-			_rumble.volume_db = move_toward(_rumble.volume_db, lerpf(-36.0, -7.0, clampf(d, 0.0, 1.0)), 40.0 * delta)
+			_rumble.volume_db = move_toward(_rumble.volume_db, lerpf(RUMBLE_IN, RUMBLE_OUT, k), 40.0 * delta)
+			_rumble.pitch_scale = move_toward(_rumble.pitch_scale, clampf(1.0 - RUMBLE_PITCH * off, 0.55, 1.6), 1.5 * delta)
+		# 气流：进航道最清楚，偏了被轰鸣盖住（音高在 _air_step 里按航道高低）
+		_air_dark_db = move_toward(_air_dark_db, lerpf(-10.0, -30.0, k), 40.0 * delta)
 		if is_instance_valid(_air):
-			_air.volume_db = move_toward(_air.volume_db, lerpf(-10.0, -30.0, clampf(d, 0.0, 1.0)), 40.0 * delta)
+			_air.volume_db = _air_dark_db
+		# 引擎：安静航道里变柔（小声、音高低一点），偏了发紧
+		_hum_step(lerpf(HUM_SOFT, HUM_TENSE, k), lerpf(0.9, 1.04, k), delta)
 		# 铜铃：按航道高低定音高，隔一会儿响一下（提示加强以后更响、更密）；进了航道就不响了（已经找到）
 		if _bell and lost:
 			_bell_t -= delta
 			if _bell_t <= 0.0:
 				_bell_t = 2.2 if _hint_lv == 0 else 1.3
 				var g := float(w["safe"]) / maxf(1.0, _shift)
+				_bell_n += 1
 				_play("bell_soft", -16.0 if _hint_lv == 0 else -8.0, 1.0 - 0.22 * g, _pan(_ship_cx))
-		# 气流线：没铃一开始就淡淡亮着；有铃从第一档加强开始出来
-		if not _bell or _hint_lv >= 1:
-			want_line = [0.16, 0.26, 0.42][_hint_lv]
-	elif is_instance_valid(_rumble):
-		_rumble.volume_db = move_toward(_rumble.volume_db, -60.0, 30.0 * delta)
-	_line_a = move_toward(_line_a, want_line, delta * 0.5)
+				if _auto:
+					print("DARK_BELL t=%.2f lane=%+d lv=%d" % [_t, int(roundf(g)), _hint_lv])
+		# 气流线：有铃永远不画；铜铃烧了，找了 DARK_HINT1 秒还没进航道才淡入（DARK_HINT2 更亮）。进了航道就慢慢淡掉
+		if not _bell and lost and _hint_lv >= 1:
+			want_line = [0.0, 0.22, 0.4][_hint_lv]
+		if _auto:
+			_dark_log_t -= delta
+			if _dark_log_t <= 0.0:
+				_dark_log_t = 0.5
+				print("DARK_AUDIO t=%.2f off=%+.2f lost=%s rumble=%.1fdB/p%.2f air=%.1fdB/p%.2f hum=%s line=%.2f bell=%s lv=%d" % [_t, off, lost,
+					_rumble.volume_db if is_instance_valid(_rumble) else -99.0, _rumble.pitch_scale if is_instance_valid(_rumble) else 0.0,
+					_air.volume_db if is_instance_valid(_air) else -99.0, _air.pitch_scale if is_instance_valid(_air) else 0.0,
+					_hum_str(), _line_a, _bell, _hint_lv])
+	else:
+		if is_instance_valid(_rumble):
+			_rumble.volume_db = move_toward(_rumble.volume_db, -60.0, 30.0 * delta)
+		if _hum_ctl:
+			_hum_step(0.0, 1.0, delta)                  # 两排黑墙之间 / 穿出去：引擎声慢慢回平常
+	_line_a = move_toward(_line_a, want_line, delta * (0.5 if want_line > _line_a else 0.3))
+
+
+## 驾驶舱引擎声（level._engine_hum，level 自己的音量 tween 在跑时不抢）往「平常 + db_off、音高 pitch」平滑靠
+func _hum_step(db_off: float, pitch: float, delta: float) -> void:
+	var h = level.get("_engine_hum")
+	if not (h is AudioStreamPlayer) or not is_instance_valid(h) or bool(level.get("_hum_done")):
+		return
+	var tw = h.get_meta("fade_tw") if h.has_meta("fade_tw") else null
+	if tw is Tween and (tw as Tween).is_valid() and (tw as Tween).is_running():
+		return
+	_hum_ctl = true
+	var base := _hum_db()
+	h.volume_db = move_toward(h.volume_db, base + db_off, 12.0 * delta)
+	h.pitch_scale = move_toward(h.pitch_scale, pitch, 0.25 * delta)
+
+
+func _hum_db() -> float:
+	var sc: Script = level.get_script()
+	return float(sc.get_script_constant_map().get("HUM_DB", -20.0)) if sc != null else -20.0
+
+
+func _hum_str() -> String:
+	var h = level.get("_engine_hum")
+	if not (h is AudioStreamPlayer) or not is_instance_valid(h):
+		return "none"
+	return "%.1fdB/p%.2f" % [h.volume_db, h.pitch_scale]
+
+
+## 步骤完：引擎声回平常（音量走 level 自己的 _fade_db，音高 tween 回 1）
+func _hum_restore(sec: float) -> void:
+	if not _hum_ctl:
+		return
+	_hum_ctl = false
+	var h = level.get("_engine_hum")
+	if not (h is AudioStreamPlayer) or not is_instance_valid(h) or bool(level.get("_hum_done")):
+		return
+	level._fade_db(h, _hum_db(), sec)
+	level.create_tween().tween_property(h, "pitch_scale", 1.0, sec)
 
 
 # ======================================================================= 气流（声音 + 安全通道的气流线）
@@ -1044,8 +1106,11 @@ func _loop(snd: String, db: float) -> AudioStreamPlayer:
 ## 气流线：安全通道那个高度、几道 1 像素的细线往右流（很淡、不闪；每道独立，见 _air_lines_step），只画屏幕里的那截，船身自然挡住。
 func _draw_fx() -> void:
 	if _dark_on or _dark_a > 0.05:
-		if _line_a > 0.01:
-			_draw_air(_line_a)                       # 黑窗：气流线只是引路提示（_dark_step 管亮度）
+		# 黑窗：气流线只是铜铃烧了以后的兜底提示（_dark_step 管亮度）；黑幕落下那两秒，前半段亮着的线跟着黑一起淡掉
+		var fade_vis := _air_on * 0.32 * clampf(1.0 - _dark_a / DARK_A, 0.0, 1.0) if _dark_on else 0.0
+		var la := maxf(_line_a, fade_vis)
+		if la > 0.01:
+			_draw_air(la)
 	elif _air_on > 0.0:
 		_draw_air(_air_on * 0.32)                     # 亮度平滑（原来 4 档，一档一跳）
 	for w in _waves:

@@ -1,15 +1,16 @@
 extends Control
 ## 剧本步骤 keepsake_choice（往转化装置里放一件纪念品）：
 ##   {"do": "keepsake_choice", "id": "flight1_choice", "items": ["blue_stone", "commute_card"], "route": true,
-##    "scenes": {"blue_stone": "burn_blue_stone", …}, "look": {"blue_stone": [台词步骤…]}, "put_back": [台词…]}
+##    "scenes": {"blue_stone": "burn_blue_stone", …}, "look": {"blue_stone": [台词步骤…]}, "put_back": [台词…], "route_look": [台词…]}
 ## 约定见 docs/phone_and_cockpit_contract.md。不标燃料值（还差多少只看左上角燃料表）、没有倒计时。
 ##   「放进去就拿不回来」由剧本在这一步之前用 narr 说（剧情姐原文要求系统提前说明），界面上不再重复写一遍。
 ##   转化装置打开（cockpit_converter 还关着就换成 idle），几件东西摆在它前面的小托板上（背包里有的那几件；一件都没有就全摆）。
 ##   选：←/→（A/D、↑/↓ 也行）或鼠标移上去；选中的亮一档、上下浮 1 像素、头顶写名字和小箭头。
 ##   点一件（E / 空格 / 回车 / Z / 鼠标单击）= 拿起来看：卡片上是图标、名字、描述（物品的 desc），晨说那件的 look 台词（第一次看才说），
-##   下面两个按钮「放进去」/「先放回去」。放回去时播 put_back；Esc 也能放回去。route: true 在挑选画面的右上角展示航线。
+##   下面两个按钮「放进去」/「先放回去」。「先放回去」= 晨说 put_back 的台词，回到挑的界面。route: true 时托板旁边还有「看看航线」：
+##   航线卡（森林 → 河流星球，最后一截是虚线，不写数）、晨说 route_look 的台词、「回去」。Esc = 先放回去 / 回去。
 ##   确认「放进去」：卡片闪一下 + 确认音，关掉界面，goto scenes[那件]；选了哪件记进 StoryState 的物件状态（键 = 步骤 id）。
-## 自动玩：main 直接放第一件；full 先看第一件、放回去，再放最后一件（两次自动玩各走一条分支）；
+## 自动玩：main 直接放第一件；full 先看第一件、放回去、看航线，再放最后一件（两次自动玩各走一条分支）；
 ##   跳节拍：挑能通到目标 flag 的那件，瞬间完成。
 ## 多选版（终章燃料柜，"multi": true；docs/第三章计划.md 第三节）：
 ##   {"do": "keepsake_choice", "id": "final_fuel_a", "multi": true, "items": [...能烧的...], "scenes": {id: "burn_…"},
@@ -18,8 +19,11 @@ extends Control
 ##   播 scenes 那一段（里面自己 take / 设 burned_*），再按物品的 keepsake_burn 往燃料表里加（_fuel_step burn），那一格从托板上拿掉、重新排。
 ##   燃料够了（≥ 需要的量）就自己合上，返回 then（"" = 接着往下播）；不够就回到托板接着挑（不能不放就走：燃料柜这一段是必经的）。
 ##   「先放回去」：有 keep_scenes 的（音乐盒）播那一段（收回背包），没有就播 put_back。一进来燃料就够了 = 什么都不弹，直接返回。
-##   航线卡：实线长短 = 现在燃料 / 需要（未到的路段用暗色标记），两头的地名用 route_from / route_to。
-##   跳节拍（ff）：目标是 burned_<id> 就先放那件，再按托板顺序一件件放，直到够；自动玩：一直「拿第一件、放进去」直到够（full 先看一件放回去）。
+##   航线卡：实线长短 = 现在燃料 / 需要（差的那截是虚线），两头的地名用 route_from / route_to。
+##   跳节拍（ff）：目标是 burned_<id> 就先放那件，再按托板顺序一件件放，直到够；自动玩：一直「拿第一件、放进去」直到够（full 先看一件放回去、看一眼航线）。
+##   "min": n（11-07 终章结局重构：芦苇地要很多燃料，燃料柜这一步就能把东西全烧完）：需要的量（fuel_need）是最多能烧到哪（芦苇地的要求），
+##     燃料到 min 以后托板旁边多一个「收起燃料柜」，可以不烧了；到 fuel_need 或者东西烧完自己合上。到不了 min 不能走（同原来）。
+##     跳节拍只烧到 min；自动玩一直烧（烧完 / 到 fuel_need），加 --fuel_stop_min 到 min 就收起（测「燃料不够」那条）。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：var scene = await play(runner, st)。
 
 signal done(id: String)
@@ -30,10 +34,13 @@ const EDGE := Color(0.5, 0.6, 0.55, 0.45)
 const TXT := {
 	"put_in": ["Put it in", "放进去"],
 	"put_back": ["Put it back for now", "先放回去"],
+	"route": ["Check the route", "看看航线"],
+	"back": ["Back", "回去"],
 	"route_title": ["Route", "航线"],
 	"from": ["Forest", "森林"],
 	"to": ["River planet", "河流星球"],
 	"keys": ["← → choose   E look", "← → 挑   E 拿起来看"],
+	"close": ["Close the cabinet", "收起燃料柜"],
 }
 
 var runner: Node
@@ -42,9 +49,8 @@ var level: Node2D
 var st: Dictionary
 var items: Array[String] = []
 var route := false
-var _route_display: Panel
 var _sel := 0                      # 托板上第几个（最后一个可能是「看看航线」）
-var _mode := "pick"                # pick / card / busy（晨在说话、动画）
+var _mode := "pick"                # pick / card / route / busy（晨在说话、动画）
 var _card: Panel
 var _card_btns: Array[Label] = []
 var _card_sel := 0
@@ -54,8 +60,9 @@ var _slots: Array[Control] = []
 var _name: Label
 var _arrow: TextureRect
 var _keys: Label
+var _route_btn: Label
 var _t := 0.0
-var _auto_plan: Array = []         # 自动玩：接下来做什么 ["look:0", "back", "look:1", "in"…]
+var _auto_plan: Array = []         # 自动玩：接下来做什么 ["look:0", "back", "route", "in:1"…]
 var _auto_t := 0.0
 var _flash := {}                   # 控件 → 剩多久
 var multi := false                 # 多选版（终章燃料柜）
@@ -65,6 +72,10 @@ var _win := 0                      # 摆出来的第一格是第几件
 var _conv_x := 0.0                 # 转化装置左边（驾驶舱坐标）
 var _tray_y := 0.0
 var _more: Array[Label] = []       # 两头的 < >：那边还有没摆出来的
+var _min := -1                     # 多选版 "min"：燃料到这么多就能收起（-1 = 没有，够 fuel_need 才合上）
+var _route_i := -1                 # 「看看航线」在 _slots 里第几个（-1 = 没有）
+var _close_i := -1                 # 「收起燃料柜」在 _slots 里第几个（-1 = 没有）
+var _close_btn: Label
 
 
 func play(r: Node, step: Dictionary) -> String:
@@ -74,6 +85,7 @@ func play(r: Node, step: Dictionary) -> String:
 	st = step
 	route = bool(st.get("route", false))
 	multi = bool(st.get("multi", false))
+	_min = int(st.get("min", -1)) if multi else -1
 	var all: Array = st.get("items", [])
 	for id in all:
 		if Inventory.has(str(id)):
@@ -99,7 +111,9 @@ func play(r: Node, step: Dictionary) -> String:
 		r.world.set_prop("cockpit_converter", "idle")
 	_build()
 	if r.auto == "full":
-		_auto_plan = ["look:0", "back", "look:%d" % (items.size() - 1), "in"]
+		_auto_plan = ["look:0", "back", "route", "back", "look:%d" % (items.size() - 1), "in"]
+		if not route:
+			_auto_plan = ["look:0", "back", "look:%d" % (items.size() - 1), "in"]
 	elif r.auto != "":
 		_auto_plan = ["look:0", "in"]
 	r._ui_shot("keepsake", 0.6)
@@ -113,7 +127,10 @@ func play(r: Node, step: Dictionary) -> String:
 func _play_multi(r: Node) -> String:
 	var key := str(st.get("id", "keepsake_choice"))
 	if not _enough():
-		if r.ff:
+		if r.ff and _min >= 0:
+			while not _can_close() and not items.is_empty():           # 跳节拍：只烧到 min
+				await _burn(items[0])
+		elif r.ff:
 			var want := str(r._ff_target).trim_prefix("burned_")       # 跳节拍到 burned_<id>：先烧那件
 			if items.has(want):
 				await _burn(want)
@@ -124,7 +141,7 @@ func _play_multi(r: Node) -> String:
 				r.world.set_prop("cockpit_converter", "idle")
 			_build()
 			if r.auto == "full":
-				_auto_plan = ["look:0", "back"]
+				_auto_plan = ["look:0", "back"] + (["route", "back"] if route else [])
 			if "--keepsake_all_cards" in OS.get_cmdline_user_args():   # 测试：自动玩把每件的说明卡都打开一遍（配 --qa_live 查叠字）
 				_auto_plan = []
 				for i in items.size():
@@ -138,6 +155,11 @@ func _play_multi(r: Node) -> String:
 
 func _enough() -> bool:
 	return not StoryState.fuel_on() or StoryState.fuel() >= StoryState.fuel_need()
+
+
+## 多选版 "min"：燃料到 min 了，可以收起（不用烧到 fuel_need）
+func _can_close() -> bool:
+	return _min >= 0 and (not StoryState.fuel_on() or StoryState.fuel() >= _min)
 
 
 ## 多选版放进去一件：播 scenes 那一段（自己 take / 设 burned_*）、加燃料、从托板上拿掉
@@ -178,8 +200,6 @@ func _build() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = UITheme.get_theme()
 	var conv := _make_slots()
-	if route:
-		_build_route()
 	_name = _label("", UITheme.TEXT)
 	add_child(_name)
 	_arrow = TextureRect.new()
@@ -217,6 +237,7 @@ func _make_slots() -> Rect2:
 	# 屏幕左边到转化装置之间摆得下几格（左右各留 8 像素，放 < >）
 	var left_scr: float = _scr(Vector2(conv.position.x, y)).x if cockpit != null else conv.position.x
 	_cap = maxi(3, int(floor((left_scr - 8.0 - 16.0) / 24.0)))
+	var vis := mini(n, _cap)
 	for i in n:
 		var p := Panel.new()
 		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -230,6 +251,24 @@ func _make_slots() -> Rect2:
 		p.add_child(tr)
 		add_child(p)
 		_slots.append(p)
+	_route_i = -1
+	_close_i = -1
+	var bx := conv.position.x - 8.0 - vis * 24.0 - 6.0
+	if route:
+		_route_btn = _label("  " + _tx("route"), UITheme.TEXT_DIM)
+		_route_btn.add_theme_stylebox_override("normal", UITheme.box(BG, EDGE, 1, Vector4(4, 1, 6, 1)))
+		_route_btn.set_meta("home", Vector2(bx, y + 24.0))
+		add_child(_route_btn)
+		_route_i = _slots.size()
+		_slots.append(_route_btn)
+		bx += UITheme.font().get_string_size("▸ " + _tx("route"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+	if _can_close():
+		_close_btn = _label("  " + _tx("close"), UITheme.TEXT_DIM)
+		_close_btn.add_theme_stylebox_override("normal", UITheme.box(BG, EDGE, 1, Vector4(4, 1, 6, 1)))
+		_close_btn.set_meta("home", Vector2(bx, y + 24.0))
+		add_child(_close_btn)
+		_close_i = _slots.size()
+		_slots.append(_close_btn)
 	_sel = clampi(_sel, 0, maxi(0, _slots.size() - 1))
 	for l in _more:
 		l.queue_free()
@@ -272,15 +311,26 @@ func _slot_count() -> int:
 	return _slots.size()
 
 
+func _is_route(i: int) -> bool:
+	return i >= 0 and i == _route_i
+
+
+func _is_close(i: int) -> bool:
+	return i >= 0 and i == _close_i
+
+
 func _style() -> void:
 	for i in _slots.size():
 		var on := i == _sel and _mode == "pick"
-		var slot: Panel = _slots[i]
-		slot.add_theme_stylebox_override("panel", UITheme.box(Color(0.06, 0.1, 0.09, 0.85),
-			UITheme.ACCENT if on else Color(0.3, 0.4, 0.35, 0.8), 1))
-	if is_instance_valid(_route_display):
-		_route_display.visible = _mode == "pick"
-	if _mode == "pick":
+		var c: Control = _slots[i]
+		if c is Panel:
+			(c as Panel).add_theme_stylebox_override("panel", UITheme.box(Color(0.06, 0.1, 0.09, 0.85),
+				UITheme.ACCENT if on else Color(0.3, 0.4, 0.35, 0.8), 1))
+		else:
+			var l: Label = c
+			l.text = ("▸ " if on else "  ") + _tx("close" if _is_close(i) else "route")
+			l.add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
+	if _mode == "pick" and not _is_route(_sel) and not _is_close(_sel):
 		var it := Inventory.item(items[_sel])
 		_name.text = runner.txt(it.get("name", items[_sel]))
 		_name.visible = true
@@ -336,7 +386,16 @@ func _choose_slot(i: int) -> void:
 	_set_sel(i)
 	_blink(_slots[i])
 	_sound("tick", -6.0, 1.0)
-	_open_card(items[i])
+	if _is_close(i):
+		_mode = "busy"                       # 收起燃料柜：够 min 了，剩下的留着
+		var tw := create_tween()
+		tw.tween_property(self, "modulate:a", 0.0, 0.25)
+		await tw.finished
+		done.emit("")
+	elif _is_route(i):
+		_open_route()
+	else:
+		_open_card(items[i])
 
 
 func _blink(c: CanvasItem) -> void:
@@ -442,6 +501,11 @@ func _open_card(id: String) -> void:
 	desc.position = Vector2(10, COMPACT_TEXT_Y if compact else 18 + isz.y)
 	desc.add_theme_constant_override("line_spacing", 1)
 	_card.add_child(desc)
+	# 加宽的卡会把晨的话框挤到托板那一带（_dodge_cards），「看看航线」先收起来，不和话框叠字；关卡片时放回来
+	if card_w > CARD_W:
+		for b in [_route_btn, _close_btn]:
+			if is_instance_valid(b):
+				b.visible = false
 	_card.modulate.a = 0.0
 	create_tween().tween_property(_card, "modulate:a", 1.0, 0.2)
 	runner._ui_shot("keepsake_card", 0.5)
@@ -467,44 +531,58 @@ func _look_lines(id: String) -> Array:
 	return []
 
 
-func _build_route() -> void:
-	var panel := Panel.new()
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.position = Vector2(238, 36)
-	panel.size = Vector2(CARD_W, 78)
-	panel.add_theme_stylebox_override("panel", UITheme.box(BG, EDGE, 1))
-	add_child(panel)
-	_route_display = panel
+func _open_route() -> void:
+	_mode = "busy"
+	_card_id = ""
+	_style()
+	_card = _card_panel(120)
 	var title := _label(_tx("route_title"), Color("#dcc39a"))
 	title.position = Vector2(10, 6)
-	panel.add_child(title)
+	_card.add_child(title)
 	var d := Control.new()
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	d.position = Vector2(0, 20)
-	d.size = Vector2(CARD_W, 36)
+	d.position = Vector2(0, 30)
+	d.size = Vector2(CARD_W, 50)
 	d.draw.connect(_draw_route.bind(d))
-	panel.add_child(d)
+	_card.add_child(d)
 	var a := _label(runner.txt(st["route_from"]) if st.has("route_from") else _tx("from"), UITheme.TEXT_DIM)
-	a.position = Vector2(10, 52)
-	panel.add_child(a)
+	a.position = Vector2(10, 70)
+	_card.add_child(a)
 	var b := _label(runner.txt(st["route_to"]) if st.has("route_to") else _tx("to"), UITheme.TEXT_DIM)
-	b.position = Vector2(CARD_W - 10.0 - b.get_combined_minimum_size().x, 52)
-	panel.add_child(b)
+	b.position = Vector2(CARD_W - 10.0 - UITheme.font().get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x, 70)
+	_card.add_child(b)
+	var nav_was := ""
+	if cockpit != null:
+		nav_was = cockpit.state_of("cockpit_nav")
+		runner.world.set_prop("cockpit_nav", "zoom")
+		var nx: float = cockpit.mx("cockpit_nav")
+		runner.chen._set_facing(1 if nx > runner.chen.position.x else -1)
+	await _lines(st.get("route_look", []))
+	if cockpit != null and nav_was != "":
+		runner.world.set_prop("cockpit_nav", nav_was)
+	if not is_instance_valid(_card):
+		return
+	_buttons([_tx("back")], 92)
+	_mode = "route"
 
 
-## 按燃料进度画航线，到不了的部分压暗。
+## 航线：森林 ● —— 实线 —— 虚线（差的那一截）—— ○ 河流星球；不写数
 func _draw_route(d: Control) -> void:
 	var y := 22.0
 	var x0 := 14.0
 	var x1 := 180.0
 	var k := 0.72
-	if StoryState.fuel_on() and StoryState.fuel_need() > 0:
+	if multi and StoryState.fuel_on() and StoryState.fuel_need() > 0:
 		k = clampf(float(StoryState.fuel()) / float(StoryState.fuel_need()), 0.1, 1.0)   # 多选版：实线 = 现在燃料够飞多远
 	var reach := x0 + (x1 - x0) * k
 	var lc := Color("#7fc7a4")
 	d.draw_rect(Rect2(x0 - 2, y - 2, 5, 5), lc)
 	d.draw_rect(Rect2(x0, y, reach - x0, 1), lc)
-	d.draw_rect(Rect2(reach, y, x1 - reach, 1), Color(lc, 0.36))
+	var x := reach + 2.0
+	while x < x1 - 4.0:
+		if fmod(_t * 6.0, 2.0) < 1.6:
+			d.draw_rect(Rect2(x, y, 3, 1), Color(lc, 0.45))
+		x += 6.0
 	d.draw_rect(Rect2(x1 - 3, y - 3, 7, 7), Color("#8fb8c8"))
 	d.draw_rect(Rect2(reach, y - 4, 1, 9), Color("#d9c9a0"))
 	d.queue_redraw()
@@ -548,11 +626,11 @@ func _set_btn(i: int) -> void:
 
 
 func _press_btn(i: int) -> void:
-	if _mode != "card":
+	if _mode != "card" and _mode != "route":
 		return
 	_set_btn(i)
 	_blink(_card_btns[i])
-	if i == 0:
+	if _mode == "card" and i == 0:
 		# 放进去：卡片闪一下 + 确认音，关掉，往下播
 		_mode = "busy"
 		_sound("tick", -4.0, 0.9)
@@ -569,7 +647,7 @@ func _press_btn(i: int) -> void:
 		done.emit(id)
 		return
 	_sound("tick", -8.0, 1.1)
-	await _close_card()
+	await _close_card(_mode == "card")
 
 
 ## 多选版放进去：托板已经淡掉了；播那一段、加燃料，够了就合上（done），不够就重新排托板、淡回来接着挑
@@ -590,7 +668,7 @@ func _multi_put_in(id: String) -> void:
 	tw.tween_property(self, "modulate:a", 1.0, 0.3)
 
 
-func _close_card() -> void:
+func _close_card(put_back: bool) -> void:
 	_mode = "busy"
 	var id := _card_id
 	if is_instance_valid(_card):
@@ -598,11 +676,15 @@ func _close_card() -> void:
 		_card.queue_free()
 	_card = null
 	_card_btns.clear()
-	var keep: Dictionary = st.get("keep_scenes", {}) if st.get("keep_scenes", {}) is Dictionary else {}
-	if multi and keep.has(id):
-		await _lines(runner.scenes.get(str(keep[id]), []))     # 音乐盒：收回背包
-	else:
-		await _lines(st.get("put_back", []))
+	for b in [_route_btn, _close_btn]:
+		if is_instance_valid(b):
+			b.visible = true
+	if put_back:
+		var keep: Dictionary = st.get("keep_scenes", {}) if st.get("keep_scenes", {}) is Dictionary else {}
+		if multi and keep.has(id):
+			await _lines(runner.scenes.get(str(keep[id]), []))     # 音乐盒：收回背包
+		else:
+			await _lines(st.get("put_back", []))
 	_mode = "pick"
 	_style()
 
@@ -691,12 +773,17 @@ func dev_skip() -> void:
 		_choose_slot(0)
 	elif _mode == "card":
 		_press_btn(0)
+	elif _mode == "route":
+		_press_btn(_card_btns.size() - 1)
 
 
 # ======================================================================= 自动玩
 func _auto_tick(delta: float) -> void:
 	if multi and _auto_plan.is_empty() and _mode == "pick" and runner.auto != "":
-		_auto_plan = ["look:0", "in"]            # 多选版：一直放第一件，直到燃料够
+		if _close_i >= 0 and "--fuel_stop_min" in OS.get_cmdline_user_args():
+			_auto_plan = ["close"]               # 测「燃料不够芦苇地」：到 min 就收起
+		else:
+			_auto_plan = ["look:0", "in"]        # 多选版：一直放第一件，直到燃料够（有 min 的一直烧到 fuel_need / 烧完）
 	if _auto_plan.is_empty() or _mode == "busy":
 		return
 	_auto_t += delta
@@ -707,7 +794,13 @@ func _auto_tick(delta: float) -> void:
 	if a.begins_with("look:") and _mode == "pick":
 		_auto_plan.pop_front()
 		_choose_slot(clampi(int(a.trim_prefix("look:")), 0, items.size() - 1))
-	elif a == "back" and _mode == "card":
+	elif a == "route" and _mode == "pick":
+		_auto_plan.pop_front()
+		_choose_slot(_route_i)
+	elif a == "close" and _mode == "pick":
+		_auto_plan.pop_front()
+		_choose_slot(_close_i)
+	elif a == "back" and (_mode == "card" or _mode == "route"):
 		_auto_plan.pop_front()
 		_press_btn(_card_btns.size() - 1)
 	elif a == "in" and _mode == "card":

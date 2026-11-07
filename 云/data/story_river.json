@@ -172,9 +172,9 @@
 		{"need": ["river_footage_fixed"], "not": ["river_cup_traced", "river_done"], "zh": "看看窗边的来客册干了没", "en": "See if the guestbook by the window is dry", "added": true}
 	],
 	"barter": {
-		"vendor": {"_note": "11-06 docs/第二章_重写稿.md 第 5 段：高处市集用任意一件物品换密封圈。quest 类和 except 里的不收（except：终章还要用，或者按 burned_<id> 分支的）。", "trades": [{"id": "seal", "want": "*", "auto_if": "river_seal_quest", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "get": "float_seal", "scene": "vendor_take_any", "empty": "vendor_give_free", "not": ["river_seal_got"], "flags": ["river_seal_got"]}], "none": "vendor_none", "done": "vendor_done"},
+		"vendor": {"_note": "11-06 docs/第二章_重写稿.md 第 5 段：高处市集用任意一件物品换密封圈。quest 类和 except 里的不收（except：终章还要用，或者按 burned_<id> 分支的）。", "trades": [{"id": "seal", "want": "*", "auto_if": "river_seal_quest", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "get": "float_seal", "scene": "vendor_take_any", "empty": "vendor_give_free", "not": ["river_seal_got"], "flags": ["river_seal_got", "river_seal_market"]}], "none": "vendor_none", "done": "vendor_done"},
 		"rat_chef": {"_note": "10-31 以物易物（scripts/barter.gd），作者按 docs/以物易物交换表.md 定稿。flag：barter_rat_chef_<id>；recipe 要先换过大嘴鸟的尾羽（森林带过来的 barter_toucan_feather）。", "trades": [{"id": "soup", "want": "mat_driftwood", "get": "soup_flask", "scene": "rat_chef_take_driftwood"}, {"id": "recipe", "want": "toucan_feather", "get": "recipe_card", "scene": "rat_chef_take_feather", "need": ["barter_toucan_feather"]}, {"id": "fire", "want": "glowing_wood", "get": "rice_ball", "scene": "rat_chef_take_wood"}, {"id": "fry", "want": "*", "all": true, "repeat": true, "mark": "fried", "scene": "rat_chef_fry", "_note": "11-07 作者试玩：「不如全都可以下锅……结果出来就是油炸的XX，然后不影响使用」。上面三笔优先；别的任何东西（任务物品、纪念品、饼干都收）炸完原样递回，只多一个 fried_<id> 标记（Inventory.item 改名字、描述）"}], "none": "rat_chef_none"},
-		"jellyfish": {"_note": "11-06 重写稿：给什么都行（want *，任务物品和终章还要用的不收，同修补摊）", "trades": [{"id": "any", "want": "*", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "scene": "jelly_thanks", "empty": "jelly_thanks"}]}
+		"jellyfish": {"_note": "11-06 重写稿：给什么都行（want *，任务物品和终章还要用的不收，同修补摊）", "trades": [{"id": "any", "want": "*", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "scene": "jelly_given", "empty": "jelly_thanks"}]}
 	},
 	"hotspots": [
 		{"id": "rat_chef_again", "at": "rat_chef", "room": "market", "label": {"zh": "料理鼠妈", "en": "Mama Rat"}, "need": ["met_rat_chef"], "not": [], "once": false, "scene": "rat_chef_again", "_side": "story_river"},
@@ -469,30 +469,30 @@
 		],
 		"bank_doorplate": [
 			{"do": "face", "who": "chen", "to": "river_bank_doorplate"},
-			{"say": "chen", "zh": "门边的地址和水下的旧门牌，是一个人写的。", "en": "The address by the door and the old plate underwater. Same handwriting.", "added": true},
+			{"narr": {"zh": "门边的地址和水下的旧门牌，是一个人写的。", "en": "The address by the door and the old plate underwater. Same handwriting."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"},
 			{"do": "journal", "zh": "妮芙门边的新地址和水下的旧门牌，是同一个人写的。", "en": "Niff's address by the door and the old house number underwater are in the same handwriting.", "added": true}
 		],
 		"bank_bakery": [
-			{"say": "chen", "bark": true, "zh": "面包店搭了块木板，隔着水做生意。", "en": "The bakery runs a plank across. Business over the water.", "added": true}
+			{"narr": {"zh": "面包店搭了块木板，隔着水做生意。", "en": "The bakery runs a plank across. Business over the water."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"bank_postman": [
 			{"do": "face", "who": "chen", "to": "river_bank_postman"},
 			{"do": "sfx", "name": "rail_tap"},
-			{"say": "chen", "zh": "邮差从屋顶的窄桥上过去了。", "en": "The mail carrier just crossed the narrow rooftop bridge.", "added": true}
+			{"narr": {"zh": "邮差从屋顶的窄桥上过去了。", "en": "The mail carrier just crossed the narrow rooftop bridge."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"bank_underwater": [
-			{"say": "chen", "bark": true, "zh": "水底下是整齐的街砖。", "en": "Neat paving stones under the water.", "added": true}
+			{"narr": {"zh": "水底下是整齐的街砖。", "en": "Neat paving stones under the water."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"bank_plane_drying": [
 			{"do": "face", "who": "chen", "to": "river_bank_plane"},
 			{"do": "sfx", "name": "drip"},
-			{"say": "chen", "zh": "还在滴水，先晾着。", "en": "Still dripping. Let it dry.", "added": true}
+			{"narr": {"zh": "还在滴水，先晾着。", "en": "Still dripping. Let it dry."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"bank_plane_bye": [
-			{"say": "chen", "bark": true, "zh": "先去和妮芙道个别。", "en": "Say goodbye to Niff first.", "added": true}
+			{"do": "inner", "zh": "先去和妮芙道个别。", "en": "Say goodbye to Niff first.", "style": "fade", "sec": 2.6, "added": true, "_note": "11-07 作者：晨的独白要少，留下的打在屏幕上"}
 		],
 		"bank_plane_parts": [
-			{"say": "chen", "bark": true, "zh": "零件还差一点。", "en": "Still a few parts short.", "added": true}
+			{"do": "inner", "zh": "零件还差一点。", "en": "Still a few parts short.", "style": "fade", "sec": 2.6, "added": true, "_note": "11-07 作者：晨的独白要少，留下的打在屏幕上"}
 		],
 		"ting_chat_1": [
 			{"say": "ting", "zh": "第五条：别摸晾着的飞机。它害羞。", "en": "Regulation Five: don't touch the drying plane. It's shy.", "added": true}
@@ -677,13 +677,13 @@
 		],
 		"book_peek1": [
 			{"do": "face", "who": "chen", "to": "river_home_window"},
-			{"say": "chen", "zh": "还是湿的。", "en": "Still wet.", "added": true},
+			{"narr": {"zh": "还是湿的。", "en": "Still wet."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"},
 			{"do": "flag", "set": "river_peek1"}
 		],
 		"book_peek2": [
 			{"do": "face", "who": "chen", "to": "river_home_window"},
 			{"do": "anim", "who": "chen", "name": "look_close"},
-			{"say": "chen", "zh": "边上好像干了一点。一点点。", "en": "The edges look a little drier. A little.", "added": true},
+			{"narr": {"zh": "边上好像干了一点。一点点。", "en": "The edges look a little drier. A little."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"},
 			{"do": "flag", "set": "river_peek2"}
 		],
 		"book_peek3": [
@@ -702,7 +702,6 @@
 		],
 		"home_deer_msg": [
 			{"do": "wait", "sec": 0.6},
-			{"do": "if", "flag": "c1_mom", "then": "deer_msg_m", "else": "deer_msg_c"},
 			{"do": "anim", "who": "chen", "name": "flip_pages"},
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "chen", "name": "draw"},
@@ -710,12 +709,6 @@
 			{"do": "wait", "sec": 0.5},
 			{"do": "flag", "set": "river_deer_msg"},
 			{"do": "goto", "scene": "home_wait_talk"}
-		],
-		"deer_msg_m": [
-			{"do": "journal", "zh": "到了。小鹿要是在这里，大概又要喊我妈妈。", "en": "I made it. If the deer were here, it would probably call me Mom again.", "added": true}
-		],
-		"deer_msg_c": [
-			{"do": "journal", "zh": "到了。要是小鹿知道了，应该就能安心睡觉了。", "en": "I made it. If the deer knew, maybe it could get some sleep.", "added": true}
 		],
 		"home_wait_talk": [
 			{"do": "face", "who": "chen", "to": "niff"},
@@ -834,7 +827,7 @@
 			{"say": "niff", "zh": "我这儿有气瓶。取件员，这回一起去取件吧。", "en": "I've got an air tank. Come on, courier, let's go pick up a package together.", "added": true}
 		],
 		"home_hourglass": [
-			{"say": "chen", "bark": true, "zh": "沙子一直在漏。", "en": "The sand keeps running.", "added": true}
+			{"narr": {"zh": "沙子一直在漏。", "en": "The sand keeps running."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"home_jar": [
 			{"do": "face", "who": "chen", "to": "river_home_jar"},
@@ -848,7 +841,7 @@
 			{"say": "niff", "zh": "没事反正我也没烧水嘿嘿", "en": "It's fine, I never boiled the water anyway, hehe.", "added": true}
 		],
 		"home_labels": [
-			{"say": "chen", "bark": true, "zh": "门把手上也贴着：往下按，别往上提。", "en": "Even the door handle: 'Push down, don't lift.'", "added": true}
+			{"narr": {"zh": "门把手上也贴着：往下按，别往上提。", "en": "Even the door handle: 'Push down, don't lift.'"}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"home_up1": [
 			{"do": "walk", "who": "chen", "to": "river_home_l1"}
@@ -863,7 +856,7 @@
 			{"do": "walk", "who": "chen", "to": "river_home_up2"}
 		],
 		"home_kitchen": [
-			{"say": "chen", "bark": true, "zh": "锅是空的。", "en": "The pot's empty.", "added": true}
+			{"narr": {"zh": "锅是空的。", "en": "The pot's empty."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"home_out": [
 			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post"}, "_note": "10-31 作者「阿汀为什么是突然出现的」：阿汀在换地方的同时就站在码头桩，原来是淡入以后才 show"}
@@ -938,12 +931,12 @@
 			{"do": "goto", "scene": "market_breather_b"}
 		],
 		"market_baskets": [
-			{"say": "chen", "bark": true, "zh": "篮子吊在栏杆外，买菜就往上拉。", "en": "Baskets hang off the railing. Buy groceries, pull them up.", "added": true}
+			{"narr": {"zh": "篮子吊在栏杆外，买菜就往上拉。", "en": "Baskets hang off the railing. Buy groceries, pull them up."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"market_tool_stall": [
 			{"do": "face", "who": "chen", "to": "market_tool_stall"},
 			{"do": "sfx", "name": "tools_clink"},
-			{"say": "chen", "zh": "有一把扳手，和弥洛那把很像。", "en": "One wrench looks a lot like Milo's.", "added": true},
+			{"narr": {"zh": "有一把扳手，和弥洛那把很像。", "en": "One wrench looks a lot like Milo's."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"},
 			{"do": "face", "who": "vendor", "to": "chen"},
 			{"do": "if", "flag": "!river_seal_got", "then": "vendor_pitch"},
 			{"do": "barter", "npc": "vendor"}
@@ -968,7 +961,7 @@
 			{"do": "give", "item": "float_seal"}
 		],
 		"market_bridge": [
-			{"say": "chen", "bark": true, "zh": "屋顶之间的桥都很细，低处的街全在水里。", "en": "The bridges between roofs are narrow. The low streets are all underwater.", "added": true}
+			{"narr": {"zh": "屋顶之间的桥都很细，低处的街全在水里。", "en": "The bridges between roofs are narrow. The low streets are all underwater."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"market_keeper": [
 			{"say": "keeper", "bark": true, "zh": "她每回都写归还地点，每回都还了。", "en": "She writes down where to return it every time. And returns it every time.", "added": true}
@@ -1009,6 +1002,10 @@
 			{"say": "jellyfish", "zh": "祝你福寿安康、身体健康、松鹤延年、延年益寿，寿登……", "en": "May you live long and prosper, may your boat never sink, may you reach the ripe old age of…", "added": true},
 			{"say": "jellyfish", "zh": "这个怎么读来着，寿登老老，寿登毛至？", "en": "how do you say it… nonagenarian? Nonna-genarian? Lasagna-rian?", "added": true}
 		],
+		"jelly_given": [
+			{"do": "flag", "set": "river_jelly_given", "_note": "11-07 终章真结局要查：真的递了东西给水母（背包空着、没东西给时也播 jelly_thanks，那时不设）"},
+			{"do": "if", "flag": "river_jelly_given", "then": "jelly_thanks"}
+		],
 		"jelly_after": [
 			{"say": "jellyfish", "zh": "好像叫寿登耄耋？", "en": "Nonagenarian. I think.", "added": true}
 		],
@@ -1022,7 +1019,7 @@
 			{"do": "pick", "options": [{"id": "jelly_give", "label": {"zh": "给它一样东西", "en": "Give it something"}, "scene": "jelly_give", "added": true}, {"id": "jelly_leave", "label": {"zh": "直接离开", "en": "Just leave"}, "scene": "jelly_leave", "added": true}], "added": true}
 		],
 		"oldstreet_marks": [
-			{"say": "chen", "bark": true, "zh": "墙上是不同年份的水位刻线。", "en": "Water lines from different years on the wall.", "added": true}
+			{"narr": {"zh": "墙上是不同年份的水位刻线。", "en": "Water lines from different years on the wall."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"sluice": [
 			{"do": "mechanic", "id": "river_valve", "sets": ["river_sluice_open"], "_note": "11-04 作者「第二关的小游戏和支线都不如第一关有趣」：docs/剧情改动/第二章可玩性_设计.md 第 4 步（替掉 river_sluice）", "gates": [{"t": 0.42, "label": {"zh": "第一道闸", "en": "Gate one", "added": true}}, {"t": 0.66, "label": {"zh": "第二道闸", "en": "Gate two", "added": true}}, {"t": 0.86, "label": {"zh": "大闸", "en": "The big gate", "added": true}}], "water": {"prop": "oldstreet_steps", "levels": ["l1", "l2"]}, "wheels": ["sluice_wheel_1", "sluice_wheel_2"], "doodles": [{"t": 0.12, "kind": "fish"}, {"t": 0.42, "kind": "shoe"}, {"t": 0.66, "kind": "pot"}, {"t": 0.9, "kind": "whale"}], "lines": {"intro": [{"say": "niff", "zh": "笔记本上说，转到茶壶就停。", "en": "The notebook says to stop at the teapot.", "added": true}], "gate_1": [{"say": "niff", "zh": "……停在鞋那儿也行。鞋比茶壶好。", "en": "...Stopping at the shoe works too. Shoes are better than teapots.", "added": true}], "gate_2": [{"say": "niff", "zh": "这回真是茶壶。我画得准吧？", "en": "This time it really is the teapot. Told you my drawing was accurate.", "added": true}], "fail_1": [{"say": "niff", "zh": "听管子，别听我。", "en": "Listen to the pipe, not to me.", "added": true}], "give": [{"narr": {"zh": "妮芙拿粉笔在表盘上画了个圈。", "en": "Niff draws a chalk circle on the gauge."}, "added": true}], "done": [{"do": "anim", "who": "niff", "name": "spin"}, {"say": "niff", "zh": "大闸开了！鲸鱼那格是我乱画的。", "en": "The big gate's open! I made up the whale.", "added": true}]}},
@@ -1040,7 +1037,7 @@
 			{"do": "flag", "set": "river_sluice_done"}
 		],
 		"sluice_later": [
-			{"say": "chen", "zh": "等会儿再来转。", "en": "I'll come back to it.", "added": true}
+			{"do": "inner", "zh": "等会儿再来转。", "en": "I'll come back to it.", "style": "fade", "sec": 2.6, "added": true, "_note": "11-07 作者：晨的独白要少，留下的打在屏幕上"}
 		],
 		"oldstreet_tank_take": [
 			{"do": "walk", "who": "chen", "to": "oldstreet_tank"},
@@ -1050,7 +1047,7 @@
 			{"do": "flag", "set": "river_tank"}
 		],
 		"oldstreet_signs": [
-			{"say": "chen", "bark": true, "zh": "上下两层，门上是同一个店名。", "en": "Two levels, the same shop name over both doors.", "added": true}
+			{"narr": {"zh": "上下两层，门上是同一个店名。", "en": "Two levels, the same shop name over both doors."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"oldstreet_corner": [
 			{"do": "walk", "who": "niff", "to": "oldstreet_corner"},
@@ -1125,7 +1122,8 @@
 			{"narr": {"zh": "最下面那格「修船的」：一个浮筒密封圈。", "en": "The bottom drawer, \"for boat repairs\": one float seal."}, "added": true},
 			{"do": "give", "item": "float_seal"},
 			{"do": "flag", "set": "river_seal_got"},
-			{"do": "flag", "set": "river_cabinet_empty"}
+			{"do": "flag", "set": "river_cabinet_empty"},
+			{"do": "flag", "set": "river_seal_cabinet", "_note": "11-07 终章真结局要查：密封圈是绿柜子免费拿的（市集换的是 river_seal_market）"}
 		],
 		"wh_cabinet_empty": [
 			{"narr": {"zh": "抽屉空了。", "en": "The drawer's empty."}, "added": true}
@@ -1216,7 +1214,7 @@
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "chen", "name": "freeze_hand"},
 			{"do": "wait", "sec": 0.6},
-			{"do": "journal", "zh": "我老记着她最后没回我，前面我们到底说过什么，反倒快忘了。", "en": "I keep thinking about how she never wrote back. I can barely remember what we said before that."},
+			{"do": "journal", "zh": "我老记着她最后没回我，前面我们到底说过什么，反倒一直没往回看。", "en": "I keep thinking about how she never wrote back. I never scrolled up to see what we'd said before that."},
 			{"do": "walk", "who": "chen", "to": "river_home_kitchen"},
 			{"do": "walk", "who": "niff", "to": "river_home_niff", "wait": false},
 			{"do": "walk", "who": "chen", "to": "river_home_chen"},
@@ -1362,12 +1360,9 @@
 			{"say": "niff", "zh": "杯子先放这儿。人家说了要来拿，我也答应啦。", "en": "The cup stays here. She said she'd come for it, and I promised."},
 			{"do": "wait", "sec": 0.6},
 			{"do": "anim", "who": "chen", "name": "write"},
-			{"do": "sfx", "name": "phone_shutter"},
 			{"do": "anim", "who": "chen", "name": "fold_paper"},
 			{"do": "give", "item": "cup_tracing"},
 			{"do": "wait", "sec": 0.5},
-			{"do": "anim", "who": "chen", "name": "check_phone"},
-			{"do": "wait", "sec": 0.6},
 			{"do": "prop", "id": "river_home_table", "state": "cup_stays"},
 			{"do": "walk", "who": "ting", "to": "river_home_labels"},
 			{"do": "sfx", "name": "door_touch"},
@@ -1529,10 +1524,10 @@
 			{"do": "goto", "scene": "south_dock"}
 		],
 		"south_lamp": [
-			{"say": "chen", "bark": true, "zh": "影像里那排浮灯，就挂在这根灯柱上。", "en": "The floating lamps in the footage hung from this post.", "added": true}
+			{"narr": {"zh": "影像里那排浮灯，就挂在这根灯柱上。", "en": "The floating lamps in the footage hung from this post."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"south_ornament": [
-			{"say": "chen", "bark": true, "zh": "从上面看是栏杆，从下面看是别人家的屋顶。", "en": "From above, a railing. From below, someone's roof.", "added": true}
+			{"narr": {"zh": "从上面看是栏杆，从下面看是别人家的屋顶。", "en": "From above, a railing. From below, someone's roof."}, "added": true, "_note": "11-07 作者：晨的独白要少，物件描述改成旁白"}
 		],
 		"niff_chat_south": [
 			{"do": "face", "who": "niff", "to": "chen"},
@@ -1727,7 +1722,6 @@
 			{"do": "goto", "scene": "farewell_phone"}
 		],
 		"farewell_phone": [
-			{"say": "niff", "zh": "下次路过河岸，记得来看我们。", "en": "Come see us next time you pass the riverbank.", "added": true},
 			{"do": "flag", "set": "river_farewell"},
 			{"do": "fade_to", "room": "river_bank", "at": "river_bank_home_door", "with": ["niff"], "place": {"ting": "river_bank_post", "niff": "river_bank_niff"}}
 		],
