@@ -144,14 +144,13 @@
 		{"need": ["fuel_full"], "not": ["deer_met", "c1_crashed"], "zh": "试着启动飞机", "en": "Try starting the ship", "show_fuel": false, "added": true},
 		{"need": ["crashed"], "not": ["fuel_full", "c1_crashed"], "zh": "找燃料", "en": "Find fuel", "show_fuel": true, "added": true}
 	],
+	"_hints_inner": "11-07 作者：晨的独白要少，留下的打在屏幕上（inner fade），不出对话框。hints_inner = 晨的 hints 走潜意识字（story_runner._update_nudge）。和左上角目标重复的提示删了。",
+	"hints_inner": true,
 	"hints": [
-		{"need": ["c1_ready"], "not": ["launched"], "lines": [{"zh": "……该走了。", "en": "...Time to go.", "added": true}], "_c1": true},
 		{"need": ["c1_out2"], "not": ["c1_ready"], "lines": [{"zh": "鹿在门口等我。", "en": "The deer's waiting by the door.", "added": true}], "_c1": true},
-		{"need": ["c1_seed"], "not": ["c1_ready"], "lines": [{"zh": "门在左边。", "en": "The door's on the left.", "added": true}, {"zh": "鹿还在外面等我。", "en": "The deer's waiting outside.", "added": true}], "_c1": true},
-		{"need": ["c1_got_wood"], "not": ["c1_fixed"], "lines": [{"zh": "回树屋去。", "en": "Back to the treehouse.", "added": true}], "_c1": true},
+		{"need": ["c1_seed"], "not": ["c1_ready"], "lines": [{"zh": "门在左边。", "en": "The door's on the left.", "added": true}], "_c1": true},
 		{"need": ["c1_side_open", "c1_need_wood"], "not": ["c1_to_rabbit"], "lines": [{"zh": "鹿在门口等我。", "en": "The deer's waiting by the door.", "added": true}], "_c1": true},
 		{"need": ["c1_need_wood"], "not": ["c1_to_rabbit"], "lines": [{"zh": "门在左边。", "en": "The door's on the left.", "added": true}], "_c1": true},
-		{"need": ["c1_got_bag"], "not": ["c1_chase_done"], "lines": [{"zh": "背包里……有什么？", "en": "What's in the backpack...?", "added": true}], "_c1": true},
 		{"need": ["c1_follow"], "not": ["c1_got_bag"], "lines": [{"zh": "鹿往那边跑了。", "en": "The deer ran that way.", "added": true}], "_c1": true},
 		{"need": ["c1_asked_bag"], "not": ["c1_follow"], "lines": [{"zh": "鹿在前面等我。", "en": "The deer's waiting up ahead.", "added": true}], "_c1": true},
 		{"need": ["ready_to_launch"], "not": ["launched", "c1_crashed"], "lines": [{"zh": "……该走了。", "en": "...Time to go.", "added": true}, {"zh": "飞机修好了。", "en": "The ship's fixed.", "added": true}]},
@@ -1718,7 +1717,7 @@
 			{"do": "flag", "set": "c1_follow"}
 		],
 		"c1_wreck_look": [
-			{"say": "chen", "zh": "你貌似是从这个焦黑的残骸之中掉出来的", "en": "Looks like you fell out of this charred wreck", "bark": true}
+			{"do": "inner", "zh": "你貌似是从这个焦黑的残骸之中掉出来的", "en": "Looks like you fell out of this charred wreck", "style": "fade", "sec": 2.8}
 		],
 		"c1_run": [
 			{"do": "flag", "set": "c1_run"},

@@ -6,7 +6,7 @@
 
 台词、旁白、选项、日记原样从 json 取，一个字不改。动作（walk / anim / prop……）用下面几张表翻成一句中文。
 第二章段落顺序是 MAIN：河流主线 --story_auto --main_only 实际走的顺序（11-05），分支场景嵌在选项 / 条件下面。
-第三章段落顺序是 FINAL_PLAN：--chapter=final --story_auto 和 --beat=final_ending_1..4 --story_auto 实际走的顺序（11-07）；
+第三章段落顺序是 FINAL_PLAN：--chapter=final --story_auto 和 --beat=final_ending_1 / final_ending_3 / final_ending_home --story_auto 实际走的顺序（11-07 结局重构后）；
 if / goto 照引擎的规矩展开（分支跳走就是跳走，分支播完没跳走就接着往下），不在 FINAL_PLAN 里的小场景嵌在条件下面。
 表里没有的动作名会直接报错，不会漏写；写完检查主线每一句都在 txt 里（第三章检查整个文件的每一句）。
 
@@ -56,7 +56,7 @@ MAIN = [
     ("south_back", "回旧街。妮芙捡到铜铃，送给晨，回河岸（没有密封圈的，这时先出「获取密封圈」，拿到了才能去道别）"),
     ("farewell", "妮芙家。喝茶，留画，拿礼物"),
     ("farewell_b", "妮芙家。她说画得像水壶"),
-    ("farewell_phone", "妮芙家。加通讯录，回河岸"),
+    ("farewell_phone", "道别完，回河岸"),
     ("plane_fix", "河岸。修飞机"),
     ("depart", "河岸。起飞。第二章完"),
 ]
@@ -335,7 +335,7 @@ class Writer:
             if name == "sluice_later" or name in {m[0] for m in MAIN}:
                 continue
             label = COND.get(flag)
-            if flag == "river_sluice_open":
+            if flag in ("river_sluice_open", "river_jelly_given"):   # 刚设上就判断，不是分支
                 label = None
             elif not label:
                 sys.exit("COND 里没有：%s" % flag)
@@ -499,11 +499,10 @@ FINAL_PLAN = [
     ("final_route", "碎石带"),
     ("final_cabinet", "燃料柜。数一数还剩什么"),
     ("final_fuel", "燃料柜。晨对自己说"),
-    ("final_paper", "燃料柜。第一次烧东西"),
+    ("final_paper", "燃料柜。能烧的这一次都能烧完（燃料到 300 就能收起，芦苇地要 760）"),
     ("final_approach", "接近云层。画背面的字，第一页，第四次闪回"),
-    ("final_action", "选：下降，还是漂在云上"),
-    ("final_descend", "下降。再烧一次，选降落点"),
-    "结局一：西侧旧货场（大象真的在，吃草很响，不理人）",
+    ("final_descend", "最后的选择：芦苇地 / 云层小镇 / 回母星"),
+    "结局一：西侧旧货场的芦苇地（真结局，大象真的在，吃草很响，不理人。燃料要 760，不够的话这一项是灰的）",
     ("ending1", "降落"),
     ("e1_prints", "脚印"),
     ("e1_meet", "浅水边。见到大象"),
@@ -512,15 +511,14 @@ FINAL_PLAN = [
     ("e1_plant", "种种子（种子没烧的人才有）"),
     ("e1_evening", "傍晚。修飞机，写日记"),
     ("e1_cockpit", "驾驶舱。看窗外的大象"),
-    "结局二：东侧低鸣（只有晨看得见）",
-    ("ending2", "降落"),
-    ("e2_see", "缓坡下。看见大象，居民什么也没看见"),
-    ("e2_see_rest", "人围过来"),
-    ("e2_dusk", "傍晚。居民陪着坐"),
-    ("e2_record", "回飞机记下位置"),
-    ("e2_plant", "种种子（种子没烧的人才有）"),
-    ("e2_night_go", "夜里，第二天"),
-    "结局三：居民区（大家都看得见，只有晨看不见）",
+    "尾声（只有芦苇地这条有：鹿 → 弥洛 → 妮芙 → 城市 → 列车）",
+    ("epilogue", "森林路口。鹿"),
+    ("epi_miluo", "树屋。弥洛"),
+    ("epi_niff", "妮芙家"),
+    ("epi_city", "回到城市"),
+    ("epi_home", "回家的列车"),
+    ("epi_home_seat", "列车上。坐下。全剧终"),
+    "结局二：居民区·云层小镇（大家都看得见，只有晨看不见；停在小镇，全剧终）",
     ("ending3", "降落"),
     ("e3_plaza", "广场。大家都说它在喷泉边"),
     ("e3_plaza_rest", "晨还是看不见"),
@@ -532,29 +530,20 @@ FINAL_PLAN = [
     ("e3_bench", "长椅"),
     ("e3_plant", "种种子（种子没烧的人才有）"),
     ("e3_night", "回住处。改日记"),
-    "结局四：关掉推进器，漂在云上（没有下去）",
-    ("ending4", "放回东西，确认轨道"),
-    ("e4_straps", "收拾，关发动机，哼歌"),
-    ("e4_write", "写日记，大象的影子从窗外过去"),
-    "尾声（四个结局都走这里，只有写了「结局几」的那几句不一样）",
-    ("epilogue", "森林路口。鹿"),
-    ("epi_miluo", "树屋。弥洛"),
-    ("epi_niff", "妮芙家"),
-    ("epi_city", "回到城市"),
-    ("epi_home", "回家的列车"),
-    ("epi_home_seat", "列车上。坐下。全剧终"),
+    ("final_end_town", "全剧终"),
+    "结局三：掉头回母星（接下来就是上面尾声最后那段「回家的列车」，一模一样）",
+    ("ending_home", "掉头"),
 ]
 FINAL_OPTIONAL = [
-    ("ck_bell", "驾驶舱：铜铃"), ("ck_rope", "驾驶舱：绳圈（烧了铜铃以后）"), ("ck_copilot", "驾驶舱：副驾驶座"), ("ck_cabinet", "驾驶舱：燃料柜"),
-    ("ck_tools", "驾驶舱：工具"), ("ck_drawing", "驾驶舱：最初的画"), ("yard_sign", "结局一：指示牌"), ("e1_elephant_chat", "结局一：大象"),
-    ("e1_passerby_chat", "结局一：路过的人"), ("e2_elephant_chat", "结局二：大象"), ("e2_cup", "结局二：那杯水"), ("town_basket", "结局三：空篮子"),
-    ("e3_crowd_chat", "结局三：周围的人"), ("e3_fountain_look", "结局三：喷泉"), ("e3_townsfolk_chat", "结局三：居民"), ("epi_deer_chat", "尾声：鹿"),
+    ("ck_bell", "驾驶舱：铜铃"), ("ck_drawing", "驾驶舱：最初的画"), ("yard_sign", "芦苇地：指示牌"), ("e1_elephant_chat", "芦苇地：大象"),
+    ("e1_passerby_chat", "芦苇地：路过的人"), ("town_basket", "云层小镇：空篮子"),
+    ("e3_crowd_chat", "云层小镇：周围的人"), ("e3_townsfolk_chat", "云层小镇：居民"), ("epi_deer_chat", "尾声：鹿"),
     ("epi_miluo_chat", "尾声：弥洛"), ("epi_niff_chat", "尾声：妮芙"),
 ]
 # 没有字的场景，不用写进 txt
 FINAL_SILENT = {"yard_grass"}
 # 只是往下问一句的条件场景，自己不写「（……的人）」
-FINAL_PASS = {"epi_deer_q2", "epi_deer_q3", "epi_niff_q2", "epi_niff_q3", "epi_miluo_q"}
+FINAL_PASS = {"epi_miluo_q"}
 FINAL_LABEL_SCENE = {
     "epi_home_chart": "没烧座位图，第一章也没和鹿认亲的人",
     "epi_miluo_kept": "种子没种也没烧的人",
@@ -568,9 +557,7 @@ FINAL_COND = {
     "musicbox_fixed": "第一章修好了音乐盒的人",
     "!musicbox_fixed": "没修好音乐盒的人",
     "final_ending_1": "结局一",
-    "final_ending_2": "结局二",
-    "final_ending_3": "结局三",
-    "!final_ending_3": "结局四",
+    "final_ending_3": "云层小镇",
     "final_seed_planted": "把种子种下了的人",
     "river_cup_traced": "看过来客册、拿到杯底记号的人",
     "sa_sign_done": "第一章把路标送回空地的人",
@@ -581,7 +568,7 @@ FINAL_COND = {
     "c1_child": "第一章让鹿把晨当孩子的人",
 }
 FINAL_GOTO_NOTE = {
-    "final_descend": "往下接「下降」", "ending4": "结局四", "ending1": "结局一", "ending2": "结局二", "ending3": "结局三",
+    "final_descend": "往下接「最后的选择」", "ending1": "芦苇地", "ending3": "云层小镇", "ending_home": "回母星", "epi_home": "接「回家的列车」（和尾声最后一段一样）", "final_end_town": "全剧终",
 }
 WHO_FINAL = {"chen": "晨", "niff": "妮芙", "elephant": "大象", "deer": "鹿", "miluo": "弥洛", "passerby": "路过的人", "resident": "居民", "townsfolk": "居民", "crowd": "周围的人"}
 ROOMS_FINAL = {"cockpit": "驾驶舱", "reed_field": "芦苇地", "town": "云层小镇", "town_room": "住处", "forest": "森林路口", "treehouse": "树屋",
@@ -835,6 +822,8 @@ class FinalWriter(Writer):
             head = "▶ " + text
             for need in o.get("need", []):
                 head = "▶ （%s才有这句）%s" % (self.label(need, None), text)
+            if o.get("fuel_need"):
+                head += "（燃料不到 %d 这一项是灰的，写「燃料还差 X」，选不了）" % o["fuel_need"]
             if o.get("confirm"):
                 head += "（二次确认：%s）" % o["confirm"]["zh"]
             if target in self.main:
@@ -920,7 +909,7 @@ class FinalWriter(Writer):
 
     def keepsakes(self):
         k = next(s for s in self.sc["final_paper"] if s.get("do") == "keepsake_choice")
-        self.lines += ["", "# 燃料柜：每件东西选中时、烧掉时（两次烧东西都走这里，列表里只有手上有的）"]
+        self.lines += ["", "# 燃料柜：每件东西选中时、烧掉时（燃料柜只有那一次，列表里只有手上有的）"]
         for item in k["items"]:
             look, burn, keep = k["look_scenes"].get(item), k["scenes"].get(item), k.get("keep_scenes", {}).get(item)
             names = "、".join(x for x in (look, keep, burn) if x)
@@ -941,7 +930,7 @@ def build_final():
         "",
         "[方括号] 是动作，我概括的。「名字：台词」是原文。▶ 是选项，（汇合）是几个选项走回同一条路。",
         "（烧了……的人）（结局一）这种括号，是只有这些人才看到下面缩进的那几句。",
-        "飞向云层星只有一遍，然后分四个结局，四个结局都接同一段尾声。最后是燃料柜里每件东西的话和可点的东西。",
+        "飞向云层星只有一遍，然后在「最后的选择」分三个去处：芦苇地（真结局，接完整尾声）、云层小镇（停在小镇）、回母星（直接坐列车）。最后是燃料柜里每件东西的话和可点的东西。",
         "每段标题括号里的英文是场景名，改的时候留着，我靠它对回去。其他都可以改：重写台词、删句、加句、调顺序，都直接改。",
     ]
     base = None
@@ -961,7 +950,7 @@ def build_final():
     w.lines += ["", "# 可点的东西，不在主线"]
     for name, title in FINAL_OPTIONAL:
         w.paragraph(name, title)
-    w.lines += ["", "## 站着不动时晨说的（hints）"]
+    w.lines += ["", "## 站着不动时晨心里想的（hints）" + ("（字直接打在画面上，没有对话框）" if d.get("hints_inner") else "")]
     w.lines += ["- " + l["zh"] for h in d["hints"] for l in h["lines"]]
     w.lines.append("")
     merged = []

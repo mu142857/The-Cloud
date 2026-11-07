@@ -453,7 +453,8 @@ func _ready() -> void:
 	_build_ui()
 	_build_story()
 	_retext()
-	_enter_headphones()
+	if not Engine.has_meta(TITLE_FADE_META):   # 耳机提示只在启动第一次进标题时出现；全剧终 / 设置「返回标题」回来不再出（11-07 作者）
+		_enter_headphones()
 	if Engine.has_meta(BACK_META):          # 从测试场景按 Esc 回来：直接到标题（雨声照常）；自由探索里去的就回自由探索
 		Engine.remove_meta(BACK_META)
 		if free_roam == "":
@@ -1788,7 +1789,8 @@ func _back_to_title() -> void:
 
 func _title_fade_in() -> void:
 	get_tree().paused = false                  # 从设置返回标题时一直暂停到这里
-	_set_state(S.INTRO)
+	_kill_cine()                               # 11-07 作者「返回标题……耳机还消不掉」：原来 _ready 先播了耳机的淡入 tween，这里只把透明度置 0，
+	_set_state(S.INTRO)                        # tween 0.3 秒后又把提示淡到 1，压在标题上；状态已经不是 HEADPHONES，点哪都关不掉
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 1.0
 	_title_bg_on()
@@ -1797,10 +1799,13 @@ func _title_fade_in() -> void:
 		[0.4, _fade_from_black],
 		[1.0, _show_title],
 	])
-	if _story_auto != "":                      # 自测：看到标题就算走完（不然自动玩会按「开始」又玩一遍）
+	if _story_auto != "":                      # 自测：看到标题就算走完（不然自动玩会按「开始」又玩一遍）；--title_again：接着按「开始」再玩一局
 		get_tree().create_timer(1.9, false).timeout.connect(func():
-			print("TITLE_AFTER_CREDITS state=%s fade=%.2f" % [S.keys()[state], fade.color.a])
-			get_tree().quit())
+			print("TITLE_AFTER_CREDITS state=%s fade=%.2f headphones=%.2f" % [S.keys()[state], fade.color.a, _hp_root.modulate.a])
+			if not "--title_again" in OS.get_cmdline_user_args():
+				get_tree().quit())
+		get_tree().create_timer(4.0, false).timeout.connect(func():
+			print("TITLE_AFTER_CREDITS +4s state=%s headphones=%.2f" % [S.keys()[state], _hp_root.modulate.a]))
 
 
 func _open_credits() -> void:
