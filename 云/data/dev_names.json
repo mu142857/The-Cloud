@@ -161,7 +161,6 @@
 		"river_done": "离开河流城市",
 
 		"final_started": "终章开始",
-		"final_niff_msg": "收到妮芙的消息",
 		"final_cabinet_seen": "看过燃料柜",
 		"final_fuel_done": "燃料凑够了",
 		"burned_river_water": "烧了河水",
@@ -214,8 +213,7 @@
 		"burned_bird_whistle": "烧了鸟哨",
 		"fb_outran": "成就：逃脱（闪回里没被触手追上）",
 		"fb_stood_still": "成就：第四次闪回停下来",
-		"final_done": "全剧终（坐车回家）",
-		"sent_found": "发出「我找到大象了」"
+		"final_done": "全剧终（坐车回家）"
 	},
 	"markers": {
 		"chen_bye": "晨道别站的地方",
@@ -822,7 +820,6 @@
 		"niff_chat_late": "妮芙：修好要说再见",
 
 		"start_final": "终章开始",
-		"final_niff_msg": "妮芙来消息",
 		"final_route": "航道比记录乱",
 		"final_cabinet": "看燃料柜",
 		"cab_slot_stone": "柜子：石头那格",
@@ -902,7 +899,7 @@
 		"e1_paper": "找纸",
 		"e1_paper_get": "借纸",
 		"e1_write": "写下找到大象",
-		"e1_phone": "发「我找到大象了」",
+		"e1_cockpit": "结局一：驾驶舱看窗外",
 		"ending2": "结局二：落在缓坡下",
 		"e2_see": "别人都看不见",
 		"e2_footage": "放影像给人看",
@@ -1001,7 +998,7 @@
 		"epi_home_chart": "回家：座位图",
 		"epi_home_chart_card": "回家：座位图和卡",
 		"epi_home_chart_loose": "回家：散的座位图",
-		"epi_home_phone": "回家：通讯器",
+		"epi_home_seat": "回家：坐下",
 		"epi_home_journal": "回家：日记",
 		"epi_home_page": "回家：那一页",
 		"epi_home_end": "全剧终"

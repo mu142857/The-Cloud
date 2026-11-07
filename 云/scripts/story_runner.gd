@@ -875,12 +875,6 @@ func _step(st: Dictionary) -> String:
 				follow[who_f] = float(st.get("gap", FOLLOW_GAP))
 			else:
 				follow.erase(who_f)
-			var nf_ := npc(who_f)
-			if nf_ != null and st.has("vmax"):
-				if float(st["vmax"]) > 0.0:
-					nf_.set_meta("follow_vmax", float(st["vmax"]))
-				elif nf_.has_meta("follow_vmax"):
-					nf_.remove_meta("follow_vmax")
 		"water":
 			var ws: Node2D = world.stage(str(st.get("room", world.room)))
 			if ws != null:
@@ -992,6 +986,8 @@ func _fuel_step(st: Dictionary) -> void:
 		have = int(st["have"])
 	if st.has("burn"):
 		have += fuel_of(str(st["burn"]))
+		if auto != "":
+			print("FUEL burn %s +%d%s have=%d" % [st["burn"], fuel_of(str(st["burn"])), " (fried)" if StoryState.has(Inventory.FRIED + str(st["burn"])) else "", have])
 	have += int(st.get("add", 0)) - int(st.get("sub", 0))
 	if need < 0 and not StoryState.fuel_on():
 		need = maxi(have, 0)
@@ -2345,7 +2341,7 @@ func _end_chapter() -> void:
 
 ## 「全剧终」停一会儿以后放制作人员（scripts/credits_page.gd 的 from_end：和标题页「制作人员」同一套分场景名单，
 ## 从结束卡淡进去，「感谢游玩」以后淡到黑），放完回标题（level_forest.title_after_credits：重新载入，标题从黑里淡出来）。
-## 放的时候按键都给名单页（level_forest 的 _input 先看 _credits_page；Esc = 直接淡到黑回标题）；结束卡自己不再等按键。
+## 放的时候按键都给名单页（level_forest 的 _input 先看 _credits_page），不能跳；结束卡自己不再等按键。
 ## cards = 结束卡（全剧终）和成就那行：名单淡进来之前先淡到透明（底下是黑的）、删掉，两层字不同时出现（11-05 qa_all 报了叠字）。
 func _credits_roll(cards: Array) -> void:
 	level.set("_end_t", -100.0)
@@ -2902,6 +2898,9 @@ func _would_progress(s: String, seen: Dictionary) -> bool:
 				for v in (st.get("scenes", {}) as Dictionary).values():
 					if _would_progress(str(v), seen):
 						return true
+			"barter":
+				if not barter.auto_trade(str(st.get("npc", ""))).is_empty():
+					return true
 			"mechanic":
 				if not bool(mech_load(str(st.get("id", ""))).get("_done", false)):
 					return true
@@ -4124,7 +4123,7 @@ func _pass_over(delta: float) -> void:
 			continue                  # 正在划弧：飘着的那段高度先不动（_swap_step 只补剩下的）
 		var cur_l := float(n.get_meta("pass_lift", 0.0))
 		var want := 0.0
-		if n.visible and n.is_walking() and _is_hover(n) and chen.visible and _room_of(n) == world.room \
+		if n.visible and n.is_walking() and _is_hover(n) and not n.has_meta("resident") and chen.visible and _room_of(n) == world.room \
 				and absf(n.position.y - chen.position.y) < 12.0:
 			var zone := _side_gap(n, 30.0)
 			var d := absf(n.position.x - chen.position.x)
@@ -4138,9 +4137,10 @@ func _pass_over(delta: float) -> void:
 					n.set_meta("pass_full", full)
 				var k := clampf((zone + PASS_RAMP - d) / PASS_RAMP, 0.0, 1.0)
 				want = full * k * k * (3.0 - 2.0 * k)
-		elif n.visible and not n.is_walking() and not n.has_meta("swap_t") and _is_hover(n) and chen.visible and _room_of(n) == world.room \
-				and absf(n.position.y - chen.position.y) < 12.0:
-			# 站着（跟随 / 让路）的时候被晨挤进身子里（楼梯口、墙边划不了弧，弹簧追不上）：真叠上了就往上飘过晨的头，让开了再落
+		elif n.visible and not n.is_walking() and not n.has_meta("swap_t") and _is_hover(n) and not n.has_meta("resident") \
+				and chen.visible and _room_of(n) == world.room and absf(n.position.y - chen.position.y) < 12.0:
+			# 站着（跟随 / 让路）的时候被晨挤进身子里（楼梯口、墙边划不了弧，弹簧追不上）：真叠上了就往上飘过晨的头，让开了再落。
+			# 住在这儿的（柜台后面的水母）不飘：钉在原地，只有自己的上下浮（11-07 作者：水母被晨顶到头顶上去了）
 			var zone2 := _side_gap(n, 30.0) - CLEAR_GAP
 			var d2 := absf(n.position.x - chen.position.x)
 			if d2 < zone2:
@@ -4911,6 +4911,10 @@ func _stage_fade(st: Dictionary, room: String, x: float, arrive: float) -> bool:
 	if room == "cockpit" and world.is_stage(from):
 		await _stage_takeoff()             # 河岸 → 驾驶舱（原文 151–152）：飞机竖直升起、泛光、往左上飞出画面，再接原来的淡出
 		return false
+	# 11-07 作者「从上一个对话到这里应该是方格转场」：写了 "style": "pixel" 的（没另写 kind）一律走方格，
+	# 不被门（河岸 → 妮芙家是 house_pair）/ 竖直平移 / 潜水这些自动选的转场吞掉
+	if str(st.get("style", "")) == "pixel" and not st.has("kind"):
+		return false
 	match kind:
 		"door":
 			await _door_move(room, x, with, st)
@@ -5382,6 +5386,31 @@ func item_view(id: String) -> String:
 				and StoryState.all_of(v.get("need", [])) and StoryState.none_of(v.get("not", [])):
 			return str(v["scene"])
 	return ""
+
+
+## 背包「查看」双面纸（物品表里带 back 的 = 大象的照片）：剧本 item_views 管不到的时候（森林追逐以后、河流、终章……任何时候）
+## 都能全屏看 paper_view，正面大象、A / D 翻到地图；c1_got_map 以前（森林第 8 步以前）只看正面。
+## 11-07 作者在河流篇末尾：「为什么我不能查看了啊」——原来 item_views 只在森林、追逐结束就关了，河流那边只剩「使用」。
+func paper_viewable(id: String) -> bool:
+	return Inventory.item(id).get("back", null) is Dictionary and item_view(id) == ""
+
+
+func view_paper(id: String) -> void:
+	if busy or not paper_viewable(id):
+		return
+	busy = true
+	level.story_begin(false)
+	var bk: Dictionary = Inventory.item(id)["back"]
+	var st := {"do": "mechanic", "id": "paper_view",
+		"flip": StoryState.has(str(bk.get("after", ""))) or str(level.chapter) != "forest"}
+	var m = (load("res://scripts/paper_view.gd") as GDScript).new()   # 直接开，不走 _mechanic（不记 _done、不算剧本进度）
+	print("PAPER_VIEW open item=%s chapter=%s flip=%s" % [id, level.chapter, st["flip"]])
+	if auto != "":
+		await m.auto(level, world, self, st)
+	else:
+		await m.run(level, world, self, st)
+	busy = false
+	level.story_end()
 
 
 ## 自动玩 / 跳节拍：背包里有、现在能看的那件（{item, scene}；没有 = {}）

@@ -41,7 +41,7 @@ const TEST_META := "dev_panel_test"       # 自测进度（跨重新载入）：
 ## 11-05 换成新版第一关：主线前段（拿回背包）、一条支线（坡地蹄印，要先补齐支线窗口）、主线最后（和鹿道别，下一步就是起飞）
 const SAMPLES := {
 	"forest": ["c1_got_bag", "sb_slope_done", "c1_ready"],
-	"flight1": ["flight1_leak_fixed", "flight1_miluo_msg"],
+	"flight1": ["flight1_leak_fixed", "flight1_journal"],
 }
 ## 自测打断：剧情播到这种时候按 F12 点地图的方块跳走（进那个房间的自由探索）。[什么时候, 从哪段开始 [章, after], 点哪个方块 [章, 房间]]
 const INTERRUPTS := [
@@ -1017,7 +1017,9 @@ func _test_buttons() -> void:
 		_switch(str(k))
 	_give_all()
 	_fuel_full()
+	# flight1 一进来就在播起飞过场：先让它自己播到能自由走，再传送
 	await _settle(90.0)
+	level._close_panels()
 	for n in story.world.markers:
 		level.dev_teleport(str(n))
 		await _wait(0.05)

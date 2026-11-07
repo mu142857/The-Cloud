@@ -10,9 +10,10 @@ extends Node2D
 ##
 ## 流程（state）：
 ##   HEADPHONES  黑屏，「建议佩戴耳机」+「点击或按任意键继续」（顺便解锁网页版的声音）
-##   INTRO       雨声淡入 → 两声远雷 → 黑屏淡入森林
-##   TITLE       标题界面：游戏名、正中「开始游戏」、右下角设置齿轮；镜头慢慢左右漂
-##   CRASH       开场动画（上下黑边）：三次闪电 + 近雷 → 冒烟的飞船从右上斜着坠下 → 撞地（震屏、尘土、浓烟）
+##   INTRO       风声淡入 → 两声远雷（风暴在云层底下）→ 黑屏淡入云层小镇（scripts/title_cloud.gd）
+##   TITLE       标题界面：背景是云层小镇，游戏名、正中「开始游戏」、右下角设置齿轮；镜头慢慢左右漂
+##   CRASH       点开始：画面往下落，穿过云层到全黑，再落就是森林（风和鸟叫交叉）。落到位接开场动画（上下黑边）：
+##               三次闪电 + 近雷 → 冒烟的飞船从右上斜着坠下 → 撞地（震屏、尘土、浓烟）
 ##               → 晨和另一个外星人（梧桐画的旧主角，npc_alien.gd）先后被甩出来、脸朝下趴着 → 她先爬起来，晨再爬起来
 ##               （晨：真抛物线 + 角速度衰减的翻滚、落地弹一下滑一下扬尘轻震，见 _chen_thrown）
 ##               → 对话「啊……糟糕……」。确认键 / 点击按两次可以跳过。她之后一直站在残骸尾巴旁边待机（不说话）。
@@ -121,18 +122,18 @@ const SELF_SCENE := "res://scenes/level_forest.tscn"
 
 ## 标题界面
 const TITLE_Y := 54.0
-const TITLE_COLOR := Color("#b9cdc1")     # 偏暗的薄荷灰（比晨暗，比背景亮）
+const TITLE_COLOR := Color("#d8cfe2")     # 11-06 背景换成云层小镇：字从森林的薄荷灰换成小镇天上那颗星的淡紫
 const TITLE_SPACING := 3
-const SUB_COLOR := Color("#7f988b")
+const SUB_COLOR := Color("#9a8fb4")
 const SUB_SPACING := 4
 const START_Y := 150.0
-const START_COLOR := Color("#a3b8ad")
-const START_HOT := Color("#e2ebe5")
+const START_COLOR := Color("#b9aecb")
+const START_HOT := Color("#efe9f5")
 const START_SPACING := 2
 const GEAR_A := 0.45
 const GEAR_PLAY_A := 0.6
-const LANG_ON := Color("#a3b8ad")      # 左下角语言切换：当前语言
-const LANG_OFF := Color("#56695f")     # 另一种语言（悬停时亮成 START_HOT）
+const LANG_ON := Color("#b9aecb")      # 左下角语言切换：当前语言
+const LANG_OFF := Color("#6d6385")     # 另一种语言（悬停时亮成 START_HOT）
 
 ## 闪电：不再是整屏白闪，而是冷色的天光从林冠后面亮一下（远景几层被照亮，近处的树干、林冠成了剪影），
 ## 再叠一层很淡的冷色。下面是每层被照亮多少（0 = 不动）和冷光的颜色（乘到图层上，>1 = 变亮）。
@@ -215,6 +216,7 @@ var _start_btn: Button
 var _start_marks: Array[ColorRect] = []   # 「开始」两边悬停时伸出来的小横线
 var _credits_btn: Button         # 「开始」下面的「制作人员」（更小、更暗）
 var _credits_page = null         # 打开着的制作人员页（scripts/credits_page.gd）
+var _leaving_title := false      # 设置面板点了「返回标题」，正在淡到黑（_back_to_title）
 var _gear: TextureButton
 var _lang_corner: HBoxContainer   # 标题界面左下角的「EN / 中文」，跟着标题一起出现、消失
 var _lang_btns := {}
@@ -315,6 +317,8 @@ const HUM_DB := -20.0           # 驾驶舱引擎声多响
 
 # ---- 声音
 var _rain: AudioStreamPlayer
+var _title_wind: AudioStreamPlayer
+var _title_bg: Node                       # 开始界面的云层小镇（scripts/title_cloud.gd），落完就释放
 var _crackle: AudioStreamPlayer2D
 
 # ---- 调试
@@ -602,6 +606,12 @@ func _build_audio() -> void:
 	_rain.bus = "SFX"
 	_rain.volume_db = -80.0
 	add_child(_rain)
+	_title_wind = AudioStreamPlayer.new()
+	_title_wind.name = "TitleWind"
+	_title_wind.stream = _ambient_stream("res://audio/sfx/cloud_wind.ogg")
+	_title_wind.bus = "SFX"
+	_title_wind.volume_db = -60.0
+	add_child(_title_wind)
 	_crackle = AudioStreamPlayer2D.new()
 	_crackle.stream = load(SFX_DIR + "fire_crackle_loop.wav")
 	_crackle.bus = "SFX"
@@ -680,7 +690,7 @@ func _build_ui() -> void:
 	_title_root.visible = false
 	root.add_child(_title_root)
 	_title_label = _label("", 42, TITLE_COLOR)
-	_title_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.35))
+	_title_label.add_theme_color_override("font_shadow_color", Color(0.05, 0.02, 0.08, 0.35))
 	_title_label.add_theme_constant_override("shadow_offset_x", 0)
 	_title_label.add_theme_constant_override("shadow_offset_y", 3)
 	_title_label.position = Vector2(0, TITLE_Y)
@@ -703,7 +713,7 @@ func _build_ui() -> void:
 	_start_btn.add_theme_color_override("font_hover_color", START_HOT)
 	_start_btn.add_theme_color_override("font_focus_color", START_HOT)
 	_start_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_start_btn.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.5))   # 雾最亮的地方也看得清
+	_start_btn.add_theme_color_override("font_shadow_color", Color(0.05, 0.02, 0.08, 0.5))   # 雾最亮的地方也看得清
 	_start_btn.add_theme_constant_override("shadow_offset_x", 0)
 	_start_btn.add_theme_constant_override("shadow_offset_y", 1)
 	_start_btn.position = Vector2(0, START_Y)
@@ -727,7 +737,7 @@ func _build_ui() -> void:
 		_credits_btn.add_theme_color_override(k, SUB_COLOR)
 	for k in ["font_hover_color", "font_focus_color", "font_hover_pressed_color"]:
 		_credits_btn.add_theme_color_override(k, START_HOT)
-	_credits_btn.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.5))
+	_credits_btn.add_theme_color_override("font_shadow_color", Color(0.05, 0.02, 0.08, 0.5))
 	_credits_btn.add_theme_constant_override("shadow_offset_x", 0)
 	_credits_btn.add_theme_constant_override("shadow_offset_y", 1)
 	_credits_btn.pressed.connect(_open_credits)
@@ -1033,12 +1043,20 @@ func _build_settings(root: Control) -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 2)
 	v.add_child(gap)
+	var row := HBoxContainer.new()                 # 「制作人员」旁边是「返回标题」（标题界面没有这个按钮，_sync_settings）
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	v.add_child(row)
 	var cr := Button.new()
 	cr.custom_minimum_size = Vector2(80, 18)
-	cr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cr.pressed.connect(_open_credits)
-	v.add_child(cr)
+	row.add_child(cr)
 	_settings_widgets["credits"] = cr
+	var bt := Button.new()
+	bt.custom_minimum_size = Vector2(80, 18)
+	bt.pressed.connect(_back_to_title)
+	row.add_child(bt)
+	_settings_widgets["back_title"] = bt
 	var close := Button.new()
 	close.custom_minimum_size = Vector2(80, 18)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1082,6 +1100,7 @@ func _set_fullscreen(on: bool) -> void:
 
 func _sync_settings() -> void:
 	var w := _settings_widgets
+	(w["back_title"] as Button).visible = free_roam == "" and not state in [S.HEADPHONES, S.INTRO, S.TITLE]
 	(w["lang_a"] as Button).set_pressed_no_signal(GameSettings.lang == "en")
 	(w["lang_b"] as Button).set_pressed_no_signal(GameSettings.lang == "zh")
 	(w["q_a"] as Button).set_pressed_no_signal(not GameSettings.lite())
@@ -1285,7 +1304,7 @@ func _bag_refresh() -> void:
 		var use: Button = _bag_w["use"]
 		use.text = I18n.t("use")
 		use.visible = iid not in ["journal", "deer_bear"] and state == S.PLAY
-		if story.item_view(iid) != "":
+		if story.item_view(iid) != "" or story.paper_viewable(iid):
 			use.text = I18n.t("view")
 		use.modulate = Color("#ffe097") if iid == "elephant_drawing" and _first_photo_pending() else Color.WHITE
 	else:
@@ -1362,6 +1381,10 @@ func _on_use_item() -> void:
 	_close_panels(id == "elephant_drawing" and vs != "")
 	if vs != "":
 		story.play(vs)                                # 剧本 item_views：大象的画 → 全屏看画 → 闪回
+		return
+	if story.paper_viewable(id):
+		_bag_after_story = true                       # 看完收起回到背包、还选着这张照片
+		story.view_paper(id)                          # 双面纸：任何章节、任何时候「查看」= 全屏看、能翻到地图
 		return
 	story.use_item(id)
 
@@ -1453,6 +1476,7 @@ func _retext() -> void:
 		w[pre + "_b"].text = I18n.t(keys[1])
 	w["close"].text = I18n.t("close")
 	w["credits"].text = I18n.t("credits")
+	w["back_title"].text = I18n.t("back_to_title")
 	if _dlg_on and _dlg.has_meta("key"):
 		_dlg_name.text = I18n.t(_dlg.get_meta("who"))
 		_dlg_text.text = I18n.t(_dlg.get_meta("key"))
@@ -1648,10 +1672,11 @@ func _enter_headphones() -> void:
 
 func _leave_headphones() -> void:
 	_set_state(S.INTRO)
+	_title_bg_on()
 	var tw := _tw()
 	tw.tween_property(_hp_root, "modulate:a", 0.0, 0.8)
 	_run([
-		[0.6, _rain_in],
+		[0.6, _wind_in],
 		[1.8, func(): _sfx("thunder_far_1", -7.0)],
 		[4.4, func(): _sfx("thunder_far_2", -10.0, 0.92)],
 		[5.4, _fade_from_black],
@@ -1659,9 +1684,37 @@ func _leave_headphones() -> void:
 	])
 
 
-func _rain_in() -> void:
-	_rain.play()
-	_fade_db(_rain, RAIN_DB, 3.5)
+func _wind_in(sec := 3.5) -> void:
+	if not _title_wind.playing:
+		_title_wind.play()
+	_fade_db(_title_wind, TITLE_WIND_DB, sec)
+
+
+## 开始界面的背景（云层小镇）：盖在森林上面。森林这时候反正看不见，那几张满屏的图和雾先不画（手机上省一半填充）
+func _title_bg_on() -> void:
+	if _title_bg != null:
+		return
+	_title_bg = (load("res://scripts/title_cloud.gd") as GDScript).new()
+	_title_bg.name = "TitleCloud"
+	add_child(_title_bg)
+	_title_forest_visible(false)
+
+
+func _title_forest_visible(on: bool) -> void:
+	for n in TITLE_HIDE_LAYERS:
+		(get_node(n) as CanvasItem).visible = on
+
+
+## 背景拿掉（落完了，或者跳关直接跳过了标题）
+func _title_bg_off() -> void:
+	if _title_bg == null:
+		return
+	_title_bg.queue_free()
+	_title_bg = null
+	_title_forest_visible(true)
+	if _title_wind.playing:
+		_fade_db(_title_wind, -60.0, 1.2)
+		get_tree().create_timer(1.3, false).timeout.connect(_title_wind.stop)
 
 
 func _fade_from_black() -> void:
@@ -1697,9 +1750,8 @@ func _skip_to_title() -> void:
 	_kill_cine()
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 0.0
-	if not _rain.playing:
-		_rain.play()
-	_fade_db(_rain, RAIN_DB, 1.2)                      # 跳过片头也淡进来，不一下子响
+	_title_bg_on()
+	_wind_in(1.2)                                      # 跳过片头也淡进来，不一下子响
 	_show_title()
 	_kill_cine()
 	_title_k = 1.0
@@ -1717,6 +1769,7 @@ const TITLE_FADE_META := "level_forest_title_fade"
 
 
 func title_after_credits() -> void:
+	(load("res://scripts/bgm.gd") as GDScript).get_bgm(get_tree()).forget()
 	CHAPTER_GD.reset()
 	Engine.set_meta(TITLE_FADE_META, true)
 	if _story_auto != "":                      # 自测带着 --chapter=final：重新载入时别又进终章
@@ -1726,12 +1779,50 @@ func title_after_credits() -> void:
 	get_tree().reload_current_scene.call_deferred()
 
 
+## 设置面板「返回标题」（11-06 作者）：和全剧终回标题同一条路（title_after_credits → _title_fade_in）。设置 = 暂停，游戏就停在这里：
+## 整屏淡到黑（面板一起被盖住）；配乐慢慢淡掉，开始界面的风同时淡进来（根节点上临时一个，换场景不断，新关卡的风起来时它再淡掉），不留真空；
+## 被暂停住的音效、环境声本来就没声音，音量悄悄收掉再取消暂停。没有存档，回标题 = 新游戏。
+const BACK_VEIL := 0.8
+
+
+func _back_to_title() -> void:
+	if _leaving_title:
+		return
+	_leaving_title = true
+	_sfx("ui_click", -10.0)
+	print("BACK_TO_TITLE chapter=%s scene=%s" % [chapter, str(story._cur_scene)])
+	(load("res://scripts/bgm.gd") as GDScript).get_bgm(get_tree()).stop(BACK_VEIL + 3.2)
+	(load("res://scripts/audio_fade.gd") as GDScript).silence(self, BACK_VEIL)
+	var w := AudioStreamPlayer.new()
+	w.stream = _title_wind.stream
+	w.bus = "SFX"
+	w.volume_db = -60.0
+	w.process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().root.add_child(w)
+	w.play()
+	var wt := get_tree().create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	wt.tween_property(w, "volume_db", TITLE_WIND_DB, 1.0).set_trans(Tween.TRANS_SINE)
+	wt.tween_interval(BACK_VEIL - 0.4)
+	wt.tween_property(w, "volume_db", -60.0, 2.8).set_trans(Tween.TRANS_SINE)
+	wt.tween_callback(w.queue_free)
+	var veil := ColorRect.new()
+	veil.color = Color(0, 0, 0, 0)
+	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	veil.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_gate.ui_root.add_child(veil)
+	var vt := veil.create_tween()                  # 这一层暂停时也走
+	vt.tween_property(veil, "color:a", 1.0, BACK_VEIL).set_trans(Tween.TRANS_SINE)
+	vt.tween_interval(0.1)
+	vt.tween_callback(title_after_credits)         # 还暂停着换场景（_title_fade_in 才取消）：旧场景里等着的剧情不会被叫醒
+
+
 func _title_fade_in() -> void:
+	get_tree().paused = false                  # 从设置返回标题时一直暂停到这里
 	_set_state(S.INTRO)
 	_hp_root.modulate.a = 0.0
 	fade.color.a = 1.0
-	_rain.play()                               # 环境音马上开始淡进来，和还在淡掉的片尾音乐交叉（不留真空）
-	_fade_db(_rain, RAIN_DB, 2.8)
+	_title_bg_on()
+	_wind_in(2.8)                              # 环境音马上开始淡进来，和还在淡掉的片尾音乐交叉（不留真空）
 	_run([
 		[0.4, _fade_from_black],
 		[1.0, _show_title],
@@ -1771,7 +1862,7 @@ func _on_start() -> void:
 	if state != S.TITLE or _settings.visible or _credits_page != null or _state_t < 0.3:
 		return
 	_sfx("ui_click", -8.0)
-	_start_crash()
+	_start_descent()
 
 
 # ======================================================================= 3. 开场动画
@@ -1779,7 +1870,37 @@ func _hide_title() -> void:
 	_title_root.visible = false
 
 
+## 点开始：画面往下落（title_cloud.gd），穿过云层到全黑，再落就是森林。声音：风落到一半慢慢没了，鸟叫（森林的环境音）在全黑之前
+## 就淡进来，两边交叠；全黑那一段响一声远雷。落到位接坠毁开场。
+func _start_descent() -> void:
+	if _title_bg == null or not _title_bg.has_method("descend"):
+		_start_crash()
+		return
+	_set_state(S.CRASH)
+	_start_btn.release_focus()
+	var tw := _tw()
+	tw.tween_property(_title_root, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(_hide_title)
+	_title_forest_visible(true)              # 这一下如果卡，也卡在刚点的时候，下面还盖着小镇
+	set_meta("qa_skip_t", story._game_t if story != null else 0.0)     # --qa_live：镜头这一下跳到落下去的高度，上面盖着整张小镇，看不见
+	cam.position.x = TITLE_CAM_X
+	_title_bg.descend(DESCENT_SEC)
+	_run([
+		[DESCENT_SEC * 0.18, func(): _fade_db(_title_wind, -60.0, DESCENT_SEC * 0.7)],
+		[DESCENT_SEC * 0.3, func():
+			_rain.volume_db = -60.0
+			_rain.play()
+			_fade_db(_rain, RAIN_DB, DESCENT_SEC * 0.7)],
+		[DESCENT_SEC * 0.52, func(): _sfx("thunder_far_2", -14.0, 0.92)],
+		[DESCENT_SEC + 0.25, _start_crash],
+	])
+
+
 func _start_crash() -> void:
+	_title_bg_off()
+	if not _rain.playing:                     # 跳关直接到这（--stage、--beat）：没走下落
+		_rain.play()
+		_fade_db(_rain, RAIN_DB, 1.2)
 	_set_state(S.CRASH)
 	_start_btn.release_focus()
 	var tw := _tw()
@@ -1804,6 +1925,9 @@ func _start_crash() -> void:
 
 
 const SHIP_TIME := 2.4
+const DESCENT_SEC := 7.5                  # 开始界面落到森林：760 像素，最快约 150 像素 / 秒
+const TITLE_WIND_DB := -14.0              # 开始界面的风（audio/sfx/cloud_wind.ogg，tools/cloud_wind_ambient.py 合成）
+const TITLE_HIDE_LAYERS := ["Sky", "Ridge", "Far", "MidFar", "Mid", "Main", "Front"]    # 标题盖着时不画的满屏层
 
 
 func _flash(peak: float) -> void:
@@ -2551,6 +2675,9 @@ func gate_input(event: InputEvent) -> void:
 
 
 func gate_event(event: InputEvent) -> void:
+	if _leaving_title:                             # 返回标题淡到黑的路上：按什么都不算
+		_handled()
+		return
 	if _credits_page != null:
 		if get_tree().paused:
 			_credits_page.handle(event)
@@ -2656,7 +2783,7 @@ func _input(event: InputEvent) -> void:
 		toggle_dev()
 		_handled()
 		return
-	# 制作人员页开着：按键 / 点击都给它（任意键关）
+	# 制作人员页开着：按键 / 点击都给它（不能跳，菜单点进来的 Esc 退回）
 	if _credits_page != null:
 		_credits_page.handle(event)
 		_handled()
@@ -2709,7 +2836,7 @@ func _input(event: InputEvent) -> void:
 			_handled()
 			return
 		if _bag.visible and k in [KEY_E, KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z] and _bag_sel < Inventory.owned.size() \
-				and story.item_view(Inventory.owned[_bag_sel]) != "":
+				and (story.item_view(Inventory.owned[_bag_sel]) != "" or story.paper_viewable(Inventory.owned[_bag_sel])):
 			_handled()
 			_on_use_item()                            # 剧本 item_views：E / 空格 = 「查看」
 			return
@@ -2904,6 +3031,8 @@ func _process(delta: float) -> void:
 		_hp_any.modulate.a = 0.45 + 0.35 * sin(_t * 2.4)
 	if state == S.TITLE or _title_root.visible:
 		_update_title(delta)
+	if _title_bg != null and state in [S.PLAY, S.CINE]:      # F12 跳关之类从标题直接进了游戏
+		_title_bg_off()
 
 	_debug_tick()
 	if _fuzz > 0.0:
@@ -2962,6 +3091,8 @@ func _update_camera(delta: float) -> void:
 	if ck != null and is_nan(_cam_override.x):
 		# 驾驶舱：船上下挪 = 镜头反向偏移（晨、室内、物件一起动；船外背景在 CanvasLayer 里不动）。ship_y() 是整数像素
 		cam.position.y = 135.0 - ck.ship_y()
+	elif _title_bg != null and _title_bg.descending:
+		cam.position.y = _title_bg.forest_cam_y()         # 开始界面往下落：森林跟着上来（落到位正好是 135）
 	elif is_nan(_cam_override.x):
 		# 平时镜头高度固定（多房间章节：房间的中线）；从别处回来时慢慢落回去
 		var cy: float = story.world_cam_y() if story != null and story.world != null else 135.0

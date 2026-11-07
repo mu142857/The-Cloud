@@ -124,6 +124,8 @@ static func none_of(list) -> bool:
 
 ## 等下一帧，设置开着（暂停）时不算：process_frame 这个信号暂停时还在发，剧情里 await 它数时间的循环会接着走（scripts/pause_gate.gd）
 static func frame(tree: SceneTree) -> void:
+	if tree == null:                         # 调的节点已经离开场景树（换场景的那一瞬间）：也等一帧，不然 while 循环里 await 它会原地空转、整个游戏卡死
+		tree = Engine.get_main_loop() as SceneTree
 	await tree.process_frame
 	while tree.paused:
 		await tree.process_frame

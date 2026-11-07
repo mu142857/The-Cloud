@@ -5,6 +5,9 @@
   "art/river_city/market/main.png": "10-31 作者手改：修补摊（立柱、雨棚、长凳）。tools/river_town_moon_art.py 不许再生成市集 main.png",
   "art/river_city/market/market_tools.png": "10-31 作者手改：修补摊挂的工具",
   "art/river_home/home_front.png": "10-31 作者手改：去掉外墙第 222 行的点线。tools/river_home_rooms_art.py 不许再生成 home_front.png",
-  "art/river_city/river_bank/main.png": "10-31 作者手改：接上垂枝树干的错位、树冠和树干、石台下的吊绳、栏杆。tools/river_bank_moon_art.py 不许再生成河岸 main.png"
+  "art/river_city/river_bank/main.png": "10-31 作者手改：接上垂枝树干的错位、树冠和树干、石台下的吊绳、栏杆。tools/river_bank_moon_art.py 不许再生成河岸 main.png",
+  "art/characters/elephant/elephant.png": "11-07 游戏里用的大象：elephant_original.png 的 RGB 整体 ×1.6（作者：颜色太深，调亮；色相饱和度不变、形状和像素位置不动）。要换亮度从原图重出，不许缩放、不许重画",
+  "art/characters/elephant/elephant_original.png": "11-07 奥斯卡的大象原图（/Users/jiamulin/Desktop/DAXIANG.aseprite 原样导出，149×120，一帧，致敬《小王子》）。像素不许改",
+  "art/characters/townsfolk/townsfolk_art.png": "11-07 美术姐画的云层镇居民（/Users/jiamulin/Desktop/dotpict_animation_20261107_130914.gif，副本在同目录 src/townsfolk.gif，原生 48×48，4 帧）。tools/townsfolk_from_gif.py 只按整数倍缩回，像素不许改、不许缩放、不许重画"
  }
 }

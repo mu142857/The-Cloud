@@ -34,6 +34,7 @@ var _bark_since := 0.0
 ## 软锁：左上角目标一直是这一个、这么久一个新 flag 都没设（自动玩会自己找点去互动，正常一两分钟总有进展）
 const SOFTLOCK := 90.0
 var _obj_key := ""
+var _side_key := "-"                 # 「（可选）」那一行上次的字（QA_SIDE 只在变的时候打）
 var _obj_since := 0.0
 var _obj_flags := 0
 var softlocks := {}
@@ -60,12 +61,18 @@ func _process(delta: float) -> void:
 			_add(offscreen, _key1(a), {"a": a})
 		for j in range(i + 1, items.size()):
 			var b: Dictionary = items[j]
-			if _related(a, b):
+			if _related(a, b) or _settings_covers(a, b):
 				continue
 			# 字框上下各有 1 像素的空（行高比字高），先各缩 1 像素再比：同一个框里名字和正文挨着不算
 			var x: Rect2 = (a["r"] as Rect2).grow(-1.0).intersection((b["r"] as Rect2).grow(-1.0))
 			if x.size.x >= 1.0 and x.size.y >= 1.0 and x.get_area() >= 4.0:
 				_add(overlaps, _key2(a, b), {"a": a, "b": b})
+
+
+## 设置面板开着（QA_PAUSE 自测、玩家开设置）：它在 pause_gate 那层，盖在对话框上面，面板里的字和底下的字不算叠字（面板里的字互相还是比）
+func _settings_covers(a: Dictionary, b: Dictionary) -> bool:
+	var pn: Control = level._settings
+	return pn.visible and pn.is_ancestor_of(a["node"]) != pn.is_ancestor_of(b["node"])
 
 
 ## 设置 = 暂停的自测（QA_PAUSE）：剧情播到一半开设置，等真实 1 秒，什么都不该动；关掉 0.5 秒后剧情钟接着走，没有新的 QA_JUMP / QA_CAMJUMP
@@ -272,10 +279,19 @@ func _dialogue_state() -> void:
 
 
 func _softlock() -> void:
+	var sh = level.get("_hud_side") if level != null else null
+	var st: String = str((sh as Label).text) if sh is Label and (sh as CanvasItem).is_visible_in_tree() else ""
+	if st != _side_key:
+		_side_key = st
+		print("QA_SIDE 「%s」 room=%s scene=%s" % [st, story.world.room, story._cur_scene])
 	var o: Dictionary = story.objective()
 	var k := str(o.get("zh", ""))
 	var nf: int = StoryState.flag_order.size()
 	if k != _obj_key or nf != _obj_flags:
+		if k != _obj_key:
+			var hud = level.get("_hud_obj") if level != null else null
+			var shown: bool = hud != null and (hud as CanvasItem).is_visible_in_tree()
+			print("QA_OBJ 「%s」 左上角显示=%s「%s」 room=%s scene=%s" % [k, shown, str((hud as Label).text) if hud is Label else "", story.world.room, story._cur_scene])
 		_obj_key = k
 		_obj_flags = nf
 		_obj_since = _t

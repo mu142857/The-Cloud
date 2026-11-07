@@ -1,139 +1,79 @@
 {
- "_comment": "tools/cloud_folk_art.py 生成，别手改（要改先改脚本）。云层星的居民，图里朝右，朝左引擎翻转；100ms 一帧。",
+ "_comment": "tools/townsfolk_from_gif.py 生成。云层镇的居民 = 美术姐 11-07 画的（dotpict，原生 48×48，4 帧走路，朝右），像素一个不改。100ms 一帧（作者定，GIF 里是 300ms）。原图只有走路：idle 用帧 0 + 偶尔帧 2（闭眼），talk、sit 等都别名到 idle（长椅那段站着）。tint false = 原色。旧的 townsfolk.png 是 cloud_folk_art.py 以前画的，不再用。",
  "frame": [
   48,
-  64
+  48
  ],
- "sheet": "townsfolk.png",
+ "sheet": "townsfolk_art.png",
  "anchor": [
-  22,
-  61
+  24,
+  46
  ],
  "faces": "right",
  "ms": 100,
  "tint": false,
- "head": 50,
- "speed": 30,
- "color": "#7c6c84",
+ "head": 46,
+ "speed": 40,
+ "color": "#bb9687",
  "anims": {
   "idle": {
    "frames": [
     0,
-    1,
-    2,
-    3,
-    4,
-    5,
     0,
-    1,
-    2,
-    3,
-    4,
-    5,
     0,
-    1,
-    2,
-    3,
-    4,
-    6,
     0,
-    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     2,
-    3,
-    4,
-    5
+    2
    ],
    "loop": true
   },
   "walk": {
    "frames": [
-    7,
-    8,
-    9,
-    10,
-    11,
-    12
+    0,
+    1,
+    2,
+    3
    ],
    "loop": true
-  },
-  "talk": {
-   "frames": [
-    13,
-    14,
-    15,
-    16
-   ],
-   "loop": true
-  },
-  "point": {
-   "frames": [
-    17,
-    18,
-    19,
-    20
-   ],
-   "loop": false,
-   "hold": true
-  },
-  "sit": {
-   "frames": [
-    21,
-    22,
-    23,
-    24,
-    25,
-    26
-   ],
-   "loop": false,
-   "then": "sit_idle",
-   "shadow": false
-  },
-  "sit_idle": {
-   "frames": [
-    27,
-    28,
-    29,
-    30
-   ],
-   "loop": true,
-   "shadow": false
-  },
-  "wave": {
-   "frames": [
-    31,
-    32,
-    33,
-    34,
-    35
-   ],
-   "loop": false
-  },
-  "laugh": {
-   "frames": [
-    36,
-    37,
-    38,
-    39,
-    40
-   ],
-   "loop": false
-  },
-  "nod": {
-   "frames": [
-    41,
-    42,
-    41,
-    43
-   ],
-   "loop": false
   }
  },
  "alias": {
+  "talk": "idle",
+  "sit": "idle",
+  "sit_idle": "idle",
+  "point": "idle",
+  "wave": "idle",
+  "laugh": "idle",
+  "nod": "idle",
   "look": "idle",
   "stand": "idle",
-  "smile": "laugh",
-  "give": "point",
-  "show": "point",
-  "guide": "point"
+  "smile": "idle",
+  "give": "idle",
+  "show": "idle",
+  "guide": "idle"
  }
 }

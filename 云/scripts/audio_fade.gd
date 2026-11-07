@@ -31,6 +31,21 @@ static func release(node: Node, sec := 0.5) -> void:
 		tw.tween_callback(p.queue_free)
 
 
+## 设置（暂停）里返回标题：音效、环境声被暂停住（playing 是 false，取消暂停会接着响）。在暂停时把音量悄悄收掉、停掉，取消暂停时不会冒出来一下
+static func silence(node: Node, sec := 0.8) -> void:
+	if node == null or not is_instance_valid(node) or not node.is_inside_tree():
+		return
+	for p in node.find_children("*", "AudioStreamPlayer", true, false) + node.find_children("*", "AudioStreamPlayer2D", true, false):
+		if bool(p.get("playing")) or not p.has_stream_playback():    # 没被暂停住的（面板的点击声）不管
+			continue
+		var old = (p.get_meta("fade_tw") if p.has_meta("fade_tw") else null)
+		if old is Tween and (old as Tween).is_valid():
+			(old as Tween).kill()
+		var tw := node.get_tree().create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tw.tween_property(p, "volume_db", -60.0, sec).set_trans(Tween.TRANS_SINE)
+		tw.tween_callback(p.stop)
+
+
 ## 这个声音是循环的吗（流本身循环，或者 finished 接回了 play）
 static func is_loop(p: Node) -> bool:
 	var s: AudioStream = p.get("stream")

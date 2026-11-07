@@ -137,7 +137,7 @@
 	},
 	"rooms": ["river_bank", "river_home", "market", "stairwell", "oldstreet", "warehouse", "southbridge", "cockpit"],
 	"objectives": [
-		{"need": ["river_seal_quest"], "not": ["river_seal_got"], "zh": "获取密封圈", "en": "Get a float seal", "show_fuel": false, "added": true},
+		{"need": ["river_seal_quest"], "not": ["river_seal_got"], "zh": "获取密封圈（旧仓库的绿柜子，或高处市集）", "en": "Get a float seal (warehouse green cabinet, or high market)", "show_fuel": false, "added": true},
 		{"need": ["river_farewell"], "not": ["river_done"], "zh": "修好飞机，出发", "en": "Fix the ship and take off", "show_fuel": false, "added": true},
 		{"need": ["river_bell"], "not": ["river_farewell"], "zh": "回妮芙家道别", "en": "Go back to Niff's to say goodbye", "show_fuel": false, "added": true},
 		{"need": ["river_ship_number"], "not": ["river_bell"], "zh": "往回走，回妮芙家", "en": "Head back to Niff's", "show_fuel": false, "added": true},
@@ -146,10 +146,13 @@
 		{"need": ["river_south_on"], "not": ["river_prints"], "zh": "看看三个桥洞，找大象的痕迹", "en": "Check the three arches for signs of the elephant", "show_fuel": false, "added": true},
 		{"need": ["river_footage_fixed"], "not": ["river_prints"], "zh": "去南桥找大象的踪迹", "en": "Go to South Bridge and look for the elephant's trail", "show_fuel": false, "added": true},
 		{"need": ["river_back_home"], "not": ["river_footage_fixed"], "zh": "去妮芙家二楼修录像带", "en": "Fix the tape upstairs at Niff's", "show_fuel": false, "added": true},
-		{"need": ["river_need_head"], "not": ["river_back_home"], "zh": "去旧街的水下仓库找读取头", "en": "Find the reading head in the flooded warehouse on Old Street", "show_fuel": false, "added": true}
+		{"need": ["river_need_head"], "not": ["river_back_home"], "zh": "去旧街的水下仓库找读取头", "en": "Find the reading head in the flooded warehouse on Old Street", "show_fuel": false, "added": true},
+		{"need": ["river_met"], "not": ["river_salvaged"], "zh": "帮妮芙捞漂走的东西", "en": "Help Niff fish out what drifted off", "show_fuel": false, "added": true, "_note": "11-07 作者问任务系统怎么没了：河岸这段补回来"},
+		{"need": ["river_ashore"], "not": ["river_met"], "zh": "去箱子那边看看", "en": "Check out the crates", "show_fuel": false, "added": true, "_note": "11-07 作者问任务系统怎么没了：出舱就要知道往哪走"}
 	],
 	"hints": [
-		{"need": ["river_seal_quest"], "not": ["river_seal_got"], "lines": [{"zh": "高处市集能用任意一件东西换密封圈。", "en": "You can trade anything for a float seal at the high market.", "added": true}]},
+		{"need": ["river_ashore"], "not": ["river_met"], "lines": [{"zh": "箱子后面好像有东西在动。", "en": "Something's moving behind the crates.", "added": true}]},
+		{"need": ["river_seal_quest"], "not": ["river_seal_got"], "lines": [{"zh": "旧仓库的绿柜子里有一个，高处市集也能拿任意一件东西换。", "en": "One's in the warehouse's green cabinet. Or trade anything at the high market.", "added": true}]},
 		{"need": ["river_farewell"], "not": ["river_done"], "lines": [{"zh": "飞机就停在岸边。", "en": "The ship's right by the bank.", "added": true}]},
 		{"need": ["river_bell"], "not": ["river_farewell"], "lines": [{"zh": "先回妮芙家说再见，再修飞机。", "en": "Say goodbye at Niff's first, then fix the ship.", "added": true}]},
 		{"need": ["river_ship_number"], "not": ["river_bell"], "lines": [{"zh": "船号记下了，回去吧。", "en": "Got the ship number. Head back.", "added": true}]},
@@ -164,13 +167,13 @@
 		{"need": ["river_need_head"], "not": ["river_oldstreet"], "lines": [{"zh": "旧街在市集楼下：先去高处市集，再下楼。", "en": "Old Street is below the market. Go up to the market, then downstairs.", "added": true}]}
 	],
 	"side_objectives": [
-		{"need": ["river_need_head"], "not": ["river_ting_seen", "river_back_home"], "zh": "把录像带拿给阿汀看看", "en": "Show the tape to Ting", "added": true},
-		{"need": ["river_market"], "not": ["met_rat_chef", "river_bell"], "zh": "跟市集的鼠妈换点吃的", "en": "Trade with Mama Rat at the market", "added": true},
-		{"need": ["river_footage_fixed"], "not": ["river_cup_traced", "river_bell"], "zh": "看看窗边的来客册干了没", "en": "See if the guestbook by the window is dry", "added": true}
+		{"need": ["river_need_head"], "not": ["river_ting_seen", "river_done"], "zh": "把录像带拿给阿汀看看", "en": "Show the tape to Ting", "added": true},
+		{"need": ["river_market"], "not": ["met_rat_chef", "river_done"], "zh": "跟市集的鼠妈换点吃的", "en": "Trade with Mama Rat at the market", "added": true},
+		{"need": ["river_footage_fixed"], "not": ["river_cup_traced", "river_done"], "zh": "看看窗边的来客册干了没", "en": "See if the guestbook by the window is dry", "added": true}
 	],
 	"barter": {
-		"vendor": {"_note": "11-06 docs/第二章_重写稿.md 第 5 段：高处市集用任意一件物品换密封圈。quest 类和 except 里的不收（except：终章还要用，或者按 burned_<id> 分支的）。", "trades": [{"id": "seal", "want": "*", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "get": "float_seal", "scene": "vendor_take_any", "empty": "vendor_give_free", "not": ["river_seal_got"], "flags": ["river_seal_got"]}], "none": "vendor_none", "done": "vendor_done"},
-		"rat_chef": {"_note": "10-31 以物易物（scripts/barter.gd），作者按 docs/以物易物交换表.md 定稿。flag：barter_rat_chef_<id>；recipe 要先换过大嘴鸟的尾羽（森林带过来的 barter_toucan_feather）。", "trades": [{"id": "soup", "want": "mat_driftwood", "get": "soup_flask", "scene": "rat_chef_take_driftwood"}, {"id": "recipe", "want": "toucan_feather", "get": "recipe_card", "scene": "rat_chef_take_feather", "need": ["barter_toucan_feather"]}, {"id": "fire", "want": "glowing_wood", "get": "rice_ball", "scene": "rat_chef_take_wood"}], "react": {"biscuits": "rat_chef_react_biscuits"}, "wrong": "rat_chef_wrong", "none": "rat_chef_none", "done": "rat_chef_done"},
+		"vendor": {"_note": "11-06 docs/第二章_重写稿.md 第 5 段：高处市集用任意一件物品换密封圈。quest 类和 except 里的不收（except：终章还要用，或者按 burned_<id> 分支的）。", "trades": [{"id": "seal", "want": "*", "auto_if": "river_seal_quest", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "get": "float_seal", "scene": "vendor_take_any", "empty": "vendor_give_free", "not": ["river_seal_got"], "flags": ["river_seal_got"]}], "none": "vendor_none", "done": "vendor_done"},
+		"rat_chef": {"_note": "10-31 以物易物（scripts/barter.gd），作者按 docs/以物易物交换表.md 定稿。flag：barter_rat_chef_<id>；recipe 要先换过大嘴鸟的尾羽（森林带过来的 barter_toucan_feather）。", "trades": [{"id": "soup", "want": "mat_driftwood", "get": "soup_flask", "scene": "rat_chef_take_driftwood"}, {"id": "recipe", "want": "toucan_feather", "get": "recipe_card", "scene": "rat_chef_take_feather", "need": ["barter_toucan_feather"]}, {"id": "fire", "want": "glowing_wood", "get": "rice_ball", "scene": "rat_chef_take_wood"}, {"id": "fry", "want": "*", "all": true, "repeat": true, "mark": "fried", "scene": "rat_chef_fry", "_note": "11-07 作者试玩：「不如全都可以下锅……结果出来就是油炸的XX，然后不影响使用」。上面三笔优先；别的任何东西（任务物品、纪念品、饼干都收）炸完原样递回，只多一个 fried_<id> 标记（Inventory.item 改名字、描述）"}], "none": "rat_chef_none"},
 		"jellyfish": {"_note": "11-06 重写稿：给什么都行（want *，任务物品和终章还要用的不收，同修补摊）", "trades": [{"id": "any", "want": "*", "except": ["journal", "elephant_footage", "copper_bell", "clear_seed", "miluo_note", "footprint_rubbing", "seat_chart", "river_water", "music_box", "bird_whistle", "family_photo", "home_photo", "postcard", "commute_card"], "scene": "jelly_thanks", "empty": "jelly_thanks"}]}
 	},
 	"hotspots": [
@@ -178,18 +181,19 @@
 		{"id": "rat_chef_hello", "at": "rat_chef", "room": "market", "label": {"zh": "料理鼠妈", "en": "Mama Rat"}, "need": ["river_market"], "not": ["met_rat_chef"], "once": false, "scene": "rat_chef_hello", "_side": "story_river"},
 		{"id": "plane_depart", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_plane_fixed"], "not": ["river_done"], "once": false, "scene": "depart"},
 		{"id": "plane_fix", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_farewell", "river_seal_got"], "not": ["river_plane_fixed"], "once": false, "scene": "plane_fix"},
-		{"id": "plane_need_seal", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_farewell"], "not": ["river_seal_got"], "once": false, "scene": "plane_need_seal", "added": true},
+		{"id": "plane_need_seal", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_seal_quest"], "not": ["river_seal_got", "river_farewell"], "once": false, "scene": "plane_need_seal", "added": true},
 		{"id": "plane_parts", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_need_head"], "not": ["river_ship_number"], "once": false, "scene": "bank_plane_parts"},
-		{"id": "plane_wait_bye", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_ship_number"], "not": ["river_farewell"], "once": false, "scene": "bank_plane_bye", "added": true},
+		{"id": "plane_wait_bye", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_ship_number"], "not": ["river_farewell", "river_seal_quest"], "once": false, "scene": "bank_plane_bye", "added": true},
+		{"id": "plane_wait_bye_seal", "at": "river_bank_plane", "room": "river_bank", "label": {"zh": "飞机", "en": "Ship"}, "need": ["river_seal_quest", "river_seal_got"], "not": ["river_farewell"], "once": false, "scene": "bank_plane_bye", "added": true},
 		{"id": "meet_niff", "at": "river_bank_crates", "room": "river_bank", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_ashore"], "not": ["river_salvaged"], "once": true, "scene": "bank_meet", "trigger": "enter", "range": 74, "cutscene": true, "_note": "10-31 range 56 → 74：晨跑过来触发后还要往前滑 15 像素，56 的话停在离妮芙 41（鲸鱼壳要 57），她转正浮起来时压到晨"},
-		{"id": "ting_footage", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_need_head"], "not": ["river_ting_seen", "river_back_home"], "once": false, "scene": "ting_footage", "_side": "story_river"},
+		{"id": "ting_footage", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_need_head"], "not": ["river_ting_seen"], "once": false, "scene": "ting_footage", "_side": "story_river"},
 		{"id": "ting_chat_4", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_plane_fixed"], "not": [], "once": true, "scene": "ting_chat_4"},
 		{"id": "ting_chat_2", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_need_head"], "not": ["river_back_home"], "once": true, "scene": "ting_chat_2"},
 		{"id": "ting_chat_1", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_need_head"], "not": ["river_need_head"], "once": true, "scene": "ting_chat_1"},
 		{"id": "ting_rule", "at": "ting", "room": "river_bank", "label": {"zh": "阿汀", "en": "Ting"}, "need": ["river_landed"], "not": [], "once": false, "scene": "ting_rule", "_note": "固定编号那几条（5、7、20）各念一次，之后一直往下念条例"},
 		{"id": "niff_bank_late", "at": "niff", "room": "river_bank", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_bell"], "not": ["river_farewell"], "once": false, "scene": "niff_chat_late"},
 		{"id": "niff_bank", "at": "niff", "room": "river_bank", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_home_intro"], "not": ["river_bell"], "once": false, "scene": "niff_chat_bank"},
-		{"id": "farewell", "at": "river_bank_home_door", "room": "river_bank", "label": {"zh": "妮芙家", "en": "Niff's house"}, "need": ["river_bell"], "not": ["river_farewell"], "once": false, "scene": "farewell"},
+		{"id": "farewell", "at": "river_bank_home_door", "room": "river_bank", "label": {"zh": "妮芙家", "en": "Niff's house"}, "need": ["river_bell", "river_seal_got"], "not": ["river_farewell"], "once": false, "scene": "farewell"},
 		{"id": "home_in", "at": "river_bank_home_door", "room": "river_bank", "label": {"zh": "妮芙家", "en": "Niff's house"}, "need": ["river_home_intro"], "not": ["river_farewell"], "once": false, "scene": "home_in"},
 		{"id": "cup_note", "at": "river_bank_box", "room": "river_bank", "label": {"zh": "杯子", "en": "Cup"}, "need": ["river_landed"], "not": [], "once": false, "scene": "bank_cup_note", "added": true, "_note": "11-05 作者：杯底纸条和叫小姐那句不进主线，点了才有。她进屋以后杯子也带回家了，这个点就没了"},
 		{"id": "doorplate", "at": "river_bank_doorplate", "room": "river_bank", "label": {"zh": "门牌", "en": "House number"}, "need": ["river_landed"], "not": [], "once": false, "scene": "bank_doorplate"},
@@ -203,7 +207,7 @@
 		{"id": "home_out", "at": "river_home_door", "room": "river_home", "label": {"zh": "出门", "en": "Go out"}, "need": ["river_home_intro"], "not": [], "once": false, "scene": "home_out"},
 		{"id": "book_peek", "at": "river_home_window", "room": "river_home", "label": {"zh": "窗边的来客册", "en": "Guestbook by the window"}, "need": ["river_home_intro"], "not": ["river_footage_fixed"], "once": false, "scene": "book_peek", "_side": "story_river"},
 		{"id": "guestbook", "at": "river_home_window", "room": "river_home", "label": {"zh": "来客册", "en": "Guestbook"}, "need": ["river_footage_fixed"], "not": ["river_cup_traced"], "once": false, "scene": "guestbook", "_side": "story_river"},
-		{"id": "tape_fix", "at": "river_home_player", "room": "river_home", "label": {"zh": "录像带", "en": "Tape"}, "need": ["river_back_home"], "not": ["river_footage_fixed"], "once": false, "scene": "tape_fix"},
+		{"id": "tape_fix", "at": "river_home_player_r", "room": "river_home", "label": {"zh": "录像带", "en": "Tape"}, "need": ["river_back_home"], "not": ["river_footage_fixed"], "once": false, "scene": "tape_fix"},
 		{"id": "hourglass", "at": "river_home_hourglass", "room": "river_home", "label": {"zh": "沙漏", "en": "Hourglass"}, "need": ["river_home_intro"], "not": [], "once": false, "scene": "home_hourglass"},
 		{"id": "jar", "at": "river_home_jar", "room": "river_home", "label": {"zh": "罐子", "en": "Jar"}, "need": ["river_home_intro"], "not": [], "once": false, "scene": "home_jar", "added": true, "_note": "11-05 作者：「盐，很咸，尝过了。」不进主线，点了才看"},
 		{"id": "tea_bowls", "at": "river_home_table", "room": "river_home", "label": {"zh": "茶碗", "en": "Tea bowls"}, "need": ["river_home_intro"], "not": ["river_farewell"], "once": false, "scene": "home_tea", "added": true},
@@ -233,13 +237,18 @@
 		{"id": "oldstreet_signs", "at": "oldstreet_signs", "room": "oldstreet", "label": {"zh": "两层招牌", "en": "Two rows of signs"}, "need": ["river_sluice_done"], "not": [], "once": false, "scene": "oldstreet_signs"},
 		{"id": "oldstreet_tank", "at": "oldstreet_tank", "room": "oldstreet", "label": {"zh": "氧气瓶", "en": "Oxygen tank"}, "need": ["river_sluice_done"], "not": ["river_tank"], "once": false, "scene": "oldstreet_tank_take", "added": true},
 		{"id": "oldstreet_corner", "at": "oldstreet_corner", "room": "oldstreet", "label": {"zh": "拐角", "en": "Corner"}, "need": ["river_sluice_done"], "not": ["river_jam"], "once": false, "scene": "oldstreet_corner", "range": 40, "_side": "story_river"},
-		{"id": "warehouse_go", "at": "oldstreet_warehouse_entry", "room": "oldstreet", "label": {"zh": "仓库入口", "en": "Warehouse entrance"}, "need": ["river_tank"], "not": [], "once": false, "scene": "warehouse_go"},
+		{"id": "warehouse_go", "at": "oldstreet_warehouse_entry", "room": "oldstreet", "label": {"zh": "仓库入口", "en": "Warehouse entrance"}, "need": ["river_tank"], "not": ["river_got_head"], "once": false, "scene": "warehouse_go"},
+		{"id": "warehouse_go_more", "at": "oldstreet_warehouse_entry", "room": "oldstreet", "label": {"zh": "仓库入口", "en": "Warehouse entrance"}, "need": ["river_got_head"], "not": ["river_seal_got", "river_seal_quest"], "once": false, "scene": "warehouse_go", "_side": "story_river", "added": true},
+		{"id": "warehouse_go_q", "at": "oldstreet_warehouse_entry", "room": "oldstreet", "label": {"zh": "仓库入口", "en": "Warehouse entrance"}, "need": ["river_seal_quest"], "not": ["river_seal_got"], "once": false, "scene": "warehouse_go", "added": true},
 		{"id": "niff_old", "at": "niff", "room": "oldstreet", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_oldstreet"], "not": ["river_back_home"], "once": false, "scene": "niff_chat_old"},
-		{"id": "oldstreet_back", "at": "oldstreet_back", "room": "oldstreet", "label": {"zh": "上楼回市集", "en": "Up to the market"}, "need": ["river_oldstreet"], "not": ["river_bell"], "once": false, "scene": "oldstreet_back"},
+		{"id": "oldstreet_back", "at": "oldstreet_back", "room": "oldstreet", "label": {"zh": "上楼回市集", "en": "Up to the market"}, "need": ["river_oldstreet"], "not": [], "_note": "11-07 原来 not river_bell：拿到铜铃以后回旧街（去仓库绿柜子拿密封圈）就上不去了", "once": false, "scene": "oldstreet_back"},
 		{"id": "warehouse_niff", "at": "niff", "room": "warehouse", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["river_tank"], "not": ["river_got_head"], "once": false, "scene": "warehouse_niff"},
 		{"id": "wh_in", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_tank"], "not": ["river_got_head", "river_wh_in"], "once": true, "scene": "warehouse_in", "trigger": "enter", "range": 40, "cutscene": true, "added": true},
-		{"id": "wh_seal_q", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "还有箱子", "en": "More crates"}, "need": ["river_seal_quest"], "not": ["river_seal_got"], "once": false, "scene": "warehouse_seal", "added": true},
-		{"id": "wh_seal", "at": "warehouse_boxes", "room": "warehouse", "label": {"zh": "还有箱子", "en": "More crates"}, "need": ["river_got_head"], "not": ["river_seal_got", "river_seal_quest"], "once": false, "scene": "warehouse_seal", "_side": "story_river", "added": true},
+		{"id": "warehouse_out", "at": "warehouse_entry", "room": "warehouse", "label": {"zh": "上去", "en": "Swim up"}, "need": ["river_wh_dive"], "not": [], "once": false, "scene": "warehouse_out", "added": true},
+		{"id": "wh_cabinet_look", "at": "warehouse_cabinet", "room": "warehouse", "label": {"zh": "绿柜子", "en": "Green cabinet"}, "need": ["river_wh_dive"], "not": ["river_seal_quest", "river_seal_got", "river_cabinet_empty"], "once": false, "scene": "wh_cabinet_look", "added": true},
+		{"id": "wh_cabinet_look_b", "at": "warehouse_cabinet", "room": "warehouse", "label": {"zh": "绿柜子", "en": "Green cabinet"}, "need": ["river_seal_got"], "not": ["river_cabinet_empty"], "once": false, "scene": "wh_cabinet_look", "added": true},
+		{"id": "wh_cabinet_seal", "at": "warehouse_cabinet", "room": "warehouse", "label": {"zh": "绿柜子", "en": "Green cabinet"}, "need": ["river_seal_quest"], "not": ["river_seal_got", "river_cabinet_empty"], "once": false, "scene": "wh_cabinet_seal", "added": true},
+		{"id": "wh_cabinet_empty", "at": "warehouse_cabinet", "room": "warehouse", "label": {"zh": "绿柜子", "en": "Green cabinet"}, "need": ["river_cabinet_empty"], "not": [], "once": false, "scene": "wh_cabinet_empty", "added": true},
 		{"id": "warehouse_boxes", "at": "warehouse_broken_box", "room": "warehouse", "label": {"zh": "箱子", "en": "Crates"}, "need": ["river_wh_in"], "not": [], "once": false, "scene": "warehouse_boxes"},
 		{"id": "south_arch_left", "at": "southbridge_arch_wrong", "room": "southbridge", "label": {"zh": "左边的桥洞", "en": "Left arch"}, "need": ["river_south_on"], "not": ["river_prints"], "once": false, "scene": "south_arch_left"},
 		{"id": "south_arch_right", "at": "southbridge_arch", "room": "southbridge", "label": {"zh": "中间的桥洞", "en": "Middle arch"}, "need": ["river_south_on"], "not": ["river_prints"], "once": false, "scene": "south_arch_right"},
@@ -280,14 +289,13 @@
 			{"do": "face", "who": "chen", "to": "market_rat_chef"},
 			{"do": "barter", "npc": "rat_chef"}
 		],
-		"rat_chef_wrong": [
-			{"say": "rat_chef", "zh": "这个可下不了锅。收好，别弄丢了。", "en": "That won't go in a pot. Keep it safe, don't lose it.", "added": true}
-		],
 		"rat_chef_none": [
 			{"say": "rat_chef", "zh": "不急。饿了就回来，锅一直在这儿。", "en": "No hurry. Come back when you're hungry. The pot's always here.", "added": true}
 		],
-		"rat_chef_react_biscuits": [
-			{"say": "rat_chef", "zh": "谁烤的饼干？糖放得真省。你留着吧，是人家的心意。", "en": "Who baked these? Stingy with the sugar. Keep them, someone made them for you.", "added": true}
+		"rat_chef_fry": [
+			{"say": "rat_chef", "zh": "{item}？好，下锅试试。", "en": "{item}? Lovely. Into the pot.", "added": true},
+			{"do": "wait", "sec": 0.5},
+			{"say": "rat_chef", "zh": "炸好了，{fried}。趁热拿着，不耽误你用。", "en": "There. {fried}. Take it while it's hot. Still works fine.", "added": true}
 		],
 		"rat_chef_take_driftwood": [
 			{"do": "show_item", "item": "mat_driftwood"},
@@ -301,9 +309,6 @@
 			{"do": "show_item", "item": "glowing_wood"},
 			{"say": "rat_chef", "zh": "这木头一直不灭？给我的灶吧。饭团包了三个，一个今天吃。", "en": "This wood never goes out? Give it to my stove. Three rice balls. Eat one today.", "added": true}
 		],
-		"rat_chef_done": [
-			{"say": "rat_chef", "zh": "锅里的你都尝过了。路上慢点走，别饿着。", "en": "You've tasted everything in the pot. Go easy on the road, and don't go hungry.", "added": true}
-		],
 		"start_river": [
 			{"do": "hide", "who": "chen"},
 			{"narr": {"zh": "这颗深蓝色的星球上，城市沿着水道铺开，细桥连着屋顶，低处的街道泛着水光。", "en": "On this deep blue planet, the city spread out along its waterways, thin bridges linking the rooftops, the low streets shining with water."}, "added": true},
@@ -315,7 +320,7 @@
 			{"do": "sfx", "name": "thud"},
 			{"narr": {"zh": "飞机撞散一片浮木，卡进一条窄水道。", "en": "The plane broke through a raft of driftwood and wedged itself into a narrow channel."}},
 			{"do": "wait", "sec": 0.8},
-			{"say": "chen", "zh": "这…又是哪儿?", "en": "Ugh... where am I this time?", "added": true},
+			{"do": "inner", "zh": "这…又是哪儿?", "en": "Ugh... where am I this time?", "style": "fade", "sec": 2.6, "wait": true, "added": true, "_note": "11-07 作者：照森林的直接打在屏幕上，不要框子"},
 			{"do": "show", "who": "niff", "at": "river_bank_crates", "_note": "10-30 作者：箱子后面的尾巴别另画、别凭空冒出来——妮芙原图斜着扎在箱子后面翻东西，只露出鲸鱼壳的尾巴；晨走过来远远就看得到"},
 			{"do": "prop", "id": "river_bank_crates", "state": "tail_still"},
 			{"do": "pose", "who": "niff", "rot": 55, "dx": -14, "dy": -16, "z": -2, "sec": 0},
@@ -428,7 +433,9 @@
 			{"do": "prop", "id": "river_bank_plane", "state": "straps_drying"},
 			{"do": "wait", "sec": 0.4},
 			{"do": "face", "who": "ting", "to": "chen"},
-			{"say": "ting", "zh": "根据河岸条例第一条，飞机不许掉进河里；第二条，掉了的先拴住。我已经给你拴起来了，记得找我付罚金，不谢！", "en": "Regulation One: no planes in the river. Two: if it's in, tie it down. Yours is tied. Pay your fine. You're welcome!", "added": true},
+			{"say": "ting", "zh": "根据河岸条例第一条，飞机不许掉进河里。", "en": "Regulation One: no planes in the river.", "added": true},
+			{"say": "ting", "zh": "第二条，掉了的先拴住。", "en": "Regulation Two: if it's in, tie it down.", "added": true},
+			{"say": "ting", "zh": "我已经给你拴起来了，记得找我付罚金，不谢！", "en": "Yours is tied. Pay your fine. You're welcome!", "added": true},
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"say": "niff", "zh": "你也湿透了，要不要去我家坐坐？", "en": "You're soaked too. Want to come sit at my place?", "added": true},
 			{"do": "flag", "set": "river_landed"},
@@ -508,7 +515,7 @@
 				{"say": "ting", "zh": "第十六条：鱼不是乘客，不收船票。跳上船的算偷渡。", "en": "Regulation Sixteen: fish aren't passengers, so no fare. Any that jump aboard are stowaways.", "added": true},
 				{"say": "ting", "zh": "第十七条：不许往河里扔石头许愿。河底的石头够多了，愿一个也没灵过。", "en": "Regulation Seventeen: no tossing stones in the river for wishes. There are plenty down there, and not one wish has come true.", "added": true},
 				{"say": "ting", "zh": "第十八条：船漏了先舀水，再骂人。反过来的话，骂完船也沉了。", "en": "Regulation Eighteen: if the boat leaks, bail first, curse after. Do it the other way round and you'll finish cursing underwater.", "added": true},
-				{"say": "ting", "zh": "第十九条：桥上不许跑。桥是细的，你是沉的，这事我算过。", "en": "Regulation Nineteen: no running on the bridges. The bridge is thin and you are heavy. I've done the math.", "added": true},
+				{"say": "ting", "zh": "第十九条：桥上不许跑。桥那么细，你这么沉，除非你想掉下来。", "en": "Regulation Nineteen: no running on the bridges. Bridges that thin, someone that heavy. Unless you want to fall in.", "added": true},
 				{"say": "ting", "zh": "第二十一条：借来的船，还的时候要比借的时候干。没人做到过，条例还是要有。", "en": "Regulation Twenty-One: a borrowed boat goes back drier than it came. Nobody has ever managed it. The rule stays.", "added": true},
 				{"say": "ting", "zh": "第二十二条：水闸的轮子不许转着玩。你转一下，下游的人就得搬一次家。", "en": "Regulation Twenty-Two: sluice wheels aren't toys. You give one a spin, and someone downstream has to move house.", "added": true},
 				{"say": "ting", "zh": "第二十三条：水里捞上来的东西，先问是谁的。没人认，才算妮芙的。", "en": "Regulation Twenty-Three: anything fished out of the water, ask whose it is first. If nobody claims it, it's Niff's.", "added": true},
@@ -546,11 +553,6 @@
 			{"do": "fade_to", "room": "river_home", "at": "river_home_chen", "style": "pixel", "with": ["niff"], "place": {"niff": "river_home_niff"}, "face": {"chen": "niff", "niff": "chen"}, "_note": "11-06 重写稿：格子转场跳过走路。沙漏去掉，进门先互相问名字，问完她就忘了"},
 			{"do": "prop", "id": "river_home_labels", "state": "on"},
 			{"do": "prop", "id": "guestbook", "state": "drying"},
-			{"do": "if", "flag": "river_n_courier", "then": "n_name_c"},
-			{"do": "if", "flag": "river_n_bio", "then": "n_name_b"},
-			{"do": "if", "flag": "river_n_plain", "then": "n_name_p"},
-			{"say": "chen", "zh": "我叫晨。", "en": "I'm Chen.", "added": true},
-			{"do": "anim", "who": "niff", "name": "write"},
 			{"do": "wait", "sec": 0.8},
 			{"do": "anim", "who": "niff", "name": "pause"},
 			{"say": "niff", "zh": "啊啊啊！你是谁啊，你为什么会出现在我家？", "en": "Aaah! Who are you? Why are you in my house?", "added": true},
@@ -956,7 +958,7 @@
 			{"say": "vendor", "zh": "你这一身也没什么能换的。……拿去吧。", "en": "Nothing on you worth taking. ...Just have it.", "added": true}
 		],
 		"vendor_none": [
-			{"say": "vendor", "zh": "不换就不换，圈子又不会跑。", "en": "Suit yourself. The seal isn't going anywhere.", "added": true}
+			{"say": "vendor", "zh": "爱换不换，圈子又不会跑。", "en": "Suit yourself. The seal isn't going anywhere.", "_note": "11-07 作者改的前半句（原「不换就不换」）"}
 		],
 		"vendor_done": [
 			{"say": "vendor", "zh": "圈子你有了，别的不换。", "en": "You've got your seal. Nothing else to trade.", "added": true}
@@ -1096,10 +1098,9 @@
 			{"do": "walk", "who": "niff", "to": "warehouse_broken_box"},
 			{"do": "prop", "id": "warehouse_broken_box", "state": "spilled"},
 			{"do": "anim", "who": "niff", "name": "pickup"},
-			{"do": "mechanic", "id": "river_borrowed", "sets": ["river_got_head"], "_note": "11-06 重写稿：只找读取头（need）。密封圈是可选箱子，开到就有（river_seal_got）", "boxes": [{"id": "b_lamp", "label": {"zh": "渡船灯", "en": "Ferry lamps", "added": true}, "code": {"zh": "亮亮的", "en": "shiny", "added": true}}, {"id": "b_head", "label": {"zh": "播放器零件", "en": "Player parts", "added": true}, "code": {"zh": "圆圆的", "en": "roundish", "added": true}, "find": "head"}, {"id": "b_pump", "label": {"zh": "抽水泵", "en": "Pump", "added": true}, "code": {"zh": "不要煮", "en": "don't boil", "added": true}}, {"id": "b_seal", "label": {"zh": "浮筒", "en": "Floats", "added": true}, "code": {"zh": "好像是我的", "en": "maybe mine", "added": true}, "find": "seal"}, {"id": "b_radio", "label": {"zh": "收音机", "en": "Radio", "added": true}, "code": {"zh": "别问", "en": "don't ask", "added": true}}], "junk": [{"zh": "一只袜子。标签：借来的。", "en": "One sock. Label: borrowed.", "added": true}, {"zh": "一只小箱子，里面还有一只更小的。", "en": "A small crate. With an even smaller one inside.", "added": true}, {"zh": "阿汀的午饭，泡发了。", "en": "Ting's lunch. Very soaked.", "added": true}, {"zh": "一封信：「亲爱的阿汀」，没写完。", "en": "A letter: \"Dear Ting,\" and nothing else.", "added": true}], "on_head": [{"do": "give", "item": "reading_head"}, {"do": "flag", "set": "river_got_head"}], "on_seal": [{"do": "if", "flag": "!river_seal_got", "then": "warehouse_seal_give"}], "lines": {"intro": [{"narr": {"zh": "水下说不了话。妮芙头上冒着泡泡：她还记得的时候，箱子上的字才对得上。", "en": "No talking underwater. Bubbles rise over Niff: while she remembers, the labels make sense."}, "added": true}], "give": [{"narr": {"zh": "妮芙不翻本子了，伸手指着一只箱子。", "en": "Niff stops checking her notebook and points at one crate."}, "added": true}]}, "need": ["head"]},
+			{"do": "mechanic", "id": "river_borrowed", "sets": ["river_got_head"], "_note": "11-06 重写稿：只找读取头（need）。11-07 作者「水下的密封圈不是应该在这个绿柜子吗」：箱子里不再有密封圈，挪到绿柜子（wh_cabinet_*）", "boxes": [{"id": "b_lamp", "label": {"zh": "渡船灯", "en": "Ferry lamps", "added": true}, "code": {"zh": "亮亮的", "en": "shiny", "added": true}}, {"id": "b_head", "label": {"zh": "播放器零件", "en": "Player parts", "added": true}, "code": {"zh": "圆圆的", "en": "roundish", "added": true}, "find": "head"}, {"id": "b_pump", "label": {"zh": "抽水泵", "en": "Pump", "added": true}, "code": {"zh": "不要煮", "en": "don't boil", "added": true}}, {"id": "b_seal", "label": {"zh": "浮筒", "en": "Floats", "added": true}, "code": {"zh": "好像是我的", "en": "maybe mine", "added": true}}, {"id": "b_radio", "label": {"zh": "收音机", "en": "Radio", "added": true}, "code": {"zh": "别问", "en": "don't ask", "added": true}}], "junk": [{"zh": "一只袜子。标签：借来的。", "en": "One sock. Label: borrowed.", "added": true}, {"zh": "一只小箱子，里面还有一只更小的。", "en": "A small crate. With an even smaller one inside.", "added": true}, {"zh": "阿汀的午饭，泡发了。", "en": "Ting's lunch. Very soaked.", "added": true}, {"zh": "一封信：「亲爱的阿汀」，没写完。", "en": "A letter: \"Dear Ting,\" and nothing else.", "added": true}], "on_head": [{"do": "give", "item": "reading_head"}, {"do": "flag", "set": "river_got_head"}], "lines": {"intro": [{"narr": {"zh": "水下说不了话。妮芙头上冒着泡泡：她还记得的时候，箱子上的字才对得上。", "en": "No talking underwater. Bubbles rise over Niff: while she remembers, the labels make sense."}, "added": true}], "give": [{"narr": {"zh": "妮芙不翻本子了，伸手指着一只箱子。", "en": "Niff stops checking her notebook and points at one crate."}, "added": true}]}, "need": ["head"]},
 			{"do": "ambient", "name": "underwater", "at": "warehouse_entry", "on": false},
-			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_warehouse_entry", "style": "pixel", "with": ["niff"], "_note": "11-06 重写稿：拿到读取头回到旧街，之后自己走回家，不强制拉回。泄水门记录、阿汀对质先拿掉（home_coat / pocket / home_coat_b 留着不接入）"},
-			{"do": "flag", "set": "river_back_home"}
+			{"do": "flag", "set": "river_back_home", "_note": "11-07 作者「拿到播放头不要直接传送回去…我要自己走回来」：不再 fade_to 旧街，留在仓库里自己游出去（左边 portal → 旧街），路上能去市集换密封圈"}
 		],
 		"warehouse_niff": [
 			{"do": "face", "who": "chen", "to": "niff"},
@@ -1107,8 +1108,27 @@
 		],
 		"warehouse_seal": [
 			{"do": "mechanic", "id": "river_borrowed", "boxes": [{"id": "b_lamp", "label": {"zh": "渡船灯", "en": "Ferry lamps", "added": true}, "code": {"zh": "亮亮的", "en": "shiny", "added": true}}, {"id": "b_head", "label": {"zh": "播放器零件", "en": "Player parts", "added": true}, "code": {"zh": "圆圆的", "en": "roundish", "added": true}, "find": "head"}, {"id": "b_pump", "label": {"zh": "抽水泵", "en": "Pump", "added": true}, "code": {"zh": "不要煮", "en": "don't boil", "added": true}}, {"id": "b_seal", "label": {"zh": "浮筒", "en": "Floats", "added": true}, "code": {"zh": "好像是我的", "en": "maybe mine", "added": true}, "find": "seal"}, {"id": "b_radio", "label": {"zh": "收音机", "en": "Radio", "added": true}, "code": {"zh": "别问", "en": "don't ask", "added": true}}], "junk": [{"zh": "一只袜子。标签：借来的。", "en": "One sock. Label: borrowed.", "added": true}, {"zh": "一只小箱子，里面还有一只更小的。", "en": "A small crate. With an even smaller one inside.", "added": true}, {"zh": "阿汀的午饭，泡发了。", "en": "Ting's lunch. Very soaked.", "added": true}, {"zh": "一封信：「亲爱的阿汀」，没写完。", "en": "A letter: \"Dear Ting,\" and nothing else.", "added": true}], "on_seal": [{"do": "if", "flag": "!river_seal_got", "then": "warehouse_seal_give"}], "need": ["seal"]},
+			{"do": "ambient", "name": "underwater", "at": "warehouse_entry", "on": false}
+		],
+		"warehouse_out": [
 			{"do": "ambient", "name": "underwater", "at": "warehouse_entry", "on": false},
-			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_warehouse_entry", "style": "pixel", "with": ["niff"]}
+			{"do": "fade_to", "room": "oldstreet", "at": "oldstreet_warehouse_entry", "with": ["niff"], "_note": "11-07 作者「我要自己走回来，这里不要传送」：拿到读取头后不自动回旧街，玩家自己游到入口点这里上去"}
+		],
+		"wh_cabinet_look": [
+			{"do": "walk", "who": "chen", "to": "warehouse_cabinet"},
+			{"narr": {"zh": "绿色的抽屉柜，每格都贴着妮芙的标签。最下面那格写着：修船的，还不急。", "en": "A green chest of drawers, every drawer labelled by Niff. The bottom one says: for boat repairs, no rush."}, "added": true, "_note": "11-07 作者：读取头之前来看，绿柜子也要有一句"}
+		],
+		"wh_cabinet_seal": [
+			{"do": "walk", "who": "chen", "to": "warehouse_cabinet"},
+			{"do": "anim", "who": "chen", "name": "reach"},
+			{"do": "sfx", "name": "cup_clink"},
+			{"narr": {"zh": "最下面那格「修船的」：一个浮筒密封圈。", "en": "The bottom drawer, \"for boat repairs\": one float seal."}, "added": true},
+			{"do": "give", "item": "float_seal"},
+			{"do": "flag", "set": "river_seal_got"},
+			{"do": "flag", "set": "river_cabinet_empty"}
+		],
+		"wh_cabinet_empty": [
+			{"narr": {"zh": "抽屉空了。", "en": "The drawer's empty."}, "added": true}
 		],
 		"warehouse_boxes": [
 			{"do": "face", "who": "chen", "to": "warehouse_boxes"},
@@ -1359,7 +1379,7 @@
 			{"do": "flag", "set": "river_waterway_open", "_note": "11-06 不再有取景框：一进来货台那边就走得到，不留看不见的墙；水道口的石头同时挪开（这时候在画面外）"},
 			{"do": "prop", "id": "southbridge_waterway", "state": "revealed"},
 			{"do": "ambient", "name": "river_flow", "at": "southbridge_arch", "on": true},
-			{"do": "follow", "who": "niff", "on": true, "vmax": 95},
+			{"do": "follow", "who": "niff", "on": true},
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"say": "niff", "zh": "到啦！带子里它就是从桥洞底下过去的。", "en": "Here we are! In the tape it walked right under one of these arches.", "added": true},
 			{"say": "niff", "zh": "一共三个洞，我们一个一个看嘛！", "en": "Three arches. Let's look at them one by one!", "added": true}
@@ -1389,6 +1409,7 @@
 			{"do": "face", "who": "chen", "to": "southbridge_lamps"},
 			{"do": "anim", "who": "niff", "name": "hop"},
 			{"say": "niff", "zh": "你看你看！这几盏灯全歪向一边，和带子里一模一样！", "en": "Look, look! These lamps all lean the same way, just like on the tape!", "added": true},
+			{"say": "niff", "zh": "这么高的灯，得是好大一个家伙挤过去，才蹭得这么歪！", "en": "Lamps this high? Something really big must've squeezed through and knocked them crooked!", "added": true},
 			{"do": "anim", "who": "chen", "name": "look_up"},
 			{"do": "prop", "id": "southbridge_arch", "state": "scratches", "fade": 0.5},
 			{"do": "prop", "id": "southbridge_hair", "state": "shown", "fade": 0.5},
@@ -1456,26 +1477,26 @@
 		"south_trail_7": [
 			{"do": "flag", "set": "river_trail_7"},
 			{"do": "prop", "id": "south_trail_8", "state": "lit", "fade": 0.6},
-			{"do": "sfx", "name": "drip"},
-			{"do": "anim", "who": "niff", "name": "hop"},
-			{"say": "niff", "zh": "我踩一脚试试……哎呀，整个人都装得下。", "en": "Let me try stepping in it... oh, all of me fits.", "added": true, "bark": true}
+			{"do": "sfx", "name": "drip"}
 		],
 		"south_trail_8": [
 			{"do": "flag", "set": "river_trail_8"},
 			{"do": "prop", "id": "south_trail_9", "state": "lit", "fade": 0.6},
-			{"do": "sfx", "name": "drip"}
+			{"do": "sfx", "name": "drip"},
+			{"do": "anim", "who": "niff", "name": "hop"},
+			{"say": "niff", "zh": "我踩一脚试试……哎呀，整个人都装得下。", "en": "Let me try stepping in it... oh, all of me fits.", "added": true, "bark": true}
 		],
 		"south_trail_9": [
 			{"do": "flag", "set": "river_trail_9"},
 			{"do": "prop", "id": "south_trail_10", "state": "lit", "fade": 0.6},
-			{"do": "sfx", "name": "drip"},
-			{"do": "anim", "who": "niff", "name": "hop"},
-			{"say": "niff", "zh": "走慢点嘛，它又不会跑掉……它会跑掉吗？", "en": "Slow down, it won't run off... will it run off?", "added": true, "bark": true}
+			{"do": "sfx", "name": "drip"}
 		],
 		"south_trail_10": [
 			{"do": "flag", "set": "river_trail_10"},
 			{"do": "prop", "id": "south_trail_11", "state": "lit", "fade": 0.6},
-			{"do": "sfx", "name": "drip"}
+			{"do": "sfx", "name": "drip"},
+			{"do": "anim", "who": "niff", "name": "hop"},
+			{"say": "niff", "zh": "走慢点嘛，它又不会跑掉……它会跑掉吗？", "en": "Slow down, it won't run off... will it run off?", "added": true, "bark": true}
 		],
 		"south_trail_11": [
 			{"do": "flag", "set": "river_trail_11"},
@@ -1503,7 +1524,6 @@
 		],
 		"south_trail_end": [
 			{"do": "flag", "set": "river_trail_done"},
-			{"do": "follow", "who": "niff", "on": true, "vmax": 0},
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"say": "niff", "zh": "脚印到这儿就没了。这里是旧货台呀！", "en": "The footprints stop here. This is the old dock!", "added": true},
 			{"do": "goto", "scene": "south_dock"}
@@ -1596,12 +1616,16 @@
 			{"do": "give", "item": "copper_bell"},
 			{"do": "journal", "zh": "妮芙送的铜铃，标签背面画的小飞机，机翼歪得和我那架差不多。", "en": "Niff's copper bell; the little ship on the back of the tag has wings as crooked as mine.", "added": true},
 			{"do": "flag", "set": "river_bell"},
+			{"do": "if", "flag": "!river_seal_got", "then": "seal_quest_start", "_note": "11-07 作者「你没密封圈就不应该出发去妮芙家道别」：没密封圈的，道别之前先出「获取密封圈」"},
 			{"do": "fade_to", "room": "river_bank", "at": "river_bank_arrive", "with": ["niff"], "place": {"ting": "river_bank_post"}}
+		],
+		"seal_quest_start": [
+			{"do": "flag", "set": "river_seal_quest"}
 		],
 		"plane_need_seal": [
 			{"do": "walk", "who": "chen", "to": "river_bank_plane"},
 			{"do": "flag", "set": "river_seal_quest"},
-			{"say": "niff", "zh": "密封圈呢？高处市集能用任意一件东西换哦。", "en": "Where's the seal? You can trade anything for one at the high market.", "added": true}
+			{"say": "niff", "zh": "密封圈呢？旧仓库的绿柜子里好像有一个，高处市集也能换哦。", "en": "Where's the seal? I think there's one in the green cabinet in the old warehouse. Or trade for one at the high market.", "added": true}
 		],
 		"plane_fix": [
 			{"do": "walk", "who": "chen", "to": "river_bank_plane"},

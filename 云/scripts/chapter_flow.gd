@@ -60,7 +60,7 @@ const SEED := {
 ## flight1 自动玩（--story_auto，放第一件 = 蓝色石头）完时多出来的 flags；物品少了被烧掉的那件。10-29 跑出来的
 const SEED_FLIGHT1 := {
 	"flags": ["flight1_started", "flight1_leak", "flight1_leak_wait", "flight1_leak_fixed", "flight1_reroute", "flight1_fuel_low",
-		"burned_blue_stone", "flight1_burned", "flight1_logged", "flight1_miluo_msg", "flight1_journal", "flight1_landing", "flight1_done"],
+		"burned_blue_stone", "flight1_burned", "flight1_logged", "flight1_journal", "flight1_landing", "flight1_done"],
 	"burned": "blue_stone",
 }
 

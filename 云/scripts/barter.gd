@@ -18,9 +18,13 @@ extends RefCounted
 ##   keep: true = 只是给对方看 / 听一下，东西还留在晨手里（大嘴鸟听一遍音乐盒，回一只鸟哨）。
 ##   want: "*" = 什么都收（11-06 市集修补摊换密封圈）：选择条里只摆能给的，任务物品（category quest）和 except 里的不摆，免得主线缺东西。
 ##     一件能给的都没有：不收东西白送，播 trade.empty（不让玩家卡在没东西可换上）。
+##   mark: "fried" + repeat: true + all: true（11-07 料理鼠妈什么都能下锅）：任何东西都收（任务物品也收），不拿走、不给新的，
+##     只给这件设 flag fried_<id>（Inventory.item 看到它，名字前面加「油炸的」、描述加一句；id / 功能都不变）；可以一直换。
+##     scene 里的台词可以写 {item}（下锅前的名字）、{fried}（炸好以后的名字）。这种不设 barter_<npc> / barter_any（不算成就里的交换）。
+##   auto_if: flag = 这个 flag 有了以后，自动玩 / 跳节拍不选「算了」，这一笔真的换（主线等着要的东西：修飞机缺密封圈）。
 ## 成就 / 蝴蝶效应：别的剧本只看上面这些 flag（docs/以物易物交换表.md）。flag 跟着 StoryState 存档、换章带过去。
 ##   成就表在 data/achievements.json（all / any 看 flag）；没有单独界面，终章「全剧终」卡下面 show_achievements 列出拿到的几个。
-## 自动玩 / 跳节拍：一律选「算了」（交换都是可去可不去的，不动背包，主线照常）。
+## 自动玩 / 跳节拍：选「算了」（交换都是可去可不去的，不动背包，主线照常），除了写了 auto_if 的那笔。
 ##   测交换：自动玩加 --barter_take，递第一笔背包里有的 want（只为了 headless 跑一遍 take / give）；
 ##   --barter_seed=flag,+物品,-物品：直接进后面章节时假装前面换过（测飞行一、终章的分支）。
 
@@ -64,7 +68,7 @@ func open_trades(who: String) -> Array:
 	var out: Array = []
 	var d: Dictionary = defs().get(who, {})
 	for t in d.get("trades", []):
-		if not t is Dictionary or StoryState.has(trade_flag(who, t)):
+		if not t is Dictionary or (StoryState.has(trade_flag(who, t)) and not t.get("repeat", false)):
 			continue
 		var ok := true
 		for f in t.get("need", []):
@@ -89,9 +93,11 @@ func run(st: Dictionary) -> String:
 	for t in open:
 		if str(t.get("want", "")) == "*":
 			items = items.filter(func(x): return can_give(t, str(x["id"])))
-			if items.is_empty():
+			if items.is_empty() and t.has("empty"):
 				return await _trade(who, t, "")
 	var ai := items.size() if r.auto != "" or r.ff else -1      # 自动玩 / 跳节拍：「算了」
+	if ai > 0 and not auto_trade(who).is_empty():
+		ai = 0
 	if r.auto != "" and "--barter_take" in OS.get_cmdline_user_args():
 		for i in items.size():                                   # 测交换那条路：自动玩递第一件某笔要的东西
 			for t in open:
@@ -108,36 +114,61 @@ func run(st: Dictionary) -> String:
 	return await _inline(str(react.get(it, d.get("wrong", ""))))
 
 
+## 主线正等着的那一笔（auto_if 的 flag 有了、还没换）：自动玩要特意去换。没有 = {}
+func auto_trade(who: String) -> Dictionary:
+	for t in open_trades(who):
+		if str(t.get("auto_if", "")) != "" and StoryState.has(str(t["auto_if"])):
+			return t
+	return {}
+
+
 ## want: "*" 的这一笔收不收这件：任务物品、except 里的不收
 func can_give(t: Dictionary, id: String) -> bool:
+	if t.get("all", false):
+		return true
 	return str(Inventory.item(id).get("category", "")) != "quest" and not (t.get("except", []) as Array).has(id)
 
 
 ## 成交：播台词，交出 it（"" = 白送，播 empty），拿到 get，记 flag
 func _trade(who: String, t: Dictionary, it: String) -> String:
-	var g := await _inline(str(t.get("scene" if it != "" else "empty", "")))
+	var mark := str(t.get("mark", "")) if it != "" else ""
+	var sub := {}
+	if mark != "":
+		r._show_item({"item": it})
+		sub["{item}"] = r.txt(Inventory.item(it).get("name", it))
+		StoryState.set_flag(mark + "_" + it)
+		sub["{fried}"] = r.txt(Inventory.item(it).get("name", it))
+	var g := await _inline(str(t.get("scene" if it != "" else "empty", "")), sub)
 	if g != "" or r.ended:
 		return g
 	var n0: int = Inventory.owned.count(it)
-	var keep := bool(t.get("keep", false)) or it == ""
+	var keep := bool(t.get("keep", false)) or it == "" or mark != ""
 	if not keep:
 		r._take(it)
 	var got := str(t.get("get", ""))
 	if got != "":
 		await r._give(got)
 	StoryState.set_flag(trade_flag(who, t))
-	StoryState.set_flag("barter_" + who)
-	StoryState.set_flag("barter_any")
+	if mark != "":
+		if not r.ff:
+			r.dlg.toast(Inventory.icon(it), I18n.t("got_item") % sub["{fried}"])
+	else:
+		StoryState.set_flag("barter_" + who)
+		StoryState.set_flag("barter_any")
 	for f in t.get("flags", []):
 		StoryState.set_flag(str(f))
-	if "--barter_take" in OS.get_cmdline_user_args():
+	if r.auto != "":
 		var ok: bool = (keep or Inventory.owned.count(it) == n0 - 1) and (got == "" or Inventory.has(got))
-		print("%s %s.%s gave=%s count=%d->%d got=%s" % ["QA_BARTER" if ok else "QA_BARTER_FAIL", who, t.get("id"), it, n0, Inventory.owned.count(it), got])
+		if mark != "":
+			ok = ok and Inventory.owned.count(it) == n0 and Inventory.defined(it) and str(Inventory.item(it).get("id", "")) == it
+		print("%s %s.%s gave=%s count=%d->%d got=%s%s" % ["QA_BARTER" if ok else "QA_BARTER_FAIL", who, t.get("id"), it, n0, Inventory.owned.count(it), got,
+			(" name=" + sub["{fried}"]) if mark != "" else ""])
 	return str(t.get("then", ""))
 
 
 ## 当台词播一段 scene（和 if 落空的分支一样：播完回来，接着播 barter 后面的步骤；里面 goto 了就跟着跳）
-func _inline(scene: String) -> String:
+## sub：台词里的 {item} / {fried} 换成物品名（mark 那种交换）
+func _inline(scene: String, sub := {}) -> String:
 	if scene == "" or not r.scenes.has(scene):
 		return ""
 	var outer: String = r._cur_scene
@@ -145,6 +176,12 @@ func _inline(scene: String) -> String:
 	for st2 in r.scenes[scene]:
 		if not st2 is Dictionary:
 			continue
+		if not sub.is_empty():
+			st2 = (st2 as Dictionary).duplicate()
+			for k in st2:
+				if st2[k] is String:
+					for key in sub:
+						st2[k] = str(st2[k]).replace(key, sub[key])
 		var g: String = await r._step(st2)
 		if r.ended or g != "":
 			return g

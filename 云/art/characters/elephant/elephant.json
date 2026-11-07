@@ -1,0 +1,15 @@
+{
+ "_comment": "奥斯卡画的大象（/Users/jiamulin/Desktop/DAXIANG.aseprite，一帧）：像顶帽子，致敬《小王子》蛇吞象那张。elephant_original.png 是原样导出；elephant.png 是它的 RGB 整体 ×1.6（作者要调亮，色相饱和度不变、形状和像素位置不动）。都登记在 art/手改清单.json。帧是原图整张画布（帽子在 x 5..140、y 30..75），anchor 是帽子底边中点。pass：这么宽不当路障，晨从它前面走；no_flip：转身不翻图，一帧的大图一翻就是闪现。",
+ "frame": [149, 120],
+ "sheet": "elephant.png",
+ "anchor": [72, 75],
+ "ms": 100,
+ "tint": false,
+ "head": 52,
+ "pass": true,
+ "no_flip": true,
+ "shadow_w": 132,
+ "anims": {
+  "idle": {"frames": [0]}
+ }
+}

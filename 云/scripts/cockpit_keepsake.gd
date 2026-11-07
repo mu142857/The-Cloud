@@ -125,6 +125,10 @@ func _play_multi(r: Node) -> String:
 			_build()
 			if r.auto == "full":
 				_auto_plan = ["look:0", "back"]
+			if "--keepsake_all_cards" in OS.get_cmdline_user_args():   # 测试：自动玩把每件的说明卡都打开一遍（配 --qa_live 查叠字）
+				_auto_plan = []
+				for i in items.size():
+					_auto_plan += ["look:%d" % i, "back"]
 			r._ui_shot("keepsake", 0.6)
 			await done
 	StoryState.set_prop(key, ",".join(_burned))
@@ -349,15 +353,44 @@ func _slots_top() -> float:
 	return (cockpit.floor_y if cockpit != null else 222.0) - 42.0
 
 
-func _card_panel(h: float) -> Panel:
+func _card_panel(h: float, w: float = CARD_W) -> Panel:
 	var p := Panel.new()
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	p.add_theme_stylebox_override("panel", UITheme.box(BG, EDGE, 1))
 	var bottom := _slots_top() - CARD_GAP
-	p.size = Vector2(CARD_W, minf(h, bottom - CARD_TOP))
-	p.position = Vector2(480.0 - 10.0 - CARD_W, maxf(CARD_TOP, bottom - h))
+	p.size = Vector2(w, minf(h, bottom - CARD_TOP))
+	p.position = Vector2(480.0 - 10.0 - w, maxf(CARD_TOP, bottom - h))
 	add_child(p)
 	return p
+
+
+## 11-06 英文说明比中文长得多（最长 9 行），而卡片只能在托板上面、高 112（再往下就盖住托板和晨）：
+## 放不下时往左加宽；还放不下用紧凑排法（小图标、按钮挪到名字那一行）。只有英文走这里，中文排法不变。
+const CARD_WIDTHS: Array[float] = [236.0, 300.0, 360.0, 460.0]
+const COMPACT_TEXT_Y := 28.0
+const WORD_WRAP := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+
+## 11-07：中文说明一般放得下，排法不变；放不下的（鼠妈炸过的东西描述多一句，透明种子要 5 行）也走下面加宽 / 紧凑，换行按逐字（ZH_WRAP）
+const ZH_WRAP := TextServer.BREAK_MANDATORY | TextServer.BREAK_GRAPHEME_BOUND
+
+func _en_lines(text: String, w: float, brk: int = WORD_WRAP) -> int:
+	var f := UITheme.font()
+	return roundi(f.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, w, 14, -1, brk).y / f.get_height(14))
+
+
+func _fit_en_card(text: String, icon_h: float, lh: float, brk: int = WORD_WRAP) -> Dictionary:
+	var room := _slots_top() - CARD_GAP - CARD_TOP
+	for w in CARD_WIDTHS:
+		var n := _en_lines(text, w - 20.0, brk)
+		if 18.0 + icon_h + n * lh <= room - 20.0:
+			return {"w": w, "n": n, "compact": false}
+	for w in CARD_WIDTHS:
+		if w < 360.0:                        # 太窄的话名字和两个按钮挤不进一行
+			continue
+		var n := _en_lines(text, w - 20.0, brk)
+		if COMPACT_TEXT_Y + n * lh + 4.0 <= room:
+			return {"w": w, "n": n, "compact": true}
+	return {"w": CARD_WIDTHS[-1], "n": _en_lines(text, CARD_WIDTHS[-1] - 20.0, brk), "compact": true}
 
 
 func _open_card(id: String) -> void:
@@ -370,27 +403,43 @@ func _open_card(id: String) -> void:
 	var dw := CARD_W - 20.0
 	var lh := UITheme.font().get_height(14) + 1.0
 	var nl := 0
-	for para in dtext.split("\n"):
-		nl += maxi(1, ceili(UITheme.font().get_string_size(para, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x / dw))
+	var en := not I18n.is_zh()
+	var compact := false
+	var card_w := CARD_W
+	if en:
+		var fit := _fit_en_card(dtext, isz0.y, lh)
+		nl = int(fit["n"])
+		compact = bool(fit["compact"])
+		card_w = float(fit["w"])
+		dw = card_w - 20.0
+	else:
+		for para in dtext.split("\n"):
+			nl += maxi(1, ceili(UITheme.font().get_string_size(para, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x / dw))
+		if 18.0 + isz0.y + nl * lh + 6.0 + 22.0 > _slots_top() - CARD_GAP - CARD_TOP:
+			var zfit := _fit_en_card(dtext, isz0.y, lh, ZH_WRAP)
+			nl = int(zfit["n"])
+			compact = bool(zfit["compact"])
+			card_w = float(zfit["w"])
+			dw = card_w - 20.0
 	var btn_y := 18.0 + isz0.y + nl * lh + 6.0
-	_card = _card_panel(btn_y + 22.0)
+	_card = _card_panel(COMPACT_TEXT_Y + nl * lh + 4.0 if compact else btn_y + 22.0, card_w)
 	var icon := TextureRect.new()
 	icon.texture = Inventory.icon(id)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_SCALE
-	var isz := icon.texture.get_size() * 2.0
+	var isz := icon.texture.get_size() * (1.0 if compact else 2.0)
 	icon.size = isz
 	icon.position = Vector2(10, 10)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(icon)
 	var nm := _label(runner.txt(it.get("name", id)), Color("#dcc39a"))
-	nm.position = Vector2(18 + isz.x, 10 + isz.y / 2.0 - 9.0)
+	nm.position = Vector2(18 + isz.x, 8.0) if compact else Vector2(18 + isz.x, 10 + isz.y / 2.0 - 9.0)
 	_card.add_child(nm)
 	var desc := _label(runner.txt(it.get("desc", "")), Color("#b9c9bf"))
-	desc.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if en else TextServer.AUTOWRAP_ARBITRARY
 	desc.size = Vector2(dw, 0)
 	desc.custom_minimum_size = Vector2(dw, 0)
-	desc.position = Vector2(10, 18 + isz.y)
+	desc.position = Vector2(10, COMPACT_TEXT_Y if compact else 18 + isz.y)
 	desc.add_theme_constant_override("line_spacing", 1)
 	_card.add_child(desc)
 	_card.modulate.a = 0.0
@@ -401,7 +450,10 @@ func _open_card(id: String) -> void:
 		await _lines(_look_lines(id))
 	if not is_instance_valid(_card):
 		return
-	_buttons([_tx("put_in"), _tx("put_back")], minf(btn_y, _card.size.y - 20.0))
+	if compact:
+		_buttons([_tx("put_in"), _tx("put_back")], 8.0, true)
+	else:
+		_buttons([_tx("put_in"), _tx("put_back")], minf(btn_y, _card.size.y - 20.0))
 	_mode = "card"
 
 
@@ -458,11 +510,15 @@ func _draw_route(d: Control) -> void:
 	d.queue_redraw()
 
 
-func _buttons(labels: Array, y: float) -> void:
+func _buttons(labels: Array, y: float, right := false) -> void:
 	for l in _card_btns:
 		l.queue_free()
 	_card_btns.clear()
 	var x := 10.0
+	if right:                                # 靠卡片右边排（紧凑排法：和名字同一行）
+		x = _card.size.x - 10.0 + 18.0
+		for s in labels:
+			x -= UITheme.font().get_string_size("▸ " + str(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
 	for s in labels:
 		var l := _label("", UITheme.TEXT_DIM)
 		l.set_meta("text", str(s))
@@ -538,6 +594,7 @@ func _close_card() -> void:
 	_mode = "busy"
 	var id := _card_id
 	if is_instance_valid(_card):
+		_card.visible = false                # queue_free 要到这一帧末：同一帧托板名字已经亮了，先藏起来（QA 不再报这一帧的叠字）
 		_card.queue_free()
 	_card = null
 	_card_btns.clear()

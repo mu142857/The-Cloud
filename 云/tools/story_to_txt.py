@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""第二章主线剧本：把 data/story_river.json 按实际游玩顺序导出成给作者读、给作者改的 txt。
+"""章节主线剧本：把剧情 json 按实际游玩顺序导出成给作者读、给作者改的 txt。
 
-    python3 tools/story_to_txt.py
+    python3 tools/story_to_txt.py                  第二章（data/story_river.json）
+    python3 tools/story_to_txt.py --chapter=final  第三章（data/story_final.json）
 
 台词、旁白、选项、日记原样从 json 取，一个字不改。动作（walk / anim / prop……）用下面几张表翻成一句中文。
-段落顺序是 MAIN：河流主线 --story_auto --main_only 实际走的顺序（11-05），分支场景嵌在选项 / 条件下面。
-表里没有的动作名会直接报错，不会漏写；写完检查主线每一句都在 txt 里。
+第二章段落顺序是 MAIN：河流主线 --story_auto --main_only 实际走的顺序（11-05），分支场景嵌在选项 / 条件下面。
+第三章段落顺序是 FINAL_PLAN：--chapter=final --story_auto 和 --beat=final_ending_1..4 --story_auto 实际走的顺序（11-07）；
+if / goto 照引擎的规矩展开（分支跳走就是跳走，分支播完没跳走就接着往下），不在 FINAL_PLAN 里的小场景嵌在条件下面。
+表里没有的动作名会直接报错，不会漏写；写完检查主线每一句都在 txt 里（第三章检查整个文件的每一句）。
 
 同时写一份同名「.底稿.txt」：作者改完以后和它比（tools/story_from_txt.py）。作者已经改过 txt 时拒绝覆盖（加 --force 才覆盖）。
 """
@@ -24,7 +27,7 @@ MAIN = [
     ("bank_meet", "河岸。晨走到箱子边，妮芙从箱子后面钻出来"),
     ("bank_meet_b", "河岸台阶。捞杯子，捞漂走的东西"),
     ("bank_cup", "河岸飞机旁。阿汀把飞机拴住，妮芙邀请晨去她家"),
-    ("home_enter", "妮芙家一楼。互相问名字，她马上忘了"),
+    ("home_enter", "妮芙家一楼。她问晨是谁"),
     ("home_asked", "妮芙家一楼。晨问本子里有没有大象"),
     ("home_find", "妮芙家二楼。她翻柜子，录像带放不出，又忘了晨是谁"),
     ("home_find_b", "妮芙家二楼。记下来，任务开始"),
@@ -36,7 +39,8 @@ MAIN = [
     ("sluice", "旧街。调水闸，水退下去，露出氧气瓶"),
     ("oldstreet_tank_take", "旧街。捡氧气瓶"),
     ("warehouse_go", "旧街仓库入口。下水"),
-    ("warehouse_in", "水下仓库。找读取头，回到旧街"),
+    ("warehouse_in", "水下仓库。找读取头"),
+    ("warehouse_out", "水下仓库。自己游到入口上去，再自己走回妮芙家（旧街 → 楼梯间 → 市集 → 河岸），路上能去市集换密封圈"),
     ("tape_fix", "回妮芙家二楼。修好录像带，看大象"),
     ("bank_to_market", "再去市集"),
     ("market_to_oldstreet_again", "再经过楼梯间，到旧街"),
@@ -49,11 +53,10 @@ MAIN = [
     ("south_trail_end", "南桥。脚印走到旧货台"),
     ("south_dock", "南桥旧货台。查装卸记录"),
     ("dock_plates", "南桥旧货台。选编号牌"),
-    ("south_back", "回旧街。妮芙捡到铜铃，送给晨，回河岸"),
+    ("south_back", "回旧街。妮芙捡到铜铃，送给晨，回河岸（没有密封圈的，这时先出「获取密封圈」，拿到了才能去道别）"),
     ("farewell", "妮芙家。喝茶，留画，拿礼物"),
     ("farewell_b", "妮芙家。她说画得像水壶"),
     ("farewell_phone", "妮芙家。加通讯录，回河岸"),
-    ("plane_need_seal", "河岸。修飞机：没有密封圈的话先出这个任务（有就跳过这段）"),
     ("plane_fix", "河岸。修飞机"),
     ("depart", "河岸。起飞。第二章完"),
 ]
@@ -134,7 +137,7 @@ KEY_LABEL = {
 }
 OPTION_NOTE = {
     "n_meet_courier": "之后这一章妮芙都叫晨「取件员」，终章的消息也这么叫",
-    "n_meet_bio": "之后只有报名字那句不一样",
+    "n_meet_bio": "之后和选「不是。」一样",
     "n_meet_rude": "之后和选「不是。」一样",
     "dock_plate_07": "看完回到这里重选",
     "dock_plate_21": "看完回到这里重选",
@@ -142,6 +145,8 @@ OPTION_NOTE = {
 COND = {
     "river_n_courier": "开头选了「对，我是来取件的。」的人",
     "!river_n_courier": "其他人",
+    "!river_seal_got": "还没有密封圈的人",
+    "river_seal_got": "已经有密封圈的人",
     "river_n_bio": "开头选了「你是谁？我在哪儿？」的人",
     "river_n_plain": "开头选了「不是。」或「你没长眼啊？把我的飞船撞坏了！」的人",
     "c1_mom": "第一章对鹿说过「我是你的母亲」的人",
@@ -169,10 +174,11 @@ OPTIONAL = [
     "市集支线：饼干摊砍价（三选一），买了饼干，旧街拐角会坐下来分着吃",
     "市集支线：料理鼠妈，帮她看锅放料（小游戏），之后可以拿东西换吃的，换了汤终章多一格燃料",
     "市集修补摊：用任意一件东西换密封圈（什么时候都能换，不用等任务）",
+    "河岸飞机：有「获取密封圈」任务时点飞机，妮芙提醒去哪拿",
     "市集可点：吊着的篮子、屋顶的桥、摊主",
     "楼梯间：水母（没给东西时还能再给；给过以后每次点都说「好像叫寿登耄耋？」）",
     "旧街可点：拐角（果酱店、身高刻线，买过饼干会坐下来分）、水位刻线、两层招牌",
-    "水下仓库可点：破箱子那儿（标签）；拿到读取头以后可以再下水开「还有箱子」，免费拿密封圈",
+    "水下仓库可点：破箱子那儿（标签）；绿柜子（平时只看标签「修船的，还不急」，有「获取密封圈」任务时翻出一个密封圈，拿过以后是「抽屉空了」）",
     "来客册支线：修好录像带以后，回窗边扇干来客册（小游戏），看名单，知道弥洛的朋友寄过信，拿到杯底记号",
     "南桥可点：灯柱、屋顶装饰",
 ]
@@ -286,6 +292,9 @@ class Writer:
             self.act("交出：" + self.items.get(st["item"], st["item"]))
         elif do == "show_item":
             self.act("拿出来看：" + self.items.get(st["item"], st["item"]))
+        elif do == "inner":
+            if st.get("zh"):
+                self.out("晨（心里，字直接打在画面上，没有对话框）：" + st["zh"], ind)
         elif do == "journal":
             self.out("日记：" + st["zh"], ind)
         elif do == "phone_msg":
@@ -376,7 +385,7 @@ class Writer:
             self.act("小游戏：按住转闸轮，管子不咕噜了就松手，一共三道闸。表盘上是妮芙画的小鱼、鞋、茶壶、鲸鱼")
         elif mid == "river_borrowed":
             boxes = "、".join("%s（她忘了时写「%s」）" % (b["label"]["zh"], b["code"]["zh"]) for b in st.get("boxes", []))
-            self.act("小游戏：水下的箱子漂来漂去，选一只打开，找读取头和浮筒密封圈。妮芙头上的泡泡破光了，标签就变成她的暗号。箱子：" + boxes)
+            self.act("小游戏：水下的箱子漂来漂去，选一只打开，找读取头（箱子里没有密封圈，密封圈在绿柜子）。妮芙头上的泡泡破光了，标签就变成她的暗号。箱子：" + boxes)
         elif mid == "river_thread":
             self.act("小游戏：拧接头。管子上印着「%s」的箭头，妮芙贴的便条写着「%s」，照箭头拧会松，反着拧才紧" % (st.get("arrow", {}).get("zh", ""), st.get("note", {}).get("zh", "")))
         elif mid == "river_explore_order":
@@ -478,20 +487,534 @@ def check(d, w):
     return missing
 
 
+# ---------------- 第三章（终章） ----------------
+
+OUT_FINAL = os.path.join(ROOT, "docs", "第三章_主线剧本.txt")
+BASE_FINAL = os.path.join(ROOT, "docs", "第三章_主线剧本.底稿.txt")
+
+# str 是大标题（"结局" 开头或尾声：目标从下降那一刻重新算），tuple 是 (场景, 标题)。
+FINAL_PLAN = [
+    "飞向云层星",
+    ("start_final", "驾驶舱。离开河流星，修东西，哼歌"),
+    ("final_route", "碎石带"),
+    ("final_cabinet", "燃料柜。数一数还剩什么"),
+    ("final_fuel", "燃料柜。晨对自己说"),
+    ("final_paper", "燃料柜。第一次烧东西"),
+    ("final_approach", "接近云层。画背面的字，第一页，第四次闪回"),
+    ("final_action", "选：下降，还是漂在云上"),
+    ("final_descend", "下降。再烧一次，选降落点"),
+    "结局一：西侧旧货场（大象真的在，吃草很响，不理人）",
+    ("ending1", "降落"),
+    ("e1_prints", "脚印"),
+    ("e1_meet", "浅水边。见到大象"),
+    ("e1_sit", "坐下来看它"),
+    ("e1_plant_ask", "问哪里能种种子（种子没烧的人才有）"),
+    ("e1_plant", "种种子（种子没烧的人才有）"),
+    ("e1_evening", "傍晚。修飞机，写日记"),
+    ("e1_cockpit", "驾驶舱。看窗外的大象"),
+    "结局二：东侧低鸣（只有晨看得见）",
+    ("ending2", "降落"),
+    ("e2_see", "缓坡下。看见大象，居民什么也没看见"),
+    ("e2_see_rest", "人围过来"),
+    ("e2_dusk", "傍晚。居民陪着坐"),
+    ("e2_record", "回飞机记下位置"),
+    ("e2_plant", "种种子（种子没烧的人才有）"),
+    ("e2_night_go", "夜里，第二天"),
+    "结局三：居民区（大家都看得见，只有晨看不见）",
+    ("ending3", "降落"),
+    ("e3_plaza", "广场。大家都说它在喷泉边"),
+    ("e3_plaza_rest", "晨还是看不见"),
+    ("e3_touch", "第二天。伸手，大家欢呼；回住处写日记"),
+    ("e3_confess", "又过了一天。晨说手心是空的"),
+    ("e3_listen", "喷泉另一侧"),
+    ("e3_wait", "自己走走"),
+    ("e3_round", "云台尽头"),
+    ("e3_bench", "长椅"),
+    ("e3_plant", "种种子（种子没烧的人才有）"),
+    ("e3_night", "回住处。改日记"),
+    "结局四：关掉推进器，漂在云上（没有下去）",
+    ("ending4", "放回东西，确认轨道"),
+    ("e4_straps", "收拾，关发动机，哼歌"),
+    ("e4_write", "写日记，大象的影子从窗外过去"),
+    "尾声（四个结局都走这里，只有写了「结局几」的那几句不一样）",
+    ("epilogue", "森林路口。鹿"),
+    ("epi_miluo", "树屋。弥洛"),
+    ("epi_niff", "妮芙家"),
+    ("epi_city", "回到城市"),
+    ("epi_home", "回家的列车"),
+    ("epi_home_seat", "列车上。坐下。全剧终"),
+]
+FINAL_OPTIONAL = [
+    ("ck_bell", "驾驶舱：铜铃"), ("ck_rope", "驾驶舱：绳圈（烧了铜铃以后）"), ("ck_copilot", "驾驶舱：副驾驶座"), ("ck_cabinet", "驾驶舱：燃料柜"),
+    ("ck_tools", "驾驶舱：工具"), ("ck_drawing", "驾驶舱：最初的画"), ("yard_sign", "结局一：指示牌"), ("e1_elephant_chat", "结局一：大象"),
+    ("e1_passerby_chat", "结局一：路过的人"), ("e2_elephant_chat", "结局二：大象"), ("e2_cup", "结局二：那杯水"), ("town_basket", "结局三：空篮子"),
+    ("e3_crowd_chat", "结局三：周围的人"), ("e3_fountain_look", "结局三：喷泉"), ("e3_townsfolk_chat", "结局三：居民"), ("epi_deer_chat", "尾声：鹿"),
+    ("epi_miluo_chat", "尾声：弥洛"), ("epi_niff_chat", "尾声：妮芙"),
+]
+# 没有字的场景，不用写进 txt
+FINAL_SILENT = {"yard_grass"}
+# 只是往下问一句的条件场景，自己不写「（……的人）」
+FINAL_PASS = {"epi_deer_q2", "epi_deer_q3", "epi_niff_q2", "epi_niff_q3", "epi_miluo_q"}
+FINAL_LABEL_SCENE = {
+    "epi_home_chart": "没烧座位图，第一章也没和鹿认亲的人",
+    "epi_miluo_kept": "种子没种也没烧的人",
+}
+FINAL_COND = {
+    "barter_rat_chef_soup": "在市集用浮木跟鼠妈换了汤的人",
+    "!barter_rat_chef_soup": "没换汤的人",
+    "barter_rat_chef_fire": "把不灭的木头给了鼠妈、换了饭团的人",
+    "barter_rat_chef_recipe": "用大嘴鸟的羽毛跟鼠妈换了菜谱的人",
+    "barter_toucan_whistle": "第一章跟大嘴鸟换了鸟哨的人",
+    "musicbox_fixed": "第一章修好了音乐盒的人",
+    "!musicbox_fixed": "没修好音乐盒的人",
+    "final_ending_1": "结局一",
+    "final_ending_2": "结局二",
+    "final_ending_3": "结局三",
+    "!final_ending_3": "结局四",
+    "final_seed_planted": "把种子种下了的人",
+    "river_cup_traced": "看过来客册、拿到杯底记号的人",
+    "sa_sign_done": "第一章把路标送回空地的人",
+    "sa_radio_done": "第一章把收音机送回小吃棚的人",
+    "saw_rock": "第一章看过空地岩画的人",
+    "c1_mom": "第一章对鹿说过「我是你的母亲」的人",
+    "!c1_mom": "其他人",
+    "c1_child": "第一章让鹿把晨当孩子的人",
+}
+FINAL_GOTO_NOTE = {
+    "final_descend": "往下接「下降」", "ending4": "结局四", "ending1": "结局一", "ending2": "结局二", "ending3": "结局三",
+}
+WHO_FINAL = {"chen": "晨", "niff": "妮芙", "elephant": "大象", "deer": "鹿", "miluo": "弥洛", "passerby": "路过的人", "resident": "居民", "townsfolk": "居民", "crowd": "周围的人"}
+ROOMS_FINAL = {"cockpit": "驾驶舱", "reed_field": "芦苇地", "town": "云层小镇", "town_room": "住处", "forest": "森林路口", "treehouse": "树屋",
+               "river_home": "妮芙家", "city": "城市", "home_train": "回家的列车"}
+FADE_AT_FINAL = {"town_fountain_stand": "喷泉边", "yard_landing": "西边的旧货场", "east_landing": "东边的缓坡"}
+PLACE_FINAL = {"east_rest": "飞机旁躺下的地方", "train_seat": "座位", "yard_landing": "飞机", "east_far": "远处", "east_water": "水边", "yard_hill": "山坡那边",
+               "town_bench": "长椅", "town_plaza_side": "广场那边"}
+ANIM_FINAL = {
+    "chen": {
+        "cap_twist": "拧瓶盖", "check": "看了看", "close_lid": "合上盖子", "delete": "删字", "dig": "挖土", "drink": "喝水", "eat": "吃东西", "fill": "填土",
+        "finger_still": "手指停住", "flip_phone": "把通讯器翻过去", "fold_bag": "叠好袋子", "hand_flip": "翻过手看手心", "hand_over": "递过去", "hand_still": "手停住",
+        "hold_close": "把它贴近", "hold_phone": "拿着通讯器", "hug_bag": "抱住背包", "hum": "哼歌", "lie": "躺下", "lips": "抿嘴", "look_around": "四处看",
+        "open_map_fold": "打开折着的纸", "peek": "探头看", "pen_hover": "笔悬着", "pocket": "收进口袋", "press": "按下去", "raise_hand": "抬手", "reach_bag": "手伸进背包",
+        "reach_camera": "想拍照", "release": "松手", "smooth_paper": "把纸抚平", "stand": "站起来", "step_aside": "让到一边", "step_back": "往后退", "sulk": "撇嘴",
+        "take_cup": "接过杯子", "take_phone": "拿出通讯器", "thumb_lid": "拇指按着盖子", "untie": "解绳子", "wait": "等着",
+        "pickup": "捡起绑带", "tie": "系好绑带",
+    },
+    "elephant": {"drink": "喝水", "ear": "耳朵动了动", "eat": "吃草", "graze": "吃草", "look": "看了一眼", "trunk_branch": "鼻子勾树枝", "trunk_out": "鼻子伸过来",
+                 "trunk_up": "鼻子抬起来", "tug_grass": "扯草", "turn": "转身"},
+    "passerby": {"laugh": "笑"},
+    "resident": {"lift": "帮忙抬机翼", "sit": "坐下"},
+    "townsfolk": {"sit": "坐下"},
+    "deer": {"ear": "耳朵动了动", "lean": "凑过来", "look": "看"},
+    "miluo": {"check": "看了看", "flip": "翻过来", "read": "读", "screw": "拧螺丝"},
+    "niff": {"read": "看本子"},
+}
+SFX_FINAL = {
+    "bag_open": "打开背包", "beacon_slow": "信标慢慢响", "bird_whistle": "鸟哨响", "biscuit_rustle": "饼干袋窸窣响", "bottle_knock": "空瓶子磕了一下", "bridge_lamps": "影像里桥灯的声音",
+    "cabinet_open": "柜门开了", "cap_twist": "拧瓶盖", "chewing": "咀嚼声", "cloud_part": "云层散开", "confirm": "确认的提示音", "convert": "变成燃料", "crowd_cheer": "人群欢呼",
+    "door_open": "门开了", "elephant_breath": "大象的呼吸声", "elephant_low_call": "大象的低鸣", "engine_off": "发动机关了", "engine_steady": "发动机平稳地响", "engine_test": "试发动机",
+    "footage_play": "影像放起来", "fountain": "喷泉声", "grass_tear": "扯草声", "hiss_small": "小声漏气", "hull_rattle": "船壳咯吱响", "hum_late": "哼慢了一拍", "hum_new_key": "换了个调",
+    "hum_stop": "哼不下去了", "hum_wrong": "哼错一个音", "knock": "敲门", "landing_soft": "平稳落地", "latch_tap": "搭扣轻响", "leak_hiss": "漏气声", "leak_slow": "慢慢漏气", "leak_small": "还有一点漏气",
+    "musicbox_open": "音乐盒打开", "musicbox_play": "音乐盒响", "musicbox_stop": "音乐盒停了", "niff_bell": "妮芙的铃响", "plaza_noise": "广场上很吵", "rough_landing": "重重落地",
+    "screw_back": "螺丝拧回去", "screw_half": "螺丝拧到一半", "seat_creak": "座椅吱呀响", "stomach": "肚子叫", "thruster_recover": "推进器缓过来", "tighten": "拧紧", "valve_close": "关阀门",
+    "water_drop": "水滴声", "water_pour": "倒水", "water_slosh": "水晃", "wrench_half": "扳手转了半圈",
+}
+PROP_FINAL = {
+    ("cockpit_bag", "bottle_side_pocket"): "瓶子放进背包侧袋", ("cockpit_bell", "empty_loop"): "铜铃那儿只剩绳圈", ("cockpit_bell", "moved"): "把铜铃挪了个地方", ("cockpit_bell", "rope_short"): "绳圈收短",
+    ("cockpit_bell", "rope_swing"): "绳圈晃", ("cockpit_burnlist", "close"): "凑近看已烧掉的清单", ("cockpit_burnlist", "flipped"): "把清单翻过去", ("cockpit_cabinet", "closed"): "燃料柜关上",
+    ("cockpit_cabinet", "empty_bottle"): "空瓶子放回柜子", ("cockpit_cabinet", "hand"): "手放在柜门上", ("cockpit_cabinet", "open"): "燃料柜开着", ("cockpit_cabinet", "put_back"): "把东西放回柜子",
+    ("cockpit_copilot", "toolbag_wrench"): "副驾驶座上放着工具包和扳手", ("cockpit_drawing", "beside_panel"): "画放到仪表盘边", ("cockpit_drawing", "open"): "打开那张画",
+    ("cockpit_drawing", "under_page"): "画压到那一页下面", ("cockpit_drawing", "within_reach"): "画放在够得着的地方", ("cockpit_footage", "lid_closed"): "合上影像盒盖",
+    ("cockpit_journal", "deer_page"): "翻到鹿那一页", ("cockpit_journal", "first_page_out"): "把第一页取下来", ("cockpit_lamp", "off"): "灯关了", ("cockpit_map", "beside_panel"): "航图放到仪表盘边",
+    ("cockpit_map", "line_pressed"): "按住航线", ("cockpit_map", "open"): "打开航图", ("cockpit_note", "flipped"): "把纸条翻过来", ("cockpit_note", "folded"): "纸条叠好", ("cockpit_note", "folded_half"): "纸条叠到一半",
+    ("cockpit_note", "open"): "又打开纸条", ("cockpit_phone", "face_down"): "通讯器扣着放", ("cockpit_phone", "screen_on"): "通讯器屏幕亮了", ("cockpit_phone", "seat_screen_up"): "通讯器屏幕朝上放在座位上",
+    ("cockpit_screen", "descent"): "屏幕切到下降航道", ("cockpit_screen", "orbit"): "切回轨道", ("cockpit_tools", "left"): "工具换到左边", ("cockpit_window", "cloud_low"): "窗外云层近了",
+    ("cockpit_window", "cloud_orbit"): "窗外云层在下面", ("cockpit_window", "cloud_sea"): "窗外是云海", ("cockpit_window", "elephant_shadow"): "窗外有大象的影子过去",
+    ("cockpit_window", "yard_elephant_far"): "窗外远处是大象", ("cockpit_window", "yard_parked"): "窗外是停飞机的地方", ("east_bed", "planted"): "花圃种上了", ("east_plane", "wing_up"): "机翼抬起来",
+    ("east_toolbag", "ready"): "工具包放好", ("east_tree", "bark_rubbed"): "树皮蹭秃了", ("east_water_cup", "placed"): "旁边留了一杯水", ("forest_map", "corrected"): "地图改好了",
+    ("river_home_cup", "offered"): "妮芙递来一杯", ("sky", "day"): "天亮了", ("sky", "dusk"): "傍晚了", ("sky", "night"): "夜里", ("sky", "shadow_pass"): "一个影子掠过", ("town_bed", "planted"): "花圃种上了",
+    ("town_toolbag", "on_seat"): "工具包放在座位上", ("train_seat", "sun_on_knees"): "太阳晒到膝盖", ("train_window", "afternoon_sun"): "窗外是下午的太阳", ("train_window", "trees_passing"): "窗外的树一棵棵过去",
+    ("treehouse_glass", "paper"): "玻璃杯压住那张纸", ("yard_stone", "placed"): "放了块石头做记号", ("yard_toolbag", "placed"): "工具包放下",
+}
+
+
+class FinalWriter(Writer):
+    """第三章：动作表多，if / goto 要照引擎的跳转展开。第二章的 Writer 不动，第二章的导出结果一字不变。"""
+
+    def __init__(self, data):
+        super().__init__(data)
+        self.main = {x[0] for x in FINAL_PLAN if isinstance(x, tuple)}
+        self.arm_seen = {}
+        self.sfx = dict(SFX, **SFX_FINAL)
+        self.prop = {**PROP, **PROP_FINAL}
+
+    def who(self, k):
+        return WHO_FINAL.get(k) or super().who(k)
+
+    def walk(self, st):
+        who, to = st["who"], st["to"]
+        if to not in PLACE_FINAL:
+            sys.exit("PLACE_FINAL 里没有：%s" % to)
+        return "%s走到%s" % (WHO_FINAL[who], PLACE_FINAL[to])
+
+    def fade(self, st):
+        return "转场到" + (FADE_AT_FINAL.get(st.get("at")) or ROOMS_FINAL[st["room"]])
+
+    def label(self, flag, scene):
+        if scene in FINAL_LABEL_SCENE:
+            return FINAL_LABEL_SCENE[scene]
+        if flag in FINAL_COND:
+            return FINAL_COND[flag]
+        if flag in COND:
+            return COND[flag]
+        neg = flag.startswith("!")
+        name = flag[1:] if neg else flag
+        if name.startswith("burned_"):
+            item = self.items.get(name[len("burned_"):])
+            if item:
+                return ("没烧%s的人" if neg else "烧了%s的人") % item
+        sys.exit("FINAL_COND 里没有：%s" % flag)
+
+    def exit_of(self, name):
+        """这个场景最后跳到哪儿；播完回来接着往下就是 None。"""
+        steps = [s for s in self.sc.get(name, []) if isinstance(s, dict)]
+        if not steps:
+            return None
+        last = steps[-1]
+        if last.get("do") == "goto":
+            return last["scene"]
+        if last.get("do") == "if" and last.get("then") and last.get("else"):
+            a, b = last["then"], last["else"]
+            ea, eb = self.exit_of(a), self.exit_of(b)
+            if eb == a:
+                return a
+            if ea == b:
+                return b
+            if ea and ea == eb:
+                return ea
+        return None
+
+    def flow(self, name, ind, stop=frozenset()):
+        """播一个场景。返回 True = 跳走了，调用它的场景不再往下。"""
+        self.used.add(name)
+        steps = [s for s in self.sc[name] if isinstance(s, dict)]
+        return self.run(steps, ind, stop)
+
+    def run(self, steps, ind, stop):
+        for i, st in enumerate(steps):
+            if st.get("do") == "goto":
+                self.jump(st["scene"], ind, stop)
+                return True
+            if st.get("do") == "if":
+                if self.branch(st, steps[i + 1:], ind, stop):
+                    return True
+            elif "say" in st:
+                self.say(st, ind)
+            elif "narr" in st:
+                self.out("旁白：" + st["narr"]["zh"], ind)
+            else:
+                self.do(st, ind)
+        self.flush(ind)
+        return False
+
+    def jump(self, to, ind, stop):
+        self.flush(ind)
+        if to not in self.main and to not in stop:
+            self.flow(to, ind, stop)
+
+    def capture(self, fn, ind):
+        keep_lines, keep_buf = self.lines, self.buf
+        self.lines, self.buf = [], []
+        fn()
+        self.flush(ind)
+        got = self.lines
+        self.lines, self.buf = keep_lines, keep_buf
+        return got
+
+    def arm_flags(self, scene):
+        """这一支走完会设哪些 flag（分支里最后那一步设的，不跟 goto）。"""
+        return {s["set"] for s in self.sc.get(scene, []) if isinstance(s, dict) and s.get("do") == "flag" and isinstance(s.get("set"), str)}
+
+    def arm_body(self, scene, flag, ind, stop):
+        """一支分支的内容。分支里设的 flag 只在这一支算数，目标变化写在这一支里。"""
+        keep = set(self.flags)
+        before = self.objective()
+        if scene in self.arm_seen:
+            return [ind + "（和上面「%s」那一支一样）" % self.arm_seen[scene]]
+        if scene not in FINAL_PASS:
+            self.arm_seen[scene] = self.label(flag, scene)
+
+        def play():
+            if isinstance(scene, list):
+                self.run(scene, ind, stop)
+            else:
+                self.flow(scene, ind, stop)
+
+        got = self.capture(play, ind)
+        goal = self.objective()
+        if goal and goal != before:
+            got.append(ind + "（左上角目标变成：%s）" % goal)
+        self.flags = keep
+        return got
+
+    def arms(self, arms, ind, stop):
+        done = []
+        before = set(self.flags)
+        added = []
+        for flag, scene in arms:
+            key = scene if isinstance(scene, str) else None
+            if key is None:
+                self.used.add("(rest)")
+                body = self.capture(lambda s=scene: self.run(s, ind + "    ", stop), ind + "    ")
+            else:
+                body = self.arm_body(scene, flag, ind + "    ", stop)
+                added.append(self.arm_flags(scene) - before)
+            done.append((flag, key, body))
+        if len(added) == 2:                 # 两支都设的 flag，走完都算数
+            self.flags |= added[0] & added[1]
+        if len(done) == 2 and done[0][2] and done[0][2] == done[1][2]:      # 两支一模一样，不分了
+            self.lines += [x[4:] for x in done[0][2]]
+            return
+        for flag, key, body in done:
+            if not body:
+                continue
+            if key in FINAL_PASS:
+                self.lines += [x[4:] for x in body]
+                continue
+            self.lines.append(ind + "（%s）" % self.label(flag, key))
+            self.lines += body
+
+    def branch(self, st, rest, ind, stop):
+        """一个 if。返回 True = 后面的步骤不会再走（都跳走了）。"""
+        self.flush(ind)
+        flag = st["flag"]
+        neg = flag[1:] if flag.startswith("!") else "!" + flag
+        a, b = st.get("then"), st.get("else")
+        if a and b:
+            ea, eb = self.exit_of(a), self.exit_of(b)
+            join = None
+            if eb == a:
+                join, arms = a, [(neg, b)]
+            elif ea == b:
+                join, arms = b, [(flag, a)]
+            else:
+                arms = [(flag, a), (neg, b)]
+                if ea and ea == eb:
+                    join = ea
+            self.arms(arms, ind, stop | {join} if join else stop)
+            if join:
+                self.jump(join, ind, stop)
+                return True
+            return bool(ea and eb)
+        target, f = (a, flag) if a else (b, neg)
+        other = neg if a else flag
+        if target in self.main:
+            return False
+        e = self.exit_of(target)
+        body = [s for s in rest if s.get("do") != "goto"]
+        tail = [s for s in rest if s.get("do") == "goto"]
+        if e and body and tail and tail[0]["scene"] == e:    # 这一支跳走了，后面那几步是其他人才走的
+            self.arms([(f, target), (other, body)], ind, stop | {e})
+            self.jump(e, ind, stop)
+            return True
+        self.arms([(f, target)], ind, stop | {e} if e else stop)
+        return False
+
+    def branch_body(self, name, ind):
+        self.used.add(name)
+        e = self.exit_of(name)
+        self.flow(name, ind, frozenset({e}) if e else frozenset())
+
+    def choice(self, st, ind):
+        self.flush(ind)
+        pick = st["do"] == "pick"
+        if st.get("title"):
+            self.out("屏幕标题：" + st["title"]["zh"], ind)
+        for o in st["options"]:
+            text = o["label"]["zh"] if "label" in o else o["zh"]
+            target = o.get("scene")
+            head = "▶ " + text
+            for need in o.get("need", []):
+                head = "▶ （%s才有这句）%s" % (self.label(need, None), text)
+            if o.get("confirm"):
+                head += "（二次确认：%s）" % o["confirm"]["zh"]
+            if target in self.main:
+                self.out(head + " → " + FINAL_GOTO_NOTE[target], ind)
+                continue
+            body = [s for s in self.sc.get(target, []) if s.get("do") != "goto"]
+            says = [s for s in body if "say" in s or "narr" in s]
+            acts = [s for s in body if "say" not in s and "narr" not in s and s.get("do") not in ("flag", "wait", "face")]
+            if len(says) == 1 and not acts and "say" in says[0]:
+                self.out(head + " → %s：%s" % (self.who(says[0]["say"]), says[0]["zh"]), ind)
+                self.used.add(target)
+            else:
+                if not says and not acts:
+                    head += " → 什么也没发生，接着往下"
+                self.out(head, ind)
+                self.branch_body(target, ind + "    ")
+        if not pick:
+            self.out("（汇合）", ind)
+
+    def do(self, st, ind):
+        do = st.get("do")
+        if do == "anim":
+            who, name = st["who"], st["name"]
+            text = ANIM_FINAL.get(who, {}).get(name) or ANIM.get(who, {}).get(name)
+            if not text:
+                sys.exit("ANIM_FINAL 里没有：%s.%s" % (who, name))
+            self.act(WHO_FINAL[who] + text)
+        elif do == "sfx":
+            if st["name"] not in self.sfx:
+                sys.exit("SFX_FINAL 里没有：%s" % st["name"])
+            self.act(self.sfx[st["name"]])
+        elif do == "prop":
+            key = (st["id"], st["state"])
+            if key not in self.prop:
+                sys.exit("PROP_FINAL 里没有：%s" % (key,))
+            self.act(self.prop[key])
+        elif do == "show":
+            self.act("%s出现" % WHO_FINAL[st["who"]])
+        elif do == "hide":
+            self.act({"elephant": "大象走远了", "resident": "居民走了", "crowd": "周围的人散了"}[st["who"]])
+        elif do == "fuel":
+            if "sub" in st:
+                self.act("燃料少了 %d" % st["sub"])
+            elif "have" in st:
+                self.act("燃料表：有 %d，要 %d" % (st["have"], st["need"]))
+            else:
+                self.act("燃料表：现在要 %d" % st["need"])
+        elif do == "cockpit_dash":
+            self.act("飞机往前一冲，黑屏")
+        elif do == "music":
+            self.act("配乐淡出" if st.get("stop") else "配乐淡入（第一章树屋那首）")
+        elif do == "debris_steer":
+            self.act("小游戏：穿过碎石带（撞一下少 %d 燃料，最多少 %d）" % (st["fuel_per_bump"], st["fuel_max_loss"]))
+        elif do == "keepsake_choice":
+            self.act("弹出燃料柜，航线图 %s → %s，玩家选要烧的东西，可以选好几件。每件东西选中时、烧掉时的话，都在最后「燃料柜」那几段"
+                     % (st["route_from"]["zh"], st["route_to"]["zh"]))
+        elif do == "phone_draft":
+            self.out("通讯器，输入栏里打好了：%s（玩家选「发送」或「暂时不发」）" % st["zh"], ind)
+        elif do == "flashback":
+            self.act("第四次闪回：城市街上，站着不动，触手和人群从身边过去")
+            for l in st.get("lines", []):
+                self.out("闪回里的字：" + l["zh"], ind)
+        elif do == "end_chapter":
+            self.act("全剧终，放名单")
+        elif do == "if":
+            self.branch(st, [], ind, frozenset())
+        else:
+            super().do(st, ind)
+
+    def paragraph(self, name, title):
+        extra = "、e2_night" if name == "e2_night_go" else ""
+        self.lines.append("")
+        self.lines.append("## %s（%s%s）" % (title, name, extra))
+        self.arm_seen = {}
+        ent = self.entrance(name)
+        if ent:
+            self.lines.append(ent)
+        self.flow(name, "")
+        g = self.objective()
+        if g and g != self.goal:
+            self.goal = g
+            self.lines.append("（左上角目标变成：%s）" % g)
+
+    def keepsakes(self):
+        k = next(s for s in self.sc["final_paper"] if s.get("do") == "keepsake_choice")
+        self.lines += ["", "# 燃料柜：每件东西选中时、烧掉时（两次烧东西都走这里，列表里只有手上有的）"]
+        for item in k["items"]:
+            look, burn, keep = k["look_scenes"].get(item), k["scenes"].get(item), k.get("keep_scenes", {}).get(item)
+            names = "、".join(x for x in (look, keep, burn) if x)
+            self.lines += ["", "## 燃料柜：%s（%s）" % (self.items[item], names)]
+            self.arm_seen = {}
+            for tag, scene in (("选中时", look), ("放回去时", keep), ("烧掉时", burn)):
+                if scene:
+                    self.lines.append("（%s）" % tag)
+                    self.flow(scene, "    ")
+
+
+def build_final():
+    d = load("story_final.json")
+    w = FinalWriter(d)
+    w.lines += [
+        "第三章 主线剧本",
+        "照现在游戏里的样子，按玩家实际走的顺序写的，没有改任何一句，不通顺的地方也原样留着。",
+        "",
+        "[方括号] 是动作，我概括的。「名字：台词」是原文。▶ 是选项，（汇合）是几个选项走回同一条路。",
+        "（烧了……的人）（结局一）这种括号，是只有这些人才看到下面缩进的那几句。",
+        "飞向云层星只有一遍，然后分四个结局，四个结局都接同一段尾声。最后是燃料柜里每件东西的话和可点的东西。",
+        "每段标题括号里的英文是场景名，改的时候留着，我靠它对回去。其他都可以改：重写台词、删句、加句、调顺序，都直接改。",
+    ]
+    base = None
+    for x in FINAL_PLAN:
+        if isinstance(x, str):
+            if base is None and x.startswith("结局"):
+                base = set(w.flags)
+            if base is not None:
+                w.flags = set(base)
+            w.goal = ""
+            w.lines += ["", "# " + x]
+            continue
+        if x[0] not in d["scenes"]:
+            sys.exit("场景没有了：%s" % x[0])
+        w.paragraph(x[0], x[1])
+    w.keepsakes()
+    w.lines += ["", "# 可点的东西，不在主线"]
+    for name, title in FINAL_OPTIONAL:
+        w.paragraph(name, title)
+    w.lines += ["", "## 站着不动时晨说的（hints）"]
+    w.lines += ["- " + l["zh"] for h in d["hints"] for l in h["lines"]]
+    w.lines.append("")
+    merged = []
+    for line in w.lines:                    # 相邻两行动作并成一行
+        if merged and line.lstrip().startswith("[") and line.endswith("]") and merged[-1].lstrip().startswith("[") and merged[-1].endswith("]") \
+                and not merged[-1].startswith("[玩家走到") \
+                and len(line) - len(line.lstrip()) == len(merged[-1]) - len(merged[-1].lstrip()):
+            merged[-1] = merged[-1][:-1] + "，" + line.lstrip()[1:]
+        else:
+            merged.append(line)
+    w.lines = merged
+    return d, w
+
+
+def check_final(d, w):
+    text = "\n".join(w.lines)
+    missing = []
+
+    def go(o):
+        if isinstance(o, dict):
+            if "zh" in o and str(o["zh"]) and o["zh"] not in text:
+                missing.append(o["zh"])
+            for k, v in o.items():
+                if not k.startswith("_"):
+                    go(v)
+        elif isinstance(o, list):
+            for v in o:
+                go(v)
+
+    go(d["scenes"])
+    go(d["hints"])
+    go(d["objectives"])
+    for name in d["scenes"]:
+        if name not in w.used and name not in FINAL_SILENT:
+            missing.append("场景没写进去：" + name)
+    return missing
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--chapter", choices=["river", "final"], default="river")
     a = ap.parse_args()
-    if os.path.exists(OUT) and os.path.exists(BASE) and not a.force:
-        if open(OUT, encoding="utf-8").read() != open(BASE, encoding="utf-8").read():
-            sys.exit("作者已经改过 %s，没有覆盖（要覆盖加 --force）" % OUT)
-    d, w = build()
-    miss = check(d, w)
+    out, base = (OUT_FINAL, BASE_FINAL) if a.chapter == "final" else (OUT, BASE)
+    if os.path.exists(out) and os.path.exists(base) and not a.force:
+        if open(out, encoding="utf-8").read() != open(base, encoding="utf-8").read():
+            sys.exit("作者已经改过 %s，没有覆盖（要覆盖加 --force）" % out)
+    d, w = build_final() if a.chapter == "final" else build()
+    miss = check_final(d, w) if a.chapter == "final" else check(d, w)
     text = "\n".join(w.lines)
-    for p in (OUT, BASE):
+    for p in (out, base):
         with open(p, "w", encoding="utf-8") as f:
             f.write(text)
-    print(OUT, len(w.lines), "行")
+    print(out, len(w.lines), "行")
     if miss:
         print("主线里有 %d 句没写进 txt：" % len(miss))
         for m in miss:

@@ -6,7 +6,7 @@ extends RefCounted
 ##     本2兔      一团雾飘进来，一点光像笔尖在雾里从左往右写过去，写出来的字是光
 ##     梧桐       梧桐叶从上面飘下来，一片片落成名字；走的时候一阵风从右边把叶子吹走
 ##     奥斯卡     林子里斜着落下一束光，名字在光里一个像素一个像素地画出来（他是画像素的人），光里飘着灰尘
-##     原案       最后在树冠上面的黑里，像星星一样一颗颗亮起来（钉在屏幕上，像天）
+##     （sky：片头现在没人用）最后在树冠上面的黑里，像星星一样一颗颗亮起来（钉在屏幕上，像天）
 ##   写法、颜色照 Linger / Oscar Rush 的片尾：职务小字（14 号）在上，名字 28 号（两倍）在下，各人自己的颜色。
 ##   景深 depth：名字在屏幕上的移动速度 = 晨脚下地面的 depth 倍（越远越慢），所以跑起来名字是在远处慢慢往后退，看得清。
 ##   跑 920 像素只要 4 秒，所以名字按时间错开（gap 秒一个）；轮到谁，就把它放在当时镜头中心右边 dx 屏幕像素处
@@ -15,7 +15,7 @@ extends RefCounted
 ##   11-05 作者「跑的时间不够显示所有人名」「都跑到了才显示奥斯卡和梧桐，这肯定来不及」：Shift 跑到背包只要 4 秒多，
 ##   所以 credits.json 的 start 排成：木木 0、本2兔 0.4、梧桐 1.2、奥斯卡 1.8（后两个 pace 1.4 成形快一点），跑到之前四个都成形；
 ##   四个 depth 相同（在屏幕上一起退，彼此距离只会变大），分上下两行、都在晨那句「好熟悉的感觉……」（天空 y 45–62）下面。
-##   11-05 作者：Sothere456 森林这里去掉，只在制作人员页保留（credits.json 里 "run": false：片头跳过，credits_page 照旧按 id 读）。--qa_live 打印 QA_CREDITS（每个名字 begin / formed、晨跑到背包），
+##   11-05 作者：Sothere456 森林这里去掉；特别感谢是一个大列表，只在制作人员页（credits.json 的 special_thanks 写 "run": false：片头跳过，credits_page 按 id 读）。--qa_live 打印 QA_CREDITS（每个名字 begin / formed、晨跑到背包），
 ##   并且量名字（qa_label）和别的字叠不叠。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "run_credits", "wait": false}
@@ -295,6 +295,7 @@ class Moment extends Node2D:
 	const HOLD := 1.8                # 完整停留（credits.json 的 hold 可改）
 	const LEAVE_SEC := 1.4
 	const SCALE := 2                 # 名字两倍（28 号）；职务一倍（14 号）
+	const LINE_GAP := 2              # 一列名字（names）行和行之间
 	const HEAD := Color(0.62, 0.6, 0.58)          # 职务：Linger 片尾的 HEAD_COLOR
 	const SHADOW := Color(0.02, 0.04, 0.035, 0.8)
 
@@ -386,7 +387,7 @@ class Moment extends Node2D:
 		if _leave_t >= 0.0 and _leave_t > _leave_len * 0.5:
 			return {}
 		var r := Rect2(_role_at, _role_sz).merge(_box)
-		return {"text": I18n.pick(e.get("name", {})), "r": get_global_transform_with_canvas() * r}
+		return {"text": I18n.pick(e.get("name", e.get("role", {}))), "r": get_global_transform_with_canvas() * r}
 
 	func screen_x(cc: Vector2, z: float) -> float:
 		return 240.0 + (position.x - cc.x) * z
@@ -415,10 +416,15 @@ class Moment extends Node2D:
 
 	# ------------------------------------------------------------------- 布局 + 每个像素块的路线
 	func _layout() -> void:
-		var nm := Glyphs.mask(I18n.pick(e.get("name", {})))
 		var rl := Glyphs.mask(I18n.pick(e.get("role", {})))
-		var nw := int(nm["w"]) * SCALE
-		var nh := int(nm["h"]) * SCALE
+		var lines: Array = []                                                        # names = 一列名字（制作人员页的特别感谢）；平常就一个 name
+		for nd in e.get("names", [e.get("name", {})]):
+			lines.append(Glyphs.mask(I18n.pick(nd)))
+		var nw := 0
+		var nh := LINE_GAP * (lines.size() - 1)
+		for nm in lines:
+			nw = maxi(nw, int(nm["w"]) * SCALE)
+			nh += int(nm["h"]) * SCALE
 		var rw := int(rl["w"])
 		var rh := int(rl["h"])
 		var top := -(rh + 3 + nh) / 2
@@ -427,8 +433,12 @@ class Moment extends Node2D:
 		for p in rl["px"]:
 			_role.append(p)
 		_box = Rect2(-nw / 2, top + rh + 3, nw, nh)
-		for p in nm["px"]:
-			_blk.append(_box.position + p * SCALE)
+		var ly := _box.position.y
+		for nm in lines:
+			var o := Vector2(-int(nm["w"]) * SCALE / 2, ly)                          # 每行各自居中
+			for p in nm["px"]:
+				_blk.append(o + p * SCALE)
+			ly += int(nm["h"]) * SCALE + LINE_GAP
 		var n := _blk.size()
 		_from.resize(n); _ctrl.resize(n); _away.resize(n); _away_c.resize(n)        # Packed 数组是值类型：一个个 resize
 		_delay.resize(n); _dur.resize(n); _ph.resize(n); _away_d.resize(n); _shade.resize(n)
@@ -745,7 +755,7 @@ class Moment extends Node2D:
 				var a := 1.0 - _e(_leave_k(i, 0.4))
 				_glow.draw_rect(Rect2(_blk[i] - Vector2(1, 1), Vector2(4, 4)), Color(GOLD, (0.08 + 0.25 * (1.0 - clampf(k, 0.0, 1.0))) * a))
 
-	# ---- 原案（Sothere456）：天上一颗颗亮起来
+	# ---- sky：天上一颗颗亮起来
 	func _draw_sky() -> void:
 		for i in _blk.size():
 			var k := (_t - _delay[i]) / 0.3

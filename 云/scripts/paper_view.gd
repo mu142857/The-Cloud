@@ -1,7 +1,8 @@
 extends RefCounted
 ## 第一关小游戏 paper_view：全屏看那张双面纸（docs/剧情改动/第一关新版_实现规格.md 第 8 步）。
-##   正面 = 大象的画（art/forest_story/drawing_closeup.png），背面 = 手画的地图（art/forest_story/paper_map.png：
-##   同一张纸翻过来，折痕左右镜像；森林 → 河 → 云层，一条路从森林一直画到云上）。放大 2 倍居中，四周压暗。
+##   正面 = 大象的画（art/forest_story/drawing_closeup.png），背面 = 手画的星球航线图（art/forest_story/paper_map.png，tools/paper_map_art.py 出：
+##   同一张纸翻过来，折痕左右镜像；母星 → 森林星 → 绕开碎石带 → 河流星 → 云层星 → 小镇 / 芦苇地）。放大 2 倍居中，四周压暗。
+##   地名不画进图，翻到背面时用游戏字体叠上去（BACK_LABELS，中英文跟设置走）。
 ##   A / D、← →、或点一下鼠标 = 翻面（纸横向压扁到 0 再展开，sine 曲线，0.36 秒）；E / 空格 / 回车 / Esc / 右键 = 收起。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "paper_view"}
@@ -21,6 +22,16 @@ const SCALE := 2.0
 const DIM := Color(0.02, 0.03, 0.04, 0.78)
 const FLIP_SEC := 0.36
 const REVEAL_WAIT := 0.9
+const LABEL_INK := Color8(40, 48, 104)
+## 背面的地名：[中文, 英文, 中心 x, 上沿 y]，纸上坐标（和 tools/paper_map_art.py 的 LABELS 同步）
+const BACK_LABELS := [
+	["母星", "Home", 26, 97],
+	["森林星", "Forest", 58, 3],
+	["河流星", "River", 101, 95],
+	["云层星", "Clouds", 149, 5],
+	["小镇", "Town", 131, 99],
+	["芦苇地", "Reeds", 168, 98],
+]
 
 
 static func load_tex(p: String) -> Texture2D:
@@ -77,6 +88,7 @@ class View extends Control:
 
 	var _paper: TextureRect
 	var _hint: Label
+	var _labels: Control
 	var _tex := {}
 	var _side := "front"
 	var _can_flip := true
@@ -115,6 +127,7 @@ class View extends Control:
 		_paper.position = ((size - _paper.size) / 2.0 - Vector2(0, 6)).round()
 		_paper.pivot_offset = _paper.size / 2.0
 		add_child(_paper)
+		_build_labels()
 		_hint = Label.new()
 		_hint.add_theme_font_override("font", UITheme.font())
 		_hint.add_theme_font_size_override("font_size", 14)
@@ -146,6 +159,24 @@ class View extends Control:
 			await get_tree().create_timer(sec, false).timeout
 			close()
 
+	## 地名挂在纸下面，翻面时跟着纸一起压扁；只有背面显示
+	func _build_labels() -> void:
+		_labels = Control.new()
+		_labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_labels.visible = _side == "back"
+		_paper.add_child(_labels)
+		for row in BACK_LABELS:
+			var l := Label.new()
+			l.add_theme_font_override("font", UITheme.font())
+			l.add_theme_font_size_override("font_size", 14)
+			l.add_theme_color_override("font_color", LABEL_INK)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			l.text = str(row[0]) if I18n.is_zh() else str(row[1])
+			l.size = Vector2(80, 16)
+			l.position = Vector2(float(row[2]) * SCALE - 40.0, float(row[3]) * SCALE)
+			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			_labels.add_child(l)
+
 	func _set_hint() -> void:
 		if I18n.is_zh():
 			_hint.text = "A / D 翻面　　空格 收起" if _can_flip else "空格 收起"
@@ -162,6 +193,7 @@ class View extends Control:
 		await tw.finished
 		_side = "back" if _side == "front" else "front"
 		_paper.texture = _tex[_side]
+		_labels.visible = _side == "back"
 		var tw2 := create_tween()
 		tw2.tween_property(_paper, "scale:x", 1.0, FLIP_SEC / 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		await tw2.finished
