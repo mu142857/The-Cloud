@@ -16,7 +16,7 @@
 谁在哪（data/story_final.json）：
 - passerby：结局一芦苇地（白天），在大象旁边告诉晨别把包放太近，会笑（laugh）。
 - resident：结局二芦苇地（白天到傍晚），陪晨坐下（sit，坐在草地上），第二天帮忙扶机翼（lift）。
-- townsfolk：结局三风帆小镇（夜里），带晨去喷泉、走到长椅坐下（sit，跳上长椅：长椅座面比脚底高 13 像素）。
+- townsfolk：结局三风帆小镇（夜里）。11-07 起用美术姐画的（tools/townsfolk_from_gif.py），这里的 townsfolk_anims 不再输出。
 - crowd：芦苇地（结局二）和小镇（结局三）都有，一群四个人，整组一张图。
 
 输出 art/characters/<id>/<id>.png（横排）+ <id>.json（docs/river_rooms_contract.md 第 2 节的格式，npc_generic.gd 读）。
@@ -875,7 +875,7 @@ def build_crowd(out_root: Path):
 CHARS = {
     "passerby": (Passerby, passerby_anims, dict(head=40, speed=24, color="#8a9a7c")),
     "resident": (Resident, resident_anims, dict(head=42, speed=28, color="#8c98a8")),
-    "townsfolk": (Townsfolk, townsfolk_anims, dict(head=50, speed=30, color="#7c6c84")),
+    # townsfolk 不再从这里出（11-07 换成美术姐画的，tools/townsfolk_from_gif.py）；人群里那个尖帽的人还用 Townsfolk 这个身形
 }
 
 

@@ -21,6 +21,7 @@ const STR := {
 	"title_sub": ["云", "THE CLOUD"],      # 标题下面那行小字：另一种语言的名字
 	"start": ["Start", "开始游戏"],
 	"credits": ["Credits", "制作人员"],
+	"back_to_title": ["Back to Title", "返回标题"],
 	"skip_again": ["Press again to skip", "再按一次跳过"],
 	# ---- 设置
 	"settings": ["Settings", "设置"],

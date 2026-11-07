@@ -142,5 +142,11 @@ func resume(fade := 2.5) -> void:
 		play(h, NAN, fade)
 
 
+## 回标题 = 新游戏：别留着上一局「记住的曲子、放到哪了」
+func forget() -> void:
+	_held = ""
+	_pos.clear()
+
+
 func current() -> String:
 	return _track

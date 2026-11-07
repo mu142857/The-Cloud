@@ -10,6 +10,7 @@ extends Node2D
 ## hover / bob / bob_s（可选）：整只离地 hover 像素悬浮、上下浮 bob 像素（平滑正弦，bob_s 秒一圈，取整到像素，不改帧）。
 ## bob_top（可选，帧里的一行）：只有这一行以上往下点 bob 像素再回来，这行和下面不动（大嘴鸟蹲在自带的树桩上：头和身子轻轻起伏，
 ## 脚和树桩不动）。上半截画在下半截后面，往下压的那一行被脚挡住，不露缝、不改图。shadow_w（可选）：影子宽（默认 12）。
+## no_flip（可选）：转身不翻图（奥斯卡的大象：一帧的大图，一翻就是闪现）。
 ## 缺图 / 没有 json：画 color 的竖条色块 + 名字（森林规矩：缺图不卡）。
 ## 跟随（story_runner 的 follow）：follow_to(x) 每帧给目标，弹簧追（先缓起再缓停），停下转向晨；走路动画帧速不变。
 
@@ -43,6 +44,7 @@ var spr: Sprite2D
 var _top: Sprite2D                     # bob_top 的上半截（没有 bob_top = null）
 var _shadow: Sprite2D
 var _label: Label
+var _label_on := false                 # 这套占位要写名字（在不在画面里另算，见 _keep_label_on_screen）
 var _ph := false                       # 这套形态是占位色块
 var _anim := "idle"
 var _anim_def := {}
@@ -110,12 +112,28 @@ func set_form(f: String) -> void:
 		spr.vframes = 1
 		spr.frame = 0
 		_label.text = npc_id + ("·" + f if f != "" else "")
-		_label.visible = shadow and npc_id != "niff"   # 背景走过的小人（shadow = false）占位不写名字；妮芙有图，万一缺图也不写
+		_label_on = shadow and npc_id != "niff"        # 背景走过的小人（shadow = false）占位不写名字；妮芙有图，万一缺图也不写
+		_label.visible = _label_on
 	else:
 		_label.visible = false
 	var tint: bool = cur.get("tint", true)
 	spr.modulate = Color(0.86, 0.87, 0.9) if tint else Color.WHITE
 	play(_anim if _anim != "" else "idle", true)
+
+
+## 占位的名字标签不出屏（11-06 --qa_live：芦苇地的大象站在画面边上，标签 elephant 出屏）：
+## 方块还看得见就把标签挪回画面里，方块整个在画面外就不显示。
+func _keep_label_on_screen() -> void:
+	if not _label_on or not is_inside_tree():      # setup 时还没进树，拿不到镜头（下一帧 _process 再摆）
+		return
+	var ct := get_canvas_transform()
+	var k := maxf(ct.x.x, 0.001)
+	var left := -ct.origin.x / k
+	var right := left + get_viewport_rect().size.x / k
+	var gx := global_position.x
+	_label.visible = gx + PH_SIZE.x / 2.0 > left and gx - PH_SIZE.x / 2.0 < right
+	if _label.visible:
+		_label.position.x = roundf(clampf(-16.0, left - gx + 2.0, right - gx - 2.0 - _label.get_minimum_size().x))      # 离屏幕边 2 像素
 
 
 func _ph_color() -> String:
@@ -276,8 +294,6 @@ func follow_to(tx: float, look_x: float, delta: float, w := 6.0) -> void:
 	var d := tx - position.x
 	var acc := w * w * d - 2.0 * 0.9 * w * _vel
 	var vmax := minf(speed * 2.2, FOLLOW_MAX)
-	if has_meta("follow_vmax"):            # 剧本 follow 带 vmax：这段路要跟得上晨（南桥跟脚印）
-		vmax = float(get_meta("follow_vmax"))
 	_vel = clampf(_vel + acc * delta, -vmax, vmax)
 	if absf(d) < 1.0 and absf(_vel) < 4.0:
 		_vel = 0.0
@@ -359,6 +375,7 @@ func _show_frame() -> void:
 		spr.offset = Vector2(-PH_SIZE.x / 2, -PH_SIZE.y + bob)
 		spr.flip_h = facing < 0
 		_shadow.visible = shadow
+		_keep_label_on_screen()
 		return
 	var d: Dictionary = _anim_def
 	var sheet := _sheet(str(d.get("sheet", cur.get("sheet", ""))))
@@ -391,7 +408,7 @@ func _show_frame() -> void:
 	spr.frame = clampi(int(frames[i]), 0, spr.hframes * spr.vframes - 1)
 	var faces = cur.get("faces", "right")
 	var drawn_right := not (str(faces) == "left" or (faces is float and float(faces) < 0.0) or (faces is int and int(faces) < 0))
-	spr.flip_h = (facing < 0) == drawn_right
+	spr.flip_h = (facing < 0) == drawn_right and not cur.get("no_flip", false)
 	var ax := an.x if not spr.flip_h else fr.x - 1.0 - an.x
 	spr.offset = Vector2(-ax, -an.y - 1.0 + bob)
 	_shadow.visible = shadow and form != "swim" and d.get("shadow", true)

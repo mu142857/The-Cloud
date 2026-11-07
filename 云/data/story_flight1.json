@@ -1,5 +1,5 @@
 {
-	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。 11-02 第一关新版：燃料二选一先摆新物品（全家福 / 玩具熊 / 告白信 / 兔子皮毛 / 地板，只摆背包里有的；地板两块一起放 = 100），每件一句 look、一句 burn（burn_<id>），日志 flight1_log_pick 按 burned_<id> 分；旧的蓝色石头 / 通勤卡 / 雨玻璃分支不删。 11-02 二改（作者：选项太多）：flight1_materials 先 burn_held 一口气烧掉无关的（两块地板、兔子皮毛、告白信，共 275），改航线需要 570（= 200 − 5 + 275 + 100），烧完还差约 100；二选一只剩玩具熊 / 全家福。 11-02 夜（支线）：需要的燃料改成按背包算（fuel need_held unrelated + 100），无关的用 burn_held kind unrelated 全烧（支线带来的无关燃料也算），烧完永远还差 100。",
+	"_comment": "「离开森林」：森林起飞后的第一次飞行 + 第一次烧纪念品（蓝色石头 / 通勤卡二选一），到降落河流城市为止。原文：合订稿 in1030/yun1.txt 第 59–72 行（旧稿 leave_forest.txt 第 1–13 行）。入口 start_flight1，结束设 flight1_done 并 end_chapter，接 river 段（晨推开舱门）。漏气由玩家点冒白汽的接口修（作者 10-29 定：飞行段要动手、不会输）；避障用 debris_steer、二选一用 keepsake_choice（见 docs/phone_and_cockpit_contract.md）；看物品时晨的台词在 keepsake_choice 的 look / put_back / route_look 字段里。烧掉的纪念品设 burned_<id>，final 段据此不再列出。带 added 的是补写。 10-30：航线稳定后弥洛·修理来消息（phone_msg f1_msg_miluo），晨看画、点开朋友的旧聊天（phone_open friend），打字又删掉；旧稿的「我早就说过」选项删了。 10-30 二改：燃料表——起飞 200/200（start_flight1 的 fuel 步骤），避碎石每撞一下扣 1、最多扣 5，改航线时需要的量变成 255（= 200 + 纪念品 keepsake_burn 60 − 最多扣的 5，放任何一件都补得满；--story_check 会核对），放进纪念品时 fuel burn 加上它的 keepsake_burn、表涨满；卡片上不标数。修好漏气以后停下来自由走，目标「回到驾驶座」，走到驾驶座（hotspot seat，trigger enter + cutscene）才接改航线；写完日记以后再停一次，目标「看看窗外」，点窗外才接结尾。 10-30 三改（作者：「往前一冲，然后冲入黑色的星空，场景渐暗，第一章就结束了」）：结尾不再降落河流星——flight1_approach 里晨回驾驶座、cockpit_dash（scripts/cockpit_dash.gd：拉到船外、往前一冲出画面、窗外星点拉成线再收住），然后 end_chapter 渐暗、出「第一章 完」卡（chapter_flow.gd 的 end_card），接河流篇；原文 71–72 的降落（城市沿水道铺开、广场只露一截钟楼、关主推进器、锁管道、撞散浮木、卡进窄水道、趴在操纵台上）挪到 story_river.json 的 start_river 开头，用 narr。flight1_splashdown 删了。记日志那段的 if 改成分支 scene 结尾 goto flight1_log_done。 11-02 第一关新版：燃料二选一先摆新物品（全家福 / 玩具熊 / 告白信 / 兔子皮毛 / 地板，只摆背包里有的；地板两块一起放 = 100），每件一句 look、一句 burn（burn_<id>），日志 flight1_log_pick 按 burned_<id> 分；旧的蓝色石头 / 通勤卡 / 雨玻璃分支不删。 11-02 二改（作者：选项太多）：flight1_materials 先 burn_held 一口气烧掉无关的（两块地板、兔子皮毛、告白信，共 275），改航线需要 570（= 200 − 5 + 275 + 100），烧完还差约 100；二选一只剩玩具熊 / 全家福。 11-02 夜（支线）：需要的燃料改成按背包算（fuel need_held unrelated + 100），无关的用 burn_held kind unrelated 全烧（支线带来的无关燃料也算），烧完永远还差 100。 11-07（作者：「手机没有用，删掉」）：通讯器全删——flight1_miluo_msg（弥洛来消息）整段删了，记完日志直接 goto flight1_drawing；flight1_drawing 只留看画（拿通讯器、对朋友说「等我找到，给你拍张清楚的」、打字又删、把通讯器放到仪表旁都删了），cockpit_phone 在飞行一不再出现。flag flight1_miluo_msg 不再设（全剧本没有地方读它）。",
 	"speakers": {
 		"chen": {
 			"zh": "晨",
@@ -1162,7 +1162,7 @@
 			},
 			{
 				"do": "goto",
-				"scene": "flight1_miluo_msg"
+				"scene": "flight1_drawing"
 			}
 		],
 		"flight1_drawing": [
@@ -1173,7 +1173,8 @@
 			},
 			{
 				"do": "show_item",
-				"item": "elephant_drawing"
+				"item": "elephant_drawing",
+				"sec": 2.5
 			},
 			{
 				"do": "anim",
@@ -1183,55 +1184,6 @@
 			{
 				"do": "wait",
 				"sec": 1.0
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "take_phone"
-			},
-			{
-				"do": "phone_open",
-				"contact": "friend"
-			},
-			{
-				"say": "chen",
-				"zh": "等我找到，给你拍张清楚的，正面侧面都拍。",
-				"en": "When I find it, I'll take a clear photo for you. Front and side."
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "type"
-			},
-			{
-				"do": "sfx",
-				"name": "key_tap"
-			},
-			{
-				"do": "wait",
-				"sec": 0.8
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "delete"
-			},
-			{
-				"do": "sfx",
-				"name": "key_tap"
-			},
-			{
-				"do": "wait",
-				"sec": 0.8
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_phone",
-				"state": "by_gauges"
 			},
 			{
 				"do": "anim",
@@ -1473,50 +1425,6 @@
 				"zh": "右侧接口：松开螺丝，重新对准，漏气停了。",
 				"en": "Right-side joint: loosened the screws, lined it back up, leak stopped.",
 				"added": true
-			}
-		],
-		"flight1_miluo_msg": [
-			{
-				"do": "wait",
-				"sec": 1.0
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "flip_phone"
-			},
-			{
-				"do": "phone_msg",
-				"id": "f1_msg_miluo",
-				"from": "miluo",
-				"zh": "飞起来了？右边接头再听一遍，响就停稳了拧，别再拿锤子敲。",
-				"en": "In the air? Listen to the right joint again. If it hisses, hold steady, then tighten. And stop hitting it with the hammer.",
-				"reply": {
-					"zh": "这回用的扳手，已经好了。",
-					"en": "Used the wrench this time. It's fixed."
-				}
-			},
-			{
-				"do": "prop",
-				"id": "cockpit_phone",
-				"state": "by_gauges"
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "adjust_console"
-			},
-			{
-				"do": "wait",
-				"sec": 1.0
-			},
-			{
-				"do": "flag",
-				"set": "flight1_miluo_msg"
-			},
-			{
-				"do": "goto",
-				"scene": "flight1_drawing"
 			}
 		],
 		"flight1_fuel_choice_glass": [

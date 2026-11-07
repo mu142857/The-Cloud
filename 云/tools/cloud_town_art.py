@@ -2455,6 +2455,7 @@ def build():
     sv(build_deck_back(back[0]), "art/cloud_town/deck_back.png")
     sv(build_deck_main(main), "art/cloud_town/deck_main.png")
     sv(build_deck_dim(), "art/cloud_town/deck_dim.png", fix=False)
+    sv(build_title_descent(), "art/cloud_town/title_descent.png", fix=False)
     sv(ship_img(), "art/cloud_town/ship_parked.png", fix=False)        # 作者的飞船原图，一个像素都不动
     bed = np.concatenate([flower_bed(0).a, flower_bed(1).a], 1)
     sv(bed, "art/cloud_town/town_bed.png")
@@ -3677,12 +3678,91 @@ def deck_layers():
 DECK_FAR_X = [0]
 
 
+# ======================================================================= 开始界面的下落（11-06 作者：点开始后画面往下移、到黑、再移就到了森林）
+#   标题的背景就是这个小镇（scripts/title_cloud.gd 建一份 town 的 room_stage）。点开始以后镜头往下：小镇往上走，这张图接在
+#   小镇底下（y = 270 往下）跟着上来：一排排云团，一排比一排暗（颜色还是小镇云那条色阶）→ 全黑 → 云底：几层波浪边的半透明，
+#   从黑转成森林最上面那种深青绿，透出下面的森林。一张竖长图，title_cloud.gd 用同样的数（TD_* 也写在那边）。
+TD_W = 600              # 比一屏宽（标题镜头左右漂 ±18）
+TD_OVER = 20            # 第一排的云顶比小镇图底边高多少（盖住接缝）
+TD_ROWS = 5
+TD_ROW_GAP = 54
+TD_BLACK = 96           # 全黑那一段多高
+TD_UNDER = 90           # 云底那几层多高（透出森林）
+TD_H = TD_OVER + TD_ROWS * TD_ROW_GAP + 34 + TD_BLACK + TD_UNDER
+TD_LIT = 30             # 每排云顶下面多少行有明暗，再往下就是这排最暗的颜色
+
+
+def build_title_descent():
+    L = Layer(TD_W, TD_H)
+    black = np.array(CA.from_lch(0.03, 0.012, 300), np.uint8)
+    y_end = TD_OVER + TD_ROWS * TD_ROW_GAP + 34
+    for k in range(TD_ROWS):
+        u = k / (TD_ROWS - 1.0)
+        rng = np.random.default_rng(910 + k)
+        y0 = TD_OVER + k * TD_ROW_GAP
+        F = cloud_field(TD_W, TD_H)
+        x = -PAD + rng.uniform(0, 12)
+        while x < TD_W + PAD:
+            r = rng.uniform(22, 40)
+            F.new_group()
+            F.row = k
+            F.cauli(x + PAD, y0 + r * 0.72 + rng.uniform(-5, 5), r, 20 + rng.uniform(0, 8), rng, sq=0.72, depth=2, kids=(3, 6),
+                    ks=(0.28, 0.5), dark=0.0, rmin=3.0, spread=(-170, -10), ref=y0, unit=14)
+            x += r * rng.uniform(0.85, 1.2)
+        pal = CA.cloud_pal(0.09 - 0.06 * u, 0.36 - 0.29 * u, 7, C_lo=0.045 - 0.025 * u, C_hi=0.08 - 0.05 * u, h_lo=286, h_hi=348)
+        R = render_field(F, TD_W, pal, body=4, rim=(1.5, 3.0), crease=2.0, bands=(0.6, 1.5, 2.6, 3.6), run_bands=(4, 10, 18, 28))
+        # 11-06 作者：「视差问题」。原来每排的身体切了底、团和团之间有缝，透出后面走得慢的层，像小云块在乱飘；团的身体是竖直的柱子，留下竖线和竖崖。
+        # 现在：云顶一列一列量出来，相邻两列最多差 3 行（竖崖变成缓坡），顶下 TD_LIT 行以内是原来的明暗，再往下一直到图底都是这排最暗的颜色（不透明、没有竖线）。
+        has = (R.a[..., 3] > 0).any(0)
+        top = np.where(has, np.argmax(R.a[..., 3] > 0, 0), TD_H).astype(np.int64)
+        for c in range(1, TD_W):
+            top[c] = min(top[c], top[c - 1] + 3)
+        for c in range(TD_W - 2, -1, -1):
+            top[c] = min(top[c], top[c + 1] + 3)
+        dark0 = np.array(pal[0], np.uint8)
+        rim = np.array(pal[3], np.uint8)
+        for c in range(TD_W):
+            t = int(top[c])
+            col = R.a[:, c]
+            miss = (col[t:, 3] < 255)
+            col[t:][miss, :3] = rim
+            col[t:, 3] = 255
+            col[t + TD_LIT:, :3] = dark0
+        L.over(R)
+    L.a[y_end:, :, :3] = black
+    L.a[y_end:, :, 3] = 255
+    # 云底：几层波浪边，一层比一层透、一层比一层偏森林的深青绿；每层是整块平色（没有抖动、没有点）
+    under = np.array(CA.from_lch(0.13, 0.022, 170), np.float32)
+    top = TD_H - TD_UNDER
+    xs = np.arange(TD_W, dtype=np.float32)
+    n = 7
+    L.a[top:] = 0
+    L.a[top:, :, :3] = black
+    L.a[top:, :, 3] = 255
+    for i in range(n):
+        k = (i + 1.0) / n
+        wave = 5.5 * np.sin(xs / (37.0 + 5 * i) + 1.7 * i) + 3.0 * np.sin(xs / (13.0 + 2 * i) + 0.9 * i)
+        y = np.round(top + TD_UNDER * (i + 0.6) / n + wave).astype(int)
+        col = np.round(black * (1 - k) + under * k).astype(np.uint8)
+        a = int(round(255 * (1.0 - k) ** 0.9))
+        for c in range(TD_W):
+            L.a[y[c]:, c, :3] = col
+            L.a[y[c]:, c, 3] = a
+    despeckle(L)
+    fix_speckles(L.a)
+    return L
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", default="")
     ap.add_argument("--only-preview", action="store_true")
     ap.add_argument("--sample", default="", help="只出晨住的塔的样稿（不写 art/）")
+    ap.add_argument("--title-descent", action="store_true", help="只重画开始界面下落那张图（art/cloud_town/title_descent.png）")
     args = ap.parse_args()
+    if args.title_descent:
+        save_png(build_title_descent().a, "art/cloud_town/title_descent.png")
+        return
     if args.sample:
         sample(Path(args.sample))
         return

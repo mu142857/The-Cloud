@@ -5,6 +5,11 @@ forest_night.ogg
   重新生成：python3 tools/forest_night_ambient.py 输出.wav [频谱图.png]，再 ffmpeg -i 输出.wav -c:a libvorbis -q:a 4 forest_night.ogg
   11-04 换掉森林原来的 audio/sfx/rain_loop.wav（作者：白噪音太大、难听）。
 
+audio/sfx/cloud_wind.ogg（开始界面的云层小镇、结局三云台的风）
+  来源：自己合成（tools/cloud_wind_ambient.py，numpy 频域整形噪声），不含任何下载的录音。
+  授权：本项目自有，可商用，不需要署名。
+  内容：40 秒无缝循环；120~900 Hz 的风，1.4 kHz 以上压掉（没有白噪音的沙沙），偶尔来一阵。
+
 audio/sfx/river_flow.wav（河流章的流水声，文件名不变）
   来源：自己合成（tools/river_flow_soft.py：2 kHz 以下的水声底子 + 一颗颗上滑的水泡声），12 秒无缝循环，单声道。
   授权：本项目自有，可商用，不需要署名。

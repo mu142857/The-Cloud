@@ -19,7 +19,8 @@
   叠加混合的 wash / streaks 换成普通透明度的一层（引擎只有普通混合），颜色取余晖色，透明度按原来加多少换算。
 - 云层下面的芦苇地：art/reed_field/ 的远景几层拷过来（另一个会话的图，只读）；降落点（旧货场、东侧缓坡）是这里画的。
 - 风帆小镇：art/cloud_town/town_far.png 拷过来（只读）。
-- 大象：等美术姐。现在 fc_elephant_far.png / fc_elephant_shadow.png 是极淡的剪影占位，直接用同名文件替换就行
+- 大象：fc_elephant_shadow.png 是奥斯卡那只大象（art/characters/elephant/elephant.png，不改）的剪影；
+  fc_elephant_far.png 还是极淡的占位（原图 136 宽，窗洞只有 67，等作者定）
   （大小可以变：远处那只是不 tile 的层，左上角 x / y 写在 sky_final.json 的 states 里）。
 
 规矩：亮主角暗背景；森林绿 / 青绿，不用蓝（驾驶舱里）；无透视；不画虚线点线；不画晨和妮芙；动画 100ms 一帧。
@@ -881,6 +882,15 @@ def elephant_sil(w, h, col, alpha, flip=False):
     return a[:, ::-1] if flip else a
 
 
+def elephant_hat_shadow(col, alpha):
+    """奥斯卡那只大象的剪影：原图裁到帽子本身（x 5..140、y 30..75），不缩放，只换成影子的颜色和透明度。"""
+    hat = load(ROOT / "art" / "characters" / "elephant" / "elephant.png")[30:76, 5:141]
+    out = np.zeros_like(hat)
+    out[..., :3] = hexc(col).astype(np.uint8)
+    out[..., 3] = (hat[..., 3] > 0) * int(alpha * 255)
+    return out
+
+
 # ====================================================================== 关键帧（sky_final.json）
 
 BG_NIGHT = ["#120c1e", "#2a1d33"]
@@ -913,7 +923,7 @@ def build_all():
     L["fk_meadow"] = (meadow(warm=0.8), 0, True)
     L["fk_yard"] = (grade(freight_yard(), 0.8), 0, False)
     L["fc_elephant_far"] = (elephant_sil(22, 14, "#5d4a68", 0.5), 0, False)
-    L["fc_elephant_shadow"] = (elephant_sil(132, 84, "#0c0814", 0.36), 0, False)
+    L["fc_elephant_shadow"] = (elephant_hat_shadow("#0c0814", 0.36), 0, False)
     return L
 
 
@@ -986,9 +996,9 @@ def states(L):
     for e in orbit:
         e["speed"] = round(e["speed"] * 0.3, 2)
     S["cloud_orbit"] = {"blend": 5.0, "bg": ["#0b0714", "#221830"], "layers": [sky] + orbit}
-    # 一个很大的影子从远处的云海上走过去（剧本 e4_write 的 sky shadow_pass；占位剪影，等美术姐）
+    # 一个很大的影子从远处的云海上走过去（剧本 e4_write 的 sky shadow_pass；奥斯卡那只大象的剪影，原大）
     S["elephant_shadow"] = {"blend": 2.0, "bg": ["#0b0714", "#221830"], "layers": [sky] + orbit + [
-        lay("fc_elephant_shadow", x=-30, y=94, speed=9)]}
+        lay("fc_elephant_shadow", x=-33, y=104, speed=9)]}
     return S
 
 
@@ -1002,8 +1012,8 @@ def sky_json(L, S):
             layers[n] = d
     return {"_note": "tools/cockpit_final_art.py 生成，别手改。终章（final）的窗外关键帧；格式和 sky.json 一样"
                      "（docs/flight_sky_contract.md），引擎把这里的 layers / states 合进 sky.json（只加 sky.json 里没有的名字）。"
-                     "z 从 1000 起：和 flight1 的层不混。大象两张（fc_elephant_far / fc_elephant_shadow）是占位，"
-                     "美术姐的图直接换同名文件。",
+                     "z 从 1000 起：和 flight1 的层不混。fc_elephant_shadow 是奥斯卡那只大象的剪影；"
+                     "fc_elephant_far 还是占位（原图 136 宽，窗洞只有 67，等作者定）。",
             "layers": layers, "states": S}
 
 
@@ -1201,11 +1211,6 @@ def travel_map():
             c.px(20 + sh, y, PAPER[3])
             if not pressed and yy == h // 2:
                 c.rect(1 + sh, y, 20, 1, PAPER[2])        # 折痕
-            if 2 <= yy <= h - 3:
-                if (yy + sh) % 5 == 0:
-                    c.rect(4 + sh, y, 5, 1, "#56604c")   # 淡淡的绿地块
-                if yy % 4 == 1:
-                    c.rect(12 + sh, y, 4, 1, "#5d5a66")  # 云层那块（偏紫）
         # 航线：一条实线从左下到右上，终点画个小圈（云层星）
         x0, y0 = 4, H_ - 3
         x1, y1 = 16 + lean, H_ - h + 2
@@ -1213,8 +1218,13 @@ def travel_map():
         c.line(x0, y0, x1, y1, col)
         if pressed:
             c.line(x0 + 1, y0, x1 + 1, y1, "#5a3228")
-        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
-            c.px(x1 + dx + 1, y1 + dy - 1, "#6a5a72")
+        # 航线上的星球（大图 art/forest_story/paper_map.png 的缩小版，tools/paper_map_art.py）：母星灰、森林绿、河流深蓝、云层紫，云层旁边一点芦苇黄
+        for t, col, big in ((0.02, "#5c5e62", False), (0.34, "#3e5e48", True), (0.66, "#32466a", True), (1.0, "#7a6a92", True)):
+            px_, py_ = int(round(x0 + (x1 - x0) * t)), int(round(y0 + (y1 - y0) * t))
+            c.px(px_, py_, col)
+            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)) if big else ((1, 0), (0, -1), (1, -1)):
+                c.px(px_ + dx, py_ + dy, col)
+        c.px(x1 - 1, y1 + 3, "#8e9456")
 
     c = frame(W_, H_)
     sheet(c, 0, 3, 13, False)

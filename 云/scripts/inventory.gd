@@ -45,7 +45,33 @@ static func _load() -> void:
 
 static func item(id: String) -> Dictionary:
 	_load()
-	return _db.get(id, {})
+	var it: Dictionary = _db.get(id, {})
+	if not it.is_empty() and StoryState.has(FRIED + id):
+		return fried(it)
+	return it
+
+
+## 11-07 作者：料理鼠妈什么都能下锅，炸完原样递回（scripts/barter.gd 的 mark）。id、图标、燃烧值、类别都不变（修飞机、燃料柜、任务照旧认），
+## 名字前面加「油炸的」、描述后面加一句，能烧的燃烧值 +10。标记是 StoryState 的 flag fried_<id>（跟着存档、换章带过去）；同一 id 的几件一起算炸过。
+const FRIED := "fried_"
+const FRIED_BURN := 10      # 11-07 作者：「炸了之后燃烧的提高 10」。本来就不能烧的（burn / keepsake_burn 是 0、no_burn）还是不能烧
+const FRIED_DESC := {"zh": "外面裹了一层金黄的酥皮，闻着有点油香。料理鼠妈炸的。", "en": "Coated in a golden crust, smelling faintly of oil. Mama Rat fried it."}
+
+
+static func fried(it: Dictionary) -> Dictionary:
+	var o := it.duplicate()
+	var nm = it.get("name", {})
+	if nm is Dictionary:
+		o["name"] = {"zh": "油炸的" + str(nm.get("zh", "")), "en": "Fried " + str(nm.get("en", "")) if str(nm.get("en", "")) != "" else ""}
+	for k in ["desc", "desc_fixed"]:
+		var d = it.get(k, null)
+		if d is Dictionary:       # 英文空着的照旧空着（回落中文那条也带上炸过的那句）
+			o[k] = {"zh": str(d.get("zh", "")) + FRIED_DESC["zh"], "en": str(d.get("en", "")) + " " + FRIED_DESC["en"] if str(d.get("en", "")) != "" else ""}
+	if not it.get("no_burn", false):
+		for k in ["burn", "keepsake_burn"]:
+			if int(it.get(k, 0)) > 0:
+				o[k] = int(it[k]) + FRIED_BURN
+	return o
 
 
 static func add(id: String) -> void:
@@ -115,7 +141,7 @@ static func burn_total() -> int:
 	_load()
 	var s := base_burn
 	for id in owned:
-		var it: Dictionary = _db.get(id, {})
+		var it: Dictionary = item(id)          # 炸过的 +10（fried）
 		if not it.get("personal", false):
 			s += int(it.get("burn", 0))
 	return s

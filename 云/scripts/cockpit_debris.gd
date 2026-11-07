@@ -51,9 +51,16 @@ extends Control
 ##   前半段同上（看得见的碎石），然后 dark_on：进云层，窗外（船外背景 + 碎石）慢慢黑掉，船还亮着；接着几排 dark 墙：
 ##   缝只在上 / 中 / 下三条航道里（g = -1 / 0 / +1），碎石看不见、没有划痕预告和 nav_beep，提前 DARK_LEAD 秒就开始找。
 ##   靠听：船离安全航道越远，碎石的轰鸣（flight_rumble 循环）越响、气流声越小；挪进那条航道，轰鸣退下去、只剩平稳的气流声。
-##   引路：背包里还有铜铃（copper_bell）→ 铃声（bell_soft）按航道高低定音高（上高下低）隔一会儿响一下；
-##   铜铃没了 → 窗上那条航道的气流线一开始就淡淡亮着。找久了提示变明显：DARK_HINT1 秒还没进航道，铃更响更密、气流线（有铃也）出来；
-##   DARK_HINT2 秒，气流线更亮。撞到：碎石在黑里闪出来（画到黑幕上面）、晃一下、扣燃料（同一套上限），不会输。
+##   11-07 作者（「这真的是"听"吗，这不是看粒子特效吗」）：黑里一开始**不画气流线**，改成全靠声音——
+##     轰鸣的方位：船在缝上面（撞的是上面那片碎石）轰鸣音高高，在缝下面音高低（上高下低，离得越远差得越多），越远越响
+##       （进航道 -45 dB、偏一条道 -7 dB）；气流声反过来（进航道 -10、偏了 -30），音高按航道高低（上高下低）。
+##     引擎变柔：进了安静航道，驾驶舱的引擎声（level._engine_hum）低 8 dB、音高降一点；偏了比平时还响一点、发紧。步骤完还原。
+##     原来气流线 1.8 秒就出来、有铃也出，等于把答案画出来了，作废。
+##   引路（方案 A 原文的兜底）：背包里还有铜铃（copper_bell）→ 铃声（bell_soft）按航道高低定音高（上高下低）隔一会儿响一下，
+##   找久了（DARK_HINT1 秒还没进航道）更响更密；**有铃就永远不画气流线**。铜铃烧了 → 没有铃，DARK_HINT1 秒还没进航道
+##   气流线才慢慢淡入（更明显的提示），DARK_HINT2 秒更亮。气流线本身（每道独立的粒子）没动，这里只管亮度。
+##   撞到：碎石在黑里闪出来（画到黑幕上面）、晃一下、扣燃料（同一套上限），不会输。
+##   自动玩在黑墙里先「听」DARK_AUTO_WAIT 秒再挪（--dark_wait=秒 改，--no_bell 当铜铃烧了），每 0.5 秒打一行 DARK_AUDIO。
 ##   最后一排（last）过去 = 穿出云层：黑幕慢慢退掉（云开）。自动玩：PLAN_AUTO_DARK（一块 + 一排黑墙），提前量 DARK_LEAD_AUTO。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：await play(runner, st)。
 
@@ -122,8 +129,14 @@ const DARK_LEAD_AUTO := 2.5
 const DARK_IN := 2.2          # 黑幕慢慢落下 / 退掉多少秒
 const DARK_C := Color(0.008, 0.016, 0.016)
 const DARK_A := 0.96          # 黑幕最深（留一点点，不是死黑）
-const DARK_HINT1 := 1.8       # 进黑墙后这么久还没进航道：提示加强一档
-const DARK_HINT2 := 3.2       # 再加强一档
+const DARK_HINT1 := 2.5       # 进黑墙后这么久还没进航道：提示加强一档（铃更响更密 / 没铃的气流线开始淡入）
+const DARK_HINT2 := 3.5       # 再加强一档（没铃的气流线更亮）
+const DARK_AUTO_WAIT := 1.0   # 自动玩：黑墙出来先「听」这么久再挪（好让日志里有偏航时的声音）
+const RUMBLE_IN := -45.0      # 黑里轰鸣：在安静航道里
+const RUMBLE_OUT := -7.0      #           偏了一条道以上
+const RUMBLE_PITCH := 0.28    # 轰鸣音高：船每偏一条道（× _shift）高 / 低这么多（上高下低）
+const HUM_SOFT := -8.0        # 安静航道里引擎声低多少 dB（相对 level.HUM_DB）
+const HUM_TENSE := 3.0        # 偏了一条道以上引擎声高多少 dB
 const DARK_NEAR := 0.3        # 离安全航道不到 0.3 × _shift 算「进了航道」
 const TXT := {
 	"hint": ["↑ ↓  Dodge the debris", "↑ ↓  躲开碎石"],
@@ -190,6 +203,12 @@ var _bell := false            # 背包里还有铜铃：铃声引路
 var _bell_t := 0.0
 var _line_a := 0.0            # 黑里安全航道气流线的亮度（平滑）
 var _hint_lv := 0             # 这一排黑墙的提示档（0 / 1 / 2），换排时归零
+var _dark_ctl := false        # 这一帧黑墙在管气流声音量（_air_step 别覆盖）
+var _air_dark_db := -15.0
+var _hum_ctl := false         # 动过驾驶舱引擎声（步骤完还原）
+var _dark_wait := DARK_AUTO_WAIT
+var _dark_log_t := 0.0
+var _bell_n := 0
 
 
 func play(r: Node, st: Dictionary) -> String:
@@ -242,9 +261,12 @@ func play(r: Node, st: Dictionary) -> String:
 		_warn = WARN_OFF + (_nose() + 2.0) / _rock_v       # 碎石进画面以后飞多久到船头 + 进画面前的预告
 	# 波次：真实时长按 sec / 40 缩放；自动玩只播两波（第一波等拉远差不多了再来）
 	var final := str(st.get("plan", "")) == "final"
-	_bell = Inventory.has("copper_bell")
+	_bell = Inventory.has("copper_bell") and not "--no_bell" in OS.get_cmdline_user_args()
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--dark_wait="):
+			_dark_wait = maxf(0.0, float(a.trim_prefix("--dark_wait=")))
 	if _auto and not real:
-		_dark_lead = DARK_LEAD_AUTO
+		_dark_lead = maxf(DARK_LEAD_AUTO, _dark_wait + 1.5)
 		var t0 := 1.3 if _far else 0.8
 		for w in (PLAN_AUTO_DARK if final else PLAN_AUTO):
 			var e: Dictionary = (w as Dictionary).duplicate()
@@ -273,6 +295,7 @@ func play(r: Node, st: Dictionary) -> String:
 				lp.queue_free()                       # 没在放的直接删
 	if is_instance_valid(_dark):
 		_dark.queue_free()
+	_hum_restore(0.8)
 	var lead := 0.0
 	for v in _lead:
 		lead += float(v) / float(_lead.size())
@@ -369,10 +392,12 @@ func _process(delta: float) -> void:
 		_finish()
 
 
-## 自动玩：最早一波还没飞过船尾的，挪到它的安全通道
+## 自动玩：最早一波还没飞过船尾的，挪到它的安全通道（黑墙先「听」_dark_wait 秒，原地不动）
 func _auto_goal() -> float:
 	for w in _waves:
 		if not _wave_clear(w):
+			if w["dark"] and _t - float(w["t0"]) < _dark_wait:
+				return cockpit.ship_goal
 			return float(w["safe"])
 	return cockpit.ship_goal
 
@@ -796,8 +821,10 @@ func _air_step(delta: float) -> void:
 	if _ending:
 		want = 0.0
 	_air_on = move_toward(_air_on, want, delta / (0.6 if want > _air_on else 1.2))
-	if is_instance_valid(_air):
+	if is_instance_valid(_air) and not _dark_ctl:      # 黑墙在的时候音量归 _dark_step 管（原来这里每帧盖回 -15，黑里的大小声差没出来）
 		_air.volume_db = lerpf(-50.0, -15.0, sqrt(_air_on))
+		_air_dark_db = _air.volume_db
+	if is_instance_valid(_air):
 		_air.pitch_scale = 1.0 - 0.12 * _air_g / maxf(1.0, _shift)        # 通道在上面音高高一点
 	_air_lines_step(delta)
 

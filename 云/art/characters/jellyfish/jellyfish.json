@@ -1,11 +1,12 @@
 {
- "_comment": "水母 = 美术姐画的（原图 jellyfish_480.png，32×32 像素画放大 15 倍）；tools/river_stairwell_art.py --jelly 按格取样还原成 1 倍 jellyfish.png，不重画、不改色。住在楼梯间柜台后面（room.json 的 residents），彩蛋，可以对话，不设 flag。只有一帧：hover = 整只离地悬浮、bob / bob_s = 上下平滑正弦漂浮（只动位置、取整到像素，不换帧）。tint false = 不着色不压暗（她自己会发光）。anchor = 最下面那根触须的底（帧内像素）；head = 对话框离脚底多高。",
+ "_comment": "水母 = 美术姐画的（原图 jellyfish_480.png，32×32 像素画放大 15 倍）；tools/river_stairwell_art.py --jelly 按格取样还原成 1 倍 jellyfish.png，不重画、不改色。住在楼梯间柜台后面（room.json 的 residents），彩蛋，可以对话，不设 flag。pass true = 不占地方（她在柜台后面）：晨走近、和她叠着都不推她，她也不推人；residents 的人也不让路、不往上飘，钉在原地只有自己的上下浮。只有一帧：hover = 整只离地悬浮、bob / bob_s = 上下平滑正弦漂浮（只动位置、取整到像素，不换帧）。tint false = 不着色不压暗（她自己会发光）。anchor = 最下面那根触须的底（帧内像素）；head = 对话框离脚底多高。",
  "frame": [32, 32],
  "sheet": "jellyfish.png",
  "anchor": [15, 30],
  "faces": "right",
  "ms": 100,
  "tint": false,
+ "pass": true,
  "hover": 14,
  "bob": 3,
  "bob_s": 3.2,

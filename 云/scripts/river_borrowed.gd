@@ -106,8 +106,8 @@ func check(r: Node, st: Dictionary) -> Array:
 			out.append("boxes：每只箱子要有 label / code：%s" % str(bx))
 		elif bx.has("find"):
 			finds[str(bx["find"])] = true
-	for k in ["head", "seal"]:
-		if not finds.has(k):
+	for k in st.get("need", ["head", "seal"]):           # 11-07 密封圈挪到绿柜子：主线这次可以只放读取头
+		if not finds.has(str(k)):
 			out.append("boxes 里没有 find: %s 的箱子" % k)
 	for k in ["on_head", "on_seal"]:
 		out.append_array(KIT.check_steps(r, k, st.get(k, [])))
@@ -124,11 +124,19 @@ func _all_found() -> bool:
 
 ## 自动玩开箱的顺序：先开可选的密封圈，再开要找的（找齐就结束）。测试 --river_no_seal：不碰密封圈，走「修飞机时没有」那条路
 func _want_order() -> Array:
-	var order: Array = [] if "--river_no_seal" in OS.get_cmdline_user_args() and not "seal" in step.get("need", []) else ["seal"]
+	var order: Array = [] if (_no_seal_box() or "--river_no_seal" in OS.get_cmdline_user_args()) and not "seal" in step.get("need", []) else ["seal"]
 	for k in step.get("need", ["head", "seal"]):
 		if not str(k) in order:
 			order.append(str(k))
 	return order
+
+
+## 这次的箱子里有没有密封圈（11-07 起主线那次没有：密封圈在仓库的绿柜子里）
+func _no_seal_box() -> bool:
+	for bx in step.get("boxes", []):
+		if bx is Dictionary and str(bx.get("find", "")) == "seal":
+			return false
+	return true
 
 
 # ----------------------------------------------------------------------- 箱子
@@ -299,6 +307,8 @@ func _draw_board(b: Control) -> void:
 	# 找到了几样
 	var t := ("读取头 %s　密封圈 %s" % ["有" if "head" in got else "—", "有" if "seal" in got else "—"]) if I18n.is_zh() \
 		else ("Head %s  Seal %s" % ["ok" if "head" in got else "-", "ok" if "seal" in got else "-"])
+	if _no_seal_box():
+		t = ("读取头 %s" % ("有" if "head" in got else "—")) if I18n.is_zh() else ("Head %s" % ("ok" if "head" in got else "-"))
 	_text(b, Vector2(0, 19), t, UITheme.TEXT_DIM, panel.x - 8.0, HORIZONTAL_ALIGNMENT_RIGHT)
 
 

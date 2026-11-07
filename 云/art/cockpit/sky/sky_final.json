@@ -1,5 +1,5 @@
 {
- "_note": "tools/cockpit_final_art.py 生成，别手改。终章（final）的窗外关键帧；格式和 sky.json 一样（docs/flight_sky_contract.md），引擎把这里的 layers / states 合进 sky.json（只加 sky.json 里没有的名字）。z 从 1000 起：和 flight1 的层不混。大象两张（fc_elephant_far / fc_elephant_shadow）是占位，美术姐的图直接换同名文件。",
+ "_note": "tools/cockpit_final_art.py 生成，别手改。终章（final）的窗外关键帧；格式和 sky.json 一样（docs/flight_sky_contract.md），引擎把这里的 layers / states 合进 sky.json（只加 sky.json 里没有的名字）。z 从 1000 起：和 flight1 的层不混。fc_elephant_shadow 是奥斯卡那只大象的剪影；fc_elephant_far 还是占位（原图 136 宽，窗洞只有 67，等作者定）。",
  "layers": {
   "cs_sky": {
    "img": "cs_sky.png",
@@ -1066,10 +1066,10 @@
     },
     {
      "id": "fc_elephant_shadow",
-     "y": 94,
+     "y": 104,
      "speed": 9,
      "vy": 0,
-     "x": -30
+     "x": -33
     }
    ]
   }
