@@ -49,7 +49,7 @@ const CHAPTERS := {
 ## 11-02 第一关新版（c1_*）跑出来的：旧流程的行李（蓝色石头、通勤卡、音乐盒……）新流程不再给，所以这里也没有；
 ## 河流篇 / 终章里看旧 flag 的分支（burned_blue_stone 这些）照旧由 SEED_FLIGHT1 给。
 const SEED := {
-	"flags": ["crashed", "c1_crashed", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
+	"flags": ["crashed", "c1_crashed", "c1_fuel_bar", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
 		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_rabbit_chief", "c1_danced", "c1_rabbit_plain", "c1_got_wood", "c1_rabbit_done", "c1_rabbit_helped",
 		"c1_fixed", "c1_seed", "c1_ready", "launched"],
 	"owned": ["elephant_drawing", "deer_bear", "rabbit_fur", "floorboard", "floorboard",

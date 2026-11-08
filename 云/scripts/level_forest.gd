@@ -1720,6 +1720,8 @@ func _update_fuel_bar(delta: float) -> void:
 	var on: bool = flag and chap_ok and state in [S.PLAY, S.CINE] and free_roam == "" and _hud_burn.visible
 	var f := fuel_bar_value()
 	_fuel_bar.set_fuel(f[0], f[1])
+	_fuel_bar.safe = int(str(StoryState.props.get("fuel_safe", "0"))) if StoryState.fuel_on() else 0   # 11-08 飞行一：绿色安全线
+	_fuel_bar.infinite = StoryState.has("flight1_wood_power")                                           # 永燃之木供能中
 	if flag and not _fuel_bar_on:
 		_fuel_bar.reveal()
 		_sfx("page_turn", -10.0)

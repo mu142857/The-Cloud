@@ -54,6 +54,34 @@
 
 ## 5. 改动记录（新的写在最上面）
 
+### 2026-11-08 · Claude · 树屋三件：送还前低动力，做完换 100~130 的奖励
+
+- 作者「房间里面的这些物品……完成任务之前，都是一些动力很低的物品，比如说20 到50，完成支线任务以后可以变成100到130」；问了以后：「能升级的升级，能换的换，不要不给奖励」，提前烧掉 = 支线直接关掉。
+- `data/items.json`：return_radio / return_sign / return_lamp 加 `fuel_kind: unrelated` + `keepsake_burn` 30 / 40 / 25（还是 quest 类，不能拿去换东西）。
+- `data/forest_side_a.json`：三件都是送回原处，所以都是「换」：收音机 → 旧菜单 keepsake_burn 30→120；路标原来什么都不给 → 新物品 `sa_ticket`「半张车票」115（日记里本来就写了底座旁的半张车票；**图标暂借 icon_card.png，要画新的**）；油灯 → 小屋钥匙改成能烧，110。
+- 提前烧掉：三条送还目标的 not 加 `burned_return_*`，小吃棚 / 路标底座 / 小屋三个热点也加（烧了就不能再交互，不会去 take 一件没有的东西）。`story_runner.gd` `side_objectives()`：not 里的 burned_* 设上了就整条不显示（不显示成划掉）。
+- 注意：现在森林里拿到这三件以后其实没有能烧东西的地方（唯一的 burn_pick 是玩具熊，在 c1_need_wood 之前），所以「提前烧」目前只是先备着；飞行一的 burn_held kind unrelated 会把背包里这些（含奖励）一起烧掉当动力。森林燃料条只是显示，做完三条能多 345。
+- 验证：JSON 都能解析，目标 / 热点条件打印核对过。**没验证**：没装 Godot，没跑 `--story_check` 和游戏内。
+
+### 2026-11-08 · Claude · 飞行一新流程：永燃之木无限 → 大陨石 → 货舱烧东西 → 燃料一直在烧、绿线补、烧光坠毁
+
+- 作者：永燃之木无限能量，上飞机先开一段燃料不降；剧情杀被大陨石砸中、永燃之木掉落；转到货舱、放 bgm、必须选烧什么；之后燃料一直在烧，烧到底坠毁、丢失所有材料；碰到碎石一段时间漏得更快；燃料条上有绿色安全线，低于就要再加。作者定：坠毁 = 坏结局（回标题）；低于绿线按键进货舱；漏气维修保留；飞够一段距离结束。
+- `data/story_flight1.json`：`start_flight1` 设 `flight1_wood_power`、燃料 500/500、安全线 150 → 新 `flight1_cruise`（debris_steer plan cruise：三波轻的 + 躲不开的大陨石，不扣燃料）→ 新 `flight1_meteor`（清 wood_power，燃料 40，两句旁白）→ 新 `flight1_hold`（配乐 space_choice、走到转化装置、burn_pick 加到 300、两句规则旁白）→ `flight1_debris`（drain 4/s、撞后 3 秒 +12/s、每个没修的漏点 +2/s、safe 150、refuel burn_pick 加到 300、crash → 新 `flight1_crash`：丢光能烧的、两句旁白、game_over）→ 漏气日记 → `flight1_seat` 直接接 `flight1_after_burn`。旧的 reroute / materials / fuel_choice 不再走（没删）。objectives 重写。
+- `scripts/cockpit_debris.gd`：PLAN_CRUISE / meteor 波（缝也塞满，撞上大晃闪白、设 flight1_meteor）；燃料模式（drain / hit_drain / hit_sec / leak_drain / safe / refuel / crash）；低于绿线船下方闪提示，按 F 暂停碎石、弹 refuel 的 burn_pick（配乐换 space_choice，回来换回 flight_theme）；没东西可烧时提示改「已经没有能烧的了」；烧到 0 坠毁、返回 crash scene。cruise 没漏气时提示只写「↑ ↓ 躲开碎石」。测试参数 `--fuel_drain=n`。
+- `scripts/fuel_bar.gd`：绿色安全线（StoryState 的 fuel_safe）、低于安全线填充闪玫瑰色且数字常显；`infinite`（flag flight1_wood_power）满格流光、写「无限」（像素字体的 ∞ 画歪了）。`level_forest.gd` 每帧把 safe / infinite 传过去。
+- `scripts/story_runner.gd`：fuel 步骤 `safe`；新步骤 `game_over`（黑掉、停配乐、回标题，同倔强的灵魂那条路）；`take` 的 `all_burnable`；story_check 认 debris_steer 的 crash。`scripts/burn_pick.gd`：`until_at`。`scripts/chapter_flow.gd` SEED flags 加 c1_fuel_bar。
+- `outputs/云 第一章完整剧本.docx` 第 08 节重写。
+- 验证：四章 `--story_check` 0 错误；flight1 `--story_auto` 正常走完；`--fuel_drain=40` 触发一次补燃料后走完；`--fuel_drain=200` 两次补燃料后烧光坠毁、GAME_OVER；`--debris_full` 连拍看了无限 → 陨石 → 货舱 → 燃料下降 → 补燃料的画面；final `--story_auto` 照常。**没验证**：真人手感（drain 4/s、加到 300 是否合适）、坠毁后真的回到标题（自动玩不回标题）、货舱目前用的是驾驶舱里的转化装置（没有单独的货舱美术）。
+
+### 2026-11-08 · Claude · 支线没触发就不在左下角显示
+
+- 作者「只要没有和对应的物品交互，就应该显示的是，在蛇女的小屋里寻找可以燃烧的物品……每一条支线，如果没有触发，就不显示，如果触发了，就会在左下角显示这个任务线的下一步」。
+- 原因：老松树 / 大嘴鸟 / 坡地雾三条支线的 objectives 只要 c1_side_open（一出门）就显示，没等玩家去碰。
+- `data/forest_side_a.json`：`sa_pine` 场景开头设 `sa_pine_met`；「给老松树接一罐松脂」need 加 `sa_pine_met`。
+- `data/forest_side_b.json`：`sb_toucan_hello` 开头设 `sb_toucan_met`、`sb_slope_go` 开头设 `sb_slope_met`；「陪大嘴鸟接果子」「去坡地的雾里看看」need 各加对应 flag。
+- 收音机 / 路标 / 油灯三条本来就是拿到（sa_has_*）才显示，不动。
+- 验证：两份 JSON 能解析；Python 按 `side_objectives()` 的规则模拟：屋里 / 出门后没碰任何东西只显示「在弥洛的小屋里寻找其他可以燃烧的物品」，碰了哪条才多出哪条。**没验证**：这台机器没装 Godot，没跑 `--story_check` 和游戏内截图。
+
 ### 2026-11-08 · Claude · 飞行一边躲边修二改：保持剖面视角整体缩小，三个漏点在窗 / 副驾驶座 / 工具箱；烧物品时放 space_choice
 
 需求（作者）：「修飞机不对，保持这个视角，但是飞机缩小，窗外，副驾驶，和工具位置分别对应了三个要修的点」；「开始烧物品的时候应该触发 space choice 这个 bgm」。

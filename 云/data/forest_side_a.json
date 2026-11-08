@@ -62,7 +62,7 @@
    "personal": true,
    "fuel_kind": "unrelated",
    "category": "keepsake",
-   "keepsake_burn": 30,
+   "keepsake_burn": 120,
    "desc": {
     "zh": "「今日特价」写在最上面，已经很多年没换过今日了。",
     "en": "\"Today's Special\" is at the top. It's been the same \"today\" for years."
@@ -80,14 +80,35 @@
    "burn": 0,
    "icon": "res://art/forest_side/icon_key.png",
    "personal": true,
-   "fuel_kind": "none",
+   "fuel_kind": "unrelated",
    "category": "keepsake",
+   "keepsake_burn": 110,
    "desc": {
     "zh": "一直和零钱放在一起，开门之前总要先数一遍钱。",
     "en": "Always kept with the loose change. Before opening the door, you count the money first."
    },
    "added": true,
-   "_note": "11-02 支线 2c，不能烧的纪念品。"
+   "_note": "11-02 支线 2c。11-08 作者：支线奖励 100~130，改成能烧（110）。"
+  },
+  {
+   "id": "sa_ticket",
+   "name": {
+    "en": "Half a Ticket",
+    "zh": "半张车票"
+   },
+   "rarity": "rare",
+   "burn": 0,
+   "icon": "res://art/forest_story/icon_card.png",
+   "personal": true,
+   "fuel_kind": "unrelated",
+   "category": "keepsake",
+   "keepsake_burn": 115,
+   "desc": {
+    "zh": "终点那一半泡花了，只看得清从哪儿出发。",
+    "en": "The destination half is soaked and blurred. Only where it set out from is still legible."
+   },
+   "added": true,
+   "_note": "11-08 作者「不要不给奖励」：路标支线原来什么都不给，日记里本来就写了底座旁的半张车票，就给它。图标先借通勤卡的，要画新的。"
   }
  ],
  "objectives": [
@@ -101,7 +122,8 @@
   },
   {
    "need": [
-    "c1_side_open"
+    "c1_side_open",
+    "sa_pine_met"
    ],
    "not": [
     "sa_got_sap"
@@ -115,7 +137,8 @@
     "sa_has_radio"
    ],
    "not": [
-    "sa_radio_done"
+    "sa_radio_done",
+    "burned_return_radio"
    ],
    "zh": "把收音机送回小吃棚",
    "en": "Take the radio back to the snack stall",
@@ -126,7 +149,8 @@
     "sa_has_sign"
    ],
    "not": [
-    "sa_sign_done"
+    "sa_sign_done",
+    "burned_return_sign"
    ],
    "zh": "把路标送回空地",
    "en": "Take the signpost back to the clearing",
@@ -138,7 +162,8 @@
     "sa_got_sap"
    ],
    "not": [
-    "sa_lamp_done"
+    "sa_lamp_done",
+    "burned_return_lamp"
    ],
    "zh": "把油灯送回林子里的小屋",
    "en": "Take the lamp back to the hut in the woods",
@@ -150,7 +175,8 @@
    ],
    "not": [
     "sa_lamp_done",
-    "sa_got_sap"
+    "sa_got_sap",
+    "burned_return_lamp"
    ],
    "zh": "给油灯找点油",
    "en": "Find some oil for the lamp",
@@ -259,7 +285,8 @@
     "c1_side_open"
    ],
    "not": [
-    "sa_radio_done"
+    "sa_radio_done",
+    "burned_return_radio"
    ],
    "once": false,
    "scene": "sa_stall"
@@ -294,7 +321,8 @@
     "c1_side_open"
    ],
    "not": [
-    "sa_sign_done"
+    "sa_sign_done",
+    "burned_return_sign"
    ],
    "once": false,
    "scene": "sa_sign"
@@ -329,7 +357,8 @@
     "c1_side_open"
    ],
    "not": [
-    "sa_lamp_done"
+    "sa_lamp_done",
+    "burned_return_lamp"
    ],
    "once": false,
    "scene": "sa_house"
@@ -355,6 +384,11 @@
  ],
  "scenes": {
   "sa_pine": [
+   {
+    "do": "flag",
+    "set": "sa_pine_met",
+    "_note": "11-08 支线触发了才在左下角显示"
+   },
    {
     "do": "face",
     "who": "chen",
@@ -1130,6 +1164,11 @@
     "do": "prop",
     "id": "placed_sign",
     "state": "placed"
+   },
+   {
+    "do": "give",
+    "item": "sa_ticket",
+    "_note": "11-08 作者：支线做完给奖励（115）"
    },
    {
     "do": "journal",

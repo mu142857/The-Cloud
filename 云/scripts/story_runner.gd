@@ -117,7 +117,8 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"montage",   # 结局回看：公交车 + 每个支线 NPC 一镜，放在 end_chapter 前面（scripts/ending_montage.gd，11-07）
 	"inner", "key_prompt", "reward", "blackout", "burn_held",
 	"burn_pick",   # burn_pick：选一件东西烧掉 / 交出去（scripts/burn_pick.gd；第一关弥洛要玩具熊那一步起用，11-07）
-	"music"]   # music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
+	"music",
+	"game_over"]   # game_over：坏结局（11-08 飞行一燃料烧光坠毁）：黑掉、停声音、回标题。music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
 	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
 const BURN_PICK_GD := preload("res://scripts/burn_pick.gd")    # burn_pick：选烧什么的模板（_burn_pick）
@@ -362,6 +363,13 @@ func side_objectives(include_completed := false) -> Array:
 	var out: Array = []
 	for o in data.get("side_objectives", []):
 		if o is Dictionary and StoryState.all_of(o.get("need", [])):
+			# 11-08 作者：支线要送还的东西提前烧掉 = 这条支线关掉，不显示划掉的
+			var burned := false
+			for f in o.get("not", []):
+				if str(f).begins_with("burned_") and StoryState.has(str(f)):
+					burned = true
+			if burned:
+				continue
 			var done := not StoryState.none_of(o.get("not", []))
 			if include_completed or not done:
 				var entry: Dictionary = o.duplicate()
@@ -799,7 +807,10 @@ func _step(st: Dictionary) -> String:
 			else:
 				await _give(str(st.get("item", "")))
 		"take":
-			_take(str(st.get("item", "")))
+			if st.get("all_burnable", false):
+				_take_all_burnable()             # 11-08 飞行一坠毁：「会丢失所有的材料」
+			else:
+				_take(str(st.get("item", "")))
 		"flag":
 			if st.has("set"):
 				StoryState.set_flag(str(st["set"]))
@@ -831,6 +842,9 @@ func _step(st: Dictionary) -> String:
 			return s
 		"end_chapter":
 			await _end_chapter()
+		"game_over":
+			await _game_over(st)
+			return "__pause__"
 		"if":
 			var f := str(st.get("flag", ""))
 			var yes := not StoryState.has(f.substr(1)) if f.begins_with("!") else StoryState.has(f)
@@ -1003,6 +1017,8 @@ func _fuel_step(st: Dictionary) -> void:
 		if auto != "":
 			print("FUEL burn %s +%d%s have=%d" % [st["burn"], fuel_of(str(st["burn"])), " (fried)" if StoryState.has(Inventory.FRIED + str(st["burn"])) else "", have])
 	have += int(st.get("add", 0)) - int(st.get("sub", 0))
+	if st.has("safe"):
+		StoryState.set_prop("fuel_safe", str(int(st["safe"])))      # 11-08：燃料条上的绿色安全线（fuel_bar.gd）
 	if need < 0 and not StoryState.fuel_on():
 		need = maxi(have, 0)
 	StoryState.set_fuel(have, need)
@@ -1830,6 +1846,34 @@ func _give(id: String) -> void:
 		await _wait(0.6)
 		return
 	await _fly_to_bag(icon, chen.position + Vector2(0, -36) - level.cam_left())
+
+
+## 背包里所有能烧的（keepsake_burn / burn > 0）全部拿走（坠毁丢光材料）
+func _take_all_burnable() -> void:
+	var lost := 0
+	for id in Inventory.owned.duplicate():
+		var it := Inventory.item(str(id))
+		if it.get("no_burn", false):
+			continue
+		if int(it.get("keepsake_burn", 0)) > 0 or int(it.get("burn", 0)) > 0:
+			Inventory.remove(str(id))
+			lost += 1
+	level.on_inventory_changed()
+	print("TAKE all_burnable: %d" % lost)
+
+
+## 坏结局：整屏黑掉、配乐和声音停，hold 秒后回标题（和「倔强的灵魂」同一条路：level.title_after_credits）
+func _game_over(st: Dictionary) -> void:
+	print("GAME_OVER %s" % str(st.get("id", "")))
+	if ff or auto != "":
+		ended = true
+		return
+	BGM_GD.get_bgm(level.get_tree()).stop(float(st.get("fade", 1.5)))
+	var tw := level.create_tween()
+	tw.tween_property(level.fade, "color:a", 1.0, float(st.get("fade", 1.5)))
+	await tw.finished
+	await _wait(float(st.get("hold", 3.0)))
+	level.title_after_credits()
 
 
 func _take(id: String) -> void:
@@ -2960,7 +3004,7 @@ func _would_progress(s: String, seen: Dictionary) -> bool:
 			"give":
 				if not Inventory.has(str(st.get("item", ""))):
 					return true
-			"fade_to", "end_chapter":
+			"fade_to", "end_chapter", "game_over":
 				return true
 			"goto":
 				if _would_progress(str(st.get("scene", "")), seen):
@@ -3044,6 +3088,9 @@ func _reach(s: String, seen: Dictionary) -> Array:
 			"burn_pick":
 				for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
 					_reach(str(v), seen)
+			"debris_steer":
+				if st.has("crash"):
+					_reach(str(st["crash"]), seen)      # 11-08 飞行一：燃料烧光坠毁 → 这个 scene
 			"closeup":
 				for z in st.get("zones", []):
 					_reach(str(z.get("scene", "")), seen)
@@ -3495,6 +3542,8 @@ func validate() -> Array[String]:
 					if st.has("at") and not world.has_marker(str(st["at"])) and not str(st["at"]).is_valid_float():
 						out.append("scene %s：%s 的 at 找不到 %s" % [id, kind, st["at"]])
 				"give", "take":
+					if kind == "take" and st.get("all_burnable", false):
+						continue
 					for item in (st.get("items", []) if kind == "give" and st.has("items") else [str(st.get("item", ""))]):
 						if not Inventory.defined(str(item)):
 							out.append("scene %s：物品 %s 不在 items.json（也不在剧本 items 里）" % [id, item])
@@ -3544,7 +3593,7 @@ func validate() -> Array[String]:
 					if not st.has("set") or not st.has("flags"):
 						out.append("scene %s：count 要有 flags 和 set" % id)
 				"fuel":
-					var known := ["do", "have", "need", "burn", "add", "sub", "need_held", "plus", "added", "_comment"]
+					var known := ["do", "have", "need", "burn", "add", "sub", "need_held", "plus", "added", "_comment", "safe", "_note"]
 					for k3 in st:
 						if not str(k3) in known:
 							out.append("scene %s：fuel 不认识 %s（有 have / need / burn / add / sub / need_held / plus）" % [id, k3])
@@ -3760,6 +3809,8 @@ func _validate_cockpit(id: String, kind: String, st: Dictionary, refs: Dictionar
 	if kind == "debris_steer":
 		if not (st.get("sec", 40) is float or st.get("sec", 40) is int):
 			out.append("scene %s：debris_steer 的 sec 要是数字" % id)
+		if st.has("crash") and not scenes.has(str(st["crash"])):
+			out.append("scene %s：debris_steer 的 crash 指向不存在的 scene %s" % [id, st["crash"]])
 		return out
 	if kind == "cockpit_dash":
 		return out
@@ -4102,6 +4153,9 @@ func _setup_stages() -> void:
 					"burn_pick":
 						for v in (st.get("scenes", {}) as Dictionary).values() + [st.get("then", "")]:
 							nexts.append(str(v))
+					"debris_steer":
+						if st.has("crash"):
+							nexts.append(str(st["crash"]))
 					"closeup":
 						for z in st.get("zones", []):
 							nexts.append(str(z.get("scene", "")))
@@ -6166,7 +6220,7 @@ func _would_progress_flags(s: String, seen := {}) -> bool:
 			"give":
 				if st.has("item") and not Inventory.has(str(st.get("item", ""))):
 					return true
-			"end_chapter":
+			"end_chapter", "game_over":
 				return true
 			"mechanic":
 				if not bool(mech_load(str(st.get("id", ""))).get("_done", false)):

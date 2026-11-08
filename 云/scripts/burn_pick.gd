@@ -22,6 +22,7 @@ extends Control
 ## 能烧 = Inventory 里 keepsake_burn / burn > 0、没有 no_burn（大象照片、地图这些 quest 不出现）。一件都没有 = 什么都不弹，直接 then。
 ## 跳节拍：挑能通到目标 flag 的那件（没有就第一件），不出界面；自动玩：停一下、选第一件、确认
 ##   （full 先看一眼第二件；加 --burn_pick_back 先按一次「再想想」再确认）。
+## "until_at": n（11-08 飞行一货舱）：repeat 时燃料到 n 就停（until_fuel 是要到「需要的量」）。
 ## story_runner.gd 的 _burn_pick 建它（挂在对话界面下，按键先到这里）：var scene = await play(runner, st)。
 
 signal done(id: String)
@@ -114,6 +115,8 @@ func play(r: Node, step: Dictionary) -> String:
 						await r._step(l)
 		if bool(st.get("until_fuel", false)) and (not StoryState.fuel_on() or StoryState.fuel() >= StoryState.fuel_need()):
 			break                                        # 燃料够了就不用再烧
+		if st.has("until_at") and StoryState.fuel() >= int(st["until_at"]):
+			break                                        # 11-08 飞行一：加到这么多就够了（不用加满）
 		if not again:
 			break
 	return str(scenes.get(last, then))

@@ -8,7 +8,8 @@
  "objectives": [
   {
    "need": [
-    "c1_side_open"
+    "c1_side_open",
+    "sb_toucan_met"
    ],
    "not": [
     "sb_toucan_done"
@@ -19,7 +20,8 @@
   },
   {
    "need": [
-    "c1_side_open"
+    "c1_side_open",
+    "sb_slope_met"
    ],
    "not": [
     "sb_slope_done"
@@ -124,6 +126,11 @@
  ],
  "scenes": {
   "sb_toucan_hello": [
+   {
+    "do": "flag",
+    "set": "sb_toucan_met",
+    "_note": "11-08 支线触发了才在左下角显示"
+   },
    {
     "do": "face",
     "who": "chen",
@@ -364,6 +371,11 @@
    }
   ],
   "sb_slope_go": [
+   {
+    "do": "flag",
+    "set": "sb_slope_met",
+    "_note": "11-08 支线触发了才在左下角显示"
+   },
    {
     "do": "face",
     "who": "chen",

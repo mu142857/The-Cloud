@@ -67,6 +67,16 @@ extends Control
 ##   剧本 "leaks"：躲的同时船舱里漏气，←→ 走、按住 E 修、↑↓ 照样躲（见 LEAK_* 上面的说明）。飞行一的漏气不再是躲完以后停下来的剧情段。
 ##   二改（作者：「保持这个视角，但是飞机缩小」）：有 leaks 时不拉到船外，剖面整体缩到 VIEW_Z、挪到屏幕 VIEW_X（碎石提前量约 1.7 秒），
 ##   晨本人走去窗 / 副驾驶座 / 工具箱修；远景（far）参数只剩终章在用。
+## 11-08 飞行一新版（作者：「永燃之木本身可以提供无尽的能量……先开一段时间，燃料完全不会降低，之后剧情杀，被大陨石砸中……
+##   永燃之木掉落了……必须要烧新的燃料……燃料本身是一直在烧的，如果烧到底，飞机就坠毁了，会丢失所有的材料，所以要尽可能的不被碰到，
+##   碰到就会加速燃料泄漏一段时间……燃料上有一个绿色安全竖线，如果低于了这个线，就说明需要重新添加一次燃料了」；
+##   坠毁 = 坏结局；低于安全线按键进货舱；漏气维修保留、两套一起；飞够一段距离结束）：
+##   "plan": "cruise"：永燃之木供能的那一段——几波轻的碎石（不扣燃料），最后一波 meteor = 躲不开的一整排（缝也塞满），
+##     撞上：大晃、闪白、轰隆，设 flag flight1_meteor，步骤收尾（剧本接着演永燃之木掉出去）。
+##   燃料模式（写了 "drain"）：燃料每秒少 drain；撞一下之后 hit_sec 秒里每秒再多少 hit_drain；每个没修的漏点每秒再多少 leak_drain。
+##     燃料低于 "safe"（绿线，fuel_bar.gd 画）：船下方闪提示「按 F 去货舱添燃料」，按 F → 碎石全停，弹 "refuel"（burn_pick 步骤，
+##     配乐换 space_choice），烧完回来接着飞。自动玩低于安全线自己去加。
+##     燃料烧到 0：坠毁——大晃、闪白、步骤立刻结束，返回 "crash"（scene 名，剧本里演坏结局）。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：await play(runner, st)。
 
 signal done
@@ -114,6 +124,17 @@ const PLAN_REPAIR := [
 	{"t": 3.0, "k": "one", "lane": -1},
 	{"t": 6.8, "k": "one", "lane": 1},
 	{"t": 10.6, "k": "pair", "lane": -1},
+]
+## 11-08 飞行一前半段（永燃之木还在）：三波轻的，最后一排躲不开的大陨石
+const PLAN_CRUISE := [
+	{"t": 2.6, "k": "one", "lane": -1},
+	{"t": 5.4, "k": "one", "lane": 1},
+	{"t": 8.2, "k": "gap", "g": 0.0},
+	{"t": 12.0, "k": "meteor"},
+]
+const PLAN_AUTO_CRUISE := [
+	{"t": 0.0, "k": "one", "lane": -1},
+	{"t": 2.7, "k": "meteor"},
 ]
 const PLAN_AUTO := [
 	{"t": 0.0, "k": "one", "lane": -1},
@@ -177,6 +198,8 @@ const TXT := {
 	"leak": ["Leak! ← →  walk over, hold E", "漏气了！← → 走过去，按住 E"],
 	"leak_e": ["E", "E"],
 	"dark_hint": ["↑ ↓  Listen for the quiet lane", "↑ ↓  听——找最安静的那条"],
+	"refuel": ["Fuel below the line!  Press F to go to the cargo hold", "燃料低于绿线！按 F 去货舱添燃料"],
+	"refuel_none": ["Fuel below the line... nothing left to burn", "燃料低于绿线……已经没有能烧的了"],
 }
 const BUMP_LINES := [
 	{"zh": "……稳住。", "en": "...Steady.", "added": true},
@@ -267,6 +290,23 @@ var _view_t := Vector2(240, 135)
 var _hiss: AudioStreamPlayer
 var _leak_tip: Label
 var _extra_lane := -1
+# 11-08 燃料模式（见文件头）
+var _fuel_mode := false
+var _drain := 0.0
+var _hit_drain := 0.0
+var _hit_sec := 3.0
+var _leak_drain := 0.0
+var _safe := 0.0
+var _fuel_f := 0.0
+var _hit_t := 0.0
+var _paused := false
+var _crashed := false
+var _crash_scene := ""
+var _refuel_st: Dictionary = {}
+var _refuel_hint: Label
+var _refuels := 0
+var _flash: ColorRect
+var _meteor_hit := false
 
 
 func play(r: Node, st: Dictionary) -> String:
@@ -280,6 +320,18 @@ func play(r: Node, st: Dictionary) -> String:
 		return ""
 	_fuel_per = maxi(0, int(st.get("fuel_per_bump", 0)))
 	_fuel_left = maxi(0, int(st.get("fuel_max_loss", 0)))
+	_fuel_mode = st.has("drain") and StoryState.fuel_on()
+	_drain = float(st.get("drain", 0.0))
+	_hit_drain = float(st.get("hit_drain", 0.0))
+	_hit_sec = float(st.get("hit_sec", 3.0))
+	_leak_drain = float(st.get("leak_drain", 0.0))
+	_safe = float(st.get("safe", 0.0))
+	_crash_scene = str(st.get("crash", ""))
+	_refuel_st = st.get("refuel", {}) if st.get("refuel", {}) is Dictionary else {}
+	_fuel_f = float(StoryState.fuel())
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--fuel_drain="):                 # 测试：燃料烧得更快（看补燃料 / 坠毁）
+			_drain = float(a.trim_prefix("--fuel_drain="))
 	_auto = r.auto != ""
 	_real = "--debris_full" in OS.get_cmdline_user_args()   # 截图用：自动玩也按真实时长、真实拉远速度播
 	var real := _real
@@ -341,13 +393,13 @@ func play(r: Node, st: Dictionary) -> String:
 	if _auto and not real:
 		_dark_lead = maxf(DARK_LEAD_AUTO, _dark_wait + 1.5)
 		var t0 := 1.3 if _far or _zoom else 0.8
-		for w in (PLAN_AUTO_DARK if final else PLAN_AUTO):
+		for w in (PLAN_AUTO_DARK if final else (PLAN_AUTO_CRUISE if str(st.get("plan", "")) == "cruise" else PLAN_AUTO)):
 			var e: Dictionary = (w as Dictionary).duplicate()
 			e["t"] = t0 + float(e["t"])
 			_plan.append(e)
 	else:
 		var sc := clampf(sec / 40.0, 0.75, 1.5)
-		var plan := PLAN_FINAL if final else (PLAN_REPAIR if _repair_at != "" else PLAN)
+		var plan := PLAN_FINAL if final else (PLAN_REPAIR if _repair_at != "" else (PLAN_CRUISE if str(st.get("plan", "")) == "cruise" else PLAN))
 		for w in plan:
 			var e: Dictionary = (w as Dictionary).duplicate()
 			if str(st.get("plan", "")) == "dense" and e["k"] == "one" and float(e["t"]) <= 18.6:
@@ -402,6 +454,12 @@ func play(r: Node, st: Dictionary) -> String:
 		lead += float(v) / float(_lead.size())
 	print("COCKPIT debris_steer %s: bumps=%d grazes=%d waves=%d time=%.1fs ship_x=%d nose=%d lead=%.2fs dark_bumps=%d bell=%s" % [str(st.get("id", "")),
 		bumps, grazes, waves_n, _t, int(_ship_cx), int(_nose()), lead, _dark_bumps, _bell])
+	if is_instance_valid(_flash):
+		_flash.queue_free()
+	if _fuel_mode:
+		print("COCKPIT fuel %s: left=%d refuels=%d crashed=%s" % [str(st.get("id", "")), StoryState.fuel(), _refuels, _crashed])
+	if _crashed:
+		return _crash_scene
 	return ""
 
 
@@ -428,6 +486,25 @@ func _build() -> void:
 	_hint.modulate.a = 0.0
 	add_child(_hint)
 	create_tween().tween_property(_hint, "modulate:a", 0.85, 0.6)
+	_flash = ColorRect.new()
+	_flash.color = Color(0.92, 0.95, 0.9, 0.0)        # 撞上陨石 / 坠毁闪一下（不用纯白）
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_flash)
+	if _fuel_mode:
+		_refuel_hint = Label.new()
+		_refuel_hint.text = _tx("refuel")
+		_refuel_hint.add_theme_font_size_override("font_size", 14)
+		_refuel_hint.add_theme_color_override("font_color", Color("e0607a"))
+		_refuel_hint.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.8))
+		_refuel_hint.add_theme_constant_override("shadow_offset_x", 0)
+		_refuel_hint.add_theme_constant_override("shadow_offset_y", 1)
+		_refuel_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_refuel_hint.size = Vector2(480, 16)
+		_refuel_hint.position = Vector2(0, 228)
+		_refuel_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_refuel_hint.visible = false
+		add_child(_refuel_hint)
 	_play("flight_rumble", -14.0)
 	_air = _loop("airflow_loop", -60.0)
 	if _zoom:
@@ -531,7 +608,7 @@ func _build_leaks() -> void:
 	_leak_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_leak_tip.hide()
 	add_child(_leak_tip)
-	_hint.text = _tx("hint_leak")
+	_hint.text = _tx("hint_leak") if not _leak_plan.is_empty() else _tx("hint")   # 11-08 飞行一前半段（cruise）没有漏气：只提示躲
 	_hiss = _loop("hiss_thin", -60.0)
 	runner.chen.input_enabled = not _auto
 
@@ -696,6 +773,8 @@ func _process(delta: float) -> void:
 	if runner.ff:
 		dev_skip()
 		return
+	if _paused:                                      # 在货舱添燃料：碎石、燃料、漏气全停
+		return
 	_t += delta
 	_view_step(delta)
 	_repair_step()
@@ -746,6 +825,9 @@ func _process(delta: float) -> void:
 			busy = true
 	_fx.queue_redraw()
 	_leak_step(delta)
+	_fuel_tick(delta)
+	if _finished or _paused:
+		return
 	var leaks_left := not _leak_plan.is_empty() or _leaks_fixed < _leaks.size()
 	if leaks_left and _t <= sec * 1.5 + 10.0:
 		# 波次排完了还有漏没修：漏点立刻都出来，接着零星来单块（上下轮着），修完才收尾
@@ -814,6 +896,8 @@ func _spawn(e: Dictionary) -> void:
 			_play("flight_rumble", -9.0)
 			_wave_gap(float(e["g"]), true)
 			_waves[-1]["last"] = bool(e.get("last", false))
+		"meteor":
+			_wave_meteor()
 		"dark_on":
 			_dark_start()
 		"dark":
@@ -1047,6 +1131,11 @@ func _bump(w: Dictionary, r: Dictionary) -> void:
 	if w["bumped"]:
 		return
 	w["bumped"] = true
+	if str(w["kind"]) == "meteor":
+		_on_meteor()
+		return
+	if _fuel_mode:
+		_hit_t = _hit_sec                            # 撞了：这几秒燃料漏得更快
 	bumps += 1
 	if w["dark"]:
 		_dark_bumps += 1
@@ -1316,6 +1405,115 @@ func _hull_front_at(y: float) -> float:
 
 # ======================================================================= 收尾
 ## F8 自测 / 跳节拍：直接做完，镜头直接回剖面
+# ======================================================================= 11-08 大陨石 / 燃料一直在烧
+## 躲不开的一排：缝里也塞满（撞上就是剧情）
+func _wave_meteor() -> void:
+	_play("nav_alert", -8.0)
+	_play("flight_rumble", -2.0)
+	_wave_gap(0.0, true)
+	var w: Dictionary = _waves[-1]
+	w["kind"] = "meteor"
+	var rocks: Array = w["rocks"]
+	var x_hit := _nose() - _rock_v * _warn
+	var y := float(_hull.get("T", 100)) - GAP_M
+	var bot := float(_hull.get("B", 206)) + GAP_M
+	while y < bot:
+		var tex := _pick_rock()
+		var sz := tex.get_size()
+		_add_rock(w, tex, x_hit - sz.x / 2.0, roundf(y + sz.y / 2.0 - 2.0), rocks.size() < 2, 2)
+		y += sz.y - 3.0
+	w["safe"] = 0.0
+
+
+func _on_meteor() -> void:
+	if _meteor_hit:
+		return
+	_meteor_hit = true
+	bumps += 1
+	level._shake = 1.4
+	level._shake_amp = 5.0
+	_play("debris_bump", 2.0, 0.7, _pan(_ship_cx))
+	_play("flight_rumble", 0.0, 0.8)
+	_flash_once(0.85, 0.9)
+	StoryState.set_flag("flight1_meteor")
+	_plan.clear()
+	print("COCKPIT meteor hit t=%.1f" % _t)
+
+
+func _flash_once(a: float, sec: float) -> void:
+	if not is_instance_valid(_flash):
+		return
+	_flash.color.a = a
+	create_tween().tween_property(_flash, "color:a", 0.0, sec).set_trans(Tween.TRANS_SINE)
+
+
+func _fuel_tick(delta: float) -> void:
+	if not _fuel_mode or _crashed or _ending:
+		return
+	_hit_t = maxf(0.0, _hit_t - delta)
+	var open := 0
+	for l in _leaks:
+		if not l["fixed"]:
+			open += 1
+	var rate := _drain + (_hit_drain if _hit_t > 0.0 else 0.0) + _leak_drain * float(open)
+	_fuel_f -= rate * delta
+	var n := maxi(0, int(ceilf(_fuel_f)))
+	if n != StoryState.fuel():
+		StoryState.set_fuel(n)
+	if _fuel_f <= 0.0:
+		_crash()
+		return
+	var low := _safe > 0.0 and _fuel_f < _safe
+	if _refuel_hint != null:
+		_refuel_hint.visible = low and int(_t * 3.0) % 3 != 0
+	var can: bool = low and not _refuel_st.is_empty() and not runner.BURN_PICK_GD.burnable(_refuel_st.get("items", null), str(_refuel_st.get("kind", ""))).is_empty()
+	if _refuel_hint != null and low:
+		_refuel_hint.text = _tx("refuel") if can or _refuel_st.is_empty() else _tx("refuel_none")
+	if can and (_auto or Input.is_key_pressed(KEY_F)):
+		_refuel()
+
+
+## 按 F：去货舱烧东西添燃料（碎石停住），烧完回来接着飞
+func _refuel() -> void:
+	if _paused:
+		return
+	_paused = true
+	_refuels += 1
+	if _refuel_hint != null:
+		_refuel_hint.visible = false
+	var chen: Node2D = runner.chen
+	var was_input: bool = chen.input_enabled
+	chen.input_enabled = false
+	chen.auto_dir = 0.0
+	if _fixing:
+		_fixing = false
+		runner._anim({"who": "chen", "name": "idle"})
+	var bgm = (load("res://scripts/bgm.gd") as GDScript).get_bgm(get_tree())
+	bgm.play("space_choice", NAN, 1.0)
+	print("COCKPIT refuel %d: fuel=%d" % [_refuels, StoryState.fuel()])
+	await runner._burn_pick(_refuel_st)
+	runner.cockpit_ui = self
+	bgm.play("flight_theme", NAN, 1.0)
+	_fuel_f = float(StoryState.fuel())
+	if is_instance_valid(chen):
+		chen.input_enabled = was_input and not _auto
+	_paused = false
+
+
+## 燃料烧光：坠毁（剧本 crash scene 演坏结局）
+func _crash() -> void:
+	if _crashed:
+		return
+	_crashed = true
+	StoryState.set_fuel(0)
+	level._shake = 1.6
+	level._shake_amp = 6.0
+	_play("debris_bump", 4.0, 0.6, _pan(_ship_cx))
+	_flash_once(1.0, 1.4)
+	print("COCKPIT crash t=%.1f" % _t)
+	_done()
+
+
 func dev_skip() -> void:
 	if _finished:
 		return

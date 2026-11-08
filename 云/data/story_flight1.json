@@ -24,30 +24,6 @@
 	"objectives": [
 		{
 			"need": [
-				"flight1_leak_wait"
-			],
-			"not": [
-				"flight1_leak_fixed"
-			],
-			"zh": "找到漏气的地方",
-			"en": "Find the leak",
-			"show_fuel": false,
-			"added": true
-		},
-		{
-			"need": [
-				"flight1_leak_fixed"
-			],
-			"not": [
-				"flight1_reroute"
-			],
-			"zh": "回到驾驶座",
-			"en": "Back to the pilot's seat",
-			"show_fuel": true,
-			"added": true
-		},
-		{
-			"need": [
 				"flight1_landing"
 			],
 			"not": [
@@ -75,7 +51,7 @@
 				"flight1_burned"
 			],
 			"not": [
-				"flight1_landing"
+				"flight1_journal"
 			],
 			"zh": "飞往河流星球",
 			"en": "Fly to the river planet",
@@ -84,13 +60,13 @@
 		},
 		{
 			"need": [
-				"flight1_fuel_low"
+				"flight1_meteor"
 			],
 			"not": [
 				"flight1_burned"
 			],
-			"zh": "补上燃料缺口",
-			"en": "Make up the missing fuel",
+			"zh": "在货舱里添上燃料",
+			"en": "Refuel in the cargo hold",
 			"show_fuel": true,
 			"added": true
 		},
@@ -99,7 +75,7 @@
 				"flight1_started"
 			],
 			"not": [
-				"flight1_fuel_low"
+				"flight1_meteor"
 			],
 			"zh": "飞往河流星球",
 			"en": "Fly to the river planet",
@@ -301,9 +277,16 @@
 				"set": "flight1_started"
 			},
 			{
+				"do": "flag",
+				"set": "flight1_wood_power",
+				"_note": "永燃之木供能中：燃料条满、写 ∞（fuel_bar.gd）"
+			},
+			{
 				"do": "fuel",
-				"have": 200,
-				"need": 200
+				"have": 500,
+				"need": 500,
+				"safe": 150,
+				"_note": "11-08 作者：飞行一新流程——永燃之木无限能量 → 开一段燃料不降 → 大陨石砸中、永燃之木掉落 → 货舱选烧什么 → 燃料一直在烧、撞了漏得快、低于绿线按 F 回货舱加、烧光坠毁（坏结局）"
 			},
 			{
 				"do": "prop",
@@ -386,7 +369,7 @@
 			},
 			{
 				"do": "goto",
-				"scene": "flight1_debris"
+				"scene": "flight1_cruise"
 			}
 		],
 		"flight1_debris": [
@@ -394,14 +377,39 @@
 				"do": "debris_steer",
 				"id": "flight1_debris",
 				"sec": 40,
-				"fuel_per_bump": 1,
-				"fuel_max_loss": 5,
 				"leaks": [
-					{"t": 6.0, "at": "cockpit_window"},
-					{"t": 15.5, "at": "cockpit_copilot"},
-					{"t": 24.0, "at": "cockpit_toolbox"}
+					{
+						"t": 6.0,
+						"at": "cockpit_window"
+					},
+					{
+						"t": 15.5,
+						"at": "cockpit_copilot"
+					},
+					{
+						"t": 24.0,
+						"at": "cockpit_toolbox"
+					}
 				],
-				"_note": "11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」——漏气改成躲碎石途中边躲边修（cockpit_debris.gd 的 leaks），修完直接接 flight1_leak_done，不再停下来找漏点。二改：「保持这个视角，但是飞机缩小，窗外，副驾驶，和工具位置分别对应了三个要修的点」——剖面整体缩小，晨本人走去窗、副驾驶座、工具箱修"
+				"_note": "11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」——漏气改成躲碎石途中边躲边修（cockpit_debris.gd 的 leaks），修完直接接 flight1_leak_done，不再停下来找漏点。二改：「保持这个视角，但是飞机缩小，窗外，副驾驶，和工具位置分别对应了三个要修的点」——剖面整体缩小，晨本人走去窗、副驾驶座、工具箱修",
+				"drain": 4.0,
+				"hit_drain": 12.0,
+				"hit_sec": 3.0,
+				"leak_drain": 2.0,
+				"safe": 150,
+				"crash": "flight1_crash",
+				"refuel": {
+					"do": "burn_pick",
+					"id": "flight1_refuel",
+					"burn": true,
+					"repeat": true,
+					"until_at": 300,
+					"after": {
+						"deer_bear": "flight1_after_deer_bear",
+						"family_photo": "flight1_after_family_photo"
+					}
+				},
+				"_note11_08": "燃料每秒 -4；撞了 3 秒内每秒再 -12；每个没修的漏点每秒再 -2；低于 150 按 F 去货舱加到 300；烧到 0 → flight1_crash"
 			},
 			{
 				"do": "goto",
@@ -522,7 +530,7 @@
 			},
 			{
 				"do": "goto",
-				"scene": "flight1_reroute"
+				"scene": "flight1_after_burn"
 			}
 		],
 		"flight1_reroute": [
@@ -1604,6 +1612,153 @@
 				"flag": "burned_blue_stone",
 				"then": "flight1_log_stone",
 				"else": "flight1_log_card"
+			}
+		],
+		"flight1_cruise": [
+			{
+				"do": "debris_steer",
+				"id": "flight1_cruise",
+				"plan": "cruise",
+				"sec": 40,
+				"leaks": [],
+				"_note": "永燃之木还在：不扣燃料；最后一排 meteor 躲不开（cockpit_debris.gd PLAN_CRUISE）"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_meteor"
+			}
+		],
+		"flight1_meteor": [
+			{
+				"do": "flag",
+				"set": "flight1_meteor"
+			},
+			{
+				"do": "sfx",
+				"name": "nav_alert"
+			},
+			{
+				"do": "flag",
+				"clear": "flight1_wood_power"
+			},
+			{
+				"do": "fuel",
+				"have": 40
+			},
+			{
+				"narr": {
+					"zh": "大陨石撞开了货舱。永燃之木从裂口掉了出去。",
+					"en": "A huge meteor tore open the cargo hold. The Everburning Wood tumbled out through the gap."
+				},
+				"added": true
+			},
+			{
+				"narr": {
+					"zh": "燃料不再是无限的了。",
+					"en": "The fuel isn't endless anymore."
+				},
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_hold"
+			}
+		],
+		"flight1_hold": [
+			{
+				"do": "music",
+				"track": "space_choice",
+				"fade": 1.5
+			},
+			{
+				"do": "walk",
+				"who": "chen",
+				"to": "cockpit_converter"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_nav",
+				"state": "fuel_short"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_fuel_low"
+			},
+			{
+				"narr": {
+					"zh": "放进转化装置的东西，无法取回。",
+					"en": "Whatever goes into the converter can't be taken back."
+				},
+				"added": true
+			},
+			{
+				"do": "burn_pick",
+				"id": "flight1_pick",
+				"burn": true,
+				"repeat": true,
+				"until_at": 300,
+				"after": {
+					"deer_bear": "flight1_after_deer_bear",
+					"family_photo": "flight1_after_family_photo"
+				},
+				"_note": "11-08：货舱里一件一件烧，燃料到 300 就够（绿线 150，满 500）"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_burned"
+			},
+			{
+				"narr": {
+					"zh": "燃料会一直烧下去。烧到底，飞船就会坠毁，所有东西都会丢掉。",
+					"en": "The fuel keeps burning. If it runs out, the ship goes down, and everything is lost."
+				},
+				"added": true
+			},
+			{
+				"narr": {
+					"zh": "被碎石撞到，燃料会漏得更快。低于绿线，就按 F 回货舱添燃料。",
+					"en": "Getting hit makes the fuel leak faster. If it drops below the green line, press F to refuel in the hold."
+				},
+				"added": true
+			},
+			{
+				"do": "face",
+				"who": "chen",
+				"to": "cockpit_console"
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_debris"
+			}
+		],
+		"flight1_crash": [
+			{
+				"do": "flag",
+				"set": "flight1_crashed"
+			},
+			{
+				"do": "take",
+				"all_burnable": true
+			},
+			{
+				"narr": {
+					"zh": "燃料烧光了。飞船一头扎进云层。",
+					"en": "The fuel ran dry. The ship plunged into the clouds."
+				},
+				"added": true
+			},
+			{
+				"narr": {
+					"zh": "背包里的东西，散在了风里。",
+					"en": "Everything in the bag scattered into the wind."
+				},
+				"added": true
+			},
+			{
+				"do": "game_over",
+				"id": "flight1_crash",
+				"fade": 2.0,
+				"hold": 3.0
 			}
 		]
 	}
