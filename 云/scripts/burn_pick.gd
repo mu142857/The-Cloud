@@ -117,6 +117,17 @@ func play(r: Node, step: Dictionary) -> String:
 	return str(scenes.get(last, then))
 
 
+## 翻着飘的动法（背包里选中的物品也用这一套，level_forest.gd 的 _bag_float_tick）：
+## at = 飘的中心，k = 放大倍数，t = 时间，amp = 幅度（0 = 停住），pop = 换一件时从下面浮上来（1 → 0）
+static func float_pose(spr: Sprite2D, at: Vector2, k: float, t: float, amp := 1.0, pop := 0.0) -> void:
+	var off := Vector2(10.0 * sin(t * 0.8), 5.0 * sin(t * 2.3) + 2.0 * sin(t * 5.1)) * amp
+	off.y += 10.0 * pop * pop
+	spr.position = (at + off).round()
+	spr.rotation = 0.2 * sin(t * 3.1) * amp
+	spr.scale = Vector2(k * lerpf(1.0, 0.6 + 0.4 * cos(t * 3.7), amp), k)
+	spr.modulate.a = 1.0 - pop
+
+
 ## 再挑一轮前清掉上一轮的界面
 func _reset() -> void:
 	for c in get_children():
@@ -288,12 +299,7 @@ func _process(delta: float) -> void:
 	# 闪回一里那张照片的动法（flashback.gd：PAPER_LEAD ± 18·sin(0.8t)、y 7·sin(2.3t) + 3·sin(5.1t)、rotation、scale.x 翻面）
 	if _mode != "busy":
 		_float_pop = maxf(0.0, _float_pop - delta * 4.0)
-		var off := Vector2(10.0 * sin(_t * 0.8), 5.0 * sin(_t * 2.3) + 2.0 * sin(_t * 5.1)) * _float_k
-		off.y += 10.0 * _float_pop * _float_pop
-		_float.position = (FLOAT_AT + off).round()
-		_float.rotation = 0.2 * sin(_t * 3.1) * _float_k
-		_float.scale = Vector2(FLOAT_SCALE * lerpf(1.0, 0.6 + 0.4 * cos(_t * 3.7), _float_k), FLOAT_SCALE)
-		_float.modulate.a = 1.0 - _float_pop
+		float_pose(_float, FLOAT_AT, FLOAT_SCALE, _t, _float_k, _float_pop)
 	for c in _flash.keys():
 		_flash[c] = float(_flash[c]) - delta
 		if is_instance_valid(c):

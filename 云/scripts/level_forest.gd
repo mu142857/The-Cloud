@@ -84,6 +84,7 @@ const STORY_GD := preload("res://scripts/story_runner.gd")
 const ALIEN_IN_FOREST := false
 const DEV_GD := preload("res://scripts/dev_panel.gd")
 const TEXT_PAGE := preload("res://scripts/text_page.gd")
+const BURN_PICK_GD := preload("res://scripts/burn_pick.gd")   # 背包里物品的飘法用它的 float_pose
 const DESC_C := Color("#b9c9bf")
 const STRUCK_C := Color("#6f877b")
 const KEEPSAKE_C := Color("#dcc39a")         # 背包里纪念品名字的暖色
@@ -144,7 +145,9 @@ const FLASH_TINT_A := 0.09                       # 它最多这么不透明
 const SKY_FLASH_A := 0.22                        # 下落途中（盖着开始界面）那层冷光最多这么不透明：全黑那段要靠它才看得出闪
 const IMPACT_TINT := Color(1.0, 0.72, 0.45)      # 撞地那一下是暖的、很弱
 const BAR_H := 26             # 电影黑边高度
-const BAG_SLOTS := 24         # 背包格子 4 × 6
+const BAG_SLOTS := 12         # 背包格子 4 × 3（11-08 作者：只留前三行）
+const BAG_FLOAT_AT := Vector2(236, 68)    # 背包里选中的物品飘的中心（格子右边那一整块的正中，没有框）
+const BAG_NAME_Y := 118.0     # 11-08 作者：名字 + 描述放在格子下面（格子只有三行，下面正好空着），整个背包那么宽
 const DLG_TIME := 10.0        # 对话框最多停多久
 const DLG_WALK := 56.0        # 晨离开说话的地方这么远，对话框就淡出
 
@@ -262,6 +265,14 @@ var _settings_widgets := {}
 var _bag: Panel
 var _bag_slots: Array[Button] = []
 var _bag_sel := 0
+var _bag_float_pop := 0.0     # 换一件时从下面浮上来（1 → 0）
+# 11-08 作者「物品可以随意的切换位置，只需要长按即可拖动」：在有东西的格子上按住鼠标 BAG_HOLD 秒 → 拿起来跟着鼠标走，
+# 松开在哪一格就和那一格换位置（空格 = 放到最后一件后面，背包里的东西一直从第一格往后排，不留空）
+const BAG_HOLD := 0.3
+var _bag_press := -1          # 按下的是哪一格（-1 = 没按）
+var _bag_press_t := 0.0
+var _bag_drag := -1           # 正拿着哪一格的东西（-1 = 没在拖）
+var _bag_ghost: TextureRect   # 拖着的那个图标
 var _bag_after_story := false             # 拾取背包特写结束后，剧情收尾时自动打开背包
 var _bag_w := {}
 var _panel_prev_focus: Control
@@ -723,9 +734,6 @@ func _build_ui() -> void:
 	_title_root.visible = false
 	root.add_child(_title_root)
 	_title_label = _label("", 42, TITLE_COLOR)
-	_title_label.add_theme_color_override("font_shadow_color", Color(0.05, 0.02, 0.08, 0.35))
-	_title_label.add_theme_constant_override("shadow_offset_x", 0)
-	_title_label.add_theme_constant_override("shadow_offset_y", 3)
 	_title_label.position = Vector2(0, TITLE_Y)
 	_title_root.add_child(_title_label)
 	_title_sub = _label("", 14, SUB_COLOR)
@@ -1193,7 +1201,7 @@ func _build_bag(root: Control) -> void:
 	sep.position = Vector2(8, 23)
 	sep.size = Vector2(336, 1)
 	_bag.add_child(sep)
-	# 左：格子 4 × 6（森林章节一共十几样东西）
+	# 左：格子 4 × 3
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.position = Vector2(10, 30)
@@ -1221,36 +1229,23 @@ func _build_bag(root: Control) -> void:
 		var idx := i
 		b.pressed.connect(func(): _bag_select(idx))
 		b.focus_entered.connect(func(): _bag_select(idx))
+		b.gui_input.connect(func(e: InputEvent): _bag_slot_input(idx, e))
 		grid.add_child(b)
 		_bag_slots.append(b)
-	# 右：选中物品
-	var frame := Panel.new()
-	frame.position = Vector2(130, 30)
-	frame.size = Vector2(212, 50)
-	frame.add_theme_stylebox_override("panel", UITheme.box(Color(0.05, 0.08, 0.07, 0.9), Color(0.22, 0.3, 0.26), 1))
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bag.add_child(frame)
-	var big := TextureRect.new()
-	big.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	big.stretch_mode = TextureRect.STRETCH_SCALE
-	big.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_child(big)
+	# 右：选中物品。11-08 作者：不要框，和选烧什么（burn_pick.gd）一样放大了在空中翻着飘（burn_pick.float_pose）
+	var big := Sprite2D.new()
+	big.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	big.position = BAG_FLOAT_AT
+	_bag.add_child(big)
 	_bag_w["big"] = big
+	# 名字在格子下面，右边同一行是燃烧值（11-08 作者：【纪念品】【任务】「任务物品」这些后缀都不要）
 	var name_l := _label("", 14, UITheme.TEXT)
-	name_l.position = Vector2(130, 84)
+	name_l.position = Vector2(10, BAG_NAME_Y)
 	_bag.add_child(name_l)
 	_bag_w["name"] = name_l
-	var cat := _label("", 14, UITheme.TEXT_DIM)       # 名字旁边的【纪念品】/【任务】
-	cat.position = Vector2(200, 84)
-	_bag.add_child(cat)
-	_bag_w["cat"] = cat
-	var rar := _label("", 14, UITheme.TEXT_DIM)
-	rar.position = Vector2(130, 100)
-	_bag.add_child(rar)
-	_bag_w["rarity"] = rar
 	var burn := _label("", 14, UITheme.WARM)
-	burn.position = Vector2(130, 100)            # 和稀有度同一行、靠右（「私人物品，不能烧」比较长，放名字那行会挤）
-	burn.size = Vector2(212, 16)
+	burn.position = Vector2(10, BAG_NAME_Y)
+	burn.size = Vector2(332, 16)
 	burn.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_bag.add_child(burn)
 	_bag_w["burn"] = burn
@@ -1258,8 +1253,8 @@ func _build_bag(root: Control) -> void:
 	# 右边一上一下两个小三角：上面 / 下面还有字。
 	# 文字页（scripts/text_page.gd）：自己换行、自己画 1 像素的删除线 / 下划线（日记里划掉的、画线的）；按整行滚，框高正好是整数行
 	var desc: Control = TEXT_PAGE.new()
-	desc.position = Vector2(130, 120)
-	desc.size = Vector2(212, _desc_lines() * _desc_line_h() - 2.0)
+	desc.position = Vector2(10, DESC_Y)
+	desc.size = Vector2(332, _desc_lines() * _desc_line_h() - 2.0)
 	desc.mouse_filter = Control.MOUSE_FILTER_STOP
 	desc.gui_input.connect(_on_desc_input)
 	_bag.add_child(desc)
@@ -1276,7 +1271,7 @@ func _build_bag(root: Control) -> void:
 	for i in 2:
 		var m := Control.new()
 		m.size = Vector2(5, 3)
-		m.position = Vector2(344, 121 if i == 0 else 120 + DESC_H - 4)
+		m.position = Vector2(344, DESC_Y + 1.0 if i == 0 else DESC_Y + DESC_H - 4.0)
 		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var up := i == 0
 		m.draw.connect(func():
@@ -1291,12 +1286,11 @@ func _bag_refresh() -> void:
 	_bag_w["title"].text = I18n.t("bag")
 	var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true) or StoryState.fuel_on()
 	_bag_w["total"].text = I18n.t("burn_total") % hud_fuel() if fuel_ok else ""     # 第一关新版没有燃料表（背包标题旁边不写「10 / 200」）
-	# 11-07 作者「最开始打开背包的时候，默认不显示背包的关闭按钮和火焰 icon，从第二次手动打开背包才可以关闭」：
-	# 第一次 = 捡到背包后自动打开、必须先看那张照片的那一次（_first_photo_pending，本来就关不掉）。
-	# 这时右上角的关闭叉和燃烧值（火焰 + 数字）都藏起来；看完照片以后再手动打开就照常显示、能关。
-	var locked_open := _first_photo_pending()
-	_bag_w["close"].visible = not locked_open
-	_bag_w["total_row"].visible = not locked_open
+	# 11-07 作者「最开始打开背包的时候，默认不显示背包的关闭按钮和火焰 icon」：看那张照片之前燃烧值（火焰 + 数字）藏起来。
+	# 11-08 作者「取消第一次打开没有关闭按钮的设定」：捡到背包不再自动打开（改成「按 Tab 打开背包」提示玩家自己开），
+	# 关闭叉一直显示、随时能关。
+	_bag_w["close"].visible = true
+	_bag_w["total_row"].visible = not _first_photo_pending()
 	for i in _bag_slots.size():
 		var b := _bag_slots[i]
 		var ic: TextureRect = b.get_meta("icon")
@@ -1312,24 +1306,19 @@ func _bag_refresh() -> void:
 			box.border_color = Color("#f3d481")
 			box.set_border_width_all(2)
 		b.add_theme_stylebox_override("normal", box)
-	var big: TextureRect = _bag_w["big"]
+	var big: Sprite2D = _bag_w["big"]
 	if _bag_sel < Inventory.owned.size():
 		var it := Inventory.item(Inventory.owned[_bag_sel])
 		var tex: Texture2D = Inventory.icon(Inventory.owned[_bag_sel])
-		var k := maxi(1, mini(int(200 / tex.get_width()), int(42 / tex.get_height())))
-		big.texture = tex
-		big.size = tex.get_size() * k
-		big.position = ((Vector2(212, 50) - big.size) / 2).floor()
+		if big.texture != tex:
+			big.texture = tex
+			# 放大整数倍：最多 4 倍（和选烧什么一样），高不超过 44、宽不超过 80（左右还要晃，别碰到右边的「查看 / 使用」）
+			big.set_meta("k", float(clampi(mini(int(44 / tex.get_height()), int(80 / tex.get_width())), 1, 4)))
+			_bag_float_pop = 1.0
 		# 不用稀有度：名字统一一种颜色，纪念品用柔和的暖色
 		_bag_w["name"].text = story.txt(it.get("name", ""))
 		_bag_w["name"].add_theme_color_override("font_color", KEEPSAKE_C if str(it.get("category", "")) == "keepsake" else UITheme.TEXT)
-		_bag_w["rarity"].text = ""
 		_bag_w["burn"].text = _burn_line(it)
-		var catl: Label = _bag_w["cat"]
-		var c := str(it.get("category", ""))
-		catl.text = I18n.t("cat_keepsake") if c == "keepsake" else (I18n.t("cat_quest") if c == "quest" else "")
-		var nw := UITheme.font().get_string_size(str(_bag_w["name"].text), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
-		catl.position = Vector2(130.0 + nw + 4.0, 84)
 		var desc: Control = _bag_w["desc"]
 		var parts := _item_parts(it)
 		var sig := JSON.stringify(parts)
@@ -1352,9 +1341,7 @@ func _bag_refresh() -> void:
 	else:
 		big.texture = null
 		_bag_w["name"].text = ""
-		_bag_w["rarity"].text = ""
 		_bag_w["burn"].text = ""
-		_bag_w["cat"].text = ""
 		var empty_desc: Control = _bag_w["desc"]
 		empty_desc.set_parts([{"text": I18n.t("bag_empty"), "color": DESC_C}] if Inventory.owned.is_empty() else [])
 		empty_desc.set_meta("sig", "")
@@ -1398,16 +1385,115 @@ func _journal_part(e: Dictionary) -> Dictionary:
 		"marked": e.get("marked", false)}
 
 
-## 详情右边那行：材料 = 燃烧值 +n；纪念品 = 烧掉可得：约 n（只显示，不提供烧的按钮）；任务物品；其他私人物品照旧
+## 详情名字右边：只有能烧的材料写「燃烧值 +n」。
+## 11-08 作者「物品描述当中的后缀，纪念品，任务道具什么的，全部删除」：纪念品「烧掉可得」、「任务物品」、「私人物品，不能烧」都不写了
 func _burn_line(it: Dictionary) -> String:
 	var c := str(it.get("category", ""))
-	if c == "keepsake" and it.has("keepsake_burn"):
-		return I18n.t("keepsake_burn") % int(it["keepsake_burn"])
-	if c == "quest":
-		return I18n.t("quest_item")
-	if it.get("personal", false):
-		return I18n.t("personal")
+	if c in ["keepsake", "quest"] or it.get("personal", false) or int(it.get("burn", 0)) <= 0:
+		return ""
 	return I18n.t("burn_value") % int(it.get("burn", 0))
+
+
+## 格子上的鼠标：按下开始计时，松开时如果正拿着东西就放下（按下的那个按钮一直收得到松开）
+func _bag_slot_input(i: int, e: InputEvent) -> void:
+	if not (e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT):
+		return
+	if e.pressed:
+		_bag_press = i if i < Inventory.owned.size() else -1
+		_bag_press_t = 0.0
+		return
+	_bag_press = -1
+	if _bag_drag >= 0:
+		_bag_drop()
+
+
+## 每帧：按够了就拿起来，拿着的图标跟着鼠标
+func _bag_drag_tick(delta: float) -> void:
+	if not _bag.visible:
+		if _bag_drag >= 0:
+			_bag_drag_end()
+		_bag_press = -1
+		return
+	if _bag_press >= 0 and _bag_drag < 0:
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			_bag_press = -1
+		else:
+			_bag_press_t += delta
+			if _bag_press_t >= BAG_HOLD and _bag_press < Inventory.owned.size():
+				_bag_drag_start(_bag_press)
+	if _bag_drag >= 0:
+		_bag_ghost.position = (_bag.get_local_mouse_position() - _bag_ghost.size / 2.0).round()
+		var over := _bag_slot_at_mouse()
+		for j in _bag_slots.size():
+			_bag_slots[j].modulate = Color(1.35, 1.35, 1.35) if j == over and j != _bag_drag else Color.WHITE
+
+
+func _bag_drag_start(i: int) -> void:
+	_bag_drag = i
+	_bag_select(i)
+	_sfx("ui_click", -12.0, 1.2)
+	if _bag_ghost == null:
+		_bag_ghost = TextureRect.new()
+		_bag_ghost.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		_bag_ghost.size = Vector2(26, 26)
+		_bag_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_bag.add_child(_bag_ghost)
+	_bag_ghost.texture = Inventory.icon(Inventory.owned[i])
+	_bag_ghost.visible = true
+	_bag_ghost.move_to_front()
+	# 原来那一格先空着（图标淡一点），看得出拿起来了
+	(_bag_slots[i].get_meta("icon") as TextureRect).modulate.a = 0.3
+
+
+## 松开：和鼠标下面那一格换（空格 = 挪到最后）；不在格子上 = 放回原处
+func _bag_drop() -> void:
+	var from := _bag_drag
+	var to := _bag_slot_at_mouse()
+	_bag_drag_end()
+	var n := Inventory.owned.size()
+	if to < 0 or to == from or from >= n:
+		return
+	if to >= n:
+		var id := Inventory.owned[from]
+		Inventory.owned.remove_at(from)
+		Inventory.owned.append(id)
+		to = n - 1
+	else:
+		var tmp := Inventory.owned[to]
+		Inventory.owned[to] = Inventory.owned[from]
+		Inventory.owned[from] = tmp
+	_sfx("tick", -10.0, 1.1)
+	_bag_select(to)
+	_bag_slots[to].grab_focus()
+
+
+func _bag_drag_end() -> void:
+	if _bag_drag >= 0 and _bag_drag < _bag_slots.size():
+		(_bag_slots[_bag_drag].get_meta("icon") as TextureRect).modulate.a = 1.0
+	_bag_drag = -1
+	if _bag_ghost != null:
+		_bag_ghost.visible = false
+	for b in _bag_slots:
+		b.modulate = Color.WHITE
+
+
+func _bag_slot_at_mouse() -> int:
+	for j in _bag_slots.size():
+		if _bag_slots[j].get_global_rect().has_point(_bag_slots[j].get_global_mouse_position()):
+			return j
+	return -1
+
+
+## 背包里选中的物品翻着飘（_process 每帧调；背包没开不动）
+func _bag_float_tick(delta: float) -> void:
+	_bag_drag_tick(delta)
+	if not _bag.visible:
+		return
+	var big: Sprite2D = _bag_w["big"]
+	if big.texture == null:
+		return
+	_bag_float_pop = maxf(0.0, _bag_float_pop - delta * 4.0)
+	BURN_PICK_GD.float_pose(big, BAG_FLOAT_AT, float(big.get_meta("k", 1.0)), _t, 1.0, _bag_float_pop)
 
 
 ## 背包「使用」
@@ -1431,7 +1517,8 @@ func _on_use_item() -> void:
 	story.use_item(id)
 
 
-const DESC_H := 88.0
+const DESC_Y := BAG_NAME_Y + 18.0      # 描述从名字下面一行开始
+const DESC_H := 206.0 - DESC_Y         # 一直到背包底（背包 214 高，留 8 像素边）
 
 
 func _desc_line_h() -> float:
@@ -2485,8 +2572,8 @@ func _qte_soft_end() -> void:
 	cam.position = _qte_cam[0]
 	cam.zoom = _qte_cam[1]
 	_qte_cam = []
-	if absf(cam.zoom.x - 1.0) > 0.01:
-		camera_zoom(1.0, QTE_UNZOOM)
+	# 11-08 作者：起身以后先停在放大的画面上出独白（「发生什么事情了……」「我是……谁？」），
+	# 拉回 1 倍交给剧本 c1_crash 的 camera zoom；没有剧本时 _crash_done 自己拉回。
 
 
 func _chen_get_up() -> void:
@@ -2543,6 +2630,8 @@ func _crash_done() -> void:
 	if h != "":
 		story.play(h)             # 剧本的 intro（播的时候锁晨，播完回到自由走）
 	else:
+		if absf(cam.zoom.x - 1.0) > 0.01:
+			camera_zoom(1.0, QTE_UNZOOM)
 		_say("who_chen", "line_crash")
 
 
@@ -2844,7 +2933,7 @@ func _update_dialogue(delta: float) -> void:
 # ======================================================================= 面板
 ## 设置 = 暂停（任何时候都能开，scripts/pause_gate.gd）。晨的输入不用动：暂停时晨收不到，关掉原地接着走
 func _open_settings() -> void:
-	if _settings.visible or (_bag.visible and _first_photo_pending()):
+	if _settings.visible:
 		return
 	_close_panels()
 	_pause_tree(true)
@@ -2950,9 +3039,7 @@ func _first_photo_pending() -> bool:
 		and Inventory.owned.has("elephant_drawing") and story.item_view("elephant_drawing") != ""
 
 
-func _close_panels(viewing_photo := false) -> void:
-	if _bag.visible and _first_photo_pending() and not viewing_photo:
-		return
+func _close_panels(_viewing_photo := false) -> void:
 	var was := _settings.visible or _bag.visible
 	var bag_was := _bag.visible
 	var settings_was := _settings.visible
@@ -3209,6 +3296,7 @@ func _process(delta: float) -> void:
 	_update_dialogue(delta)
 	_update_hints(delta)
 	_update_key_prompt(delta)
+	_bag_float_tick(delta)
 	var cc := cam.get_screen_center_position()
 	story.world.update(delta, cc)
 	_update_room_mask(cc)

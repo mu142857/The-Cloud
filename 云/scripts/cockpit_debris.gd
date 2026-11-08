@@ -62,6 +62,9 @@ extends Control
 ##   撞到：碎石在黑里闪出来（画到黑幕上面）、晃一下、扣燃料（同一套上限），不会输。
 ##   自动玩在黑墙里先「听」DARK_AUTO_WAIT 秒再挪（--dark_wait=秒 改，--no_bell 当铜铃烧了），每 0.5 秒打一行 DARK_AUDIO。
 ##   最后一排（last）过去 = 穿出云层：黑幕慢慢退掉（云开）。自动玩：PLAN_AUTO_DARK（一块 + 一排黑墙），提前量 DARK_LEAD_AUTO。
+## 11-08 作者（「飞船需要进一步缩小，屏幕可以更早的显示障碍物，增加难度」「同时操作左右，维修和上下」「维修不需要任何剧情停顿」）：
+##   FAR_K 0.65 → 0.55、FAR_X 0.73 → 0.8（碎石进画面到撞船头约 1.9 秒）、FAR_SLOW 0.9 → 1.0、PLAN 9 波 → 11 波；
+##   剧本 "leaks"：躲的同时船舱里漏气，←→ 走、按住 E 修、↑↓ 照样躲（见 LEAK_* 上面的说明）。飞行一的漏气不再是躲完以后停下来的剧情段。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：await play(runner, st)。
 
 signal done
@@ -75,13 +78,14 @@ const ROCK_V := 210.0         # 碎石往右飞的速度（像素 / 秒）
 const LANE_IN := 6.0          # 碎石中心在主船身上沿 / 下沿往里多少像素
 const GAP_M := 10.0           # 墙的缝：船挪到 safe 时船身上下各留多少像素
 const GRAZE := 6.0            # 离船身不到这么多像素算擦边
-const FAR_K := 0.65           # 默认拉远到几倍（作者挑：0.75 / 0.65 / 0.55）
+const FAR_K := 0.55           # 默认拉远到几倍（11-08 作者：「飞船需要进一步缩小」→ 最小那档 0.55；原来 0.65）
 const FAR_SHIFT := 40.0       # 远景里船上下最多挪多少像素
 const FAR_TOP := 40.0         # 往上挪满时尾翼尖最高到屏幕 y 多少（上面 0..34 是燃料栏）
 const FAR_MOVE := 100.0       # 远景里按住时目标每秒走多少像素
 const END_WAIT := 0.7         # 穿出去以后，船先回中间（弹簧约 0.6 秒停稳）再拉回剖面
-const FAR_X := 0.73           # 远景船停在屏幕右边：图的中线在屏幕宽度的这个比例（10-31 作者：「正中间提前量有点不够」）
-const FAR_SLOW := 0.9         # 远景里碎石再慢这么多（和挪到右边一起：碎石进画面到撞上船头约 1.6 秒，原来约 0.8 秒）
+const FAR_X := 0.8            # 远景船停在屏幕右边：图的中线在屏幕宽度的这个比例（10-31 作者：「正中间提前量有点不够」；
+                              #   11-08 作者：「屏幕可以更早的显示障碍物，增加难度」→ 0.73 再往右挪到 0.8，左边看得更远）
+const FAR_SLOW := 1.0         # 远景里碎石再慢这么多（11-08：0.9 → 1.0，看得更远了，碎石也快一点、波次更密，难度往上）
 const WARN_OFF := 1.2         # 远景：碎石进画面之前，左边划痕先预告多少秒（和原来船在中间时一样）
 const AIR_C := Color(0.5, 0.78, 0.64)       # 气流线（#7fc7a4 一族，很淡）
 const AIR_EVERY := 0.18       # 气流线：每隔多少秒从屏幕左边出生一道（原来 5 道循环，约这个密度）
@@ -90,16 +94,19 @@ const SCRATCH_C := Color(0.78, 0.9, 0.84)
 const SPARK_C := Color(0.95, 0.9, 0.75)
 ## 波次（t = 秒，按 sec / 40 缩放；safe 见文件头）。lane：-1 上道 / +1 下道；g：缝的位置（× _shift，+ = 往下）。
 ## 排的时候守住：两波要换位置时，上一波过完船尾（远景约 1.3 秒）以后还要留 1 秒让船挪过去 → 换道隔 ≥ 2.8 秒，挪半程隔 ≥ 2.4 秒
+## 11-08 加密（作者：「增加难度」）：原来 9 波，现在 11 波，换道都卡在 2.8 秒；一边躲一边还要走去修漏气（见 LEAK_*）
 const PLAN := [
 	{"t": 2.6, "k": "one", "lane": -1},
-	{"t": 6.4, "k": "one", "lane": 1},
-	{"t": 10.2, "k": "pair", "lane": -1},
-	{"t": 14.6, "k": "gap", "g": 0.0},
-	{"t": 18.6, "k": "one", "lane": -1},
-	{"t": 21.4, "k": "one", "lane": 1},
-	{"t": 24.2, "k": "one", "lane": -1},
-	{"t": 28.0, "k": "gap", "g": -0.5},
-	{"t": 31.8, "k": "final", "g": [0.6, -0.1, -0.8]},
+	{"t": 5.4, "k": "one", "lane": 1},
+	{"t": 8.2, "k": "pair", "lane": -1},
+	{"t": 11.6, "k": "gap", "g": 0.0},
+	{"t": 14.4, "k": "one", "lane": 1},
+	{"t": 17.2, "k": "pair", "lane": -1},
+	{"t": 20.6, "k": "gap", "g": 0.5},
+	{"t": 23.4, "k": "one", "lane": -1},
+	{"t": 26.2, "k": "one", "lane": 1},
+	{"t": 29.0, "k": "gap", "g": -0.5},
+	{"t": 32.6, "k": "final", "g": [0.6, -0.1, -0.8]},
 ]
 const PLAN_REPAIR := [
 	{"t": 3.0, "k": "one", "lane": -1},
@@ -143,8 +150,25 @@ const RUMBLE_PITCH := 0.28    # 轰鸣音高：船每偏一条道（× _shift）
 const HUM_SOFT := -8.0        # 安静航道里引擎声低多少 dB（相对 level.HUM_DB）
 const HUM_TENSE := 3.0        # 偏了一条道以上引擎声高多少 dB
 const DARK_NEAR := 0.3        # 离安全航道不到 0.3 × _shift 算「进了航道」
+## 边躲边修（11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」）：剧本 "leaks": [{"t", "x", "edge"}]
+##   t = 第几秒漏（按 sec / 40 缩放），x = 漏在船舱哪儿（0 = 机头那头 .. 1 = 船尾那头），edge = -1 船顶 / +1 船底。
+##   远景小船上剖开一条舱（_cab_*），里面一个小小的晨（←→ / A D 走）；漏的地方船壳上一闪一闪、往外喷白汽（风往船尾吹），嘶嘶声。
+##   晨走到漏点（LEAK_REACH 像素内）按住 E 约 LEAK_HOLD 秒 = 修好；修的时候晨站着不走，↑↓ 照样躲。
+##   没修的漏点：每个让船上下挪变慢 LEAK_DRAG（最慢 LEAK_MIN），嘶嘶声越来越响——不扣燃料、不会输。
+##   波次排完了还有漏没修：接着来零星的单块（和 repair_at 一样），修完才收尾；超时兜底直接算修好。
+##   只在远景里有（剖面里晨本人就在舱里，交给剧本原来的 hotspot）。
+const LEAK_REACH := 4.0
+const LEAK_HOLD := 0.7
+const LEAK_DRAG := 0.35
+const LEAK_MIN := 0.4
+const WALK := 46.0            # 小晨每秒走多少像素（屏幕）
+const STEAM_C := Color(0.86, 0.9, 0.88)
+const CRACK_C := Color(1.0, 0.62, 0.3)
 const TXT := {
 	"hint": ["↑ ↓  Dodge the debris", "↑ ↓  躲开碎石"],
+	"hint_leak": ["↑ ↓ Dodge    ← → Walk    hold E  Fix leaks", "↑ ↓ 躲碎石    ← → 走动    按住 E 修漏气"],
+	"leak": ["Leak! ← →  walk over, hold E", "漏气了！← → 走过去，按住 E"],
+	"leak_e": ["E", "E"],
 	"dark_hint": ["↑ ↓  Listen for the quiet lane", "↑ ↓  听——找最安静的那条"],
 }
 const BUMP_LINES := [
@@ -220,6 +244,21 @@ var _hum_ctl := false         # 动过驾驶舱引擎声（步骤完还原）
 var _dark_wait := DARK_AUTO_WAIT
 var _dark_log_t := 0.0
 var _bell_n := 0
+# 边躲边修
+var _leak_plan: Array = []    # 还没漏的 {t, x, edge}
+var _leaks: Array = []        # 漏着 / 修好的 {x, y0, edge, prog, fixed, wrenched, age}
+var _leaks_fixed := 0
+var _steam: Array = []        # 白汽 {p, v, age}
+var _cabin: Node2D            # 船舱剖开那一条 + 小晨 + 漏点（画在 UI 层，船上面）
+var _cab_x0 := 0.0
+var _cab_x1 := 0.0
+var _mx := 0.0                # 小晨的 x（屏幕，船没挪时）
+var _m_face := -1.0
+var _m_walk := 0.0            # 走路动画计时（100ms 一帧）
+var _m_fixing := false
+var _hiss: AudioStreamPlayer
+var _leak_tip: Label
+var _extra_lane := -1
 
 
 func play(r: Node, st: Dictionary) -> String:
@@ -295,6 +334,15 @@ func play(r: Node, st: Dictionary) -> String:
 				e["k"] = "pair"
 			e["t"] = float(e["t"]) * sc
 			_plan.append(e)
+	# 边躲边修：只在远景里（自动玩：第一波一出就漏一处，近一点）
+	if _far and st.get("leaks") is Array:
+		var sc2 := clampf(sec / 40.0, 0.75, 1.5)
+		for l in (st["leaks"] as Array):
+			var e: Dictionary = (l as Dictionary).duplicate()
+			e["t"] = (1.3 + 0.6 * float(_leak_plan.size())) if _auto and not real else float(e.get("t", 5.0)) * sc2
+			_leak_plan.append(e)
+			if _auto and not real:
+				break
 	_build()
 	if _repair_at != "":
 		runner.chen.input_enabled = not _auto
@@ -318,6 +366,11 @@ func play(r: Node, st: Dictionary) -> String:
 				lp.queue_free()                       # 没在放的直接删
 	if is_instance_valid(_dark):
 		_dark.queue_free()
+	if is_instance_valid(_hiss):
+		(load("res://scripts/audio_fade.gd") as GDScript).release(_hiss, 0.6)
+	if not _leaks.is_empty():
+		StoryState.set_prop(key.trim_suffix("_bumps") + "_leaks", str(_leaks_fixed))
+		print("COCKPIT leaks %s: fixed=%d/%d" % [str(st.get("id", "")), _leaks_fixed, _leaks.size()])
 	var lead := 0.0
 	for v in _lead:
 		lead += float(v) / float(_lead.size())
@@ -351,6 +404,8 @@ func _build() -> void:
 	create_tween().tween_property(_hint, "modulate:a", 0.85, 0.6)
 	_play("flight_rumble", -14.0)
 	_air = _loop("airflow_loop", -60.0)
+	if not _leak_plan.is_empty():
+		_build_cabin()
 	if _repair_at != "":
 		_hint.text = I18n.pick({"zh": "← → 在舱内移动     ↑ ↓ 驾驶飞船", "en": "← → Walk in the cabin     ↑ ↓ Steer the ship"})
 
@@ -390,6 +445,238 @@ func _repair() -> void:
 	_play("wrench", -8.0)
 
 
+# ======================================================================= 边躲边修（见 LEAK_* 上面的说明）
+func _build_cabin() -> void:
+	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
+	var x0 := float(int(_hull.get("x0", 80)))
+	var first := -1
+	var last := -1
+	for i in tops.size():
+		if tops[i] >= 0:
+			if first < 0:
+				first = i
+			last = i
+	var w := float(last - first)
+	_cab_x0 = roundf(x0 + float(first) + w * 0.2)
+	_cab_x1 = roundf(x0 + float(first) + w * 0.8)
+	_mx = roundf(lerpf(_cab_x0, _cab_x1, 0.15))      # 晨从驾驶座（机头那头）出发
+	_cabin = Node2D.new()
+	_cabin.name = "LeakCabin"
+	_cabin.draw.connect(_draw_cabin)
+	add_child(_cabin)
+	_leak_tip = Label.new()
+	_leak_tip.text = _tx("leak_e")
+	_leak_tip.add_theme_font_size_override("font_size", 10)
+	_leak_tip.add_theme_color_override("font_color", Color("#ddc08a"))
+	_leak_tip.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.9))
+	_leak_tip.add_theme_constant_override("shadow_offset_y", 1)
+	_leak_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_leak_tip.hide()
+	add_child(_leak_tip)
+	_hint.text = _tx("hint_leak")
+	_hiss = _loop("hiss_thin", -60.0)
+
+
+## 船舱地板（屏幕 y，船没挪时）：那一列船身下沿往上一点
+func _floor_y(x: float) -> float:
+	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
+	var bots: PackedInt32Array = _hull.get("bot", PackedInt32Array())
+	var i := clampi(int(x) - int(_hull.get("x0", 80)), 0, bots.size() - 1)
+	var h := float(bots[i] - tops[i])
+	return float(bots[i]) - maxf(4.0, roundf(h * 0.18))
+
+
+## 没修的漏点让船挪得慢
+func _leak_drag() -> float:
+	var n := 0
+	for l in _leaks:
+		if not l["fixed"]:
+			n += 1
+	return maxf(LEAK_MIN, 1.0 - LEAK_DRAG * float(n))
+
+
+func _leak_step(delta: float) -> void:
+	if not is_instance_valid(_cabin):
+		return
+	# 新漏点
+	var i := 0
+	while i < _leak_plan.size():
+		var e: Dictionary = _leak_plan[i]
+		if _t >= float(e["t"]):
+			_leak_plan.remove_at(i)
+			_leak_open(e)
+		else:
+			i += 1
+	# 小晨：←→ / A D 走；在漏点上按住 E 修（修的时候不走）
+	var target: Dictionary = {}
+	for l in _leaks:
+		if not l["fixed"] and absf(float(l["x"]) - _mx) <= LEAK_REACH:
+			target = l
+			break
+	var want_fix := false
+	var wd := 0.0
+	if _auto:
+		var goal := _mx
+		for l in _leaks:
+			if not l["fixed"]:
+				goal = float(l["x"])
+				break
+		want_fix = not target.is_empty()
+		if not want_fix and absf(goal - _mx) > 0.5:
+			wd = signf(goal - _mx)
+	else:
+		want_fix = Input.is_key_pressed(KEY_E) and not target.is_empty()
+		wd = Input.get_axis("ui_left", "ui_right")
+		if Input.is_key_pressed(KEY_A):
+			wd -= 1.0
+		if Input.is_key_pressed(KEY_D):
+			wd += 1.0
+		wd = clampf(wd, -1.0, 1.0)
+	_m_fixing = want_fix
+	if want_fix:
+		if not target["wrenched"]:
+			target["wrenched"] = true
+			_play("wrench", -10.0, 1.0, _pan(float(target["x"])))
+		target["prog"] = float(target["prog"]) + delta / LEAK_HOLD
+		_m_face = signf(float(target["x"]) - _mx) if absf(float(target["x"]) - _mx) > 0.5 else _m_face
+		_m_walk += delta
+		if float(target["prog"]) >= 1.0:
+			_leak_fix(target)
+	else:
+		for l in _leaks:                              # 松手：进度慢慢退（别一松就清零）
+			if not l["fixed"]:
+				l["prog"] = maxf(0.0, float(l["prog"]) - delta * 0.5)
+		if wd != 0.0:
+			_mx = clampf(_mx + wd * WALK * delta, _cab_x0, _cab_x1)
+			_m_face = signf(wd)
+			_m_walk += delta
+			_hint_out_after_leak()
+		else:
+			_m_walk = 0.0
+	# 白汽：每个漏点往外喷（风往船尾吹）
+	var open := 0
+	for l in _leaks:
+		l["age"] = float(l["age"]) + delta
+		if l["fixed"]:
+			continue
+		open += 1
+		if _rng.randf() < delta * 26.0:
+			var e := float(l["edge"])
+			_steam.append({"p": Vector2(float(l["x"]), float(l["y0"])), "v": Vector2(_rng.randf_range(25.0, 70.0), e * _rng.randf_range(8.0, 26.0)),
+				"age": 0.0})
+	for j in range(_steam.size() - 1, -1, -1):
+		var s: Dictionary = _steam[j]
+		s["age"] = float(s["age"]) + delta
+		s["p"] = (s["p"] as Vector2) + (s["v"] as Vector2) * delta
+		if float(s["age"]) > 0.6:
+			_steam.remove_at(j)
+	if is_instance_valid(_hiss):
+		var want := -60.0 if open == 0 or _ending else -20.0 + 4.0 * float(open - 1)
+		_hiss.volume_db = move_toward(_hiss.volume_db, want, 40.0 * delta)
+	# 「E」提示：站在漏点上才出
+	var sy := float(cockpit.ship_y())
+	var show_tip: bool = not target.is_empty() and not _ending and float(cockpit.far_u()) >= 1.0
+	_leak_tip.visible = show_tip
+	if show_tip:
+		_leak_tip.position = Vector2(roundf(float(target["x"]) - 3.0), roundf(_floor_y(_mx) + sy - 22.0))
+		_leak_tip.modulate.a = 1.0 if int(_t * 4.0) % 2 == 0 or _m_fixing else 0.55
+	_cabin.queue_redraw()
+
+
+func _leak_open(e: Dictionary) -> void:
+	var x := roundf(lerpf(_cab_x0, _cab_x1, clampf(float(e.get("x", 0.7)), 0.0, 1.0)))
+	var edge := -1.0 if int(e.get("edge", -1)) < 0 else 1.0
+	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
+	var bots: PackedInt32Array = _hull.get("bot", PackedInt32Array())
+	var ci := clampi(int(x) - int(_hull.get("x0", 80)), 0, tops.size() - 1)
+	var y0 := float(tops[ci]) if edge < 0.0 else float(bots[ci])
+	_leaks.append({"x": x, "y0": y0, "edge": edge, "prog": 0.0, "fixed": false, "wrenched": false, "age": 0.0})
+	_play("hiss_thin", -8.0, 1.1, _pan(x))
+	_play("debris_bump", -14.0, 1.3, _pan(x))
+	level._shake = 0.2
+	level._shake_amp = 1.0
+	if _leaks.size() == 1 and not _auto:            # 第一次漏：提示亮一下（4 秒后淡掉）
+		_hint.text = _tx("leak")
+		_hint.set_meta("out", false)
+		_hint.set_meta("timed", true)
+		var th := create_tween()
+		th.tween_property(_hint, "modulate:a", 0.9, 0.3)
+		th.tween_interval(4.0)
+		th.tween_callback(_hint_out)
+
+
+func _leak_fix(l: Dictionary) -> void:
+	l["fixed"] = true
+	l["prog"] = 1.0
+	l["age"] = 0.0
+	_leaks_fixed += 1
+	_play("wrench", -8.0, 1.15, _pan(float(l["x"])))
+	var g: Node2D = cockpit.far_glow if _far and cockpit.far_glow != null else cockpit.glow
+	if g != null:
+		g.strength = 0.6
+	if _auto:
+		print("LEAK fixed t=%.2f x=%d (%d/%d)" % [_t, int(l["x"]), _leaks_fixed, _leaks.size()])
+
+
+func _hint_out_after_leak() -> void:
+	if not _leaks.is_empty() and _t > 0.6:
+		_hint_out()
+
+
+## 舱剖开的一条（暗的、上下一像素亮边）+ 漏点（船壳上一闪一闪的橙点 + 白汽）+ 小晨（7 像素高，走路两帧 100ms）+ 修的进度
+func _draw_cabin() -> void:
+	if _ending or cockpit.far_u() < 1.0:
+		return
+	var sy := float(cockpit.ship_y())
+	var fy0 := _floor_y(_cab_x0)
+	var band := Rect2(_cab_x0 - 3.0, fy0 + sy - 10.0, _cab_x1 - _cab_x0 + 6.0, 11.0)
+	_cabin.draw_rect(band, Color(0.03, 0.06, 0.06, 0.62))
+	_cabin.draw_rect(Rect2(band.position, Vector2(band.size.x, 1)), Color(0.55, 0.7, 0.64, 0.35))
+	_cabin.draw_rect(Rect2(band.position + Vector2(0, band.size.y - 1.0), Vector2(band.size.x, 1)), Color(0.55, 0.7, 0.64, 0.5))
+	for l in _leaks:
+		var x := float(l["x"])
+		var y := float(l["y0"]) + sy
+		if l["fixed"]:
+			if float(l["age"]) < 0.6:                 # 修好那一下：一圈淡绿闪掉
+				_cabin.draw_rect(Rect2(x - 2, y - 1, 5, 3), Color(AIR_C, 0.8 * (1.0 - float(l["age"]) / 0.6)))
+			continue
+		var on := int(_t * 5.0) % 2 == 0
+		_cabin.draw_rect(Rect2(x - 1, y - (1.0 if float(l["edge"]) < 0.0 else 0.0), 2, 2), Color(CRACK_C, 1.0 if on else 0.55))
+		# 舱里对应的位置：地板上一个小标（晨要走到这儿）
+		_cabin.draw_rect(Rect2(x - 1, _floor_y(x) + sy, 3, 1), Color(CRACK_C, 0.9 if on else 0.4))
+	for s in _steam:
+		var k := 1.0 - float(s["age"]) / 0.6
+		var p := (s["p"] as Vector2) + Vector2(0.0, sy)
+		var sz := 1.0 if float(s["age"]) < 0.25 else 2.0
+		_cabin.draw_rect(Rect2(p.round(), Vector2(sz, sz)), Color(STEAM_C, floorf(k * 4.0) / 4.0 * 0.7))
+	# 小晨（脚在地板上）
+	var fx := roundf(_mx)
+	var fy := _floor_y(_mx) + sy
+	var fr := int(_m_walk / 0.1) % 2
+	var coat := Color(0.86, 0.6, 0.38)
+	var skin := Color(0.95, 0.84, 0.7)
+	var hair := Color(0.22, 0.17, 0.15)
+	if _m_fixing:
+		_cabin.draw_rect(Rect2(fx - 1, fy - 3, 3, 3), coat)                       # 蹲着修
+		_cabin.draw_rect(Rect2(fx - 1, fy - 5, 2, 2), skin)
+		_cabin.draw_rect(Rect2(fx - 1 - (0.0 if _m_face > 0.0 else -1.0), fy - 6, 2, 1), hair)
+		_cabin.draw_rect(Rect2(fx + (2.0 if _m_face > 0.0 else -2.0), fy - 3 - float(fr), 1, 1), Color(0.75, 0.78, 0.8))   # 扳手一上一下
+	else:
+		_cabin.draw_rect(Rect2(fx - 1, fy - 2, 1, 2) if fr == 0 else Rect2(fx - 1, fy - 1, 1, 1), hair)   # 腿
+		_cabin.draw_rect(Rect2(fx + 1, fy - 2, 1, 2) if fr == 1 else Rect2(fx + 1, fy - 1, 1, 1), hair)
+		_cabin.draw_rect(Rect2(fx - 1, fy - 5, 3, 3), coat)
+		_cabin.draw_rect(Rect2(fx - 1, fy - 7, 2, 2) if _m_face < 0.0 else Rect2(fx, fy - 7, 2, 2), skin)
+		_cabin.draw_rect(Rect2(fx - 1 if _m_face > 0.0 else fx + 1, fy - 8, 2 if _m_face > 0.0 else 1, 1), hair)
+		_cabin.draw_rect(Rect2(fx + (1.0 if _m_face < 0.0 else -1.0), fy - 7, 1, 2), hair)
+	# 修的进度：头顶一道
+	for l in _leaks:
+		if not l["fixed"] and float(l["prog"]) > 0.0:
+			var px := float(l["x"]) - 4.0
+			var py := fy - 12.0
+			_cabin.draw_rect(Rect2(px, py, 9, 3), Color(0.03, 0.06, 0.06, 0.85))
+			_cabin.draw_rect(Rect2(px + 1, py + 1, roundf(7.0 * float(l["prog"])), 1), Color("#ddc08a"))
+
+
 static func _tx(k: String) -> String:
 	var row: Array = TXT[k]
 	return row[1] if I18n.is_zh() else row[0]
@@ -427,17 +714,18 @@ func _process(delta: float) -> void:
 	# 按住：目标位置 ship_goal 匀速走（最多 ±_shift），船本身用弹簧追它（cockpit_room._ship_step：缓起缓停、1 像素回弹）
 	if dir != 0.0:
 		_idle = 0.0
-		var step := _move * delta
+		var step := _move * delta * _leak_drag()
 		if _auto:
 			step = minf(step, absf(_auto_goal() - cockpit.ship_goal))
 		cockpit.ship_goal = clampf(cockpit.ship_goal + dir * step, -_shift, _shift)
-		if _t > 0.6:
+		if _t > 0.6 and not is_instance_valid(_cabin):  # 边躲边修的提示长一点（三样键都要看到），到 7 秒再淡
 			_hint_out()
 	else:
 		_idle += delta
 		if _idle > 1.5 and not _auto:
 			cockpit.ship_goal = move_toward(cockpit.ship_goal, 0.0, BACK * delta)
-	if _t > 7.0:
+	if _t > 7.0 and not _hint.has_meta("timed"):      # 只淡一次（原来每帧都调，后面重新亮起来的提示会被马上掐掉）
+		_hint.set_meta("timed", true)
 		_hint_out()
 	# ---- 波次
 	while not _plan.is_empty() and _t >= float(_plan[0]["t"]):
@@ -448,6 +736,16 @@ func _process(delta: float) -> void:
 		if not _wave_clear(w):
 			busy = true
 	_fx.queue_redraw()
+	_leak_step(delta)
+	var leaks_left := not _leak_plan.is_empty() or _leaks_fixed < _leaks.size()
+	if leaks_left and _t <= sec * 1.5 + 10.0:
+		# 波次排完了还有漏没修：漏点立刻都出来，接着零星来单块（上下轮着），修完才收尾
+		if _plan.is_empty() and not busy:
+			for l in _leak_plan:
+				l["t"] = _t
+			_extra_lane *= -1
+			_plan.append({"t": _t + 1.4, "k": "one", "lane": _extra_lane})
+		return
 	if _repair_at != "" and not _repair_done:
 		if _plan.is_empty() and not busy:
 			for w in _waves:
@@ -1025,6 +1323,11 @@ func _finish() -> void:
 	if _air_qa:
 		print("QA_AIR 气流线 出生 %d 道 异常 %d" % [_air_n, _air_qa_bad])
 	_hint_out()
+	for l in _leaks:                                 # 超时兜底：还漏着的算修好（不会输）
+		if not l["fixed"]:
+			l["fixed"] = true
+			_leaks_fixed += 1
+	_leak_plan.clear()
 	if not _far:
 		_done()
 		return

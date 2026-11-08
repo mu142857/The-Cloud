@@ -4,16 +4,20 @@ extends RefCounted
 ## 怎么玩（没有计时、不会输）：
 ##   兔子面对晨站在林子里。每一轮兔子跳一串动作，每跳一下，它头顶就冒出一个像素箭头（← ↑ → ↓）。
 ##   跳完箭头变淡，轮到玩家用方向键 / WASD 照着按，按对一个亮一个，晨跟着动一下（不画新帧：只在待机帧上
-##   程序弹一下 / 压一下 / 歪一下，每个键手感不一样）。三轮，3、4、5 步。
-##   按错不罚：兔子耸耸肩，这一轮再跳一遍。一共错三次，剩下的兔子和晨一起慢慢跳完（自动过）。
+##   程序弹一下 / 压一下 / 歪一下，每个键手感不一样）。四轮，3、4、5、6 步。
+##   箭头一轮比一轮少（11-08 作者）：第一轮一直有；第二轮兔子跳到一半起箭头渐渐淡没；第三、四轮完全没有，
+##   要看兔子的动作记。没给的箭头玩家按对时才冒出来。同一轮同一步错超过两次，这一轮箭头重新给（辅助）。
+##   按错不罚：兔子耸耸肩，这一轮再跳一遍。一共错三次，剩下的兔子和晨一起慢慢跳完（自动过）；
+##   剧本写了 "retry": true 就不会自动过，一直重来（森林里两处都是这样）。
 ##   跳完兔子鞠躬认输，小游戏返回；给永燃之木、兔子皮毛由剧本（ch1-story）接着做。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "rabbit_dance", "at": 兔子站的 marker, "chen_at"?: 晨站的 marker,
 ##   "who"?: "rabbit", "sets"?: [跳完设的 flag], "seqs"?: [["up", "left", "right"], …], "max_miss"?: 3,
-##   "lines"?: {start, round_1, round_2, round_3, wrong, auto, win}}
+##   "retry"?: false, "hide"?: ["show", "fade", "hidden", "hidden"],
+##   "lines"?: {start, round_1, round_2, round_3, round_4, wrong, auto, win}}
 ##   at 没写：兔子在哪就在哪（没显示过就站到晨面前 64 像素）。chen_at 没写：离得太近 / 太远时晨走到兔子面前 64 像素。
 ##   lines 每一项是一串剧本步骤（say / anim / sfx……），都可以不写；wrong 只在第一次按错时播。
-## 进度（story.mech_load）：{round, k, miss, gave_up, done}：读档回来从那一轮接着跳。
+## 进度（story.mech_load）：{round, k, miss, gave_up, done, fails: {"轮:步": 错几次}}：读档回来从那一轮接着跳。
 ## 兔子的图：art/characters/rabbit/（tools/rabbit_art.py 生成的占位，等作者的美术来换），动作 idle / dance_left / dance_up /
 ##   dance_right / dance_down / shrug / bow，画的是朝右；朝左站时 ← → 两段互换，跳的方向永远和屏幕上的箭头一致。
 
@@ -21,8 +25,15 @@ const OL := preload("res://scripts/overlay_layout.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
 const ID := "rabbit_dance"
 const DIRS := ["left", "up", "right", "down"]
-const SEQS := [["up", "left", "right"], ["left", "down", "up", "right"], ["right", "up", "down", "left", "up"]]
+const SEQS := [["up", "left", "right"], ["left", "down", "up", "right"], ["right", "up", "down", "left", "up"],
+		["down", "right", "up", "left", "down", "up"]]
 const MAX_MISS := 3
+## 每一轮箭头怎么给（11-08 作者）：第一轮 show 一直有箭头；第二轮 fade 兔子跳到一半以后箭头渐渐淡没；
+## 第三、四轮 hidden 完全不给，看兔子自己记。没给出的箭头在玩家按对的时候才冒出来（亮）。
+## 剧本可以用 "hide": ["show", "fade", "hidden", …] 一轮一轮指定；没写的轮按下面这个默认。
+const MODES := ["show", "fade", "hidden"]
+## 辅助（11-08 作者）：同一轮的同一步按错超过 ASSIST_AFTER 次，这一轮剩下的示范和跟跳都把箭头重新给出来
+const ASSIST_AFTER := 2
 const STEP_SEC := 0.75                  # 兔子每一步：动作 0.6 秒（6 帧 × 100ms）+ 停一下
 const ARROWS := "res://art/characters/rabbit/arrows.png"
 const AW := 13                          # 箭头一格
@@ -50,11 +61,32 @@ static func max_miss(step: Dictionary) -> int:
 
 
 static func fresh() -> Dictionary:
-	return {"round": 0, "k": 0, "miss": 0, "gave_up": false, "done": false}
+	return {"round": 0, "k": 0, "miss": 0, "gave_up": false, "done": false, "fails": {}}
 
 
+## done 也算跳完：11-08 以前的存档只有三轮，跳完存的 round = 3，现在默认四轮，不能让它回来再跳第四轮
 static func finished(step: Dictionary, s: Dictionary) -> bool:
-	return int(s["round"]) >= seqs(step).size()
+	return bool(s.get("done", false)) or int(s["round"]) >= seqs(step).size()
+
+
+## 第 i 轮（从 0 数）箭头怎么给：show / fade / hidden
+static func round_mode(step: Dictionary, i: int) -> String:
+	var h = step.get("hide")
+	if h is Array and i < (h as Array).size() and str(h[i]) in MODES:
+		return str(h[i])
+	return str(MODES[mini(i, MODES.size() - 1)])
+
+
+## 这一轮有没有哪一步错了超过 ASSIST_AFTER 次（是 → 箭头重新给出来）
+static func assisted(s: Dictionary) -> bool:
+	var f = s.get("fails", {})
+	if not f is Dictionary:
+		return false
+	var pre := "%d:" % int(s["round"])
+	for key in f:
+		if str(key).begins_with(pre) and int(f[key]) > ASSIST_AFTER:
+			return true
+	return false
 
 
 ## 玩家按了一个方向。返回 {kind, k}：ok（按对，接着按）/ round（这一轮按完）/ done（全部按完）/
@@ -72,6 +104,10 @@ static func act(step: Dictionary, s: Dictionary, dir: String) -> Dictionary:
 		s["k"] = 0
 		return {"kind": "done" if finished(step, s) else "round", "k": k}
 	s["miss"] = int(s["miss"]) + 1
+	if not s.get("fails") is Dictionary:
+		s["fails"] = {}
+	var key := "%d:%d" % [int(s["round"]), k]               # 第几轮第几步错的（字符串键：存档走 JSON）
+	s["fails"][key] = int(s["fails"].get(key, 0)) + 1
 	s["k"] = 0
 	if not step.get("retry", false) and int(s["miss"]) >= max_miss(step):
 		s["gave_up"] = true
@@ -206,7 +242,10 @@ func press(d: String) -> void:
 func _play_round(seq: Array) -> void:
 	var r0 := int(s["round"])
 	while not story.ended and int(s["round"]) == r0 and not s["gave_up"]:
-		await _demo(seq)
+		var mode := "show" if assisted(s) else round_mode(step, r0)
+		if mode != round_mode(step, r0):
+			print("RABBIT_ASSIST round=%d fails=%s" % [r0 + 1, str(s.get("fails", {}))])
+		await _demo(seq, mode)
 		var kind: String = await _turn(seq)
 		if kind in ["wrong", "give_up"]:
 			_clear_row(0.35)
@@ -218,14 +257,20 @@ func _play_round(seq: Array) -> void:
 		await _round_clear()
 
 
-## 兔子跳一串：每跳一下头顶冒一个箭头（亮），跳完这一下变回平常
-func _demo(seq: Array) -> void:
+## 兔子跳一串：每跳一下头顶冒一个箭头（亮），跳完这一下变回平常。
+## mode：show 箭头都给；fade 跳到一半（第 ceil(n/2) 下）起已有的箭头渐渐淡没、后面的不再给；hidden 一个都不给。
+## 不给的箭头也占着位置（透明），玩家按对时 _reveal 冒出来。
+func _demo(seq: Array, mode := "show") -> void:
 	_clear_row(0.0)
 	await _wait(0.4)
+	var half := ceili(seq.size() / 2.0)
 	for k in seq.size():
 		var d := str(seq[k])
 		_rabbit_move(d)
-		_add_arrow(seq.size(), k, d, ROW_LIT)
+		var vis := mode == "show" or (mode == "fade" and k < half)
+		if mode == "fade" and k == half:
+			_fade_row(STEP_SEC * 1.4)
+		_add_arrow(seq.size(), k, d, ROW_LIT, vis)
 		_tap(d, -6.0)
 		await _wait(STEP_SEC - 0.15)
 		_set_row(k, ROW_ON)
@@ -247,6 +292,7 @@ func _turn(seq: Array) -> String:
 			_tap(d, -10.0, 0.75, SFX_MISS)
 			return kind
 		_set_row(int(res["k"]), ROW_LIT, true)
+		_reveal(int(res["k"]))
 		_chen_move(d)
 		_tap(d, -4.0)
 		if kind != "ok":
@@ -443,7 +489,7 @@ func _reset_chen() -> void:
 
 
 # ----------------------------------------------------------------------- 箭头（兔子头顶一排）
-func _add_arrow(n: int, k: int, d: String, row: int) -> void:
+func _add_arrow(n: int, k: int, d: String, row: int, vis := true) -> void:
 	if _row == null:
 		return
 	var a := Sprite2D.new()
@@ -461,6 +507,10 @@ func _add_arrow(n: int, k: int, d: String, row: int) -> void:
 	a.modulate.a = 0.0
 	_row.add_child(a)
 	_arrows.append(a)
+	if not vis:                                      # 不给的箭头：透明占位，按对时 _reveal
+		a.position = home
+		a.set_meta("hidden", true)
+		return
 	# 冒出来：4 档淡入 + 往上浮 3 像素停住（缓停）
 	var tw := a.create_tween().set_parallel(true)
 	tw.tween_method(func(v: float): a.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.2)
@@ -479,6 +529,36 @@ func _set_row(k: int, row: int, bounce := false) -> void:
 		tw.tween_method(func(v: float): a.position.y = -round(8.0 * v * (1.0 - v)), 0.0, 1.0, 0.24)
 
 
+## 没给出的箭头（_demo 里透明占位的）按对时冒出来：4 档淡入，跟 _add_arrow 一样
+func _reveal(k: int) -> void:
+	if k < 0 or k >= _arrows.size():
+		return
+	var a: Sprite2D = _arrows[k]
+	if not a.has_meta("hidden"):
+		return
+	a.remove_meta("hidden")
+	if a.has_meta("tw"):                             # 自动玩时等待缩短，淡没可能还没走完
+		var old: Tween = a.get_meta("tw")
+		if old != null and old.is_valid():
+			old.kill()
+		a.remove_meta("tw")
+	var tw := a.create_tween()
+	tw.tween_method(func(v: float): a.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.16)
+
+
+## fade 轮：已经给出的箭头一起 4 档淡没（不删，留着位置，按对时再冒出来）
+func _fade_row(sec: float) -> void:
+	for a in _arrows:
+		var sp: Sprite2D = a
+		if sp.has_meta("hidden"):
+			continue
+		sp.set_meta("hidden", true)
+		var tw := sp.create_tween()
+		tw.tween_interval(0.25)                      # 等最近冒出来的那个淡入停稳
+		tw.tween_method(func(v: float): sp.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, sec)
+		sp.set_meta("tw", tw)
+
+
 func _clear_row(sec: float) -> void:
 	var old := _arrows
 	_arrows = []
@@ -487,8 +567,9 @@ func _clear_row(sec: float) -> void:
 		if sec <= 0.0:
 			sp.queue_free()
 			continue
+		var a0 := sp.modulate.a                      # 没冒出来的那几个本来就是透明的，别淡出时闪一下
 		var tw := sp.create_tween()
-		tw.tween_method(func(v: float): sp.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, sec)
+		tw.tween_method(func(v: float): sp.modulate.a = a0 * ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, sec)
 		tw.tween_callback(sp.queue_free)
 
 
@@ -572,6 +653,13 @@ func check(story: Node, st: Dictionary) -> Array:
 			for d in rs[i]:
 				if not str(d) in DIRS:
 					out.append("seqs[%d] 里的 %s 不是 left / up / right / down" % [i, d])
+	if st.has("hide"):
+		if not st["hide"] is Array:
+			out.append("hide 要是一串 show / fade / hidden")
+		else:
+			for h in st["hide"]:
+				if not str(h) in MODES:
+					out.append("hide 里的 %s 不是 show / fade / hidden" % h)
 	for m in ["at", "chen_at"]:
 		if st.has(m) and st[m] is String and not story.world.has_marker(str(st[m])):
 			out.append("%s 的 marker %s 找不到" % [m, st[m]])

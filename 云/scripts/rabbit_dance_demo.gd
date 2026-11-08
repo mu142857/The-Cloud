@@ -75,7 +75,7 @@ func _draw() -> void:
 
 func _start() -> void:
 	dance = DANCE.new()
-	await dance.run(self, self, story, {})
+	await dance.run(self, self, story, {"retry": true})     # 11-08：不再错三次自动过，好试「同一步错超过两次箭头重新给」
 	complete = true
 	story.chen.input_enabled = false
 
@@ -85,7 +85,8 @@ func _process(_delta: float) -> void:
 	var phase := story.txt({"zh": "轮到你模仿", "en": "Your turn"}) if dance.listening else story.txt({"zh": "看兔子示范", "en": "Watch the rabbit"})
 	if complete:
 		phase = story.txt({"zh": "完成！按 R 再玩一次", "en": "Complete! Press R to play again"})
-	status.text = "%d / 3   %s" % [mini(int(dance.s["round"]) + 1, 3), phase]
+	var n: int = DANCE.SEQS.size()
+	status.text = "%d / %d   %s" % [mini(int(dance.s["round"]) + 1, n), n, phase]
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:

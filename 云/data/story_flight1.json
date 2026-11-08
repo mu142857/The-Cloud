@@ -423,11 +423,42 @@
 				"id": "flight1_debris",
 				"sec": 40,
 				"fuel_per_bump": 1,
-				"fuel_max_loss": 5
+				"fuel_max_loss": 5,
+				"leaks": [
+					{"t": 6.0, "x": 0.85, "edge": -1},
+					{"t": 15.5, "x": 0.3, "edge": 1},
+					{"t": 24.0, "x": 0.6, "edge": -1}
+				],
+				"_note": "11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」——漏气改成躲碎石途中边躲边修（cockpit_debris.gd 的 leaks），修完直接接 flight1_leak_done，不再停下来找漏点"
 			},
 			{
 				"do": "goto",
-				"scene": "flight1_leak"
+				"scene": "flight1_leak_done"
+			}
+		],
+		"flight1_leak_done": [
+			{
+				"do": "flag",
+				"set": "flight1_leak"
+			},
+			{
+				"do": "prop",
+				"id": "cockpit_leak",
+				"state": "fixed"
+			},
+			{
+				"do": "flag",
+				"set": "flight1_leak_fixed"
+			},
+			{
+				"do": "journal",
+				"zh": "右侧接口：松开螺丝，重新对准，漏气停了。",
+				"en": "Right-side joint: loosened the screws, lined it back up, leak stopped.",
+				"added": true
+			},
+			{
+				"do": "goto",
+				"scene": "flight1_seat"
 			}
 		],
 		"flight1_leak": [

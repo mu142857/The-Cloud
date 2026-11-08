@@ -24,8 +24,8 @@ const BOX := {
 	"objective": {"w": 400.0, "wrap": false},               # 左上角 x 8 起，右上角背包按钮 459 起，中间还有燃料表
 	"side_objective": {"w": 447.0, "wrap": false},          # 「（可选）」那一行（同时开着的全部连起来）
 	"item_name": {"w": 160.0, "wrap": false},               # 背包详情名字（x 130，旁边还有【纪念品】/【任务】）
-	"item_desc": {"w": 212.0, "wrap": true, "lines": 12},   # 背包描述框 212 宽（能滚，太长也难读）
-	"journal": {"w": 200.0, "wrap": true, "lines": 6},      # 日记一条（描述框 212 减去「· 」）
+	"item_desc": {"w": 332.0, "wrap": true, "lines": 12},   # 背包描述框 332 宽（11-08 挪到格子下面）（能滚，太长也难读）
+	"journal": {"w": 320.0, "wrap": true, "lines": 6},      # 日记一条（描述框 332 减去「· 」）
 	"flashback": {"w": 460.0, "wrap": false},               # flashback.gd：一句一行居中，不换行
 	"credits": {"w": 440.0, "wrap": false},
 }

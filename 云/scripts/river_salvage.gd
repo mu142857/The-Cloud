@@ -1206,7 +1206,7 @@ func _murmur(st: Dictionary) -> void:
 	if sp is Dictionary:
 		nm = I18n.pick(sp)
 	var col: Color = story.NAME_COLORS.get(who, UITheme.TEXT)
-	d.murmur(nm, col, I18n.pick(st), Callable(story, "_anchor").bind(who), bool(st.get("added", false)) and bool(story.mark_added))
+	d.murmur(nm, col, I18n.pick(st), Callable(story, "_anchor").bind(who), bool(st.get("added", false)) and bool(story.mark_added), who)
 
 
 ## 站着半天没抛：妮芙看一眼该先捞的那样，冒一句（会沉的 hint_sink，别的 hint）

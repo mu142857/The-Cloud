@@ -1,5 +1,5 @@
 {
-	"_comment": "开发者面板（F8，scripts/dev_panel.gd）里显示的中文名。flags = 节拍页 / 状态页的 flag 按钮；markers = 传送页；scenes = 状态页「场景」；rooms = 状态页「房间」；states = 状态页「状态」（level_forest.gd 的 enum S）。没写的回退显示原 id；scenes 里同名 scene 在不同章节意思不同时，用「章节:id」（比如 river:farewell）写，先查它再查 id；原 id 在按钮的 tooltip 里（鼠标停上去）。新加 flag / marker / scene 记得来这里补一个短名。beats = 节拍页按章列的大节点（按 docs/剧情简版.md 的主线挑）：zh 是这一段的名字，after = 跳到「这个 flag 刚设上」的样子（= 上一段做完，正好站在这一段开头）；after 为空 = 这一章的开头。改了剧本、大节点的前一个 flag 变了，这里跟着改（-- --dev_test 会挨个跳一遍）。",
+	"_comment": "开发者面板（F8，scripts/dev_panel.gd）里显示的中文名。flags = 节拍页 / 状态页的 flag 按钮；markers = 传送页；scenes = 状态页「场景」；rooms = 状态页「房间」；states = 状态页「状态」（level_forest.gd 的 enum S）。没写的回退显示原 id；scenes 里同名 scene 在不同章节意思不同时，用「章节:id」（比如 river:farewell）写，先查它再查 id；原 id 在按钮的 tooltip 里（鼠标停上去）。新加 flag / marker / scene 记得来这里补一个短名。beats = 节拍页按章列的大节点（按 docs/剧情简版.md 的主线挑）：zh 是这一段的名字，after = 跳到「这个 flag 刚设上」的样子（= 上一段做完，正好站在这一段开头）；after 为空 = 这一章的开头；end: true = 这一段是分支（结局），自测接着玩到章节结尾，不去找下一个大节点。传送页地图下面按章列成「跳到大节点」按钮。改了剧本、大节点的前一个 flag 变了，这里跟着改（-- --dev_test 会挨个跳一遍）。",
 	"chapters": {"forest": "森林", "flight1": "飞行一", "river": "河流篇", "final": "终章"},
 	"beats": {
 		"forest": [
@@ -39,6 +39,16 @@
 			{"zh": "南桥取景", "after": "river_cup_traced"},
 			{"zh": "货台找船号", "after": "river_prints"},
 			{"zh": "告别妮芙", "after": "river_ship_number"}
+		],
+		"final": [
+			{"zh": "驾驶舱·燃料柜（开场）", "after": ""},
+			{"zh": "选去处（燃料凑够）", "after": "final_fuel_done"},
+			{"zh": "结局一·芦苇地落地", "after": "final_ending_1"},
+			{"zh": "结局一·坐下看大象", "after": "final_e1_met"},
+			{"zh": "尾声·回到森林", "after": "final_epilogue"},
+			{"zh": "尾声·城市、列车", "after": "final_epi_niff", "end": true},
+			{"zh": "结局三·云层小镇", "after": "final_ending_3", "end": true},
+			{"zh": "回母星（直接坐列车）", "after": "final_ending_home", "end": true}
 		]
 	},
 	"_old_flags": "old_flags = 第一关旧流程（10 月版森林：零件、木板桥、还东西……）的 flag：剧本里还留着、新版第一关（c1_* + 支线 sa_* / sb_*）不会设，状态页不列出来（点了也只会按旧流程快进）。11-05 按森林自动玩（妈妈 / 孩子两条线 + 全部支线）实际设上的 flag 筛出来的；旧流程删干净以后这里清空。",
@@ -497,7 +507,9 @@
 		"c1_crash": "坠机、看见背包、鹿来",
 		"c1_mom": "选：我是你母亲",
 		"c1_child": "选：我也不知道我是谁",
-		"c1_ask_bag": "问背包、鹿带路",
+		"c1_ask_bag": "问背包",
+		"c1_ask_bag_have": "选：我好像有一个背包",
+		"c1_ask_bag_go": "鹿带路",
 		"c1_wreck_look": "飞船（浮一句）",
 		"c1_run": "奔跑片头",
 		"c1_got_bag": "拿回背包",

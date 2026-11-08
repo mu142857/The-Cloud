@@ -9,6 +9,10 @@ extends Control
 ## 自动（--story_auto）：auto_delay 秒以后自己补全并下一句。instant = true（跳节拍）时什么都不显示、立刻返回。
 ## 补写台词（剧本 "added": true）：正文用柔和的蓝色 ADDED_C（say 的 added 参数，story_runner 按 mark_added 决定）。
 ## murmur：晨小声自言自语（不锁人、不用按键，几秒后自己消失；真的对话一来就让位）。
+## 说话音效（11-08 作者「开始加说话音效，22小鹿，23蛇女，25老鼠首领」；「老鼠首领」作者确认 = 森林里自称首领的兔子 rabbit）：
+##   say / murmur 的 voice 参数 = 说话人 id；VOICES 里有它就在打字时每 VOICE_EVERY 个字「哔」一声（标点、空格不出声，
+##   音高随机抖一点，同一时间只响一声）。补全打字 / 关框立刻停。素材：dmochas dialogue bleeps pack 的 bleep022/023/025
+##   （用的 ogg 版：wav 版是 32 位浮点，拷进 audio/sfx/voice/ 改了名）。没列进 VOICES 的人（晨等）照旧不出声。
 ## 点选：选中的物件亮一档、上下浮 1 像素、头顶显示名字；←/→ 换的时候一声轻响（sfx）；确认后它闪一下 + 一声确认音，
 ##   停一小会儿再往下播。鼠标点到哪个选哪个，点在别处 = 确认现在选中的那个（键盘 E / 空格 / 回车 / Z 一样）。
 ## 屏幕边上的小箭头（edge_arrow）：主线下一个地方在屏幕外时指过去（level_forest.gd 每帧给）。
@@ -37,6 +41,11 @@ const MURMUR_TIME := 3.5
 ## 旁白 NARR_Y 206、拿到东西的提示 224、道具选择条 224 起。叠在画面上的小游戏面板一律在这条线以上结束
 ## （scripts/overlay_layout.gd 的 panel_pos / HintLabel 照这个摆）。
 const BAND_TOP := 184.0
+const VOICES := {"deer": "voice_deer", "miluo": "voice_miluo", "rabbit": "voice_rabbit"}   # 说话人 id → audio/sfx/voice/<名>.ogg
+const VOICE_EVERY := 2               # 每几个字响一声
+const VOICE_DB := -8.0
+const VOICE_PITCH := 0.06            # 音高随机 ±
+const VOICE_QUIET := "，。、！？；：…—「」『』（）《》“”‘’,.!?;:'\"()-~～ \n\t"
 
 var auto_delay := -1.0               # >= 0：自动推进（每句停这么久）
 var sfx: Callable                    # func(name, db, pitch)：选择 / 确认的声音（level_forest._sfx）
@@ -66,6 +75,10 @@ var _text: Label
 var _tail: Control
 var _more: ColorRect
 var _anchor: Callable
+var _voice: AudioStreamPlayer
+var _voice_stream: AudioStream      # 这句话用的音（null = 不出声）
+var _voice_at := 0                  # 已经处理到第几个字
+var _voice_n := 0                   # 出声字计数
 var _typing := false
 var _chars := 0.0
 var _cps := 14.0
@@ -112,6 +125,10 @@ func _ready() -> void:
 	_text.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING     # 打字时不重新排版（行不跳）
 	v.add_child(_text)
 	add_child(_box)
+	_voice = AudioStreamPlayer.new()
+	_voice.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
+	_voice.volume_db = VOICE_DB
+	add_child(_voice)
 	_more = ColorRect.new()
 	_more.size = Vector2(3, 1)
 	_more.color = UITheme.TEXT_DIM
@@ -176,11 +193,12 @@ func _mk_label(c: Color) -> Label:
 
 # ======================================================================= 对话
 ## 说一句：等到玩家按确认（第二下）才返回。anchor：func() -> Vector2，说话人头顶的屏幕坐标。
-func say(who_name: String, name_color: Color, text: String, anchor: Callable, added := false, typing_sec := 0.0, layout_peer := "") -> void:
+func say(who_name: String, name_color: Color, text: String, anchor: Callable, added := false, typing_sec := 0.0, layout_peer := "", voice := "") -> void:
 	if instant:
 		return
 	_murmur_t = 0.0
 	_show_line(who_name, name_color, text, anchor, added, layout_peer)
+	_set_voice(voice)
 	if typing_sec > 0.0:
 		_cps = maxf(1.0, float(_text.get_total_character_count()) / typing_sec)
 	_typing = true
@@ -190,10 +208,11 @@ func say(who_name: String, name_color: Color, text: String, anchor: Callable, ad
 
 
 ## 小声自言自语：不等按键，几秒后自己消失；正在对话时不说
-func murmur(who_name: String, name_color: Color, text: String, anchor: Callable, added := false) -> void:
+func murmur(who_name: String, name_color: Color, text: String, anchor: Callable, added := false, voice := "") -> void:
 	if instant or _open or _pick_on:
 		return
 	_show_line(who_name, name_color, text, anchor, added)
+	_set_voice(voice)
 	_typing = true
 	_murmur_t = MURMUR_TIME
 	_age = 0.0
@@ -232,6 +251,40 @@ func _show_line(who_name: String, name_color: Color, text: String, anchor: Calla
 	_place_box()
 
 
+func _set_voice(who: String) -> void:
+	_voice_at = 0
+	_voice_n = 0
+	_voice_stream = null
+	if VOICES.has(who):
+		var p := "res://audio/sfx/voice/%s.ogg" % VOICES[who]
+		if ResourceLoader.exists(p):
+			_voice_stream = load(p)
+
+
+## 打字推进到 shown 个字：新出来的字里每 VOICE_EVERY 个「出声字」哔一声
+func _voice_tick(shown: int) -> void:
+	if _voice_stream == null:
+		return
+	var t := _text.text
+	var beep := false
+	while _voice_at < shown and _voice_at < t.length():
+		if not VOICE_QUIET.contains(t[_voice_at]):
+			if _voice_n % VOICE_EVERY == 0:
+				beep = true
+			_voice_n += 1
+		_voice_at += 1
+	if beep:
+		_voice.stream = _voice_stream
+		_voice.pitch_scale = 1.0 + randf_range(-VOICE_PITCH, VOICE_PITCH)
+		_voice.play()
+
+
+func _voice_stop() -> void:
+	_voice_stream = null
+	if _voice != null:
+		_voice.stop()
+
+
 static func _line_layout_height(value: String, width: float) -> float:
 	var font := UITheme.font()
 	var breaks := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
@@ -242,6 +295,7 @@ static func _line_layout_height(value: String, width: float) -> float:
 
 
 func close_box() -> void:
+	_voice_stop()
 	_open = false
 	_box.visible = false
 	_tail.visible = false
@@ -280,6 +334,7 @@ func confirm() -> bool:
 	if _typing:
 		_typing = false
 		_text.visible_characters = -1
+		_voice_stop()
 		return true
 	_open = false
 	_box.visible = false
@@ -646,23 +701,36 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 				p.add_child(l)
 			_menu_items.append(p)
 	else:
-		const WIDTH := 308.0
+		var WIDTH := 308.0
 		const GAP := 3.0
+		# 选项文字固定缩进一格；箭头是单独的小 label 放在缩进里，选中才显示——换选项时文字不跳
+		var indent := ceilf(UITheme.font().get_string_size("▸ ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
+		# 11-08 作者：只有一个选项（第一关问背包）也要在屏幕正中，不然看不出要点；框收窄到字宽
+		var single := opts.size() == 1
+		if single:
+			WIDTH = minf(WIDTH, ceilf(UITheme.font().get_string_size(str(opts[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x) + indent + 2.0)
 		var row_heights: Array[float] = []
 		var height := 0.0
 		for option in opts:
 			var l := _mk_label(UITheme.TEXT_DIM)
-			l.text = "▸ " + str(option)
+			l.text = str(option)
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			var row_height := maxf(16.0, _line_layout_height(l.text, WIDTH))
+			var row_height := maxf(16.0, _line_layout_height(l.text, WIDTH - indent))
 			row_heights.append(row_height)
 			height += row_height + GAP
+			var arrow := _mk_label(UITheme.TEXT)
+			arrow.text = "▸"
+			arrow.position = Vector2(-indent, 0)
+			arrow.visible = false
+			l.add_child(arrow)
+			l.set_meta("arrow", arrow)
 			_menu_items.append(l)
-		var xy := _menu_dodge(120.0, 240.0 - height, WIDTH, height)
+		var xy := Vector2(roundf(240.0 - WIDTH / 2.0), roundf(135.0 - height / 2.0)) if single \
+			else _menu_dodge(120.0, 240.0 - height, WIDTH, height)
 		for i in _menu_items.size():
 			var l: Label = _menu_items[i]
-			l.position = xy
-			l.size = Vector2(WIDTH, row_heights[i])
+			l.position = xy + Vector2(indent, 0)
+			l.size = Vector2(WIDTH - indent, row_heights[i])
 			var bg := ColorRect.new()
 			bg.color = Color(BOX_BG, 0.85)
 			bg.position = xy - Vector2(4, 1)
@@ -733,8 +801,7 @@ func _menu_style() -> void:
 				UITheme.ACCENT if on else Color(0.3, 0.4, 0.35, 0.9), 1))
 		else:
 			var l: Label = _menu_items[i]
-			var txt := str(_menu_opts[i])
-			l.text = ("▸ " if on else "  ") + txt
+			(l.get_meta("arrow") as Label).visible = on
 			l.add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
 	if _menu_kind == "items":
 		var o: Dictionary = _menu_opts[_menu_sel]
@@ -807,7 +874,8 @@ const MENU_STICK := 3.0
 func _menu_rect(i: int) -> Rect2:
 	var c: Control = _menu_items[i]
 	if _menu_kind == "lines":
-		return Rect2(c.position.x - 2.0, c.position.y - 1.0, c.size.x + 4.0, c.size.y + 2.0)
+		var gut: float = -(c.get_meta("arrow") as Control).position.x   # 箭头那格缩进也算在点击范围里
+		return Rect2(c.position.x - gut - 2.0, c.position.y - 1.0, c.size.x + gut + 4.0, c.size.y + 2.0)
 	return Rect2(c.position - Vector2(2, 2), c.size + Vector2(4, 4))
 
 
@@ -995,6 +1063,7 @@ func _process(delta: float) -> void:
 			_chars += _cps * delta
 			var total := _text.get_total_character_count()
 			_text.visible_characters = mini(int(_chars), total)
+			_voice_tick(_text.visible_characters)
 			if _text.visible_characters >= total:
 				_typing = false
 				_text.visible_characters = -1
@@ -1010,6 +1079,7 @@ func _process(delta: float) -> void:
 		_murmur_t -= delta
 		_chars += _cps * delta
 		_text.visible_characters = mini(int(_chars), _text.get_total_character_count())
+		_voice_tick(_text.visible_characters)
 		if _box.visible:
 			_place_box()
 		_box.modulate.a = clampf(_murmur_t / 0.5, 0.0, 1.0)

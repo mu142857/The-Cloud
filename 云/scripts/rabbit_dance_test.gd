@@ -118,7 +118,7 @@ func _check_after(env: Array, m, want_miss: int, want_gave_up: bool, tag: String
 	var chen: FakeChen = env[1]
 	var story: FakeStory = env[2]
 	var s: Dictionary = story.mech_load(RD.ID)
-	ok(s.get("done", false) and int(s.get("round", 0)) == RD.SEQS.size(), "%s: 三轮跳完 %s" % [tag, str(s)])
+	ok(s.get("done", false) and int(s.get("round", 0)) == RD.SEQS.size(), "%s: 四轮跳完 %s" % [tag, str(s)])
 	ok(int(s.get("miss", -1)) == want_miss, "%s: 错 %d 次" % [tag, want_miss])
 	ok(bool(s.get("gave_up", false)) == want_gave_up, "%s: gave_up = %s" % [tag, str(want_gave_up)])
 	ok(chen.spr.position == Vector2.ZERO and chen.spr.scale == Vector2.ONE and chen.spr.skew == 0.0, "%s: 晨的精灵复原" % tag)
@@ -183,6 +183,25 @@ func _main() -> void:
 	ev.physical_keycode = KEY_NONE
 	ev.keycode = KEY_LEFT
 	ok(RD.dir_of(ev) == "left", "按键：← = left")
+	# 箭头一轮比一轮少；同一步错超过两次给辅助
+	ok(RD.SEQS.size() == 4 and (RD.SEQS[3] as Array).size() == 6, "规则：默认四轮，第四轮 6 步")
+	ok([RD.round_mode(st, 0), RD.round_mode(st, 1), RD.round_mode(st, 2), RD.round_mode(st, 3)] == ["show", "fade", "hidden", "hidden"], "规则：show / fade / hidden / hidden")
+	ok(RD.round_mode({"hide": ["hidden", "show"]}, 1) == "show", "规则：hide 可以一轮一轮指定")
+	var rt := {"retry": true}
+	var a := RD.fresh()
+	a["round"] = 2
+	RD.act(rt, a, "up")                       # 第三轮第一步是 right
+	RD.act(rt, a, "up")
+	ok(not RD.assisted(a), "辅助：同一步错两次还不给")
+	RD.act(rt, a, "right")
+	RD.act(rt, a, "left")                     # 第二步错一次（别的步不累加）
+	ok(not RD.assisted(a), "辅助：错在不同步不算同一步")
+	RD.act(rt, a, "down")
+	ok(RD.assisted(a) and not a["gave_up"], "辅助：同一步错第三次 → 箭头重新给 %s" % str(a["fails"]))
+	a["round"] = 3
+	ok(not RD.assisted(a), "辅助：换一轮重新算")
+	var old := {"round": 3, "k": 0, "miss": 0, "gave_up": false, "done": true}
+	ok(RD.finished(st, old), "存档：以前三轮跳完的 done 存档不会回来跳第四轮")
 
 	# 2. auto()：先按错一次
 	var env := _make()
@@ -201,7 +220,7 @@ func _main() -> void:
 	var U := [KEY_NONE, KEY_W, "up"]
 	var R := [KEY_RIGHT, KEY_NONE, "right"]
 	var D := [KEY_NONE, KEY_S, "down"]
-	var keys := [U, D, U, L, R, L, D, U, R, R, U, D, L, U]
+	var keys := [U, D, U, L, R, L, D, U, R, R, U, D, L, U, D, R, U, L, D, U]
 	var r: Array = await _play_keys(env, stp, keys)
 	ok(r[2], "run: 跑完了")
 	ok(r[1] == keys.size(), "run: %d 个键全用上了（键丢了的话会少按、跑不完）" % r[1])

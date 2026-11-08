@@ -1178,7 +1178,7 @@ func _say(st: Dictionary) -> void:
 		gn.talk(true)
 	var source_text := txt_in(st, "zh")
 	var typing_sec := clampf(float(source_text.length()) / dlg.CPS_ZH, 0.25, 4.0)
-	await dlg.say(nm, NAME_COLORS.get(who, UITheme.ACCENT), text, _anchor.bind(who), bool(st.get("added", false)) and mark_added, typing_sec, txt_in(st, "en" if I18n.is_zh() else "zh"))
+	await dlg.say(nm, NAME_COLORS.get(who, UITheme.ACCENT), text, _anchor.bind(who), bool(st.get("added", false)) and mark_added, typing_sec, txt_in(st, "en" if I18n.is_zh() else "zh"), who)
 	if gn != null and is_instance_valid(gn):
 		gn.talk(false)
 	speaking = ""
@@ -2475,7 +2475,7 @@ func _update_nudge(delta: float) -> void:
 				return
 			var tl := txt_lang(hl)
 			dlg.murmur(txt_in(speakers.get(who, who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
-				_anchor.bind(who), bool(hl.get("added", false)) and mark_added)
+				_anchor.bind(who), bool(hl.get("added", false)) and mark_added, who)
 		return
 	var t := main_target()
 	if t.is_empty():
@@ -2489,7 +2489,7 @@ func _update_nudge(delta: float) -> void:
 			var who := str(st["say"])
 			var tl := txt_lang(st)
 			dlg.murmur(txt_in(speakers.get(who, who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
-				_anchor.bind(who), bool(st.get("added", false)) and mark_added)
+				_anchor.bind(who), bool(st.get("added", false)) and mark_added, who)
 			break
 
 

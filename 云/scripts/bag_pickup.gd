@@ -1,5 +1,5 @@
 extends RefCounted
-## 捡到背包：展示原来的大背包特写，翻开包盖，收起后进入背包页面。
+## 捡到背包：展示原来的大背包特写，翻开包盖，收起后回到游戏（提示玩家按 Tab 自己打开背包）。
 const TEX := preload("res://art/forest_story/bag_closeup.png")
 const FRAMES := 4
 var auto_mode := false
@@ -38,8 +38,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, _st: Dictionary) -> void:
 	tw.tween_property(root, "modulate:a", 0.0, 0.3 * k)
 	await tw.finished
 	layer.queue_free()
-	if not auto_mode:
-		lv._bag_after_story = true
+	# 11-08 作者：特写收起后不再自动打开背包，剧本接着出「按 Tab 打开背包」，玩家自己开（Tab 或右上角背包按钮都行）
 
 
 func auto(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:

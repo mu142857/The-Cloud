@@ -193,6 +193,13 @@ class Roll extends Node2D:
 			add_child(m)
 			_ms.append(m)
 
+	## c1_loop._cash_loop：晨和镜头在世界里往右瞬移 dx，钉在世界里的名字一起挪（屏幕上不动）
+	func shift_world(dx: float) -> void:
+		for m in _ms:
+			if m.begun and m.style != "sky":
+				m.anchor.x += dx
+				m.position.x += dx
+
 	func _process(dt: float) -> void:
 		_t += dt * _speed
 		var cam := get_viewport().get_camera_2d()

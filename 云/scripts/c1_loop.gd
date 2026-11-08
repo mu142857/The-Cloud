@@ -192,11 +192,38 @@ func _tick_cg(delta: float) -> void:
 	_stick_feet()
 	if _cg_left == 0.0:
 		d = roundf(d / LOOP_W) * LOOP_W
+		_cash_loop()
 		_stick_feet()
 		chen.intro_run = false
 		chen.auto_dir = 0.0
 		mode = "done"
 		print("C1LOOP cg_done d=%.0f" % d)
+
+
+## 11-08 作者「从飞船到背包有一段距离，最好可以删除（credit 本身已经是额外的循环）」：
+## CG 卷完一圈以上时，把跑步机虚拟位移里的一圈（LOOP_W）兑换成真实位移——晨、镜头往右挪 LOOP_W，
+## 各视差层 scroll_offset += LOOP_W × scroll_scale（和 level_forest._place_world 挪 CRASH_DX 同一招），d -= LOOP_W。
+## Main 层和地面都是 LOOP_W 一圈，所以这一帧每一层画面都不变；跑完她就站在背包前几步（背包锚点见 story_forest.json 的 c1_bag*）。
+## 世界里的东西不跟着挪：跳完以后才进画面的是背包、等在那儿的鹿。
+func _cash_loop() -> void:
+	if d < LOOP_W - 0.5:
+		return
+	var dx := LOOP_W
+	var chen: Node2D = level.chen
+	chen.position.x += dx
+	var cam: Camera2D = level.cam
+	cam.position.x += dx
+	if not is_nan(level._cam_override.x):
+		level._cam_override.x += dx
+	cam.reset_smoothing()
+	for p in _layers:
+		if is_instance_valid(p):
+			p.scroll_offset.x += dx * p.scroll_scale.x
+	d -= dx
+	var roll := level.get_node_or_null("RunCredits")
+	if roll != null and roll.has_method("shift_world"):
+		roll.shift_world(dx)                     # 还在屏幕上的名字钉在世界里，跟着挪，屏幕上不动
+	print("C1LOOP cash x=%.0f d=%.0f" % [chen.position.x, d])
 
 
 # ----------------------------------------------------------------------- 结局：倔强的灵魂

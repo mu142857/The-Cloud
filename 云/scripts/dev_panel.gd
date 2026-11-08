@@ -25,6 +25,11 @@ extends CanvasLayer
 ##           换地方照常靠 E / 点击（进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥、走到边上的出口），不看剧情 flag，只显示这些进出口。
 ##           小按钮：角色（路人照常走，本章剧本里的角色排在晨右边）、退出（= 重开本章）。Shift 跑快（只改移动速度）。
 ##           探索时状态页点 flag = 直接设 / 去掉这一个（不补剧情）
+## 快捷键（只在 debug 构建，面板开不开都管用）：
+##   按住 Ctrl  快进：整个游戏 ×FF_SCALE（Engine.time_scale：过场、tween、动画、等待、走路都快），对话每句立刻自动推进；
+##              点选 / 选项菜单不替你选，照常等你。松开恢复。
+##   F9         快进开 / 关（不用一直按着；跨跳关、重新载入一直留着，左上角有「▶▶ 快进」字样）
+##   F10        跳过这一段：结局回看剩下的镜头很快过完；驾驶舱小游戏 / 燃料柜 / 导航屏替你做默认选择（同自测的 dev_skip）
 ## 面板上的字统一中文：flag / marker / scene / 房间 / 状态的中文名在 data/dev_names.json（没写的回退显示原 id），
 ##   原 id 放在按钮的 tooltip 里（鼠标停上去看）；状态页那段文字的 tooltip 是原始 id。背包显示物品的 name.zh。
 ## 用法也写在 docs/forest_chapter.md 末尾「开发者模式（F12）」。
@@ -36,6 +41,8 @@ extends CanvasLayer
 ##        最后抽查状态页（SAMPLES：从本章开头原地补齐到中后段的 flag 再接着玩）。全部过了打印 DEV_TEST_DONE 后退出。
 
 const W := 206.0
+const FF_SCALE := 6.0                     # 快进倍数（太大物理一步走太远，6 够快）
+const FF_META := "dev_panel_ff"           # F9 快进开着（跨重新载入）
 const TEST_META := "dev_panel_test"       # 自测进度（跨重新载入）：{ch0, phase, i, stage…}
 ## 自测抽查状态页：从本章开头原地补齐到这个 flag，再接着自动玩
 ## 11-05 换成新版第一关：主线前段（拿回背包）、一条支线（坡地蹄印，要先补齐支线窗口）、主线最后（和鹿道别，下一步就是起飞）
@@ -79,6 +86,10 @@ var show_ranges := false
 var _last_x := NAN
 var _refresh_t := 0.0
 var _saved_auto := -1.0
+var _ff_on := false               # F9 开着的快进
+var _ff_active := false           # 这一帧在快进（F9 开着 或 按住 Ctrl）
+var _ff_saved_auto := -1.0        # 快进前对话的 auto_delay
+var _ff_label: Label              # 左上角「▶▶ 快进」
 var _names := {}                 # data/dev_names.json：{flags, markers, scenes, rooms, states} → {id: 中文名}
 var _completing := false         # 状态页点的 flag 正在补齐（快进中），别的点先不理
 var _map_ch := ""                # 地图现在看的是哪一章
@@ -148,6 +159,21 @@ func _ready() -> void:
 	_overlay.z_index = 50
 	_overlay.draw.connect(_draw_overlay)
 	level.add_child(_overlay)
+	# 快进提示：单独一层，面板关着也看得见
+	var ffl := CanvasLayer.new()
+	ffl.name = "DevFastForward"
+	ffl.layer = 61
+	level.add_child(ffl)
+	_ff_label = Label.new()
+	_ff_label.theme = UITheme.get_theme()
+	_ff_label.text = "▶▶ 快进 ×%d" % int(FF_SCALE)
+	_ff_label.add_theme_font_size_override("font_size", 14)
+	_ff_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+	_ff_label.position = Vector2(4, 2)
+	_ff_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ff_label.visible = false
+	ffl.add_child(_ff_label)
+	_ff_on = Engine.has_meta(FF_META) and bool(Engine.get_meta(FF_META))
 	_set_tab(0)
 	if "--dev_test" in OS.get_cmdline_user_args():
 		_self_test.call_deferred()
@@ -432,6 +458,34 @@ func _map_foot_build(ch: String) -> void:
 	t.add_theme_font_size_override("font_size", 12)
 	_map_foot.add_child(t)
 	_map_foot.add_child(_btn("从头玩「%s」" % _chapter_name(ch), _jump_to.bind(ch, ""), ch))
+	# 大节点（data/dev_names.json 的 beats）：跳到「这个 flag 刚设上」，正好站在这一段开头（和 --beat 同一套快进补齐）
+	var beats = _names.get("beats", {})
+	var list: Array = beats.get(ch, []) if beats is Dictionary else []
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", MAP_GAP)
+	row.add_theme_constant_override("v_separation", MAP_GAP)
+	row.custom_minimum_size = Vector2(MAP_W - 16.0, 0)
+	for bt in list:
+		if not bt is Dictionary or str(bt.get("after", "")) == "":
+			continue
+		var after := str(bt["after"])
+		var b := _btn(str(bt.get("zh", after)), _jump_to.bind(ch, after), "跳到 %s（%s）刚设上，从这一段开头接着玩" % [_nm("flags", after), after])
+		b.autowrap_mode = TextServer.AUTOWRAP_OFF
+		b.add_theme_font_size_override("font_size", MAP_FS)
+		b.custom_minimum_size = Vector2(0, MAP_BOX_H)
+		row.add_child(b)
+	if row.get_child_count() > 0:
+		var t2 := _label("跳到大节点：")
+		t2.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+		t2.add_theme_font_size_override("font_size", 12)
+		_map_foot.add_child(t2)
+		_map_foot.add_child(row)
+	else:
+		row.queue_free()
+	var nx := str(level.CHAPTER_GD.CHAPTERS.get(ch, {}).get("next", ""))
+	if nx != "":
+		_map_foot.add_child(_btn("跳到下一章「%s」开头" % _chapter_name(nx), _jump_to.bind(nx, ""),
+			"这一章已经播完 = 带着真实状态过去；没播完 = 用 chapter_flow.gd 的 SEED"))
 	# 母星闪回：重新载入这一章、跳到闪回前一点，接着播（story_runner.gd 的 FLASHBACK_DEV）
 	for d in story.FLASHBACK_DEV:
 		if str(d["chapter"]) == ch:
@@ -806,7 +860,7 @@ func _build_state(v: VBoxContainer) -> void:
 
 
 func _build_switches(v: VBoxContainer) -> void:
-	for k in [["fast", "快走 ×3"], ["skip", "跳过对话"], ["ranges", "显示互动范围 / 传送点"], ["fog", "雾"], ["front", "前景层"],
+	for k in [["ff", "快进 ×%d（F9；按住 Ctrl 临时）" % int(FF_SCALE)], ["fast", "快走 ×3"], ["skip", "跳过对话"], ["ranges", "显示互动范围 / 传送点"], ["fog", "雾"], ["front", "前景层"],
 			["added", "补写台词标蓝"]]:
 		var b := _btn("", _switch.bind(str(k[0])))
 		b.set_meta("label", str(k[1]))
@@ -940,11 +994,20 @@ func _fuel_full() -> void:
 
 func _switch(k: String) -> void:
 	match k:
+		"ff":
+			_ff_toggle()
+			return
 		"fast":
 			fast = not fast
 		"skip":
 			skip_dialog = not skip_dialog
-			if skip_dialog:
+			if _ff_active:                # 快进中：只改「快进完要恢复成什么」
+				if skip_dialog:
+					_saved_auto = _ff_saved_auto
+					_ff_saved_auto = 0.15
+				else:
+					_ff_saved_auto = _saved_auto
+			elif skip_dialog:
 				_saved_auto = story.dlg.auto_delay
 				story.dlg.auto_delay = 0.15
 			else:
@@ -962,7 +1025,7 @@ func _switch(k: String) -> void:
 
 
 func _sync_switches() -> void:
-	var on := {"fast": fast, "skip": skip_dialog, "ranges": show_ranges, "fog": story.world.fog_enabled,
+	var on := {"ff": _ff_on, "fast": fast, "skip": skip_dialog, "ranges": show_ranges, "fog": story.world.fog_enabled,
 		"front": (level.get_node("Front") as CanvasItem).visible, "added": story.mark_added}
 	for k in _toggles:
 		var b: Button = _toggles[k]
@@ -1015,6 +1078,7 @@ func _test_buttons() -> void:
 		_switch(str(k))
 		await _wait(0.1)
 		_switch(str(k))
+	await _test_ff_keys()
 	_give_all()
 	_fuel_full()
 	# flight1 一进来就在播起飞过场：先让它自己播到能自由走，再传送
@@ -1034,6 +1098,27 @@ func _test_buttons() -> void:
 	_set_tab(0)
 	await _test_map()
 	print("DEV_TEST buttons ok (toggles %d, markers %d, 大节点 %d)" % [_toggles.size(), story.world.markers.size(), _all_beats().size()])
+
+
+## 快进快捷键：真的按 F9（从 viewport 进输入），快进开了、对话自动推进、左上角有字；再按一次全部恢复
+func _test_ff_keys() -> void:
+	var auto0: float = story.dlg.auto_delay
+	_push(_key(KEY_F9, true))
+	_push(_key(KEY_F9, false))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var on_ok := _ff_on and is_equal_approx(Engine.time_scale, FF_SCALE) and is_equal_approx(story.dlg.auto_delay, 0.05) \
+		and _ff_label.visible
+	_push(_key(KEY_F9, true))
+	_push(_key(KEY_F9, false))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var off_ok := not _ff_on and is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(story.dlg.auto_delay, auto0) \
+		and not _ff_label.visible
+	_push(_key(KEY_F10, true))                # 没有能跳的东西时按 F10 不出错
+	_push(_key(KEY_F10, false))
+	await get_tree().process_frame
+	print("DEV_TEST ff keys: F9 开 %s  F9 关 %s" % ["ok" if on_ok else "FAILED", "ok" if off_ok else "FAILED"])
 
 
 ## 地图：每章排一遍，房间一个不少、方块不出地图；本章每个方块点一下（有 marker 的），晨到没到那个房间
@@ -1075,7 +1160,8 @@ func _all_beats() -> Array:
 	var beats = _names.get("beats", {})
 	for ch in level.CHAPTER_GD.CHAPTERS:
 		for bt in (beats.get(ch, []) if beats is Dictionary else []):
-			out.append({"ch": str(ch), "after": str(bt.get("after", "")), "zh": "%s · %s" % [_chapter_name(str(ch)), str(bt.get("zh", ""))]})
+			out.append({"ch": str(ch), "after": str(bt.get("after", "")), "zh": "%s · %s" % [_chapter_name(str(ch)), str(bt.get("zh", ""))],
+				"end": bool(bt.get("end", false))})
 	return out
 
 
@@ -1110,7 +1196,7 @@ func _test_beat(d: Dictionary) -> void:
 	visible = false
 	var reached: bool = level.chapter == b["ch"] and (b["after"] == "" or StoryState.has(b["after"]))
 	var nxt := ""
-	if i + 1 < beats.size() and beats[i + 1]["ch"] == b["ch"]:
+	if i + 1 < beats.size() and beats[i + 1]["ch"] == b["ch"] and not b["end"]:   # end：这一段是分支，接着玩到章节结尾
 		nxt = beats[i + 1]["after"]
 	var n0: int = StoryState.flag_order.size()
 	var cont := await _play_until(nxt, 400.0)
@@ -1279,6 +1365,14 @@ func _input(e: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		toggle()
 		return
+	if e is InputEventKey and e.pressed and not e.echo and e.keycode in [KEY_F9, KEY_F10] \
+			and not (e.ctrl_pressed or e.shift_pressed or e.alt_pressed or e.meta_pressed):
+		get_viewport().set_input_as_handled()
+		if e.keycode == KEY_F9:
+			_ff_toggle()
+		else:
+			_skip_segment()
+		return
 	if not visible:
 		return
 	if e is InputEventKey and e.pressed and not e.echo and e.keycode == KEY_R \
@@ -1312,6 +1406,42 @@ func _input(e: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
+## F9：快进开 / 关（记在 Engine meta，跳关重新载入以后还开着）
+func _ff_toggle() -> void:
+	_ff_on = not _ff_on
+	Engine.set_meta(FF_META, _ff_on)
+	_ff_update()
+	_sync_switches()
+
+
+## 每帧：F9 开着或按住 Ctrl = 快进（time_scale 拉高，对话立刻自动推进）；都没有 = 恢复
+func _ff_update() -> void:
+	var want := _ff_on or (Input.is_key_pressed(KEY_CTRL) and get_window().has_focus())
+	if want:
+		if not _ff_active:
+			_ff_active = true
+			_ff_saved_auto = story.dlg.auto_delay
+		Engine.time_scale = FF_SCALE
+		story.dlg.auto_delay = 0.05
+	elif _ff_active:
+		_ff_active = false
+		Engine.time_scale = 1.0
+		story.dlg.auto_delay = 0.15 if skip_dialog else _ff_saved_auto
+	_ff_label.visible = _ff_active
+
+
+## F10：跳过这一段（结局回看很快过完；驾驶舱小游戏 / 燃料柜 / 导航屏替你做默认选择）
+func _skip_segment() -> void:
+	if story.montage_ui != null and story.montage_ui.has_method("dev_skip"):
+		story.montage_ui.dev_skip()
+	_cockpit_skip()
+
+
+func _exit_tree() -> void:
+	if _ff_active:
+		Engine.time_scale = 1.0       # 换场景 / 退出时别把快进留给下一个场景（F9 开着的话新面板会再开）
+
+
 ## 鼠标下面是哪个按钮（页面里的要在滚动框露出来的那部分里）
 func _hit(p: Vector2) -> Button:
 	for n in _root.find_children("*", "Button", true, false):
@@ -1340,8 +1470,9 @@ func _process(delta: float) -> void:
 	_last_x = chen.position.x
 	if get_index() < level.get_child_count() - 1:
 		level.move_child.call_deferred(self, -1)     # 剧情后来加到关卡上的节点（小游戏等）排到面板后面，面板的 _input 还是最先
-	if skip_dialog and story.dlg.auto_delay != 0.15:
+	if skip_dialog and story.dlg.auto_delay != 0.15 and not _ff_active:
 		story.dlg.auto_delay = 0.15
+	_ff_update()
 	_overlay.visible = show_ranges
 	if show_ranges:
 		_overlay.queue_redraw()

@@ -33,6 +33,7 @@ const SPACE_WIDTH := 12.0                 # 英文空格和全角空格至少留
 const WRAP := 300.0
 const FADE_IN := 1.2
 const FADE_OUT := 0.9
+const MIN_HOLD := 3.0                     # 11-08 作者：渐变独白每句至少完整停 3 秒（原来 1～2 秒太短）；fade / spin 都算，drift 是飘过去的不算
 
 static var _inst                          # 现在这一个（untyped：静态函数里要调它自己的方法）
 
@@ -100,6 +101,8 @@ func show_line(zh: String, en: String, style: String, sec: float) -> float:
 			width += float(c["w"])
 		it["width"] = width
 		it["dur"] = sec if sec > 0.0 else (FADE_IN + auto_sec(text, "fade") + FADE_OUT if style == "spin" else (528.0 + width) / DRIFT_SPEED)
+		if style == "spin":
+			it["dur"] = maxf(float(it["dur"]), FADE_IN + MIN_HOLD + FADE_OUT)
 		_items.append(it)
 		_place(it)
 		return float(it["dur"])
@@ -111,7 +114,7 @@ func show_line(zh: String, en: String, style: String, sec: float) -> float:
 	it["node"] = l
 	it["base"] = Vector2(round(240.0 - WRAP / 2.0), round(SKY_Y - h / 2.0))
 	if style == "fade":
-		var hold := sec if sec > 0.0 else auto_sec(text, "fade")
+		var hold := maxf(sec if sec > 0.0 else auto_sec(text, "fade"), MIN_HOLD)
 		it["out"] = FADE_IN + hold
 		_items.append(it)
 		_place(it)
