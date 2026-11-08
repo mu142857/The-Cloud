@@ -54,6 +54,15 @@
 
 ## 5. 改动记录（新的写在最上面）
 
+### 2026-11-08（二十二） · Claude（结局回看会话）· 终章燃料条显示「无限」+ 落地后不显示燃料
+- **原因**：飞行一新版的永燃之木 flag `flight1_wood_power` 只在 `flight1_meteor` 那步清。F8 / 跳节拍 / 读档跳过陨石段，flag 就一直留着；flag 是全局的，跨章不清，所以终章燃料条也画成「无限」。燃料数值不读这个 flag，760 门槛照常判定。
+- **改动**：
+  - `cockpit_meteor.gd` 的 `play()` 一开头就清 flag（本2兔的文件，只加 1 行注释过的）。
+  - `level_forest._build_story` 进飞行一以外的章节一律清。
+  - `_update_fuel_bar` 的 `infinite` 只在 `chapter == "flight1"` 时生效。
+  - 作者看芦苇地截图说「这个场景不应该有燃料显示」：`chapter_flow` 的 final 加 `"fuel_rooms": ["cockpit"]`，新函数 `level_forest._fuel_room_ok()`。终章只在驾驶舱显示燃料条，落地后的芦苇地 / 小镇 / 尾声 / 列车连左上角火苗一起藏。森林、飞行一不写 fuel_rooms，不受影响。
+- **验证**（headless）：四章 story_check 0 错。终章三条结局各跑一遍（带 `--barter_seed=flight1_wood_power` 模拟泄漏），飞行一 `--story_chain` 连到终章。结果见 `docs/夜测_11-05_汇总.md` 11-08 这一条。
+
 ### 2026-11-08（二十一） · Claude (compress-river) · 绿柜子随时给密封圈、南桥后出密封圈目标、旧街「回泥芙家」
 - `story_river.json`：
   - 热点 `wh_cabinet_seal` 的 need 清空，删掉 `wh_cabinet_look`。

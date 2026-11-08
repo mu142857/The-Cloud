@@ -565,6 +565,10 @@ func _build_story() -> void:
 	story.load_story(_story_path)
 	story.entry_scene = str(CHAPTER_GD.info(chapter).get("start", ""))
 	story.carry_flags = CHAPTER_GD.info(chapter).get("carry_flags", [])
+	# 11-08 作者「为什么显示是无限？第二次飞行」：永燃之木的 flag 只在飞行一陨石那步清，F8 / 跳节拍 / 读档跳过陨石段就一直留着，
+	# 终章燃料条也画成「无限」。出了飞行一一律清掉（燃料数值本身不看这个 flag，只是条的画法）
+	if chapter != "flight1":
+		StoryState.clear_flag("flight1_wood_power")
 	add_child(story)
 	story.setup(self, root)
 	root.move_child(story.dlg, _dim.get_index())        # 对话框在黑边上面、面板下面
@@ -1766,11 +1770,16 @@ func _update_fuel_bar(delta: float) -> void:
 		return
 	var flag := StoryState.has(FUEL_BAR_FLAG)
 	var chap_ok: bool = chapter == "forest" or (CHAPTER_GD.info(chapter).get("hud_fuel", true) and StoryState.fuel_on())
+	if not _fuel_room_ok():                 # 11-08：终章落地以后（芦苇地 / 小镇 / 尾声 / 列车）不显示燃料条，左上角的火苗也藏着
+		chap_ok = false
+		if _hud_flame != null:
+			_hud_flame.visible = false
+			_hud_burn_label.visible = false
 	var on: bool = flag and chap_ok and state in [S.PLAY, S.CINE] and free_roam == "" and _hud_burn.visible
 	var f := fuel_bar_value()
 	_fuel_bar.set_fuel(f[0], f[1])
 	_fuel_bar.safe = int(str(StoryState.props.get("fuel_safe", "0"))) if StoryState.fuel_on() else 0   # 11-08 飞行一：绿色安全线
-	_fuel_bar.infinite = StoryState.has("flight1_wood_power")                                           # 永燃之木供能中
+	_fuel_bar.infinite = chapter == "flight1" and StoryState.has("flight1_wood_power")                   # 永燃之木供能中（11-08：只在飞行一，终章不许「无限」）
 	if flag and not _fuel_bar_on:
 		_fuel_bar.reveal()
 		_sfx("page_turn", -10.0)
@@ -1795,6 +1804,14 @@ func _update_fuel_bar(delta: float) -> void:
 			if b is Control and (b as Control).is_visible_in_tree() and Rect2((b as Control).global_position, (b as Control).size).grow(2.0).intersects(r):
 				covered = true
 	_fuel_bar.alpha = 0.0 if covered else move_toward(_fuel_bar.alpha, 1.0, delta * 3.0)
+
+
+## 这一章的燃料 HUD 能不能在现在这个房间出（chapter_flow 的 fuel_rooms；不写 = 都行）
+func _fuel_room_ok() -> bool:
+	var rooms: Array = CHAPTER_GD.info(chapter).get("fuel_rooms", [])
+	if rooms.is_empty() or story == null or story.world == null:
+		return true
+	return str(story.world.room) in rooms
 
 
 ## 燃料条的 [有, 要]

@@ -88,6 +88,7 @@ func play(r: Node, st: Dictionary) -> String:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rng.seed = 811
+	StoryState.clear_flag("flight1_wood_power")   # 11-08：永燃之木被砸掉——不管下面走哪条（跳节拍 / 没远景图），燃料条都不再「无限」（剧本后面那步 clear 照留）
 	if r.ff or cockpit == null:
 		return ""
 	var k := float(st.get("far_scale", FAR_K))

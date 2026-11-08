@@ -18,11 +18,20 @@ extends Control
 ## 不能跳：level_forest.gate_event 看 story.montage_ui，Esc / 齿轮都不开设置；按键、点击被剧情吃掉（没有对话框可点）。
 ##   F8 开发者面板的「跳过」走 dev_skip（只给开发用）。
 ## 自动玩照真实时长放（游戏时间），打印 MONTAGE shot … / MONTAGE done …（总时长、放了哪几镜、哪几镜是好结果）。
+## 11-08 作者「直接显示他们的现状就可以了；泥芙家内部、Milo 家内部，也要包括可能没出现的云层和芦苇地；展示的时间快一点」
+##   （真结局的尾声回访照旧保留：「原来只有真结局回访吗？既然如此保留」）。弥洛那镜改成树屋室内
+##   （treehouse_back + 屋里的物件，弥洛在工作台前），泥芙那镜改成泥芙家室内（river_home，前墙藏掉，泥芙在桌边泡茶），
+##   最后加云层小镇（镇民在喷泉广场）和芦苇地（白鹭、风吹芦苇；这局走了真结局 final_ending_1 才有大象）两镜，谁都放。
+##   每镜 2.8 秒（整屏停约 2.2 秒）、列车 3.5 秒、方格 0.6 秒，整段约 34 秒。
+##   鹿那镜的雾（作者「最后闪回的鹿的雾气有 bug」）：原来是一张 fog_bank 原图直接盖在主层前面——两头没有分档淡出（整块方形）、
+##   下沿直边露在地面上、盖住主层的树、也不会动。改成和森林坡地一样：fog_bank 在 Mid 和 Main 之间（主层地面盖住下沿，压进地里 4 像素）、
+##   两头 EDGE_FADE 分档淡掉，再加 story_world 那两层会漂的噪声雾（坡地的浓度 fog_k = 0.25）。
 
 signal finished
 
 const ROOM_GD := preload("res://scripts/room_stage.gd")
 const NPC_GD := preload("res://scripts/npc_generic.gd")
+const CHEN_GD := preload("res://scripts/chen.gd")          # 森林地面公式 ground_y（小样场景的地面不是平的）
 const BGM_GD := preload("res://scripts/bgm.gd")
 const TEX_FRUIT := preload("res://art/forest_side/fruit.png")          # 两颗 9×9：0 红、1 灰
 const TEX_HOUSE := preload("res://art/forest_story/empty_house.png")   # 林子里的小屋 110×80
@@ -30,26 +39,32 @@ const TEX_LAMP := preload("res://art/forest_story/placed_lamp.png")    # 摆回�
 const TEX_SIGN := preload("res://art/forest_story/placed_sign.png")    # 路标 4 帧 26×43
 const TEX_FOG := preload("res://art/forest_story/fog_bank.png")        # 坡地的雾 480×120
 const TEX_HOOF := preload("res://art/forest_side/hoof_glow.png")       # 雾里发光的蹄印 41×10
+const SW_GD := preload("res://scripts/story_world.gd")                  # 雾：EDGE_FADE_SHADER、FOG_C、浓度常数照抄它
+const FOG_SHADER := preload("res://scripts/fog_noise.gdshader")
+const TH_DIR := "res://art/forest_story/"                                # 树屋：treehouse_back.png / room_light.png / treehouse.json
 
 const SCENES := {"forest": "res://scenes/forest_test.tscn"}
 const HIDE := ["Chen", "Snake", "Deer"]   # 小样场景里自带的人：先都藏起来，哪一镜要用再放出来
 
 const IN := 1.6              # 第一镜从结局画面上淡进来
-const HOLD := 4.2            # 每镜：从开始出现（方格开始盖）到下一镜开始盖上来；整屏完整停 HOLD − SWAP ≈ 3.4 秒
-const TRAIN_HOLD := 5.0      # 列车那一镜长一点（第一镜，回看从这里开始）
-const SWAP := 0.8            # 方格换镜（8 档 × 0.1 秒）
+const HOLD := 2.8            # 每镜：从开始出现（方格开始盖）到下一镜开始盖上来；整屏完整停 HOLD − SWAP ≈ 2.2 秒（11-08 作者「快一点」，原来 4.2）
+const TRAIN_HOLD := 3.5      # 列车那一镜长一点（第一镜，回看从这里开始；原来 5.0）
+const SWAP := 0.6            # 方格换镜（8 档 × 0.075 秒；原来 0.8）
 const OUT := 1.8             # 最后一镜淡到黑
 const PREBUILD := 1.0        # 换镜前多久把下一镜建好（建场景那一帧可能卡一下，别卡在方格中间）
 const DRIFT := 16.0          # 每镜镜头往右平移多少像素（sine 缓起缓停）
 const CELL := 16
 const STEPS := 8
 const MUSIC := "forest"
+const KEEP_MUSIC := "gymnopedie1"     # 正在放这首就不换
 const MUSIC_FADE := 3.0
 const DUCK := 16.0           # 环境声压低多少 dB
 const DUCK_SEC := 2.5
 const COLD := Color(0.74, 0.78, 0.85)   # 没做任务那一版：整屏压暗、偏冷
 const F_GROUND := 229.0      # forest_test 里人脚底的 y（场景里晨、蛇女、鹿都在 229）
 const WARM := Color(0.98, 0.78, 0.48)
+const SLOPE_FOG := 0.25      # 坡地的雾浓度（story_world.fog_at 在 slope 附近最多 0.25）
+const TH_GROUND := 228.0     # 树屋图的锚点（底边中点）踩的地面 y（treehouse.json anchor）
 
 var shots: Array = []
 var _slots: Array = [{}, {}]
@@ -57,6 +72,7 @@ var _shown: TextureRect
 var _mix: Control
 var _mix_k := 0
 var _mix_tex: Texture2D
+var _swap_n := 0
 var _veil: ColorRect
 var _t := 0.0
 var _skip := false
@@ -73,11 +89,15 @@ static func shots_for_state() -> Array:
 		{"id": "rabbit", "bg": "forest", "cam": Vector2(300, 135), "done": StoryState.has("c1_rabbit_helped")},
 		{"id": "toucan", "bg": "forest", "cam": Vector2(560, 135), "done": StoryState.has("sb_toucan_done")},
 		{"id": "deer", "bg": "forest", "cam": Vector2(420, 135), "done": StoryState.has("sb_slope_done")},
-		{"id": "hut", "bg": "forest", "cam": Vector2(660, 135), "done": sa_any},
+		{"id": "miluo_room", "bg": "forest", "cam": Vector2(660, 135), "done": sa_any},
 		{"id": "ting", "bg": "river_bank", "cam": Vector2(400, 0), "done": StoryState.has("river_ting_seen")},
 		{"id": "rat_chef", "bg": "market", "cam": Vector2(1080, 0), "done": StoryState.has("met_rat_chef")},
 		{"id": "jellyfish", "bg": "stairwell", "cam": Vector2(240, 0), "done": StoryState.has("jelly_blessed")},
-		{"id": "niff", "bg": "river_bank", "cam": Vector2(1330, 0), "done": StoryState.has("river_cup_traced")},
+		{"id": "niff_home", "bg": "river_bank", "house": "river_home", "cam": Vector2(210, 182), "drift": 8.0,
+			"done": StoryState.has("river_cup_traced")},
+		# 11-08 作者「也要包括可能没出现的云层和芦苇地」：这局去没去过都放、都是原样（不压暗）
+		{"id": "town", "bg": "town", "cam": Vector2(990, 0), "done": true},
+		{"id": "reed", "bg": "reed_field", "cam": Vector2(1010, 0), "done": true},
 	]
 
 
@@ -109,7 +129,10 @@ func play() -> void:
 	_veil.color = Color(0, 0, 0, 0)
 	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_veil)
-	BGM_GD.get_bgm(get_tree()).play(MUSIC, NAN, MUSIC_FADE)
+	# 11-08 作者「闪回的时候一直播放钢琴曲」：芦苇地 / 云层小镇两条线落地起的 gymnopedie1 一路放过回看，不切 forest；回母星那条照旧切 forest
+	var bgm = BGM_GD.get_bgm(get_tree())
+	if bgm.current() != KEEP_MUSIC:
+		bgm.play(MUSIC, NAN, MUSIC_FADE)
 	_duck(true)
 	# 第一镜：整屏从结局画面上淡进来
 	_build_slot(0, 0)
@@ -161,29 +184,49 @@ func _hold(i: int, s: int) -> void:
 
 
 ## 换镜：下一镜用方格一格一格盖上来；盖满以后它就是整屏的那一镜
+## 11-08 作者截图：森林那镜悬空一块黑方格 = 换镜的方格没清干净。现在：最后一档整屏都画（不靠 hash 每格都轮到），
+## 底下那张换过去、等它真的画出来一帧，再把覆盖层整个清掉（_mix_k = 0、_mix_tex = null、隐藏）；换镜编号防两次换镜叠在一起
 func _swap(to: int) -> void:
 	var sl: Dictionary = _slots[to]
 	sl["live"] = true
 	sl["t"] = 0.0
+	_swap_n += 1
+	var me := _swap_n
 	_mix_tex = (sl["vp"] as SubViewport).get_texture()
+	_mix.visible = true
 	for k in STEPS:
+		if me != _swap_n:
+			return
 		_mix_k = k + 1
 		_mix.queue_redraw()
 		await get_tree().create_timer((0.2 if _skip else SWAP) / STEPS, false).timeout
+	if me != _swap_n:
+		return
 	_shown.texture = _mix_tex
+	await get_tree().process_frame                 # 底下那张先画出来，再撤覆盖层（不闪）
+	_clear_mix()
+
+
+func _clear_mix() -> void:
 	_mix_k = 0
+	_mix_tex = null
 	_mix.queue_redraw()
+	_mix.visible = false
+	print("MONTAGE mix_clear k=%d tex=%s vis=%s t=%.1f" % [_mix_k, _mix_tex != null, _mix.visible, _t])
 
 
 func _draw_mix() -> void:
 	if _mix_k <= 0 or _mix_tex == null:
+		return
+	if _mix_k >= STEPS:                                               # 最后一档：整屏
+		_mix.draw_texture_rect_region(_mix_tex, Rect2(0, 0, 480, 270), Rect2(0, 0, 480, 270))
 		return
 	var cols := int(ceil(480.0 / CELL))
 	var rows := int(ceil(270.0 / CELL))
 	for cy in rows:
 		for cx in cols:
 			if absi(hash(Vector2i(cx, cy))) % STEPS < _mix_k:          # 每格第几档盖上（同一格永远同一档，和制作人员一样）
-				var r := Rect2(cx * CELL, cy * CELL, CELL, CELL)
+				var r := Rect2(cx * CELL, cy * CELL, CELL, CELL).intersection(Rect2(0, 0, 480, 270))    # 最下一行 256–272 夹到 270
 				_mix.draw_texture_rect_region(_mix_tex, r, r)
 
 
@@ -200,6 +243,9 @@ func _process(delta: float) -> void:
 		var st = sl.get("stage")
 		if st != null:
 			st.update(delta, cam.position)
+		var hs = sl.get("house")
+		if hs != null:
+			hs.update(delta, cam.position)
 		var fn := "_tick_" + str((sl["sd"] as Dictionary)["id"])
 		if has_method(fn):
 			call(fn, sl, t, delta)
@@ -218,6 +264,7 @@ func _build_slot(s: int, i: int) -> void:
 	var cam: Vector2 = sd["cam"]
 	var world: Node2D
 	var stage: Node2D = null
+	var house: Node2D = null
 	var camera: Camera2D
 	var ground := F_GROUND
 	if SCENES.has(bg):
@@ -239,14 +286,24 @@ func _build_slot(s: int, i: int) -> void:
 		stage.setup(bg, null)
 		world.add_child(stage)
 		camera = Camera2D.new()
+		if sd.has("house"):
+			# 室内（泥芙家）：host 房间照建，屋子挂在 host 上；前墙藏掉 = 屋里整个看得见。cam = 屋子里的 (x, y)
+			house = ROOM_GD.new()
+			house.setup(str(sd["house"]), null, stage)
+			world.add_child(house)
+			house.house_front.visible = false
+			cam = (house.origin + cam).round()
+		else:
+			cam = Vector2(stage.clamp_cam_x(stage.origin.x + cam.x), stage.cam_y())
 		world.add_child(camera)
-		cam = Vector2(stage.clamp_cam_x(stage.origin.x + cam.x), stage.cam_y())
 	vp.add_child(world)
 	camera.position = cam
 	camera.make_current()
 	if stage != null:
 		stage.update(0.0, cam)
-	var sl := {"vp": vp, "world": world, "stage": stage, "cam": camera, "cam_from": cam, "ground": ground, "t": 0.0,
+	if house != null:
+		house.update(0.0, cam)
+	var sl := {"vp": vp, "world": world, "stage": stage, "house": house, "cam": camera, "cam_from": cam, "ground": ground, "t": 0.0,
 		"live": false, "hold": float(sd.get("hold", HOLD)), "drift": float(sd.get("drift", DRIFT)), "sd": sd, "n": {}}
 	if not bool(sd["done"]):
 		world.modulate = COLD
@@ -282,7 +339,9 @@ func _put(sl: Dictionary, n: Node2D, sx: float, dy := 0.0) -> void:
 		st.add_node(n, 0)
 	else:
 		var w: Node2D = sl["world"]
-		n.position = Vector2(x, float(sl["ground"]) + dy)
+		# 11-08 作者「大嘴鸟为什么悬空了」：原来一律放在 y 229（F_GROUND），森林地面是起伏的（228 ± 3.5），
+		# 大嘴鸟那镜 x 570 的地面在 231，树桩底悬空 2 像素。改成按地面公式，和游戏里 _place 一样 round(地面) + 1
+		n.position = Vector2(x, roundf(CHEN_GD.ground_y(x)) + 1.0 + dy)
 		w.add_child(n)
 		var c := w.get_node_or_null("Chen")
 		if c != null:
@@ -297,6 +356,8 @@ func _npc(sl: Dictionary, who: String, sx: float, dir: int, anim := "idle", sc :
 	n.call("face", dir)                              # 进树之前转好（阿汀的 turn_fade 只在画面里转身时才淡）
 	n.call("play", anim)
 	_put(sl, n, sx, dy)
+	if sl.get("stage") == null and OS.get_cmdline_user_args().has("--story_auto"):
+		print("MONTAGE_NPC %s x=%d y=%d ground=%.1f" % [who, int(n.position.x), int(n.position.y), CHEN_GD.ground_y(n.position.x)])
 	return n
 
 
@@ -396,14 +457,33 @@ func _build_toucan(sl: Dictionary, done: bool) -> void:
 
 
 ## 鹿：跟着蹄印走过雾（sb_slope_done）= 雾里一串蹄印还亮着、鹿站在雾跟前；没去 = 只有雾，鹿在一边低头
+## 雾照森林坡地的放法（story_world：PROPS.fog_bank + _make_fog_layer），见文件头 11-08 那条
 func _build_deer(sl: Dictionary, done: bool) -> void:
 	var w: Node2D = sl["world"]
-	var fog := _sprite(TEX_FOG)
-	fog.modulate.a = 0.9
-	var holder := Node2D.new()
-	holder.add_child(fog)
-	fog.position = Vector2(-120, -112)
-	_put(sl, holder, 300, 6)
+	var main := w.get_node_or_null("Main")
+	var mid := w.get_node_or_null("Mid")
+	# 后面那层会漂的雾（Mid 和 Main 之间），再是远处那堵 fog_bank，都在主层后面：主层的地面盖住雾的下沿
+	var back := _fog_layer("FogBack", 0.8, 0.0, 270.0, 11, Vector2(0.006, -0.003), 1.4, 0.55,
+		SW_GD.FOG_BACK_BASE + (SW_GD.FOG_BACK_A - SW_GD.FOG_BACK_BASE) * SLOPE_FOG)
+	var bank := Sprite2D.new()
+	bank.texture = TEX_FOG
+	bank.centered = false
+	bank.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bank.offset = Vector2(-TEX_FOG.get_width() / 2, -TEX_FOG.get_height())
+	bank.position = Vector2(_wx(sl, 330), float(sl["ground"]) + 1.0 + 4.0)      # 底边压进地里 4 像素（PROPS.fog_bank 的 sink）
+	var sh := Shader.new()
+	sh.code = SW_GD.EDGE_FADE_SHADER                                           # 左右两头分档淡掉（不是整块方形）
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	bank.material = m
+	if mid != null and main != null:
+		w.add_child(back)
+		w.move_child(back, mid.get_index() + 1)
+		w.add_child(bank)
+		w.move_child(bank, back.get_index() + 1)
+	else:
+		w.add_child(back)
+		w.add_child(bank)
 	if done:
 		var prints: Array = []
 		for i in 4:
@@ -420,8 +500,45 @@ func _build_deer(sl: Dictionary, done: bool) -> void:
 		_own(sl, "Deer", 190, 400)
 	else:
 		_own(sl, "Deer", 150, 60)
-	if w.get_node_or_null("Deer") != null:
-		w.move_child(holder, w.get_node("Deer").get_index())    # 雾在鹿后面
+	# 前面那层很淡的雾：角色前面、Front 层后面，只在下半屏（和森林一样，鹿还是看得清）
+	var front := _fog_layer("FogFront", 1.2, 135.0, 135.0, 29, Vector2(0.014, 0.0), 2.0, 0.0,
+		SW_GD.FOG_FRONT_BASE + (SW_GD.FOG_FRONT_A - SW_GD.FOG_FRONT_BASE) * SLOPE_FOG)
+	w.add_child(front)
+	var fl := w.get_node_or_null("Front")
+	if fl != null:
+		w.move_child(front, fl.get_index())
+
+
+## 和 story_world._make_fog_layer 一样的一层雾（Parallax2D 横向循环 + 噪声 shader 随时间漂）
+func _fog_layer(nm: String, scroll: float, y0: float, h: float, seed: int, speed: Vector2, gpow: float, gmin: float, density: float) -> Parallax2D:
+	var p := Parallax2D.new()
+	p.name = nm
+	p.scroll_scale = Vector2(scroll, 1.0)
+	p.repeat_size = Vector2(480, 0)
+	p.repeat_times = 3
+	var nz := FastNoiseLite.new()
+	nz.seed = seed
+	nz.frequency = 0.012
+	var tex := NoiseTexture2D.new()
+	tex.width = 480
+	tex.height = int(h)
+	tex.seamless = true
+	tex.noise = nz
+	var mat := ShaderMaterial.new()
+	mat.shader = FOG_SHADER
+	mat.set_shader_parameter("noise_texture", tex)
+	mat.set_shader_parameter("speed", speed)
+	mat.set_shader_parameter("gradient_pow", gpow)
+	mat.set_shader_parameter("gradient_min", gmin)
+	mat.set_shader_parameter("density", density)
+	var r := ColorRect.new()
+	r.color = SW_GD.FOG_C
+	r.position = Vector2(0, y0)
+	r.size = Vector2(480, h)
+	r.material = mat
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.add_child(r)
+	return p
 
 
 func _tick_deer(sl: Dictionary, t: float, _delta: float) -> void:
@@ -433,32 +550,56 @@ func _tick_deer(sl: Dictionary, t: float, _delta: float) -> void:
 		(pr[i] as CanvasItem).modulate.a = 0.45 + 0.4 * (0.5 + 0.5 * sin(t * 2.2 - float(i) * 0.9))   # 一个接一个往雾里亮过去
 
 
-## 林子里的小屋（弥洛修好的三样东西送回去了：sa_lamp_done / sa_radio_done / sa_sign_done 任一）：
-## 油灯摆回窗台点着、窗里暖光一明一暗；路标插回底座（sa_sign_done）；弥洛在屋前。没送 = 屋子黑着
-func _build_hut(sl: Dictionary, done: bool) -> void:
+## 弥洛的树屋室内（11-08 作者「Milo 家内部」）：treehouse_back（树干 + 屋里）+ 屋里的物件 + room_light，前墙不放（剖面看进去）；
+## 弥洛在右边工作台前。修好的油灯 / 路标送回去了（sa_lamp_done / sa_sign_done）= 屋里就没有了、窗边暖光一明一暗；
+## 一样都没送（没做）= 油灯、路标还在架子上，整屏压暗（COLD）
+func _build_miluo_room(sl: Dictionary, done: bool) -> void:
+	var w: Node2D = sl["world"]
+	var cfg = JSON.parse_string(FileAccess.get_file_as_string(TH_DIR + "treehouse.json"))
+	var objs: Dictionary = (cfg as Dictionary).get("objects", {}) if cfg is Dictionary else {}
 	var house := Node2D.new()
-	var hs := _sprite(TEX_HOUSE)
-	hs.position = Vector2(-55, -80)
-	house.add_child(hs)
-	_put(sl, house, 300, 1)
-	if done and StoryState.has("sa_lamp_done"):
+	house.position = Vector2(_wx(sl, 240), TH_GROUND)                       # 锚点 = 底边中点
+	var back_tex := load(TH_DIR + "treehouse_back.png") as Texture2D
+	var bk := _sprite(back_tex)
+	bk.position = Vector2(-back_tex.get_width() / 2, -back_tex.get_height())
+	house.add_child(bk)
+	var skip := ["pipe_steam", "room_lamp_mark"]
+	if StoryState.has("sa_lamp_done"):
+		skip.append("room_lamp")
+	if StoryState.has("sa_sign_done"):
+		skip.append("room_sign")
+	if StoryState.has("sa_radio_done"):
+		skip.append("room_radio")
+	for oid in objs:
+		if str(oid) in skip:
+			continue
+		var o: Dictionary = objs[oid]
+		var p := TH_DIR + str(oid) + ".png"
+		if not ResourceLoader.exists(p):
+			continue
+		var tx := load(p) as Texture2D
+		var fw := int(o.get("w", tx.get_width()))
+		var sp := _sprite(tx, Rect2(0, 0, fw, tx.get_height()))
+		sp.position = Vector2(float(o.get("x", 0)), float(o.get("y", 0)))
+		house.add_child(sp)
+	if ResourceLoader.exists(TH_DIR + "room_light.png"):
+		var lt := load(TH_DIR + "room_light.png") as Texture2D
+		var ls := _sprite(lt)
+		ls.position = Vector2(-lt.get_width() / 2, -lt.get_height())
+		house.add_child(ls)
+	if done:
 		var glow := _drawer(_draw_hut_glow, true)
-		glow.position = Vector2(-28, -33)            # 左边那扇窗的中间
+		glow.position = Vector2(-55, -60)            # 窗（back 图里左边那扇）
 		house.add_child(glow)
-		var lamp := _sprite(TEX_LAMP)
-		lamp.position = Vector2(-33 - 4, -26 - 15)   # 和 forest_side_a 的 sa_placed_lamp（dx −33、dy −26）一样摆在窗台上
-		house.add_child(lamp)
 		sl["n"] = {"glow": glow}
-	if done and StoryState.has("sa_sign_done"):
-		var sign := Node2D.new()
-		var ss := _sprite(TEX_SIGN, Rect2(0, 0, 26, 43))
-		ss.position = Vector2(-13, -43)
-		sign.add_child(ss)
-		_put(sl, sign, 410, 1)
-	_own(sl, "Snake", 176, 300)
+	w.add_child(house)
+	var sn := w.get_node_or_null("Snake")
+	if sn != null:
+		w.move_child(house, sn.get_index())           # 屋子在弥洛后面
+	_own(sl, "Snake", 240 + 84, 240 + 140)            # 工作台前，朝着工作台
 
 
-func _tick_hut(sl: Dictionary, _t2: float, _delta: float) -> void:
+func _tick_miluo_room(sl: Dictionary, _t2: float, _delta: float) -> void:
 	var n: Dictionary = sl["n"]
 	if n.has("glow"):
 		(n["glow"] as Node2D).queue_redraw()
@@ -501,17 +642,44 @@ func _build_jellyfish(sl: Dictionary, done: bool) -> void:
 		_npc(sl, who, 214, 1, "idle", 1.0 if own else 0.4, -44)
 
 
-## 泥芙：陪她翻过来客册（river_cup_traced，杯子留着等人来拿）= 家门口转着圈；没翻 = 在门口漂着
-func _build_niff(sl: Dictionary, done: bool) -> void:
-	var n := _npc(sl, "niff", 210, 1)
+## 泥芙家室内（11-08 作者「泥芙家内部」）：泥芙在桌边泡茶。陪她翻过来客册（river_cup_traced）= 桌上两杯茶（等人来喝）、
+## 泥芙转一圈；没翻 = 桌上只有那只杯子，整屏压暗（COLD）
+func _build_niff_home(sl: Dictionary, done: bool) -> void:
+	var hs: Node2D = sl["house"]
+	if hs == null:
+		return
+	if hs.has_object("river_home_table"):
+		hs.set_prop("river_home_table", "two_cups_tea" if done else "cup_stays", true)
+	if hs.has_object("river_home_hourglass"):
+		hs.set_prop("river_home_hourglass", "running", true)       # 泡茶计时
+	var n: Node2D = NPC_GD.new()
+	n.setup("niff")
+	n.call("face", -1)                                          # 朝着桌子 / 厨房
+	n.call("play", "idle")
+	n.position = Vector2(float(hs.mx("river_home_niff")) - hs.origin.x, roundf(hs.ground_local(float(hs.mx("river_home_niff")) - hs.origin.x)) + 1.0)
+	hs.add_node(n, 0)
 	sl["n"] = {"niff": n, "spun": not done}
 
 
-func _tick_niff(sl: Dictionary, t: float, _delta: float) -> void:
+func _tick_niff_home(sl: Dictionary, t: float, _delta: float) -> void:
 	var n: Dictionary = sl["n"]
-	if not bool(n.get("spun", true)) and t >= 1.2:
+	if n.has("niff") and not bool(n.get("spun", true)) and t >= 1.0:
 		n["spun"] = true
 		(n["niff"] as Node2D).call("play", "laugh")       # niff.json：laugh → spin（转一圈）
+
+
+# ======================================================================= 云层星（11-08 新加：谁都放）
+## 云层小镇：镇民在喷泉广场（喷泉、水车、风车由 cloud_town.gd 自己动）
+func _build_town(sl: Dictionary, _done: bool) -> void:
+	_npc(sl, "townsfolk", 168, 1)
+	_npc(sl, "townsfolk", 214, -1, "idle")
+	_npc(sl, "townsfolk", 318, -1)
+
+
+## 芦苇地：白鹭、风吹芦苇、绒毛（reed_field.gd 自己动）。这局走了真结局（final_ending_1）= 大象在水边吃草；没走 = 只有芦苇地
+func _build_reed(sl: Dictionary, _done: bool) -> void:
+	if StoryState.has("final_ending_1"):
+		_npc(sl, "elephant", 320, -1)
 
 
 # ======================================================================= 声音

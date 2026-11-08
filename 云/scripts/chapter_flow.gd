@@ -42,7 +42,10 @@ const CHAPTERS := {
 			"river_n_courier",   # 河流篇开头怎么回泥芙：终章她的消息按这个称呼晨
 			"river_seal_cabinet", "river_seal_market", "river_jelly_given"]   # 11-07 终章真结局：密封圈从绿柜子 / 市集来、给没给水母东西
 			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,
-		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},
+		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true,
+		# 11-08 作者（芦苇地截图）「这个场景不应该有燃料显示啊」：燃料条 / 左上角火苗只在这些房间出（驾驶舱：燃料柜、航线、碎石段），
+		# 落地以后的芦苇地、云层小镇、尾声回访、列车一律不显示（level_forest._fuel_room_ok）。不写 = 哪个房间都行（森林、飞行一）
+		"fuel_rooms": ["cockpit"]},
 }
 
 ## 森林自动玩（--story_auto）到 launched 时的样子；剧本改了以后这里不一定完全一样，只是直接进 flight1 时的起点。

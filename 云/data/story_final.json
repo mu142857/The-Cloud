@@ -505,7 +505,7 @@
 		"ending1": [
 			{"do": "flag", "set": "final_ending_1"},
 			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
-			{"do": "music", "track": "gymnopedie1", "fade": 3.0, "_note": "11-08 作者：终章云层星配乐用萨蒂 Gymnopédie No.1（裸体圆舞曲）。冲出去以后飞船配乐还在响，黑屏里交叉过去，落地时这首已经起来；芦苇地、回驾驶舱、森林尾声一路垫着，进树屋交叉到 forest"},
+			{"do": "music", "track": "gymnopedie1", "fade": 3.0, "_note": "11-08 作者：终章云层星配乐用萨蒂 Gymnopédie No.1（裸体圆舞曲）。冲出去以后飞船配乐还在响，黑屏里交叉过去，落地时这首已经起来；芦苇地、回驾驶舱、尾声回访（鹿 → 弥洛 → 泥芙 → 列车）、结局回看一路不停（11-08 作者「闪回的时候一直播放钢琴曲」：树屋不再切 forest、泥芙家不再停），全剧终卡交叉到 theme"},
 			{"do": "fade_to", "room": "reed_field", "at": "yard_landing"},
 			{"do": "sfx", "name": "rough_landing"},
 			{"do": "wait", "sec": 1.5},
@@ -702,7 +702,7 @@
 		"ending3": [
 			{"do": "flag", "set": "final_ending_3"},
 			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
-			{"do": "music", "track": "gymnopedie1", "fade": 3.0, "_note": "11-08 作者：终章云层星配乐用萨蒂 Gymnopédie No.1（裸体圆舞曲）。冲出去以后飞船配乐还在响，黑屏里交叉过去，落地时这首已经起来；一直放到结局回看（回看自己交叉到 forest）"},
+			{"do": "music", "track": "gymnopedie1", "fade": 3.0, "_note": "11-08 作者：终章云层星配乐用萨蒂 Gymnopédie No.1（裸体圆舞曲）。冲出去以后飞船配乐还在响，黑屏里交叉过去，落地时这首已经起来；一直放过结局回看（11-08 作者「闪回的时候一直播放钢琴曲」：回看见到 gymnopedie1 就不切 forest），全剧终卡交叉到 theme"},
 			{"do": "fade_to", "room": "town", "at": "town_landing"},
 			{"do": "sfx", "name": "landing_soft"},
 			{"do": "show", "who": "townsfolk", "at": "town_helper"},
@@ -929,7 +929,6 @@
 			{"say": "deer", "zh": "下回来，先在路口喊一声，咱听得见。", "en": "Next time, give a shout at the crossroads. I'll hear.", "added": true}
 		],
 		"epi_miluo": [
-			{"do": "music", "track": "forest", "fade": 1.5, "_note": "11-06 qa_audio：进树屋鸟叫淡出（作者的规矩），尾声屋里又没有别的声音，整段树屋戏都是真空。接第一章树屋里同一首配乐，黑屏之前就起，和鸟叫交叉"},
 			{"do": "fade_to", "room": "treehouse", "at": "treehouse_door"},
 			{"do": "sfx", "name": "knock"},
 			{"do": "sfx", "name": "door_open"},
@@ -1000,7 +999,6 @@
 			{"say": "miluo", "zh": "要坐就坐。别坐那把。", "en": "Sit if you're sitting. Not that one.", "added": true}
 		],
 		"epi_niff": [
-			{"do": "music", "stop": true, "fade": 3.0, "_note": "树屋的配乐淡出，和河水声淡入交叉"},
 			{"do": "fade_to", "room": "river_home", "at": "river_home_table", "place": {"niff": "river_home_niff"}, "_note": "11-04 夜测：人在黑幕里先站好，淡入以后不再凭空冒出来"},
 			{"do": "show", "who": "niff", "at": "river_home_niff"},
 			{"do": "face", "who": "niff", "to": "chen"},
@@ -1272,6 +1270,7 @@
 		"ending_home": [
 			{"do": "flag", "set": "final_ending_home"},
 			{"do": "cockpit_dash", "_note": "11-07 作者结局重构：三个去处（芦苇地 / 云层小镇 / 回母星），砍结局二、四；晨的独白要少，留下的打在屏幕上：掉头回母星，和别的结局一样往前一冲、黑屏，直接接列车"},
+			{"do": "music", "track": "forest", "fade": 3.0, "_note": "11-08 qa_audio：回母星这条不用钢琴，原来飞船配乐淡掉以后列车段 10 秒没有配乐（train_run 还没有音效文件）= 真空；黑屏里就把 forest 交叉进来，一直垫到结局回看（回看本来就放 forest，不重起），全剧终卡交叉到 theme"},
 			{"do": "goto", "scene": "epi_home"}
 		]
 	}

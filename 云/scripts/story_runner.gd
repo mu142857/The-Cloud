@@ -2308,6 +2308,8 @@ func _place_residents(room: String) -> void:
 		n._set_facing(int(rd.get("face", 1)))
 		n.set_meta("resident", true)          # 住在这儿的人钉在原地：晨走过来不飘开让路（11-02 作者：水母被推离了柜台）
 		n.visible = true
+		if auto != "" or _qa_live:
+			print("RESIDENT %s room=%s x=%d y=%d ground=%d" % [who, room, int(n.position.x), int(n.position.y), int(world.ground_at(n.position.x, room))])
 
 
 # ----------------------------------------------------------------------- 鹿带路 / 点选 / 结束
