@@ -207,7 +207,8 @@ def main() -> None:
     out_dir = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     out_dir.mkdir(parents=True, exist_ok=True)
     sa = ROOT / "data" / "forest_side_a.json"
-    sb = ROOT / "data" / "forest_side_b.json"
+    sb = ROOT / "data" / "forest_side_b.json"           # 坡地
+    st = ROOT / "data" / "forest_side_on_toucan.json"   # 11-08 大嘴鸟从 forest_side_b 拆出来
     P = (232, 150)
     radio_lost = {"zh": "失物招领：一位自称是鹿的母亲的人。有认识的，请来把她领走。",
                   "en": "Lost and found: one person claiming to be a deer's mother. If you know her, please come collect her."}
@@ -227,7 +228,7 @@ def main() -> None:
                       "narr": {"zh": "最小的那个在地上摸来摸去。它比划了一下：一个背包。", "en": "The smallest one feels around on the floor. Then it traces a shape: a backpack."}},
         "ship_repair": {"panel": P, "hint": {"zh": "圈里几个点就敲几下，敲够了就停手", "en": "Hit each part as many times as its dots, then stop."}},
         "side_toucan": {"hint": {"zh": "← → / A D：接住大嘴鸟抛过来的果子", "en": "← → / A D: catch the toucan's fruit"},
-                        "choices": longest_choice(sb, [k for k in json.loads(sb.read_text(encoding="utf-8"))["scenes"] if "toucan" in k])},
+                        "choices": longest_choice(st, [k for k in json.loads(st.read_text(encoding="utf-8"))["scenes"] if "toucan" in k])},
         "side_slope": {"hint": {"zh": "← → / A D：跟着鹿的蹄印走（两瓣的那种）", "en": "← → / A D: follow the deer's hoofprints (the split ones)"},
                        "choices": longest_choice(sb, [k for k in json.loads(sb.read_text(encoding="utf-8"))["scenes"] if "slope" in k])},
         "rabbit_dance": {"hint": {"zh": "方向键 / WASD：跟着兔子跳", "en": "Arrow keys / WASD: follow the rabbit"}},

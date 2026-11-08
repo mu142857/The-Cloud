@@ -51,9 +51,12 @@ const CHAPTERS := {
 const SEED := {
 	"flags": ["crashed", "c1_crashed", "c1_fuel_bar", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
 		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_rabbit_chief", "c1_danced", "c1_rabbit_plain", "c1_got_wood", "c1_rabbit_done", "c1_rabbit_helped",
-		"c1_fixed", "c1_seed", "c1_ready", "launched"],
-	"owned": ["elephant_drawing", "deer_bear", "rabbit_fur", "floorboard", "floorboard",
-		"miluo_letter", "clear_seed", "miluo_note", "journal"],   # 11-08：小鹿临走前给的笔记本
+		"c1_fixed", "c1_side_open", "c1_seed", "c1_out2", "c1_ready", "launched",
+		# 11-08 作者「f12 跳的那里就默认我们完成了所有主线和支线」：现在开着的支线 = 教兔子跳舞（上面 c1_rabbit_helped）+ 大嘴鸟（叫了妈妈那一版）。
+		# 隐藏的支线（docs/待更新列表.md）不算；哪天接回来，这里也要补它们的 flag 和奖励。
+		"sb_toucan_met", "sb_toucan_mama", "sb_toucan_done"],
+	"owned": ["elephant_drawing", "deer_bear", "rabbit_fur", "floorboard", "floorboard", "glowing_wood",
+		"family_photo", "miluo_letter", "journal", "sb_toucan_feather"],   # 11-08：小鹿临走前给的笔记本；透明种子 / 纸条删了；补上修完飞船弥洛给的全家福、还回来的永燃之木（F12 跳到飞行一时漏了全家福，作者以为它不能烧）
 	"journal": [],
 }
 

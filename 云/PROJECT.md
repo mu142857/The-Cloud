@@ -54,6 +54,53 @@
 
 ## 5. 改动记录（新的写在最上面）
 
+### 2026-11-08（十五） · Claude · 飞行一陨石过场：冒烟、爆炸、颤抖、永燃之木掉下去
+- 作者：「设计一个飞船冒烟，爆炸，颤抖的动画，符合现有美术风格，有一个永燃之木掉下去的画面」。
+- 新 `scripts/cockpit_meteor.gd`（剧本步骤 `cockpit_meteor`，挂法同 `cockpit_dash`），约 7 秒：拉到船外远景（`far_out`，船一直小幅颤）→ 货舱（远景船后半截偏下）炸开：白点 → 火球 → 断开的火环，碎片崩飞、大晃、船往下一沉再弹回 → 船身上画出裂口（黑洞 + 左上翻起的亮边 + 闪的火边），之后一直往右后方冒烟、冒火星 → 永燃之木从裂口崩出来，翻着往右后方掉出画面，身上那圈暖光一闪一闪、拖一串光点 → 又炸两小下 → 拉回剖面。
+- 不新画图：船 = `art/cockpit/ship_out/`；烟 / 火星 / 碎片 = `scripts/puffs.gd`（开场坠毁同一套硬边像素圆，烟比开场亮一档，天太暗）；木头 = `art/level1/wood.png` + `wood_glow.png`（森林里捡它那张）。爆炸、裂口按像素画、4 档淡出。
+- 接线：`story_runner.gd` 的 `COCKPIT_STEPS` / 步骤分派 / `_validate_cockpit`；`cockpit_room.gd` 加 `out_layer()`（远景层，特效挂在这里才跟着镜头抖和船上下挪）；`story_flight1.json` `flight1_meteor` 在警报声后、清 `flight1_wood_power` 前插 `{"do": "cockpit_meteor"}`（看完木头掉下去，燃料条才从 ∞ 变 40）；`tools/story_to_txt.py` 认这一步。
+- 离线预览：`docs/陨石过场_预览.png`（Python 按代码里的位置拼的三帧静态图：炸开 / 木头崩出 / 翻着掉下去；不是游戏截图，没有晃动和碎片）。
+- 验证：JSON 能解析。**没验证**：本机没有 Godot，没跑 `--check-only` 和游戏内；要看：裂口位置 `HOLE`（0.71, 0.80）是不是正好在货舱那块、节奏长短、音效音量（`alarm_broken` / `debris_bump` / `metal_clank` / `fire_flare` 都是现成的）。
+
+### 2026-11-08（十五） · Claude · 全流程静态检查 + gitignore
+- 作者：「快速的过一遍整个的游戏流程，确定没有 bug」。本机没有 Godot，用 Python 静态扫了四章剧本（goto / 选项 / 热点 / 目标的 scene、flag 有没有地方设、物品在不在表、include 合并），没有断链、没有缺物品、没找到软锁。
+- 查出来的「动力值文档过期」「SEED 漏全家福 / 永燃之木」已由（十二）（十三）改好，核对过。
+- 仓库根 `.gitignore` 加 `__pycache__/`（`tools/__pycache__/` 不再出现在 git status）。
+- **没验证 / 要人看**：飞行一只走主线（600）时，陨石后要先烧掉 ≥210，躲碎石 40 秒基础 -160、漏点和撞击另扣，撞得多可能烧光坠毁回标题（和「没有失败」原则冲突）——要在有 Godot 的机器上跑 `tools/qa_all.sh` 的 `live_main` 看。醒来点 `chen_bye` 离飞船 116，`c1_launch` range 120，余量小。
+
+### 2026-11-08（十四） · Claude · F12 跳过第一章 = 主线 + 现有支线全做完
+- 作者：「f12 跳的那里就默认我们完成了所有主线和支线就可以」。
+- `chapter_flow.gd` `SEED`：flags 补 `c1_side_open`、`c1_out2` 和大嘴鸟的 `sb_toucan_met` / `sb_toucan_mama` / `sb_toucan_done`（叫了妈妈那一版）；背包加 `sb_toucan_feather`。兔子练舞（`c1_rabbit_helped` + 兔子皮毛）本来就在。跳到飞行一时背包能烧的 = 750。
+- 隐藏的支线不算（游戏里现在没有）；接回来时要一起补进 SEED（注释里写了）。
+- 验证：**没验证**，本机没有 Godot。
+
+### 2026-11-08（十三） · Claude · F12 跳到飞行一背包里没有全家福
+- 作者：「全家福为什么不能烧掉」「我是从 f12 跳关过去的」。全家福本身能烧（keepsake_burn 150）；是 `chapter_flow.gd` 的 `SEED`（直接进飞行一 / 后面章节时的背包）漏了它。补上 `family_photo` 和 `glowing_wood`（修完飞船弥洛还回来的）。
+- `story_flight1.json` `flight1_meteor`：旁白说永燃之木掉出去了，加 `take glowing_wood`（原来没拿，正常玩下来一直留在背包里）。
+- 影响：F12 跳河流篇 / 终章时背包里也会多全家福（SEED 当时假设飞行一烧的是蓝色石头）。
+- 验证：JSON 能解析。**没验证**：本机没有 Godot，没进游戏。
+
+### 2026-11-08（十二） · Claude · 删透明种子 / 纸条；飞行一烧到 250 出「继续前行」
+- 作者：「透明种子和纸条我觉得有点多余，这两个删除，也就是说主线600……按照250这个先来，只要燃烧超过了这个线，就可以继续了，具体就会有一个继续前行的按钮出现，然后进入二阶段，障碍物会变多，如果再次受伤就需要扔掉其他东西了」。
+- **删种子 / 纸条**：`story_forest.json` `c1_photo` 不再给（flag 名 `c1_seed` 不改，门和目标还看它）；`chapter_flow.gd` SEED 去掉两件；`dev_names.json` 标签。终章 `story_final.json` 跟着改：`cab_think` 去掉看种子；结局一 `e1_sit`、结局三 `e3_bench` 末尾直接设 `final_e1_seed_done` / `final_e3_seed_done`（跳过种种子）；尾声 `epi_miluo_seed` 直接 `epi_miluo_end`（弥洛不再问种子）。旧场景都留着没删。`final_paper` 的烧物品列表里还写着 `clear_seed`，背包里没有就不摆，不用改。
+- **飞行一**：`burn_pick.gd` 新参数 `go_at`：repeat 时不自动停，标题下一行「燃料 当前 / 250」，到线后变暖色、右下角出「继续前行」（F 或点它），可以接着烧或者走；自动玩 / 跳节拍到线就走。`story_flight1.json` 的 `flight1_hold`（陨石后第一次烧）和躲碎石里的 `refuel` 都从 `until_at: 300` 改成 `go_at: 250`。
+- 「二阶段障碍变多、再受伤要再扔东西」：现在就是这样——陨石前 `PLAN_CRUISE` 3 波，烧完后的 `flight1_debris` 11 波；撞了燃料漏得快，低于绿线 150 按 F 回货舱再烧。没改波次。
+- 动力值：主线 600 / 练舞 700 / 加大嘴鸟 750（`docs/待更新列表.md` 已更新）。
+- 验证：JSON 都能解析。**没验证**：本机没有 Godot，没跑 `--check-only`、`--story_check` 和游戏内；要看「继续前行」按钮和按键提示一行挤不挤（英文、中文）、F 在货舱里会不会和别的按键冲突、终章结局一 / 三跳过种子后目标「回飞机」「回住处」是否马上出现。
+
+### 2026-11-08（十一） · Claude · 大嘴鸟支线重新打开
+- 作者：「大嘴鸟的游戏可以玩么，可以玩我就加进去」。11-05 夜测第一关标「正常」，代码 / 图都在，不依赖坡地。
+- 支线 3 从 `data/forest_side_b.json` 拆到新文件 `data/forest_side_on_toucan.json`（场景 12、热点 4、目标 1、物品尾羽）；`forest_side_b.json` 只剩坡地。`story_forest.json` 加 `"include": "res://data/forest_side_on_"`（`include_pending` 留着，恢复全部的方法写在 `_include_note` 和 `docs/待更新列表.md`）。
+- `tools/overlay_layout_check.py`：大嘴鸟的选项改读新文件，坡地仍读 `forest_side_b.json`。
+- 动力值：现在能玩的全做完 = 940（主线 790 + 兔子皮毛 100 + 尾羽 50）。
+- 验证：三份 JSON 能解析、py 能编译。**没验证**：本机没有 Godot，没跑 `--story_check` 和游戏内。
+
+### 2026-11-08（十） · Claude · 第一章支线先隐藏 + 主线动力值统计
+- 作者：「这些支线都先暂时隐藏吧，放到一个待更新列表里面……统计一下目前第一章主线的动力值，做完一半支线的动力值，做完全部支线的动力值」。
+- `data/story_forest.json`：顶层 `include` → `include_pending`（加 `_include_note`），`forest_side_a/b.json` 不再合进来：6 条支线的热点、「（可选）」目标、提示都不出现。恢复 = 改回 `include`。
+- 新建 `docs/待更新列表.md`：列出隐藏的支线、各自给什么、隐藏后还留着的摆设 / flag 分支，以及动力值统计（只走主线 790，陪兔子练舞 890；一半支线约 +280；全部支线 +395 → 1185 / 1285；飞行一要烧到 300）。
+- 验证：JSON 能解析；动力值按物品表 `keepsake_burn` 静态算。**没验证**：本机没有 Godot，没跑 `--story_check` 和游戏内，要看森林里大嘴鸟 / 老松树 / 小屋那些摆设没有热点以后是否还冒「靠近提示」。
+
 ### 2026-11-08（九） · Claude · 第二次回忆杀（公交）挪到出门
 - 作者：「公交车这个就出门之后吧，出门以后可以直接触发这个公交车场景，等醒来正好是在飞船旁边」。
 - `data/story_forest.json`：`c1_photo` 去掉闪回（看完大象画直接弥洛给种子）；`c1_out2`（拿完种子点门）改成：闪回 2（station / door）→ 黑着换到森林 `chen_bye`、鹿在 `deer_ship`、两人对脸 → 睁眼 → 森林 BGM → 直接 `c1_home_bye`（鹿道别、给笔记本、`c1_ready`）。写法照第一次闪回（`blackout` 包住 `fade_to`）。

@@ -215,8 +215,6 @@
 			{"do": "face", "who": "chen", "to": "cockpit_panel"},
 			{"do": "anim", "who": "chen", "name": "write"},
 			{"do": "wait", "sec": 1.0},
-			{"do": "show_item", "item": "clear_seed"},
-			{"do": "wait", "sec": 2.5},
 			{"do": "prop", "id": "cockpit_map", "state": "open"},
 			{"do": "wait", "sec": 1.0},
 			{"do": "prop", "id": "cockpit_cabinet", "state": "hand"},
@@ -625,7 +623,7 @@
 			{"say": "chen", "zh": "我先去吃东西。你继续。", "en": "I'm going to get something to eat. You carry on."},
 			{"do": "anim", "who": "elephant", "name": "trunk_out"},
 			{"do": "flag", "set": "final_e1_met"},
-			{"do": "if", "flag": "burned_clear_seed", "then": "e1_note", "else": "e1_seed_hint"}
+			{"do": "flag", "set": "final_e1_seed_done", "_note": "11-08 作者：透明种子 / 弥洛的纸条从第一章删了，种种子这段跳过（e1_note / e1_seed_hint / e1_plant 留着不删）"}
 		],
 		"e1_seed_hint": [
 			{"do": "flag", "set": "final_e1_seed_todo"}
@@ -840,7 +838,7 @@
 			{"do": "anim", "who": "chen", "name": "sit"},
 			{"say": "chen", "zh": "我今天看见的还是那块空地。", "en": "All I saw today was the same empty ground."},
 			{"say": "townsfolk", "zh": "嗯。", "en": "Mm.", "added": true},
-			{"do": "if", "flag": "burned_clear_seed", "then": "e3_seedless", "else": "e3_seed_ask"}
+			{"do": "flag", "set": "final_e3_seed_done", "_note": "11-08 作者：透明种子 / 弥洛的纸条从第一章删了，种种子这段跳过（e3_seedless / e3_seed_ask / e3_plant 留着不删）"}
 		],
 		"e3_seed_ask": [
 			{"say": "townsfolk", "zh": "广场外有一小块花圃，上午晒得到太阳。", "en": "There's a little flower bed outside the plaza. Gets the morning sun.", "added": true},
@@ -953,7 +951,7 @@
 			{"do": "goto", "scene": "epi_miluo_seed"}
 		],
 		"epi_miluo_seed": [
-			{"do": "if", "flag": "final_seed_planted", "then": "epi_miluo_planted", "else": "epi_miluo_q"}
+			{"do": "goto", "scene": "epi_miluo_end", "_note": "11-08 作者：透明种子从第一章删了，尾声弥洛不再问种子（epi_miluo_planted / _q / _kept / _burned 留着不删）"}
 		],
 		"epi_miluo_q": [
 			{"do": "if", "flag": "burned_clear_seed", "then": "epi_miluo_burned", "else": "epi_miluo_kept"}

@@ -120,7 +120,8 @@ const STEPS := ["say", "narr", "walk", "face", "wait", "show", "hide", "give", "
 	"music",
 	"game_over"]   # game_over：坏结局（11-08 飞行一燃料烧光坠毁）：黑掉、停声音、回标题。music：配乐（scripts/bgm.gd）。第一关新版（11-02）：潜意识字、按键提示、拾取奖励动画（见文件头「第一关新版」）
 const COCKPIT_STEPS := {"debris_steer": "res://scripts/cockpit_debris.gd", "keepsake_choice": "res://scripts/cockpit_keepsake.gd",
-	"cockpit_dash": "res://scripts/cockpit_dash.gd"}   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
+	"cockpit_dash": "res://scripts/cockpit_dash.gd",   # 驾驶舱（cockpit_dash：飞行一结尾往前一冲）
+	"cockpit_meteor": "res://scripts/cockpit_meteor.gd"}   # cockpit_meteor：飞行一大陨石砸中后冒烟、爆炸、永燃之木掉下去（11-08）
 const BURN_PICK_GD := preload("res://scripts/burn_pick.gd")    # burn_pick：选烧什么的模板（_burn_pick）
 const COCKPIT_NAV := "res://scripts/cockpit_nav.gd"   # pick 带 "ui": "nav" / "action"：驾驶舱里的行动选择 + 二次确认（终章）
 const HOOKS := {
@@ -953,7 +954,7 @@ func _step(st: Dictionary) -> String:
 			_fuel_step(st)
 		"camera":
 			await _camera(st)
-		"debris_steer", "keepsake_choice", "cockpit_dash":
+		"debris_steer", "keepsake_choice", "cockpit_dash", "cockpit_meteor":
 			var cs2: String = await _cockpit_step(d, st)     # 驾驶舱的两个小玩法（cockpit_debris.gd / cockpit_keepsake.gd）
 			return cs2
 		"barter":
@@ -3812,7 +3813,7 @@ func _validate_cockpit(id: String, kind: String, st: Dictionary, refs: Dictionar
 		if st.has("crash") and not scenes.has(str(st["crash"])):
 			out.append("scene %s：debris_steer 的 crash 指向不存在的 scene %s" % [id, st["crash"]])
 		return out
-	if kind == "cockpit_dash":
+	if kind == "cockpit_dash" or kind == "cockpit_meteor":
 		return out
 	var items: Array = st.get("items", [])
 	var sc: Dictionary = st.get("scenes", {}) if st.get("scenes", {}) is Dictionary else {}

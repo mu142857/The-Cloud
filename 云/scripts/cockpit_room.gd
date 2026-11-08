@@ -1161,6 +1161,11 @@ func far_u() -> float:
 	return _far_u
 
 
+## 远景层（跟着世界走，坐标 = 屏幕坐标；远景时才显示）：cockpit_meteor.gd 往里挂爆炸、烟和掉下去的永燃之木，加在后面 = 画在船上面
+func out_layer() -> Node2D:
+	return _out
+
+
 ## 第 n 档图的左上角（屏幕坐标）：绕 _far_pivot 缩
 func _far_pos(n: int) -> Vector2:
 	var s := float(n) / 100.0

@@ -873,6 +873,8 @@ class FinalWriter(Writer):
                 self.act("燃料表：现在要 %d" % st["need"])
         elif do == "cockpit_dash":
             self.act("飞机往前一冲，黑屏")
+        elif do == "cockpit_meteor":
+            self.act("镜头拉到船外：货舱炸开、冒烟，飞船颤抖，永燃之木从裂口翻着掉下去")
         elif do == "music":
             self.act("配乐淡出" if st.get("stop") else "配乐淡入（第一章树屋那首）")
         elif do == "debris_steer":

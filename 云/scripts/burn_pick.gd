@@ -23,6 +23,10 @@ extends Control
 ## 跳节拍：挑能通到目标 flag 的那件（没有就第一件），不出界面；自动玩：停一下、选第一件、确认
 ##   （full 先看一眼第二件；加 --burn_pick_back 先按一次「再想想」再确认）。
 ## "until_at": n（11-08 飞行一货舱）：repeat 时燃料到 n 就停（until_fuel 是要到「需要的量」）。
+## "go_at": n（11-08 作者：「按照 250 这个先来，只要燃烧超过了这个线，就可以继续了，具体就会有一个继续前行的按钮出现」）：
+##   repeat 时不自动停；标题下面一行写「燃料 当前 / n」，燃料到 n 以后右下角出「继续前行」（F / 点它），
+##   玩家可以接着烧，也可以按它走（play 返回 then）。没到 n 就烧光了 = 也只能走。
+##   自动玩 / 跳节拍：到了 n 就走。
 ## story_runner.gd 的 _burn_pick 建它（挂在对话界面下，按键先到这里）：var scene = await play(runner, st)。
 
 signal done(id: String)
@@ -47,7 +51,12 @@ const TXT := {
 	"no": ["Not yet", "再想想"],
 	"keys": ["← → choose   Enter burn", "← → 挑选   回车 烧掉"],
 	"power": ["Power %d", "动力 %d"],
+	"go": ["Move on", "继续前行"],
+	"go_key": ["   F move on", "   F 继续前行"],
+	"fuel_line": ["Fuel %d / %d", "燃料 %d / %d"],
+	"fuel_ok": ["Fuel %d / %d · you can move on", "燃料 %d / %d · 可以继续前行了"],
 }
+const GO_Y := 238.0                                 # 「继续前行」按钮（右下角，和按键提示一行）
 
 var runner: Node
 var st: Dictionary
@@ -74,6 +83,10 @@ var _ask_sel := 0
 var _flash := {}
 var _auto_t := 0.0
 var _auto_step := 0
+var _go_at := -1                 # go_at（没写 = -1）
+var _can_go := false             # 这一轮燃料已经到 go_at：出「继续前行」
+var _go_btn: Label
+var _fuel_lbl: Label
 
 
 func play(r: Node, step: Dictionary) -> String:
@@ -85,12 +98,16 @@ func play(r: Node, step: Dictionary) -> String:
 	var kind := str(st.get("kind", ""))
 	var real := bool(st.get("burn", false))      # 选完真的从背包烧掉（加燃料、提示）
 	var again := bool(st.get("repeat", false))   # 一件接一件挑，直到没有可烧的（或 until_fuel 燃料够了）
+	_go_at = int(st.get("go_at", -1))
 	var last := ""
 	while true:
 		items = burnable(st.get("items", null), kind)
 		if items.is_empty():
 			return str(scenes.get(last, then)) if last != "" else then
+		var can_go := _go_at >= 0 and StoryState.fuel() >= _go_at
 		var chosen := ""
+		if can_go and (r.ff or r.auto != ""):
+			break                                    # 自动玩 / 跳节拍：够线就走
 		if r.ff:
 			chosen = items[0]
 			if r._ff_target != "":
@@ -100,9 +117,13 @@ func play(r: Node, step: Dictionary) -> String:
 						break
 		else:
 			_reset()
+			_can_go = can_go
 			_build()
 			r._ui_shot("burn_pick", 0.8)
 			chosen = await done
+		if chosen == "":
+			print("BURN_PICK %s: go on (fuel %d / %d)" % [key, StoryState.fuel(), _go_at])
+			break                                    # 按了「继续前行」
 		StoryState.set_prop(key, chosen)
 		print("BURN_PICK %s: %s" % [key, chosen])
 		last = chosen
@@ -150,6 +171,9 @@ func _reset() -> void:
 	_flash.clear()
 	_auto_t = 0.0
 	_auto_step = 0
+	_go_btn = null
+	_fuel_lbl = null
+	_can_go = false
 
 
 ## 背包里能烧的（同一件有两份只摆一格）；list 给了就只在这几件里挑
@@ -220,12 +244,26 @@ func _build() -> void:
 	_desc.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY if I18n.is_zh() else TextServer.AUTOWRAP_WORD_SMART
 	_desc.add_theme_constant_override("line_spacing", 1)
 	add_child(_desc)
-	_keys = _label(_tx("keys"), UITheme.TEXT_DIM)
+	_keys = _label(_tx("keys") + (_tx("go_key") if _can_go else ""), UITheme.TEXT_DIM)
 	_keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_keys.size = Vector2(480, 16)
 	_keys.position = Vector2(0, KEYS_Y)
 	_keys.modulate.a = 0.7
 	add_child(_keys)
+	if _go_at >= 0:
+		# 燃料离线还差多少（到了变暖色）
+		var f := StoryState.fuel()
+		_fuel_lbl = _label((_tx("fuel_ok") if _can_go else _tx("fuel_line")) % [f, _go_at], UITheme.WARM if _can_go else UITheme.TEXT_DIM)
+		_fuel_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_fuel_lbl.size = Vector2(480, 16)
+		_fuel_lbl.position = Vector2(0, 32)
+		add_child(_fuel_lbl)
+	if _can_go:
+		_go_btn = _label(_tx("go"), UITheme.TEXT)
+		_go_btn.add_theme_stylebox_override("normal", UITheme.box(Color(0.06, 0.1, 0.09, 0.85), UITheme.ACCENT, 1, Vector4(6, 1, 6, 1)))
+		add_child(_go_btn)
+		_go_btn.reset_size()
+		_go_btn.position = Vector2(roundf(480.0 - 12.0 - _go_btn.size.x), GO_Y)
 	for id in items:
 		var p := Panel.new()
 		p.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -280,6 +318,8 @@ func _style() -> void:
 		_slots[i].add_theme_stylebox_override("panel", UITheme.box(Color(0.06, 0.1, 0.09, 0.85),
 			UITheme.ACCENT if on else Color(0.3, 0.4, 0.35, 0.8), 1))
 	_keys.visible = _mode == "pick"
+	if _go_btn != null:
+		_go_btn.visible = _mode == "pick"
 
 
 func _set_sel(i: int) -> void:
@@ -436,7 +476,7 @@ func _confirm() -> void:
 		_flash[_ask] = 0.2
 	await get_tree().create_timer(0.3, false).timeout
 	var tw := create_tween().set_parallel(true)
-	for c in [_dim, _title, _name, _desc, _keys, _ask] + _slots + _more:
+	for c in [_dim, _title, _name, _desc, _keys, _ask, _fuel_lbl, _go_btn] + _slots + _more:
 		if is_instance_valid(c):
 			tw.tween_property(c, "modulate:a", 0.0, 0.3)
 	# 不再翻：从现在的样子平平地收回正面
@@ -454,6 +494,21 @@ func _confirm() -> void:
 	else:
 		await _burn_away()
 	done.emit(id)
+
+
+## 「继续前行」：整个界面淡掉，play 收到 "" 就不再挑
+func _go_on() -> void:
+	if _mode != "pick" or not _can_go:
+		return
+	_mode = "busy"
+	_sound("tick", -4.0, 1.0)
+	if is_instance_valid(_go_btn):
+		_flash[_go_btn] = 0.2
+	await get_tree().create_timer(0.2, false).timeout
+	var tw := create_tween()
+	tw.tween_property(self, "modulate:a", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+	await tw.finished
+	done.emit("")
 
 
 ## 沿一道弧线飞到那个人跟前，缩回原大小，淡掉
@@ -519,6 +574,8 @@ func _input(event: InputEvent) -> void:
 				_set_sel(_sel + 1)
 			elif ok:
 				_open_ask()
+			elif _can_go and k == KEY_F:
+				_go_on()
 		else:
 			if prev:
 				_set_btn(_ask_sel - 1)
@@ -542,7 +599,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var i := _hit(event.position)
 		if _mode == "pick":
-			if i >= 0:
+			if _go_btn != null and _go_btn.visible and Rect2(_go_btn.position - Vector2(2, 2), _go_btn.size + Vector2(4, 4)).has_point(event.position):
+				_go_on()
+			elif i >= 0:
 				_set_sel(i)
 				_open_ask()
 			elif Rect2(FLOAT_AT - Vector2(30, 34), Vector2(60, 68)).has_point(event.position):
@@ -569,7 +628,9 @@ func _hit(p: Vector2) -> int:
 
 ## F8 自测：替它选第一件、确认
 func dev_skip() -> void:
-	if _mode == "pick":
+	if _mode == "pick" and _can_go:
+		_go_on()
+	elif _mode == "pick":
 		_open_ask()
 	elif _mode == "ask":
 		_press_btn(0)

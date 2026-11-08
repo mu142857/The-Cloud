@@ -403,13 +403,13 @@
 					"id": "flight1_refuel",
 					"burn": true,
 					"repeat": true,
-					"until_at": 300,
+					"go_at": 250,
 					"after": {
 						"deer_bear": "flight1_after_deer_bear",
 						"family_photo": "flight1_after_family_photo"
 					}
 				},
-				"_note11_08": "燃料每秒 -4；撞了 3 秒内每秒再 -12；每个没修的漏点每秒再 -2；低于 150 按 F 去货舱加到 300；烧到 0 → flight1_crash"
+				"_note11_08": "燃料每秒 -4；撞了 3 秒内每秒再 -12；每个没修的漏点每秒再 -2；低于 150 按 F 去货舱，加到 250 以上出「继续前行」；烧到 0 → flight1_crash"
 			},
 			{
 				"do": "goto",
@@ -1638,8 +1638,17 @@
 				"name": "nav_alert"
 			},
 			{
+				"do": "cockpit_meteor",
+				"_note": "11-08 作者：「飞船冒烟，爆炸，颤抖的动画……有一个永燃之木掉下去的画面」（scripts/cockpit_meteor.gd：拉到船外、货舱炸开冒烟、船颤、永燃之木翻着掉下去、拉回剖面）"
+			},
+			{
 				"do": "flag",
 				"clear": "flight1_wood_power"
+			},
+			{
+				"do": "take",
+				"item": "glowing_wood",
+				"_note": "11-08：旁白说永燃之木从裂口掉出去了，背包里也要拿掉（原来没拿，一直留在背包里）"
 			},
 			{
 				"do": "fuel",
@@ -1696,12 +1705,12 @@
 				"id": "flight1_pick",
 				"burn": true,
 				"repeat": true,
-				"until_at": 300,
+				"go_at": 250,
 				"after": {
 					"deer_bear": "flight1_after_deer_bear",
 					"family_photo": "flight1_after_family_photo"
 				},
-				"_note": "11-08：货舱里一件一件烧，燃料到 300 就够（绿线 150，满 500）"
+				"_note": "11-08：货舱里一件一件烧；二改（作者）：燃料到 250 出「继续前行」按钮，可以接着烧也可以走（绿线 150，满 500）"
 			},
 			{
 				"do": "flag",

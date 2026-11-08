@@ -1987,9 +1987,7 @@
 			{"do": "wait", "sec": 1.6},
 			{"do": "walk", "who": "miluo", "to": "room_chair_free"},
 			{"do": "face", "who": "miluo", "to": "chen"},
-			{"do": "give", "items": ["clear_seed", "miluo_note"], "toast": "got_items"},
-			{"say": "miluo", "zh": "到了云底下再种。", "en": "Plant it once you're under the clouds.", "added": true},
-			{"do": "flag", "set": "c1_seed"}
+			{"do": "flag", "set": "c1_seed", "_note": "11-08 作者：透明种子和弥洛的纸条删掉（嫌多余）；flag 名 c1_seed 不改，后面的门 / 目标还看它"}
 		],
 		"c1_out2": [
 			{"do": "flashback", "id": 2, "place": "station", "end": "door", "hold": true, "lines": [], "_note": "11-08 作者：第二次闪回（公交）挪到拿完种子出门这一下，醒来直接在飞船旁边、接小鹿道别"},
@@ -2048,6 +2046,8 @@
 	"hide_props": ["luggage", "scrap", "resin", "branch", "wood"],
 	"bag_lock": {"from": "c1_crashed", "until": "c1_got_bag"},
 	"one_way": {"after": "c1_got_bag", "until": "c1_woke", "_note": "11-04 作者「这里还有空气墙」：只在拿到背包到看大象画、闪回这一小段不许回头；在弥洛家醒来以后左边就放开（支线要来回走）", "wall": "c1_bag_wall", "zh": "你的直觉告诉你，你应该往前探索。", "en": "Your instincts tell you to keep exploring ahead."},
-	"include": "res://data/forest_side_",
+	"include": "res://data/forest_side_on_",
+	"include_pending": "res://data/forest_side_",
+	"_include_note": "11-08 作者：第一章支线先隐藏（docs/待更新列表.md），只开大嘴鸟（forest_side_on_toucan.json）。全部恢复：删掉 include 这一行，把 include_pending 改名成 include（前缀 forest_side_ 会连 on_toucan 一起读进来）。",
 	"item_views": [{"item": "elephant_drawing", "need": ["c1_got_bag"], "not": ["c1_chase_done"], "scene": "c1_drawing"}]
 }
