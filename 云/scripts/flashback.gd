@@ -169,6 +169,7 @@ const DOOR_HALF := 18.0
 const DOOR_H := 96.0
 const TRAIN_GAP := 160.0        # 跑的时候尾门在晨前面多远（屏幕 x 460）
 const DOOR_CLOSE_AT := 54.0     # 结束时晨离门这么远，门开始关
+const TRAIN_BRAKE := 420.0      # 结尾靠站刹车多猛（像素 / 秒²）；11-08 作者嫌公交这段太长，刹快一点
 const DOOR_STOP := 26.0         # 晨最多跑到离门这么近
 const LAMP_C := Color(0.95, 0.62, 0.3)
 const SPILL_C := Color(0.62, 0.46, 0.28)
@@ -1230,9 +1231,9 @@ func _train_step(dt: float) -> void:
 			var want := V_BASE + clampf((TRAIN_GAP - (door - _chen.position.x)) * 1.4, -60.0, 180.0)
 			_train_v = lerpf(_train_v, want, 1.0 - exp(-2.5 * dt))
 		"stop":
-			_train_v = move_toward(_train_v, 0.0, 190.0 * dt)
+			_train_v = move_toward(_train_v, 0.0, TRAIN_BRAKE * dt)
 		"go":
-			_train_v = move_toward(_train_v, 340.0, 120.0 * dt)
+			_train_v = move_toward(_train_v, 420.0, 320.0 * dt)
 	_train_wx += _train_v * dt
 	_train.position = Vector2(roundf(_train_wx), TRAIN_Y)
 
@@ -1746,7 +1747,7 @@ func _end_door(approach := true) -> void:
 	if not _train.visible:
 		_goal_train()
 	_train_mode = "stop"
-	_stop_sign.position = Vector2(_train_wx + _train_v * _train_v / 380.0 + DOOR_POS.x - 27.0, GROUND)
+	_stop_sign.position = Vector2(_train_wx + _train_v * _train_v / (2.0 * TRAIN_BRAKE) + DOOR_POS.x - 27.0, GROUND)
 	_stop_sign.show()
 	var guard := 0.0
 	while (_train_v > 0.5 or (approach and _train_wx + DOOR_POS.x + DOOR_HALF - _chen.position.x > DOOR_CLOSE_AT)) and guard < 5.0:
@@ -1763,17 +1764,14 @@ func _end_door(approach := true) -> void:
 	await tw.finished
 	print("FLASHBACK_DOOR closed gap=%d waited=%.1fs" % [int(_train_wx + DOOR_POS.x + DOOR_HALF - _chen.position.x), guard])
 	_bpm = 0.0
-	_music_off(1.4)
-	await _sleep(0.8)
-	_train_mode = "go"                          # 车开走：慢慢加速，从右边出去
-	create_tween().tween_property(self, "_lamp", 0.0, 0.6)
-	guard = 0.0
-	while _train_wx - (_cam.position.x - 240.0) < 500.0 and guard < 6.0:
-		await StoryState.frame(get_tree())
-		guard += get_process_delta_time()
+	_music_off(1.0)
+	await _sleep(0.25)
+	_train_mode = "go"                          # 车开走：一起步就开始暗下去，不等它整辆开出画面（11-08 作者：这段只要很短一小块）
+	create_tween().tween_property(self, "_lamp", 0.0, 0.4)
+	await _sleep(0.5)
 	await _flush_lines()
 	_end_color = BLACK_C
-	await _veil_to(BLACK_C, 1.4)
+	await _veil_to(BLACK_C, 0.9)
 
 
 ## 第三次跑掉了：晨慢下来停住，暖光淡掉；字一个个掉完以后，整屏像相机过曝一样一下子闪白（flashback_view 的 flash），
