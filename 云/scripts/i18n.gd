@@ -53,7 +53,7 @@ const STR := {
 	"rarity_epic": ["Epic", "史诗"],
 	"rarity_legendary": ["Legendary", "传说"],
 	# ---- 剧情
-	"who_chen": ["Chen", "晨"],
+	"who_chen": ["Light", "晨"],
 	"line_crash": ["Ow... oh no... I crashed...\nShould've insured the ship...",
 		"啊……糟糕……坠毁了……\n早知道就给飞船买上保险了……"],
 	"line_wood": ["Yes! With this, the ship can fly again!", "太好了，有了这个飞船就能再次起飞了！"],

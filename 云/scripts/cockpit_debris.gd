@@ -661,7 +661,7 @@ func _leak_step(delta: float) -> void:
 			if not l["fixed"]:
 				goal = float(l["wx"])
 				break
-		want_fix = not target.is_empty()
+		want_fix = not target.is_empty() and not "--no_leak_fix" in OS.get_cmdline_user_args()   # 自测：漏点一个都不修，看嘶嘶声结束时停没停
 		chen.auto_dir = 0.0 if want_fix or is_nan(goal) or absf(goal - chen.position.x) < 2.0 else signf(goal - chen.position.x)
 	else:
 		want_fix = Input.is_key_pressed(KEY_E) and not target.is_empty() and not _ending
@@ -1627,6 +1627,11 @@ func _play(snd: String, db: float, pitch := 1.0, pan := 0.0) -> void:
 	a.global_position = level.cam_left() + Vector2(240.0 + clampf(pan, -1.0, 1.0) * 320.0, 135.0)
 	a.play()
 	a.finished.connect(a.queue_free)
+	if (load("res://scripts/audio_fade.gd") as GDScript).is_loop(a):
+		# 11-08 作者「管道炸裂的声音一直存在，直到章节结束」：hiss_thin 导入是循环的，每撞出一个漏点就多一条停不下来的嘶嘶。
+		# 只放一遍（持续的嘶嘶归 _hiss，修好 / 结束会淡掉）
+		runner._sfx_loop_once(a)
+		a.set_meta("qa_attack_until", Engine.get_process_frames() + 20)   # 撞出漏点那一下是炸开的，故意硬起音（--qa_audio 不报）
 
 
 ## 循环的底噪（气流、轰鸣）：自己管音量；缺文件返回 null。wav 导入没开循环的（flight_rumble 2.2 秒）复制一份设成真循环——

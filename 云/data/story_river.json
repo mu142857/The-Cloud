@@ -1,7 +1,7 @@
 {
 	"_comment": "河流城市「妮芙的三分钟」剧本（剧情姐合订稿 in1030/yun1.txt 第 73–152 行）。通讯器用 phone_* 步骤（docs/phone_and_cockpit_contract.md）：鹿借弥洛通讯器留言 river_msg_deer、告别时 phone_add nifu。生成脚本 scratchpad/later/gen_river.py。妮芙的记忆用沙漏 + 轻铃（sfx bell_soft）+ 她的本子（prop niff_notebook）表现，不计时。水下仓库里两人不说话（她说过不要隔着面罩喊）。markers 坐标都是占位 0。带 \"added\": true 的是补写。 10-30：飞行一结尾改成往前一冲进黑色星空、第一章结束（不再降落），原文 71–72 的降落（城市沿水道铺开……趴在操纵台上缓了一会儿）挪到 start_river 开头：晨先藏起来，河岸画面淡入时用 narr 念完、配推进器关掉 / 撞浮木的声音，晨说「行。至少到了。」以后再从舱门出来。手改的，重新跑生成脚本会丢，要一起改进去。 10-30 河岸第三版（作者要孤独感）：start_river 到晨出舱为止（设 river_ashore），晨先一个人沿河岸走一大段，走到箱子跟前才触发 bank_meet（hotspot meet_niff：trigger enter + cutscene，台词原样搬过去）；bank_cup 里补了阿汀 / 妮芙 / 晨走回飞机那边的 walk，结尾妮芙先往家那边走（river_bank_niff）。也是手改的。",
 	"speakers": {
-		"chen": {"zh": "晨", "en": "Chen"},
+		"chen": {"zh": "晨", "en": "Light"},
 		"niff": {"zh": "妮芙", "en": "Niff"},
 		"ting": {"zh": "阿汀", "en": "Ting"},
 		"keeper": {"zh": "摊主", "en": "Stallkeeper"},
@@ -590,14 +590,14 @@
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"do": "wait", "sec": 0.6},
 			{"say": "niff", "zh": "诶对了你是谁来着？", "en": "Oh, by the way, who are you again?", "added": true},
-			{"do": "choice", "options": [{"zh": "……", "en": "...", "scene": "home_who2_silent", "added": true}, {"zh": "我是晨", "en": "I'm Chen", "scene": "home_who2_chen", "added": true}, {"zh": "打劫，交出茶叶！", "en": "This is a robbery, hand over the tea!", "scene": "home_who2_rob", "added": true}], "added": true}
+			{"do": "choice", "options": [{"zh": "……", "en": "...", "scene": "home_who2_silent", "added": true}, {"zh": "我是晨", "en": "I'm Light", "scene": "home_who2_chen", "added": true}, {"zh": "打劫，交出茶叶！", "en": "This is a robbery, hand over the tea!", "scene": "home_who2_rob", "added": true}], "added": true}
 		],
 		"home_who2_silent": [
 			{"say": "niff", "zh": "不说话的湿湿的人。我记一下。", "en": "A soggy person who doesn't talk. Noting that down.", "added": true},
 			{"do": "goto", "scene": "home_find_b"}
 		],
 		"home_who2_chen": [
-			{"say": "niff", "zh": "晨！好名字，我写下来，这次肯定记得住。", "en": "Chen! Nice name. I'll write it down. I'll definitely remember this time.", "added": true},
+			{"say": "niff", "zh": "晨！好名字，我写下来，这次肯定记得住。", "en": "Light! Nice name. I'll write it down. I'll definitely remember this time.", "added": true},
 			{"do": "goto", "scene": "home_find_b"}
 		],
 		"home_who2_rob": [
@@ -620,10 +620,10 @@
 			{"do": "flag", "set": "river_home_intro"}
 		],
 		"n_note_p": [
-			{"say": "niff", "zh": "晨。飞机掉进河里，帮忙捞了杯子。", "en": "Chen. Ship fell in the river. Helped fish out the cup."}
+			{"say": "niff", "zh": "晨。飞机掉进河里，帮忙捞了杯子。", "en": "Light. Ship fell in the river. Helped fish out the cup."}
 		],
 		"n_note_c": [
-			{"say": "niff", "zh": "晨，取件员。飞机掉进河里，帮忙捞了杯子。", "en": "Chen, the courier. Ship fell in the river. Helped fish out the cup.", "added": true}
+			{"say": "niff", "zh": "晨，取件员。飞机掉进河里，帮忙捞了杯子。", "en": "Light, the courier. Ship fell in the river. Helped fish out the cup.", "added": true}
 		],
 		"home_bell": [
 			{"do": "wait", "sec": 0.6},
@@ -634,7 +634,7 @@
 			{"do": "wait", "sec": 0.5},
 			{"do": "anim", "who": "niff", "name": "search_notebook"},
 			{"say": "niff", "zh": "……咦，你是谁呀？", "en": "...Huh? Who are you?", "added": true},
-			{"do": "choice", "options": [{"zh": "我叫晨，刚才帮你捞了杯子。", "en": "I'm Chen. I just fished your cup out.", "scene": "rb_who_a"}, {"zh": "我是这房子的主人。", "en": "I own this house.", "scene": "rb_who_b"}, {"zh": "我是来收茶钱的。", "en": "I'm here to collect for the tea.", "scene": "rb_who_c"}], "added": true}
+			{"do": "choice", "options": [{"zh": "我叫晨，刚才帮你捞了杯子。", "en": "I'm Light. I just fished your cup out.", "scene": "rb_who_a"}, {"zh": "我是这房子的主人。", "en": "I own this house.", "scene": "rb_who_b"}, {"zh": "我是来收茶钱的。", "en": "I'm here to collect for the tea.", "scene": "rb_who_c"}], "added": true}
 		],
 		"rb_who_a": [
 			{"say": "niff", "zh": "等一下哦，你说得比我看得快。", "en": "Wait, you're talking faster than I can read.", "added": true},
@@ -655,7 +655,7 @@
 			{"do": "anim", "who": "niff", "name": "read_notebook"},
 			{"do": "anim", "who": "niff", "name": "write"},
 			{"do": "prop", "id": "niff_notebook", "state": "plane_on_shore"},
-			{"say": "niff", "zh": "……写着呢：晨，捞杯子的，还没喝到茶。", "en": "...Here it is: Chen, fished out the cup, hasn't had tea yet.", "added": true},
+			{"say": "niff", "zh": "……写着呢：晨，捞杯子的，还没喝到茶。", "en": "...Here it is: Light, fished out the cup, hasn't had tea yet.", "added": true},
 			{"do": "journal", "zh": "妮芙记不住刚发生的事，沙漏漏完会响一声铃。", "en": "Niff can't remember what just happened, and a bell rings when the hourglass runs out.", "added": true},
 			{"do": "journal", "zh": "铃响以后，先等她看完本子。", "en": "After the bell, wait for her to read her notebook.", "added": true},
 			{"do": "flag", "set": "river_home_intro"},
@@ -922,7 +922,7 @@
 			{"do": "goto", "scene": "market_breather_b"}
 		],
 		"haggle_secret": [
-			{"narr": {"zh": "晨凑过去，小声说了一句。", "en": "Chen leans in and whispers something."}, "added": true},
+			{"narr": {"zh": "晨凑过去，小声说了一句。", "en": "Light leans in and whispers something."}, "added": true},
 			{"say": "keeper", "zh": "就这？饼干拿去，秘密还你。", "en": "That's it? Take the biscuits. Keep your secret.", "added": true},
 			{"do": "goto", "scene": "market_breather_b"}
 		],
@@ -1630,7 +1630,7 @@
 			{"do": "take", "item": "oxygen_tank"},
 			{"do": "anim", "who": "chen", "name": "repair"},
 			{"do": "anim", "who": "niff", "name": "read_notebook"},
-			{"do": "mechanic", "id": "river_thread", "_note": "11-04 作者「第二关的小游戏和支线都不如第一关有趣」：docs/剧情改动/第二章可玩性_设计.md 第 8 步", "note": {"zh": "反方向！", "en": "OTHER WAY!", "added": true}, "arrow": {"zh": "拧紧", "en": "tighten", "added": true}, "lines": {"intro": [{"say": "niff", "zh": "接口我贴了张条，照着拧。", "en": "I stuck a note on the joint. Go by that.", "added": true}], "wrong": [{"say": "niff", "zh": "反方向呀！这是我昨天写的，我昨天比较聪明。", "en": "The other way! I wrote that yesterday. I was smarter yesterday.", "added": true}], "give": [{"narr": {"zh": "妮芙握住晨的手，往左拧了一圈。", "en": "Niff puts her hand over Chen's and turns it left."}, "added": true}]}},
+			{"do": "mechanic", "id": "river_thread", "_note": "11-04 作者「第二关的小游戏和支线都不如第一关有趣」：docs/剧情改动/第二章可玩性_设计.md 第 8 步", "note": {"zh": "反方向！", "en": "OTHER WAY!", "added": true}, "arrow": {"zh": "拧紧", "en": "tighten", "added": true}, "lines": {"intro": [{"say": "niff", "zh": "接口我贴了张条，照着拧。", "en": "I stuck a note on the joint. Go by that.", "added": true}], "wrong": [{"say": "niff", "zh": "反方向呀！这是我昨天写的，我昨天比较聪明。", "en": "The other way! I wrote that yesterday. I was smarter yesterday.", "added": true}], "give": [{"narr": {"zh": "妮芙握住晨的手，往左拧了一圈。", "en": "Niff puts her hand over Light's and turns it left."}, "added": true}]}},
 			{"do": "anim", "who": "chen", "name": "nod"},
 			{"do": "anim", "who": "chen", "name": "repair"},
 			{"do": "wait", "sec": 0.9},
@@ -1718,7 +1718,7 @@
 			{"do": "show_item", "item": "elephant_drawing"},
 			{"say": "chen", "zh": "不是水壶。鼻子本来就是这么长。", "en": "It's not a kettle. The nose is supposed to be that long.", "added": true},
 			{"say": "niff", "zh": "嗯嗯。像大象的水壶。", "en": "Mm-hm. Like an elephant kettle.", "added": true},
-			{"do": "journal", "zh": "妮芙那一页写着：晨要去云层星找大象，走之前说过再见了。", "en": "Niff's page says: Chen is going to the Cloud Planet to find the elephant, and said goodbye first.", "added": true},
+			{"do": "journal", "zh": "妮芙那一页写着：晨要去云层星找大象，走之前说过再见了。", "en": "Niff's page says: Light is going to the Cloud Planet to find the elephant, and said goodbye first.", "added": true},
 			{"do": "goto", "scene": "farewell_phone"}
 		],
 		"farewell_phone": [
@@ -1759,7 +1759,7 @@
 			{"do": "end_chapter"}
 		],
 		"n_bye_p": [
-			{"say": "niff", "zh": "晨——！", "en": "Chen!", "added": true}
+			{"say": "niff", "zh": "晨——！", "en": "Light!", "added": true}
 		],
 		"n_bye_c": [
 			{"say": "niff", "zh": "取件员——！", "en": "Courier—!", "added": true}
@@ -1770,7 +1770,7 @@
 		"niff_chat_home": [
 			{"do": "face", "who": "niff", "to": "chen"},
 			{"do": "anim", "who": "niff", "name": "read_notebook"},
-			{"say": "niff", "zh": "啊，晨。捞杯子的。", "en": "Oh, Chen. The one who fished out the cup.", "added": true}
+			{"say": "niff", "zh": "啊，晨。捞杯子的。", "en": "Oh, Light. The one who fished out the cup.", "added": true}
 		],
 		"niff_chat_market": [
 			{"do": "face", "who": "niff", "to": "chen"},

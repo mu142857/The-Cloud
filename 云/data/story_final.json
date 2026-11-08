@@ -1,7 +1,7 @@
 {
 	"_comment": "最终航行「还剩下什么」+ 三个去处 + 人物短尾声（剧情姐合订稿 in1030/yun1.txt 第 153–240 行）。入口 start_final。11-07 作者：通讯器/手机全删（妮芙消息、结局一发消息、各处拿出通讯器看聊天记录都没了；想朋友的话还在，闪回四的字也在）。燃料界面（todo_mechanic final_flight）选中一件纪念品时播 look_<id>，确认转化后播 burn_<id>（设 burned_<id>）。11-07 结局重构：一次 pick（final_nav，ui action）三个去处——西侧旧货场的芦苇地（真结局 ending1，燃料要 760：全收集、全炸、全烧，灰掉时写还差多少）、居民区=云层小镇（ending3，停在小镇，全剧终）、掉头回母星（ending_home，直接接列车 epi_home，全剧终）；结局二、四删了。燃料柜 final_paper 一次就能烧完（min 300 能收起，fuel_need 760）。设 final_ending_1 / final_ending_3 / final_ending_home；结局里的动作和尾声按 burned_* / final_seed_planted / 森林 returned_all、returned_any、saw_rock 分支。if / goto 是跳转（不返回）。带 added 的是补写。终章引擎（10-31）：结局一、二都在芦苇地 reed_field（yard_* 在西半边、east_* 在东半边，写的是房间 x，美术定了再挪）；尾声森林的 forest_* 是森林的世界 x（树屋那一段），treehouse_* / forest_treehouse 写成第一章 marker 的名字（别名）；rooms 里的 river_bank 只为妮芙家这间小屋有地方放（小屋的 host）。两次 pick 带 ui（cockpit_nav.gd：二次确认、导航屏三个点）。",
 	"speakers": {
-		"chen": {"zh": "晨", "en": "Chen"},
+		"chen": {"zh": "晨", "en": "Light"},
 		"elephant": {"zh": "大象", "en": "Elephant"},
 		"passerby": {"zh": "路过的人", "en": "Passerby"},
 		"resident": {"zh": "居民", "en": "Resident"},
@@ -257,7 +257,7 @@
 			{"do": "if", "flag": "river_n_courier", "then": "look_river_water_c"}
 		],
 		"look_river_water_p": [
-			{"narr": {"zh": "瓶子上的标签：「晨来过的那条河」", "en": "The label on the bottle: \"The river Chen came to\""}}
+			{"narr": {"zh": "瓶子上的标签：「晨来过的那条河」", "en": "The label on the bottle: \"The river Light came to\""}}
 		],
 		"look_river_water_c": [
 			{"narr": {"zh": "瓶子上的标签：「寄件人：妮芙」", "en": "The label on the bottle: \"Sender: Niff\""}, "added": true}
@@ -340,7 +340,7 @@
 		"look_copper_bell": [
 			{"do": "show_item", "item": "copper_bell"},
 			{"do": "sfx", "name": "bell_soft"},
-			{"narr": {"zh": "铃上的标签：「已经送给晨，不用还」", "en": "The tag on the bell: \"Given to Chen. No need to return it.\""}}
+			{"narr": {"zh": "铃上的标签：「已经送给晨，不用还」", "en": "The tag on the bell: \"Given to Light. No need to return it.\""}}
 		],
 		"burn_copper_bell": [
 			{"do": "anim", "who": "chen", "name": "untie"},
@@ -1050,7 +1050,7 @@
 			{"do": "if", "flag": "barter_rat_chef_fire", "then": "epi_niff_stove"}
 		],
 		"epi_niff_chat": [
-			{"say": "niff", "zh": "这页写着：晨，回来过。这次没写成湿湿的人。", "en": "This page says: Chen, came back. Didn't write you as the soggy one this time.", "added": true}
+			{"say": "niff", "zh": "这页写着：晨，回来过。这次没写成湿湿的人。", "en": "This page says: Light, came back. Didn't write you as the soggy one this time.", "added": true}
 		],
 		"epi_city": [
 			{"do": "flag", "set": "final_epi_city"},
@@ -1256,10 +1256,10 @@
 			{"say": "deer", "zh": "孩子，回来啦。外头的路，难走不？", "en": "You're back, kid. Rough out there?", "added": true}
 		],
 		"epi_niff_name_p": [
-			{"say": "niff", "zh": "晨！要去云层星找大象的晨！", "en": "Chen! Chen who's going to the cloud planet to find the elephant!", "added": true}
+			{"say": "niff", "zh": "晨！要去云层星找大象的晨！", "en": "Light! Light who's going to the cloud planet to find the elephant!", "added": true}
 		],
 		"epi_niff_name_c": [
-			{"say": "niff", "zh": "取件员晨！你的件我还没找到，再等等。", "en": "Chen the courier! I still haven't found your package. Hang on.", "added": true}
+			{"say": "niff", "zh": "取件员晨！你的件我还没找到，再等等。", "en": "Light the courier! I still haven't found your package. Hang on.", "added": true}
 		],
 		"final_end_town": [
 			{"do": "wait", "sec": 2.0},

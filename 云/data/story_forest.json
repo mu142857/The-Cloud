@@ -1,7 +1,7 @@
 {
 	"_comment": "森林章节剧本。主线 = 剧情姐新稿 forest_v2.txt（第四版）+ 10-29 对白表修订 + 10-29 合订稿 yun1.txt（第六版；11-07 作者定：通讯器整条删掉，本章不再有 phone_* 步骤和 communicator 物品），第三版自由度（A 道具、B 三样东西、C 姓名牌、glade、D 岩画）叠加。格式见 docs/forest_chapter.md。开场：坠毁动画播完、晨爬起来以后播 scene \"intro\"。markers 里 room_* 是相对树屋锚点的 x（和 art/forest_story/treehouse.json 的 hotspots 一致）。带 \"added\": true 的是补写的（不是剧情姐原句），游戏里显示成蓝色给她审。hints：玩家 20 秒没推进主线时，按当前 flag 取第一个满足条件的条目，随机说一句。",
 	"speakers": {
-		"chen": {"zh": "晨", "en": "Chen"},
+		"chen": {"zh": "晨", "en": "Light"},
 		"deer": {"zh": "鹿", "en": "Deer"},
 		"miluo": {"zh": "弥洛", "en": "Milo"},
 		"voice": {"zh": "屋里的声音", "en": "A voice inside"},
@@ -924,7 +924,7 @@
 		"clock_take": [
 			{"do": "sfx", "name": "clock_open"},
 			{"do": "give", "item": "spring"},
-			{"say": "chen", "zh": "「借走一根弹簧。晨。」", "en": "\"Borrowed one spring. Chen.\"", "added": true},
+			{"say": "chen", "zh": "「借走一根弹簧。晨。」", "en": "\"Borrowed one spring. Light.\"", "added": true},
 			{"do": "journal", "zh": "空屋窗台的闹钟里借了一根弹簧，留了字条。", "en": "Borrowed a spring from the clock on the empty house's sill. Left a note.", "added": true},
 			{"do": "flag", "set": "got_spring"},
 			{"do": "flag", "set": "spring_from_clock"},
@@ -1779,7 +1779,7 @@
 			{"do": "flag", "set": "c1_got_map"},
 			{"do": "mechanic", "id": "signal_glitch"},
 			{"do": "sfx", "name": "heartbeat", "db": -6},
-			{"do": "inner", "zh": "我是……晨", "en": "I am... Chen", "style": "fade", "sec": 1.05, "wait": true},
+			{"do": "inner", "zh": "我是……晨", "en": "I am... Light", "style": "fade", "sec": 1.05, "wait": true},
 			{"do": "sfx", "name": "heartbeat", "db": -9},
 			{"do": "inner", "zh": "我想要……找到大象", "en": "I want... to find the elephant", "style": "fade", "sec": 1.45, "wait": true},
 			{"do": "sfx", "name": "heartbeat", "db": -12},
@@ -1807,7 +1807,7 @@
 		],
 		"c1_woke_b": [
 			{"say": "miluo", "zh": "你是从这个飞船来的，想必你应该也想要从这个飞船飞走吧", "en": "You came from that ship. I bet you want to fly off in it, too."},
-			{"do": "inner", "zh": "她说的没错，我想要修好这个飞船，我是……晨", "en": "She's right. I want to fix the ship. I am... Chen", "style": "fade", "sec": 2.35, "wait": true},
+			{"do": "inner", "zh": "她说的没错，我想要修好这个飞船，我是……晨", "en": "She's right. I want to fix the ship. I am... Light", "style": "fade", "sec": 2.35, "wait": true},
 			{"do": "flag", "set": "c1_woke"},
 			{"say": "miluo", "zh": "你的真实想法都写在脸上了，你可真是可爱啊，完全藏不住东西", "en": "Everything you think is written all over your face. You're kind of adorable. You can't hide a thing.", "added": true},
 			{"say": "miluo", "zh": "目前你飞船的状态，大概需要500动力的燃料才能飞到下一个目的地，我看你现在手里面能烧的，好像东西也不多啊。", "en": "The way your ship is now, it'll take about 500 power of fuel to reach the next stop. And from the look of it, you don't have much on you that'll burn.", "added": true},

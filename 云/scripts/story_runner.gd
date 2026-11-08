@@ -1973,8 +1973,24 @@ func _sfx(st: Dictionary) -> void:
 		var to := a.volume_db
 		a.volume_db = -60.0
 		create_tween().tween_property(a, "volume_db", to, 0.5).set_trans(Tween.TRANS_SINE)
+		_sfx_loop_once(a, float(st.get("sec", 0.0)))
 	if fam:
 		_family.append(a)
+
+
+## 11-08 作者「管道炸裂的声音一直存在，直到章节结束」：导入时开了循环的 wav（hiss_thin、water_hollow……）当一次性音效放，
+## 循环流不发 finished，上面的 queue_free 永远等不到，就一直响到换场景。一次性的只放一遍：放到快完时淡出、删掉。
+## 要持续的嘶嘶声用 ambient（有 on:false 关）。sec>0 = 响这么久再淡。
+static func _sfx_loop_once(a: Node, sec := 0.0) -> void:
+	var s: AudioStream = a.get("stream")
+	var length := s.get_length() if s != null else 2.0
+	var fade := clampf(length * 0.3, 0.4, 0.8)
+	var hold := maxf(0.5, (sec if sec > 0.0 else length) - fade)      # ≥ 0.5：开头 0.5 秒的淡入先走完
+	var tw := a.create_tween()
+	a.set_meta("fade_tw", tw)                        # 换场景时 audio_fade.release 接手淡出，先把这条停掉
+	tw.tween_interval(hold)
+	tw.tween_property(a, "volume_db", -60.0, fade).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(a.queue_free)
 
 
 static func _sfx_family(name: String) -> bool:

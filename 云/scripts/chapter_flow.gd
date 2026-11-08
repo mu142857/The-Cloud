@@ -147,8 +147,8 @@ static func go(tree: SceneTree, ch: String) -> void:
 	tree.reload_current_scene.call_deferred()
 
 
-## 章节转场卡：挂在根节点上的黑底 + 两行字（当前语言一行、另一种语言小字一行），在已经黑了的屏幕上淡入、停住；
-## 换章重新载入时它不在场景里，留着盖住，新章节开始以后再慢慢淡掉、删掉。
+## 章节转场卡：挂在根节点上的黑底 + 一行字（11-08 作者「不需要双语，主语言显示即可」：只按当前语言画一行，另一种不画），
+## 在已经黑了的屏幕上淡入、停住；换章重新载入时它不在场景里，留着盖住，新章节开始以后再慢慢淡掉、删掉。
 static func _end_card(tree: SceneTree, card: Dictionary, opening: Dictionary) -> void:
 	var cl := CanvasLayer.new()
 	cl.layer = 120
@@ -162,18 +162,17 @@ static func _end_card(tree: SceneTree, card: Dictionary, opening: Dictionary) ->
 	root.add_child(bg)
 	var titles := Control.new()
 	root.add_child(titles)
-	var other := "en" if I18n.is_zh() else "zh"
-	for i in 2:
-		var l := Label.new()
-		l.text = I18n.pick(card) if i == 0 else str(card.get(other, ""))
-		l.add_theme_font_size_override("font_size", 28 if i == 0 else 14)
-		l.add_theme_color_override("font_color", Color("#b9cdc1") if i == 0 else Color("#6f877b"))
-		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		l.size = Vector2(480, 32 if i == 0 else 16)
-		l.position = Vector2(0, 112 if i == 0 else 150)
-		l.modulate.a = 0.0
-		titles.add_child(l)
-		tree.create_tween().tween_property(l, "modulate:a", 1.0, 1.4).set_delay(0.4 + 0.5 * i).set_trans(Tween.TRANS_SINE)
+	var l := Label.new()
+	l.text = I18n.pick(card)
+	l.add_theme_font_size_override("font_size", 28)
+	l.add_theme_color_override("font_color", Color("#b9cdc1"))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.size = Vector2(480, 270)                   # 整屏大小、上下左右都居中
+	l.modulate.a = 0.0
+	titles.add_child(l)
+	tree.create_tween().tween_property(l, "modulate:a", 1.0, 1.4).set_delay(0.4).set_trans(Tween.TRANS_SINE)
+	print("CHAPTER_CARD %s" % l.text)            # 自测：换章卡出了、是哪种语言
 	cl.add_child(root)
 	tree.root.add_child(cl)
 	await tree.create_timer(3.6, false).timeout
@@ -182,8 +181,8 @@ static func _end_card(tree: SceneTree, card: Dictionary, opening: Dictionary) ->
 		ending.tween_property(titles, "modulate:a", 0.0, 0.8)
 		await ending.finished
 		await tree.create_timer(3.0, false).timeout
-		(titles.get_child(0) as Label).text = I18n.pick(opening)
-		(titles.get_child(1) as Label).text = str(opening[other])
+		l.text = I18n.pick(opening)
+		print("CHAPTER_CARD %s" % l.text)
 		var beginning := cl.create_tween()
 		beginning.tween_property(titles, "modulate:a", 1.0, 0.8)
 		beginning.tween_interval(1.5)

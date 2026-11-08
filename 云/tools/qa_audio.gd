@@ -12,6 +12,7 @@ extends SceneTree
 ## 跑：Godot --headless --audio-driver Dummy --path . -s tools/qa_audio.gd -- --chapter=forest --story_auto
 ##   加 --back_title_at=秒：玩到那一秒从设置按「返回标题」，一起检查（回到标题后自动退出）。
 ##   加 --view_paper_at=秒（可写几个，逗号隔开）：过了那一秒、晨能自由走的时候开背包、选大象的照片、按「查看」，打印 QA_PAPER（11-07）。
+##   加 --track=名字（可写几个，逗号隔开）：那个声音「听得见的播放器」个数一变就打印 QA_TRACK（11-08 查一直不停的嘶嘶声）。
 ##   每条打印 AUDIO_FLAG …；退出时打印 AUDIO_QA 各类的条数。Dummy 驱动下播放位置照样走。
 
 const AF := preload("res://scripts/audio_fade.gd")
@@ -36,6 +37,8 @@ var _back_press_t := -1.0
 var _paper_at: Array = []   # --view_paper_at=秒,秒…
 var _paper_press := -1     # 开了背包的帧号：下一帧按「查看」
 var _paper_wait := false   # 按过了，等它收起、背包重新打开
+var _track: Array = []     # --track=名字,名字…
+var _track_n := {}         # 名字 → 上一次听得见的个数
 
 
 func _initialize() -> void:
@@ -45,6 +48,8 @@ func _initialize() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--back_title_at="):
 			_back_at = float(a.trim_prefix("--back_title_at="))
+		if a.begins_with("--track="):
+			_track = Array(a.trim_prefix("--track=").split(","))
 		if a.begins_with("--view_paper_at="):
 			for x in a.trim_prefix("--view_paper_at=").split(","):
 				_paper_at.append(float(x))
@@ -55,6 +60,8 @@ func _finalize() -> void:
 	for k in _counts:
 		parts.append("%s=%d" % [k, _counts[k]])
 	print("AUDIO_QA %s t=%.1f" % [" ".join(parts), _t])
+	for k in _track:
+		print("QA_TRACK end %s audible=%d t=%.1f" % [k, int(_track_n.get(k, 0)), _t])
 
 
 func _stream_len(p: Node) -> float:
@@ -168,6 +175,13 @@ func _tick() -> void:
 			_flag("hard_stop", cur[id]["who"], "db=%.1f pos=%.1f/%.1f" % [pr["db"], pr["pos"], pr["len"]])
 		elif playing and pr["playing"] and absf(db - float(pr["db"])) > JUMP and maxf(db, float(pr["db"])) > AUDIBLE and not attack:
 			_flag("jump", cur[id]["who"], "%.1f → %.1f dB" % [pr["db"], db])
+	for k in _track:
+		var hit: Array = audible.filter(func(w): return str(w).contains(k))
+		if hit.size() != int(_track_n.get(k, 0)):
+			_track_n[k] = hit.size()
+			var lv := root.get_node_or_null("LevelForest")
+			var scene := str(lv.get("story").get("_cur_scene")) if lv != null and lv.get("story") != null else "?"
+			print("QA_TRACK %s audible=%d t=%.2f scene=%s %s" % [k, hit.size(), _t, scene, hit])
 	# 上一帧在放、这一帧节点没了（queue_free / 换场景）
 	for id in _prev:
 		if not cur.has(id):

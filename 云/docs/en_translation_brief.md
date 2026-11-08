@@ -11,13 +11,13 @@
 - 已经有英文的（speakers、物品名）不要改；觉得不好的，列出来交回。
 
 ## 已定的名字
-- 晨 = Chen。鹿 = Deer，散文里写 the deer。弥洛 = Milo。妮芙 = Niff。阿汀 = Ting。
+- 晨 = Light。鹿 = Deer，散文里写 the deer。弥洛 = Milo。妮芙 = Niff。阿汀 = Ting。
 - 物品名照 `items.json` / `items_later.json` 里已有的 en，台词里提到物品要用同一个词，比如 Commuter Card、Blue Stone、Elephant Drawing、Communicator。
 - 新遇到的专有名词（地名、东西、称呼），记到 `docs/en_glossary.md`。三个 agent 共用这一个文件：只往末尾追加，格式 `- 中文 = English（文件）`。追加前先读一遍，已经有的就照着用。
 
 ## 硬规则
 - **晨的性别不定。** 英文里绝对不要用 he / she / him / her / his / hers 指晨。
-  - 改写句子，或者用 Chen。万不得已才用 they。
+  - 改写句子，或者用 Light。万不得已才用 they。
   - 别人对晨说话用 you 就没问题。
 - **失联的朋友是「她」**：she / her。
 - 这个游戏要唯美、安静、零门槛。主题是冷漠和失去，不是焦虑。

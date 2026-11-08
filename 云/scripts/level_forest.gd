@@ -306,6 +306,7 @@ var _burn_sub_off := false
 var _pending_hs: Dictionary = {}   # 鼠标点了一个 hotspot：走过去，到了就互动
 var _wall_block := false
 var _end_t := -1.0
+var _chapter_going := false      # 换章中（chapter_flow.go 在放换章卡、等重新载入）：story.ended 也是 true，但不是结束卡，按键不能回标题
 var _fuzz := 0.0                  # --story_fuzz：乱玩多少秒
 var _fuzz_rng := RandomNumberGenerator.new()
 var _fuzz_t := 0.0
@@ -713,6 +714,15 @@ func _label(text: String, size := 14, color := UITheme.TEXT) -> Label:
 	return l
 
 
+## 网页版的版本号（bilibili/export.sh 把 bilibili/VERSION + 导出时间写进 shell.html 的 window.cloudVersion）；
+## 桌面版、编辑器里是空字串，显示版本号的地方就不建。
+static func _web_version() -> String:
+	if not OS.has_feature("web"):
+		return ""
+	var v: Variant = JavaScriptBridge.eval("window.cloudVersion || ''", true)
+	return str(v).strip_edges() if v != null else ""
+
+
 func _build_ui() -> void:
 	var root := Control.new()
 	root.name = "Root"
@@ -819,6 +829,14 @@ func _build_ui() -> void:
 		b.mouse_entered.connect(_sfx_soft)
 		_lang_corner.add_child(b)
 		_lang_btns[l] = b
+	# ---- 右下角、齿轮左边：网页版的版本号（只有 Toy 网页版有，传完一看就知道线上是不是新版）
+	var ver := _web_version()
+	if ver != "":
+		var vl := _label(ver, 12, LANG_OFF)
+		vl.size = Vector2(200, 14)
+		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		vl.position = Vector2(480 - 8 - 11 - 5 - 200, 270 - 8 - 14)
+		_title_root.add_child(vl)
 
 	# ---- HUD：左上燃烧值、右上背包
 	_hud_burn = HBoxContainer.new()
@@ -1132,6 +1150,11 @@ func _build_settings(root: Control) -> void:
 	close.pressed.connect(_close_panels)
 	v.add_child(close)
 	_settings_widgets["close"] = close
+	var ver := _web_version()                     # 网页版：面板最底下一行小字写版本号
+	if ver != "":
+		var vl := _label(ver, 12, LANG_OFF)
+		vl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(vl)
 	root.add_child(_settings)
 
 
@@ -3319,6 +3342,8 @@ func _input(event: InputEvent) -> void:
 	# 章节结束卡：3 秒以后按任意键回标题
 	if story.ended:
 		_handled()
+		if _chapter_going:
+			return                                # 11-08 奥斯卡：换章卡（第一章结束 / 第二章开始）放着时按键，走了下面「回标题」，清掉章节进了标题。换章时按键全吞掉
 		if _end_t > 3.0 and ((event is InputEventKey and event.pressed) or (event is InputEventMouseButton and event.pressed)):
 			_end_t = -100.0                       # 只重开一次
 			if _fuzz > 0.0:
@@ -4881,6 +4906,7 @@ func chapter_next() -> bool:
 	if testing and not _story_chain:
 		return false
 	print("CHAPTER %s → %s" % [chapter, nxt])
+	_chapter_going = true
 	CHAPTER_GD.go(get_tree(), nxt)
 	return true
 

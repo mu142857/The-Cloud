@@ -29,6 +29,7 @@ var _dlg_scene := ""
 var _scene_changed_t := -1.0
 var _bark_text := ""
 var _bark_since := 0.0
+var _chapter_key_done := false
 
 
 ## 软锁：左上角目标一直是这一个、这么久一个新 flag 都没设（自动玩会自己找点去互动，正常一两分钟总有进展）
@@ -48,6 +49,9 @@ func _process(delta: float) -> void:
 	if _pause_i < PAUSE_AT.size() and _t >= float(PAUSE_AT[_pause_i]) and story.busy:
 		_pause_i += 1
 		_pause_test()
+	if not _chapter_key_done and level != null and bool(level.get("_chapter_going")) and float(level.get("_end_t")) > 3.5:
+		_chapter_key_done = true
+		_chapter_key_test()
 	_dialogue_state()
 	_softlock()
 	_menu_hover_test()
@@ -373,3 +377,21 @@ func _menu_hover_test() -> void:
 
 func _exit_tree() -> void:
 	print(summary())
+
+
+## 换章卡放着的时候按一下键（QA_CHAPTER_KEY，11-08 奥斯卡：「第二章开始」以后回到了标题）：
+## 这时 story.ended 也是 true，结束卡的「3 秒后按任意键回标题」不能接；按完章节 meta 还得是下一章、没有要回标题。
+## 自动玩时关卡的 _input 不吃键，这里临时让它当真人按一下
+func _chapter_key_test() -> void:
+	var cf: GDScript = load("res://scripts/chapter_flow.gd")
+	var auto = level.get("_story_auto")
+	level.set("_story_auto", "")
+	var ev := InputEventKey.new()
+	ev.keycode = KEY_SPACE
+	ev.pressed = true
+	level._input(ev)
+	level.set("_story_auto", auto)
+	var ch := str(Engine.get_meta(cf.CHAPTER_META)) if Engine.has_meta(cf.CHAPTER_META) else ""
+	var title := Engine.has_meta("level_forest_title_fade")
+	var ok := ch == str(cf.info(str(level.get("chapter"))).get("next", "")) and not title
+	print("QA_CHAPTER_KEY %s 按键后章节=%s 回标题=%s" % ["ok" if ok else "FAILED", ch, title])

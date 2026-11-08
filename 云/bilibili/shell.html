@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
+		<title>$GODOT_PROJECT_NAME</title>
+		<!--
+		《云》的 B 站 Toy 页面（照 Linger/linger_bilibili/bilibili/shell.html 和 Oscar Rush 的固定画布改，见 Toy 手册附录 K/L/N）：
+		- 引擎（index.wasm）和资源包（index.pck）下的是 bilibili/export.sh 预先压好的 *.gz.bin，在浏览器里边下边解压
+		  （Toy 的 CDN 不压缩 .wasm/.pck）。不支持 DecompressionStream 的旧浏览器、或拿不到 .gz.bin 时退回原文件。
+		- 画布固定 1440×810（游戏 480×270 的 3 倍，导出预设 canvas_resize_policy=0），窗口多大都只用 CSS 等比放大、四周黑边，
+		  手机、全屏都不按屏幕分辨率重画（手册第七节 v2.0 做法）。
+		- 永远不开沉浸模式、不强制横屏（手册第一条）：竖屏时提示一次「建议横屏」，点一下就消失。
+		- 加载卡住：下载 15 秒没回应 / 20 秒没新数据就断掉让 Godot 重下；wasm 编译失败整块重下再试一次；启动失败自动刷新一次；
+		  下完 12 秒没启动提示「手机有点慢」，60 秒报超时。
+		- 版本号：export.sh 把 bilibili/VERSION + 导出时间写进 __CLOUD_VERSION__，左上角显示，游戏里读 window.cloudVersion。
+		- 字全用游戏的像素字体（fonts/PixelFont_ui.ttf 只留用到的字，bilibili/加载界面.py 写进 __CLOUD_FONT__），字号 11 的整数倍 × 游戏像素倍数。
+		- Toy SDK 只用来声明「不沉浸、跟着手机转」，登录 / 关注 / 云存档 / 排行榜这版都没接。
+		-->
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+body {
+	color: #d8cfe2;
+	background-color: #08080a;
+	overflow: hidden;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* 画布固定 1440×810，fitCanvas() 只改 CSS 大小和位置；像素图整数倍放大时不糊 */
+#canvas {
+	display: block;
+	position: absolute;
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+.pixel {
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+	display: block;
+}
+
+/* 游戏 UI 的像素字（fonts/PixelFont_ui.ttf，天王星像素 11Px），bilibili/加载界面.py 导出时只留用到的字嵌进来。
+   字号一律 11 的整数倍 × --k（一个游戏像素是多少 CSS 像素，fit() 算，和游戏画面同一套格子），关掉平滑。 */
+@font-face {
+	font-family: "CloudPixel";
+	src: url("__CLOUD_FONT__") format("woff");
+	font-display: block;
+}
+
+.px {
+	font-family: "CloudPixel", monospace;
+	-webkit-font-smoothing: none;
+	font-smooth: never;
+	text-rendering: optimizeSpeed;
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+}
+
+#status, #rotate {
+	position: fixed;
+	inset: 0;
+	background-color: #08080a;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+}
+
+/* 有封面图（bilibili/splash.webp，export.sh 拷进来）就铺满居中；没有就不显示，只剩下面的字 */
+#status-splash {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+#status-title {
+	position: relative;
+	color: #d8cfe2;
+	font-size: calc(44px * var(--k, 2));
+	line-height: calc(48px * var(--k, 2));
+	text-shadow: 0 calc(1px * var(--k, 2)) 0 rgba(5, 2, 8, 0.5);
+}
+
+#status-sub {
+	position: relative;
+	margin-top: calc(6px * var(--k, 2));
+	color: #9a8fb4;
+	font-size: calc(11px * var(--k, 2));
+	line-height: calc(14px * var(--k, 2));
+	letter-spacing: calc(4px * var(--k, 2));
+	text-indent: calc(4px * var(--k, 2));
+}
+
+#status-bar {
+	position: absolute;
+	bottom: 8%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: calc(96px * var(--s, 2));
+	height: calc(1px * var(--s, 2));
+	background-color: #2a2634;
+}
+
+#status-fill {
+	width: 0;
+	height: 100%;
+	background-color: #d8cfe2;
+}
+
+#status-version {
+	position: absolute;
+	top: 8px;
+	left: 10px;
+	color: #d8cfe2;
+	text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+	opacity: 0.7;
+	font-size: calc(11px * var(--k, 2));
+	line-height: calc(14px * var(--k, 2));
+}
+
+#status-notice {
+	display: none;
+	position: relative;
+	margin: 1.5em 2rem 0;
+	padding: 0.6em 1em;
+	color: #d8cfe2;
+	background-color: rgba(0, 0, 0, 0.75);
+	font-size: calc(11px * var(--k, 2));
+	line-height: calc(16px * var(--k, 2));
+	text-align: center;
+	white-space: pre-line;
+}
+
+/* 进度条下面的一行小字：网络卡住在重连、下完了在启动、手机慢…… */
+#status-line {
+	position: absolute;
+	bottom: calc(8% - 2.2em);
+	left: 0;
+	right: 0;
+	color: #9a8fb4;
+	text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+	font-size: calc(11px * var(--k, 2));
+	line-height: calc(14px * var(--k, 2));
+	text-align: center;
+}
+
+#rotate {
+	display: none;
+	z-index: 10;
+	background-color: rgba(0, 0, 0, 0.82);
+	cursor: pointer;
+}
+
+#rotate-tap {
+	margin-top: 1.2em;
+	color: #9a8fb4;
+	font-size: calc(11px * var(--k, 2));
+	line-height: calc(14px * var(--k, 2));
+}
+
+#rotate img {
+	width: calc(98px * var(--s, 2));
+}
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas" width="1440" height="810">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status">
+			<img id="status-splash" src="splash.webp" alt="" onerror="this.style.display='none'">
+			<div id="status-title" class="px">云</div>
+			<div id="status-sub" class="px">THE CLOUD</div>
+			<div id="status-bar"><div id="status-fill"></div></div>
+			<div id="status-line" class="px"></div>
+			<div id="status-version" class="px">__CLOUD_VERSION__</div>
+			<div id="status-notice" class="px"></div>
+		</div>
+
+		<div id="rotate">
+			<img class="pixel" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGIAAAALCAYAAACEXlicAAABUklEQVR4nMVXSQ7CMAykiFf0xI3/P4cbp3wDFNRIVjT2jJ0i5tImtR3vTrfLgfZ6vvtzvz+2sRftZ2kUtEOOBZJZPW/ms+v+nj0rowejdZ2OnDIQBcvj83gYHQI7z5Nxhn3Kvv3GMHhvjCBzmF3bLFOc1UTFI309GUhPSx9VBJNl9yw/ko/eBz1tN8jgSBFkHDIymzEdLItZ+VcrwkO2bUf++FbErFQnUipiBZVZtDu9feX8TMUrwUZ8dm9+DlmnzoiIlwWyiQH3nMOcFDmV6VkZ8ln73BkxK8YG1mrGDGSCWK2IqIWq/J6uCJbOCxwNhOK0rEOqV8FWPC/iQ63iTKgz4soE2XnhfWNG9O+/MlRBpOewrfpPspoAYUXYyP3TgWpL8Cos07vZ1XfOZLX1IrrZt30NA4F6fXQTYMowtGKw2d+wgtk+KxO1S+USoyTATPMBr/4YB5XkU8MAAAAASUVORK5CYII=" alt="请把手机横过来">
+			<div id="rotate-tap" class="px">建议横屏游玩 · 点一下继续</div>
+		</div>
+
+		<script>
+// B 站 App 里：页面跟着手机转、绝不沉浸（App 自己那条点赞、评论栏要留着，手册第一条）。
+// Toy 的 SDK 会把这个告诉 App；不在 App 里时调用会被拒绝，无所谓。登录、关注、云存档、排行榜这版都没接。
+(function () {
+	const sdk = document.createElement('script');
+	sdk.src = 'https://s1.hdslb.com/bfs/seed/toy/app/sdk/toy-sdk.js';
+	sdk.async = true;
+	sdk.onload = function () {
+		try {
+			if (window.toy && typeof window.toy.setContainerMode === 'function') {
+				window.toy.setContainerMode({ orientation: 'auto', immersive: false }).catch(function () {});
+			}
+		} catch (e) { /* 不在 App 里 */ }
+	};
+	document.head.appendChild(sdk);
+}());
+
+// 版本号：export.sh 写进上面那个 span，游戏里 JavaScriptBridge.eval("window.cloudVersion || ''") 读出来显示
+window.cloudVersion = document.getElementById('status-version').textContent;
+window.cloudPhone = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent)
+	|| (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+
+// 固定渲染分辨率：导出预设 canvas_resize_policy=0，Godot 不动画布尺寸，画布永远 1440×810；
+// 这里只按窗口大小等比缩放画布元素（CSS，四周黑边）。鼠标位置 Godot 按元素大小换算（canvas.width / rect.width），
+// 所以元素本身要摆在内容的位置，不能用 object-fit。「全屏」改成整个页面全屏，照样走这里的缩放。
+(function () {
+	const CW = 1440, CH = 810;
+	function fitCanvas() {
+		const c = document.getElementById('canvas');
+		if (!c) {
+			return;
+		}
+		const vw = window.innerWidth, vh = window.innerHeight;
+		const sc = Math.min(vw / CW, vh / CH);
+		const w = Math.round(CW * sc), h = Math.round(CH * sc);
+		c.style.width = w + 'px';
+		c.style.height = h + 'px';
+		c.style.left = Math.floor((vw - w) / 2) + 'px';
+		c.style.top = Math.floor((vh - h) / 2) + 'px';
+	}
+	window.cloudFitCanvas = fitCanvas;
+	window.addEventListener('resize', fitCanvas);
+	window.addEventListener('orientationchange', fitCanvas);
+	document.addEventListener('fullscreenchange', fitCanvas);
+	document.addEventListener('webkitfullscreenchange', fitCanvas);
+	function hookFullscreen() {
+		const c = document.getElementById('canvas');
+		if (!c) {
+			return;
+		}
+		const root = document.documentElement;
+		const req = root.requestFullscreen || root.webkitRequestFullscreen;
+		if (req) {
+			c.requestFullscreen = function () { return req.call(root); };
+			c.webkitRequestFullscreen = c.requestFullscreen;
+		}
+		fitCanvas();
+	}
+	if (document.getElementById('canvas')) {
+		hookFullscreen();
+	} else {
+		document.addEventListener('DOMContentLoaded', hookFullscreen);
+	}
+}());
+
+// 加载界面的像素倍数（--s 进度条、--k 像素字）和竖屏提示：只是建议，点一下就消失、之后不再出现
+(function () {
+	const coarse = window.matchMedia ? window.matchMedia('(pointer: coarse)') : null;
+	const note = document.getElementById('rotate');
+	let dismissed = false;
+	note.addEventListener('click', function () {
+		dismissed = true;
+		note.style.display = 'none';
+	});
+	function fit() {
+		const dpr = window.devicePixelRatio || 1;
+		const w = window.innerWidth;
+		const h = window.innerHeight;
+		const s = Math.max(1, Math.floor(Math.min(w / 480, h / 270) * dpr * 2)) / dpr;
+		document.documentElement.style.setProperty('--s', String(s));
+		// --k：一个游戏像素 = 多少 CSS 像素（整数个设备像素），像素字的字号按它乘，格子和游戏画面对齐
+		const k = Math.max(1, Math.floor(Math.min(w / 480, h / 270) * dpr)) / dpr;
+		document.documentElement.style.setProperty('--k', String(k));
+		const upright = h > w && coarse !== null && coarse.matches;
+		note.style.display = upright && !dismissed ? 'flex' : 'none';
+	}
+	window.addEventListener('resize', fit);
+	window.addEventListener('orientationchange', fit);
+	fit();
+}());
+
+// 引擎和资源包下的是 gz 版，这里边下边解压（手册附录 L）。Godot 的下载器按原文件名来要，按解压后的字节数算进度，进度照样准。
+(function () {
+	const PACKED = { 'index.wasm': 'index.wasm.gz.bin', 'index.pck': 'index.pck.gz.bin' };
+	const TYPES = { 'index.wasm': 'application/wasm', 'index.pck': 'application/octet-stream' };
+	if (typeof DecompressionStream !== 'function' || typeof ReadableStream !== 'function') {
+		return;   // 旧浏览器：用原文件
+	}
+	const realFetch = window.fetch.bind(window);
+	// 卡在 0%（寻找伪人 2026-10-15 玩家反馈）：请求挂着不回、或下到一半不动，Godot 的下载器只在「报错」时才重试。
+	// 这里加时限：HEAD_WAIT 没回应、CHUNK_WAIT 没新数据就断掉报错，让 Godot 重下（最多 4 遍）。
+	const HEAD_WAIT = 15000;
+	const CHUNK_WAIT = 20000;
+	function stalled(why) {
+		const e = new Error('下载卡住了（' + why + '）');
+		e.stalled = true;
+		if (typeof window.cloudNetRetry === 'function') {
+			window.cloudNetRetry();
+		}
+		return e;
+	}
+	function within(promise, ms, why, ctl) {
+		let timer = 0;
+		const late = new Promise(function (resolve, reject) {
+			timer = setTimeout(function () {
+				reject(stalled(why));         // 先报「卡住」再断开：断开的错误后到，不会被当成别的错
+				if (ctl) {
+					ctl.abort();
+				}
+			}, ms);
+		});
+		return Promise.race([promise, late]).then(function (v) {
+			clearTimeout(timer);
+			return v;
+		}, function (e) {
+			clearTimeout(timer);
+			throw e;
+		});
+	}
+	window.fetch = function (input, init) {
+		const url = typeof input === 'string' ? input : (input && input.url) || '';
+		const name = url.split('?')[0].split('/').pop();
+		if (!Object.prototype.hasOwnProperty.call(PACKED, name)) {
+			return realFetch(input, init);
+		}
+		const packedUrl = url.replace(name, PACKED[name]);
+		const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+		const opts = Object.assign({}, init || {}, ctl ? { signal: ctl.signal } : {});
+		return within(realFetch(packedUrl, opts), HEAD_WAIT, '连不上', ctl).then(function (res) {
+			if (!res.ok || !res.body) {
+				return realFetch(input, init);
+			}
+			// 服务器可能已经帮忙解压了（Content-Encoding）：先看前两个字节是不是 gzip 头
+			const reader = res.body.getReader();
+			return within(reader.read(), CHUNK_WAIT, '没数据', ctl).then(function (first) {
+				const head = first.value || new Uint8Array(0);
+				const gz = head.length >= 2 && head[0] === 0x1f && head[1] === 0x8b;
+				let stream = new ReadableStream({
+					start: function (controller) {
+						if (head.length) {
+							controller.enqueue(head);
+						}
+						if (first.done) {
+							controller.close();
+						}
+					},
+					pull: function (controller) {
+						return within(reader.read(), CHUNK_WAIT, '下到一半不动了', ctl).then(function (r) {
+							if (r.done) {
+								controller.close();
+							} else {
+								controller.enqueue(r.value);
+							}
+						}, function (e) {
+							controller.error(e);
+						});
+					},
+				});
+				if (gz) {
+					stream = stream.pipeThrough(new DecompressionStream('gzip'));
+				}
+				return new Response(stream, { headers: { 'content-type': TYPES[name] } });
+			});
+		}).catch(function (e) {
+			if (e && (e.stalled || e.name === 'AbortError')) {
+				throw e;                      // 卡住的：交给 Godot 重下压缩包，别换成几十 MB 的原文件
+			}
+			return realFetch(input, init);
+		});
+	};
+}());
+
+// 加载到 100% 卡住：Godot 的 index.js 编译 wasm 只写了 .then、没接失败，编译失败（内存不够、解压的流断了）时界面永远停在 100%。
+// 这里包一层：边下边编译失败就整块重下、再编译一次；还不行就在加载界面上报错（cloudBootFail，下面定义）。手册附录 N。
+(function () {
+	if (typeof WebAssembly !== 'object') {
+		return;
+	}
+	const realStreaming = WebAssembly.instantiateStreaming;
+	const realInstantiate = WebAssembly.instantiate;
+	function report(e) {
+		if (typeof window.cloudBootFail === 'function') {
+			window.cloudBootFail(e);
+		}
+		throw e;
+	}
+	function again(imports) {
+		return window.fetch('index.wasm', { cache: 'no-store' }).then(function (res) {
+			return res.arrayBuffer();
+		}).then(function (buf) {
+			return realInstantiate.call(WebAssembly, buf, imports);
+		});
+	}
+	if (typeof realStreaming === 'function') {
+		WebAssembly.instantiateStreaming = function (source, imports) {
+			return realStreaming.call(WebAssembly, source, imports).catch(function (e) {
+				console.warn('wasm streaming failed, retrying', e);
+				return again(imports);
+			}).catch(report);
+		};
+	}
+	WebAssembly.instantiate = function (source, imports) {
+		const p = realInstantiate.call(WebAssembly, source, imports);
+		return source instanceof WebAssembly.Module ? p : p.catch(report);
+	};
+}());
+		</script>
+		<script src="$GODOT_URL"></script>
+		<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const status = document.getElementById('status');
+	const fill = document.getElementById('status-fill');
+	const line = document.getElementById('status-line');
+	const notice = document.getElementById('status-notice');
+	const started = Date.now();
+
+	// 启动失败先自动刷新重来一次；下载卡住时告诉玩家在重连；下完以后慢的手机提示一下，太久没反应就报超时。
+	let failed = false;
+	const TIMEOUT = '启动超时。';
+	function fail(err) {
+		if (failed) {
+			return;
+		}
+		failed = true;
+		console.error(err);
+		const text = err instanceof Error ? err.message : (typeof err === 'string' ? err : '出了点问题。');
+		// 启动失败（不是超时）先自动刷新重来一次：多是一时内存紧，换个干净的页面再编译常常就好了。只重来一次。
+		let retried = false;
+		try {
+			retried = sessionStorage.getItem('cloudBootRetry') === '1';
+			if (!retried && text !== TIMEOUT) {
+				sessionStorage.setItem('cloudBootRetry', '1');
+				line.textContent = '启动失败，自动重试一次……';
+				setTimeout(function () { location.reload(); }, 800);
+				return;
+			}
+		} catch (e) { /* 存不了就不重试，直接报 */ }
+		const memory = /memory|内存|allocat|oom/i.test(text);
+		notice.textContent = (memory ? '手机内存不够，游戏没能启动。\n关掉后台的其他应用，退出这个页面再重新打开。\n'
+			: '加载失败，请退出后重新打开。\n') + text;
+		notice.style.display = 'block';
+		line.textContent = '';
+	}
+	window.cloudBootFail = fail;
+	// 下载卡住、断开重下时（上面的 fetch 包装）：告诉玩家在重连，不是死了
+	let netRetries = 0;
+	window.cloudNetRetry = function () {
+		netRetries += 1;
+		if (!failed && fullAt === 0) {
+			line.textContent = netRetries < 3 ? '网络卡住了，正在重新连接……' : '人有点多，还在重新连接（第 ' + netRetries + ' 次）……';
+		}
+	};
+	// 下载完以后还要在手机上编译、启动，慢的手机要十几秒：别让人以为卡死了。一直不动就提示退出重进。
+	let fullAt = 0;
+	let booted = false;
+	const watch = setInterval(function () {
+		if (booted || failed) {
+			clearInterval(watch);
+			return;
+		}
+		if (fullAt > 0 && Date.now() - fullAt > 60000) {
+			clearInterval(watch);
+			fail(TIMEOUT);
+		} else if (fullAt > 0 && Date.now() - fullAt > 12000) {
+			line.textContent = '手机有点慢，正在启动……';
+		}
+	}, 1000);
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+	if (missing.length !== 0) {
+		fail('这个浏览器缺少运行游戏所需的功能：\n' + missing.join('\n'));
+		return;
+	}
+	engine.startGame({
+		'onProgress': function (current, total) {
+			if (failed) {
+				return;   // 报错以后别再把下面那行字改回「启动中」
+			}
+			if (current > 0 && total > 0) {
+				const pct = Math.min(1, current / total);
+				fill.style.width = (pct * 100).toFixed(1) + '%';
+				if (pct >= 1) {
+					fullAt = fullAt || Date.now();
+					line.textContent = '下载好了，启动中……';
+				} else if (Date.now() - started > 15000 && pct < 0.5) {
+					line.textContent = '网有点慢，再等等……';
+				}
+			}
+		},
+	}).then(function () {
+		booted = true;
+		try { sessionStorage.removeItem('cloudBootRetry'); } catch (e) { /* 无所谓 */ }
+		status.remove();
+		if (typeof window.cloudFitCanvas === 'function') {
+			window.cloudFitCanvas();
+		}
+	}, function (err) {
+		fail(err);
+	});
+}());
+		</script>
+	</body>
+</html>
