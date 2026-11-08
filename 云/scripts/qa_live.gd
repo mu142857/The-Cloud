@@ -280,7 +280,7 @@ func _dialogue_state() -> void:
 
 func _softlock() -> void:
 	var sh = level.get("_hud_side") if level != null else null
-	var st: String = str((sh as Label).text) if sh is Label and (sh as CanvasItem).is_visible_in_tree() else ""
+	var st: String = str(level.get("_side_text")) if sh is CanvasItem and (sh as CanvasItem).is_visible_in_tree() else ""    # 11-08 支线列表改成一行一个节点
 	if st != _side_key:
 		_side_key = st
 		print("QA_SIDE 「%s」 room=%s scene=%s" % [st, story.world.room, story._cur_scene])

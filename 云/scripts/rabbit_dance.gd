@@ -4,7 +4,7 @@ extends RefCounted
 ## 怎么玩（没有计时、不会输）：
 ##   兔子面对晨站在林子里。每一轮兔子跳一串动作，每跳一下，它头顶就冒出一个像素箭头（← ↑ → ↓）。
 ##   跳完箭头变淡，轮到玩家用方向键 / WASD 照着按，按对一个亮一个，晨跟着动一下（不画新帧：只在待机帧上
-##   程序弹一下 / 压一下 / 歪一下，每个键手感不一样）。四轮，3、4、5、6 步。
+##   程序弹一下 / 压一下 / 歪一下，每个键手感不一样）。四轮，3、4、4、5 步（11-08 作者嫌难，原来 3、4、5、6）。
 ##   箭头一轮比一轮少（11-08 作者）：第一轮一直有；第二轮兔子跳到一半起箭头渐渐淡没；第三、四轮完全没有，
 ##   要看兔子的动作记。没给的箭头玩家按对时才冒出来。同一轮同一步错超过两次，这一轮箭头重新给（辅助）。
 ##   按错不罚：兔子耸耸肩，这一轮再跳一遍。一共错三次，剩下的兔子和晨一起慢慢跳完（自动过）；
@@ -14,8 +14,12 @@ extends RefCounted
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "rabbit_dance", "at": 兔子站的 marker,
 ##   "who"?: "rabbit", "sets"?: [跳完设的 flag], "seqs"?: [["up", "left", "right"], …], "max_miss"?: 3,
-##   "retry"?: false, "hide"?: ["show", "fade", "hidden", "hidden"],
+##   "retry"?: false, "hide"?: ["show", "fade", "hidden", "hidden"], "speed"?: [1.4, 1.4, [0.8, 0.8, 1.5, 1.5, 1.0], 1]（见 step_sec）,
+##   "quit_ok"?: false, "quit_scene"?: 退出后跳去的 scene,
 ##   "lines"?: {start, round_1, round_2, round_3, round_4, wrong, auto, win}}
+##   quit_ok（11-08 作者「卡住了就出不来」，只给支线练舞）：跳的时候按 Esc，屏幕下方出「长按 Esc 退出练舞」，
+##   按住 QUIT_HOLD 秒就退出（不给奖励、不设 sets，进度留着，下次从这一轮接着跳），剧本跳去 quit_scene（story_runner 的
+##   quitted / quit_scene，和煮锅、来客册一样）。没写 quit_ok 的（主线比舞）Esc 照常开暂停菜单。
 ##   at 没写：兔子在哪就在哪（没显示过就站到晨面前 64 像素）。晨总是自己走到兔子正对面 FACE_DIST（64）像素（11-08，chen_at 不再用）。
 ##   lines 每一项是一串剧本步骤（say / anim / sfx……），都可以不写；wrong 只在第一次按错时播。
 ## 进度（story.mech_load）：{round, k, miss, gave_up, done, fails: {"轮:步": 错几次}}：读档回来从那一轮接着跳。
@@ -27,8 +31,9 @@ const KIT := preload("res://scripts/river_explore_order.gd")
 const QTE_AUDIO := preload("res://scripts/qte_audio.gd")
 const ID := "rabbit_dance"
 const DIRS := ["left", "up", "right", "down"]
-const SEQS := [["up", "left", "right"], ["left", "down", "up", "right"], ["right", "up", "down", "left", "up"],
-		["down", "right", "up", "left", "down", "up"]]
+## 11-08 作者「兔子这一条线太难了，主线 3 4 4 5 就可以」（原来 3、4、5、6）
+const SEQS := [["up", "left", "right"], ["left", "down", "up", "right"], ["right", "up", "down", "left"],
+		["down", "right", "up", "left", "up"]]
 const MAX_MISS := 3
 const FACE_DIST := 64.0                 # 跳舞时晨和兔子隔多远（脚底中心到中心）
 ## 每一轮箭头怎么给（11-08 作者）：第一轮 show 一直有箭头；第二轮 fade 兔子跳到一半以后箭头渐渐淡没；
@@ -51,12 +56,33 @@ const SFX_ROUND := "res://audio/sfx/bell_soft.wav"
 const PITCH := {"left": 1.0, "down": 0.891, "right": 1.122, "up": 1.335}     # 每个键一个音：do re mi fa 那样排开
 const HINT := {"zh": "方向键 / WASD：跟着兔子跳", "en": "Arrow keys / WASD: follow the rabbit"}
 const HINT_LAYER := 15
+const QUIT_HOLD := 1.0                  # 长按 Esc 多久算退出
+const QUIT_SHOW := 2.5                  # 松开以后「长按 Esc 退出」那行还留多久
+const QUIT_HINT := {"zh": "长按 Esc 退出练舞", "en": "Hold Esc to leave practice"}
+const QUIT_BAR_W := 64.0
+const QUIT_BAND := 26.0                 # 下面电影黑边的高度（level_forest.BAR_H）：提示放在它上面，不被压住
 
 
 # ======================================================================= 规则（纯函数）
 static func seqs(step: Dictionary) -> Array:
 	var v = step.get("seqs", SEQS)
 	return v if v is Array and not (v as Array).is_empty() else SEQS
+
+
+## 第 i 轮第 k 下兔子示范用几秒（11-08 作者：练舞支线「速度更快的 4 4，带有变速的 5，正常的 6」）。
+## 剧本 "speed": [每轮一项]，一项是数（这一轮整体快几倍，1.4 = 快 40%）或一串数（每一下各自的倍数 = 变速）；
+## 没写 / 不够长 = 1（正常）。只管兔子示范的节奏，玩家跟跳还是不计时
+static func step_sec(step: Dictionary, i: int, k: int) -> float:
+	var sp = step.get("speed")
+	var m := 1.0
+	if sp is Array and i < (sp as Array).size():
+		var v = sp[i]
+		if v is Array:
+			if not (v as Array).is_empty():
+				m = float(v[mini(k, (v as Array).size() - 1)])
+		elif v is float or v is int:
+			m = float(v)
+	return STEP_SEC / maxf(m, 0.2)
 
 
 static func max_miss(step: Dictionary) -> int:
@@ -154,12 +180,23 @@ class KeyCatch extends Node:
 	var m                                # 小游戏实例
 
 	func _input(e: InputEvent) -> void:
-		if m == null or not m.listening:
+		if m == null:
+			return
+		if e is InputEventKey and (e as InputEventKey).keycode == KEY_ESCAPE and m.can_quit() and not m.panels_open():
+			get_viewport().set_input_as_handled()        # 能退的（练舞）：Esc 归这里，不开暂停菜单
+			if not e.is_echo():
+				m.esc(e.is_pressed())
+			return
+		if not m.listening:
 			return
 		var d: String = m.dir_of(e)
 		if d != "":
 			get_viewport().set_input_as_handled()
 			m.press(d)
+
+	func _process(dt: float) -> void:
+		if m != null:
+			m.quit_tick(dt)
 
 
 # ======================================================================= 演出
@@ -185,6 +222,13 @@ var _hint: CanvasLayer
 var _chen_tw: Tween
 var _was_input := true
 var _said_wrong := false
+var quitted := false                     # 玩家长按 Esc 退出了（story_runner 看这个，跳去 quit_scene）
+var _active := false                     # 摆好人、开跳了（这之后才能退）
+var _quit_held := false
+var _quit_t := 0.0
+var _quit_show := 0.0
+var _quit_layer: CanvasLayer
+var _quit_bar: ColorRect
 
 
 func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
@@ -196,16 +240,22 @@ func run(lv: Node2D, w: Node2D, r: Node, st: Dictionary) -> void:
 	if not s.has("round"):
 		s = fresh()
 	await _setup()
+	_active = true
 	await _lines("start")
 	_show_hint(true)                                  # 整段舞都在，跳完才收（11-05 作者：箭头上面那行字）
 	var rs := seqs(step)
-	while not story.ended and not finished(step, s):
+	while not story.ended and not finished(step, s) and not quitted:
 		if s["gave_up"]:
 			await _auto_rest()
 			break
 		var i := int(s["round"])
 		await _lines("round_%d" % (i + 1))
+		if quitted:
+			break
 		await _play_round(rs[i])
+	if quitted:
+		await _quit_out()
+		return
 	s["done"] = true
 	story.mech_save(str(step.get("save_key", ID)), s)
 	_set_flags(step)
@@ -245,12 +295,16 @@ func press(d: String) -> void:
 ## 一轮：兔子跳 → 玩家照着按；按错兔子耸肩再跳一遍；错满了交给 _auto_rest
 func _play_round(seq: Array) -> void:
 	var r0 := int(s["round"])
-	while not story.ended and int(s["round"]) == r0 and not s["gave_up"]:
+	while not story.ended and int(s["round"]) == r0 and not s["gave_up"] and not quitted:
 		var mode := "show" if assisted(s) else round_mode(step, r0)
 		if mode != round_mode(step, r0):
 			print("RABBIT_ASSIST round=%d fails=%s" % [r0 + 1, str(s.get("fails", {}))])
 		await _demo(seq, mode)
+		if quitted:
+			return
 		var kind: String = await _turn(seq)
+		if kind == "quit":
+			return
 		if kind in ["wrong", "give_up"]:
 			_clear_row(0.35)
 			await _shrug()
@@ -270,18 +324,25 @@ func _demo(seq: Array, mode := "show") -> void:
 	_clear_row(0.0)
 	await _wait(0.4)
 	var half := ceili(seq.size() / 2.0)
+	var r0 := int(s["round"])
 	for k in seq.size():
+		if quitted:
+			_rabbit_rate(1.0)
+			return
 		var d := str(seq[k])
-		_rabbit_move(d)
+		var sec := step_sec(step, r0, k)
+		var f := sec / STEP_SEC                      # 这一下比正常快 / 慢多少：动作帧、淡没跟着一起缩放
+		_rabbit_move(d, f)
 		if mode == "fade" and k == half:
-			_fade_row(0.0, STEP_SEC * 1.6)           # 前半段的先开始淡（这一下的箭头还没加，不算在里面）
+			_fade_row(0.0, sec * 1.6)                # 前半段的先开始淡（这一下的箭头还没加，不算在里面）
 		_add_arrow(seq.size(), k, d, ROW_LIT, mode != "hidden")
 		if mode == "fade" and k >= half:
-			_fade_row(0.35, 0.6)                     # 这一下的：完整亮 0.35 秒再淡，下一下来之前差不多没了
+			_fade_row(0.35 * f, 0.6 * f)             # 这一下的：完整亮一下再淡，下一下来之前差不多没了
 		_tap(d, -6.0)
-		await _wait(STEP_SEC - 0.15)
+		await _wait(sec * 0.8)
 		_set_row(k, ROW_ON)
-		await _wait(0.15)
+		await _wait(sec * 0.2)
+	_rabbit_rate(1.0)
 	await _wait(0.25)
 
 
@@ -294,6 +355,9 @@ func _turn(seq: Array) -> String:
 	while not story.ended:
 		var expect := str(seq[int(s["k"])])
 		var d: String = await _next_key(expect)
+		if quitted:
+			_qte_audio.stop()
+			return "quit"
 		var res := act(step, s, d)
 		story.mech_save(str(step.get("save_key", ID)), s)
 		var kind := str(res["kind"])
@@ -338,11 +402,12 @@ func _auto_rest() -> void:
 		await _wait(0.5)
 		for k in seq.size():
 			var d := str(seq[k])
-			_rabbit_move(d)
+			_rabbit_move(d, step_sec(step, r, k) / STEP_SEC)
 			_chen_move(d)
 			_set_row(k, ROW_LIT, true)
 			_tap(d, -6.0)
-			await _wait(STEP_SEC + 0.1)
+			await _wait(step_sec(step, r, k) + 0.1)
+		_rabbit_rate(1.0)
 		s["round"] = r + 1
 		s["k"] = 0
 		story.mech_save(str(step.get("save_key", ID)), s)
@@ -371,6 +436,120 @@ func _finish() -> void:
 	await _wait(1.2)
 	await _lines("win")
 	_teardown()
+
+
+# ----------------------------------------------------------------------- 长按 Esc 退出（只给 quit_ok 的支线练舞）
+## level_forest._esc_is_back 也问这个：true 时 Esc 不开暂停菜单
+func can_quit() -> bool:
+	return bool(step.get("quit_ok", false)) and _active and not quitted and story != null and not story.ended
+
+
+## 设置 / 背包开着的时候 Esc 归它们（关面板）
+func panels_open() -> bool:
+	for n in ["_settings", "_bag"]:
+		var pnl = level.get(n) if level != null else null
+		if pnl is CanvasItem and (pnl as CanvasItem).visible:
+			return true
+	return false
+
+
+func esc(down: bool) -> void:
+	_quit_held = down
+	if down:
+		_quit_show = QUIT_SHOW
+		_quit_ui(true)
+	else:
+		_quit_t = 0.0
+
+
+func quit_tick(dt: float) -> void:
+	if quitted:
+		if story != null and story.dlg.is_open():
+			story.dlg.confirm()                       # 退的时候兔子正说着话：快进掉，run 才走得到退出
+		return
+	if _quit_layer == null:
+		return
+	if _quit_held and can_quit():
+		_quit_t += dt
+		_quit_show = QUIT_SHOW
+		if _quit_t >= QUIT_HOLD:
+			_do_quit()
+	else:
+		_quit_t = 0.0
+		_quit_show -= dt
+		if _quit_show <= 0.0:
+			_quit_ui(false)
+	if _quit_bar != null:
+		var w := roundf(QUIT_BAR_W * clampf(_quit_t / QUIT_HOLD, 0.0, 1.0))
+		_quit_bar.size.x = w
+		_quit_bar.visible = w > 0.0
+
+
+func _do_quit() -> void:
+	quitted = true
+	_quit_held = false
+	s["k"] = 0                                        # 这一轮从头；轮数留着，下次接着跳
+	story.mech_save(str(step.get("save_key", ID)), s)
+	print("MECH %s quit round=%d" % [ID, int(s["round"]) + 1])
+	if listening:
+		listening = false
+		pressed.emit("")                              # 正等着玩家按键：放出来
+
+
+func _quit_out() -> void:
+	_show_hint(false)
+	_clear_row(0.3)
+	_rabbit_play("idle")
+	await _wait(0.4)
+	_teardown()
+
+
+## 屏幕下方一行「长按 Esc 退出练舞」+ 按住时下面一条慢慢填满
+func _quit_ui(on: bool) -> void:
+	if on and _quit_layer == null:
+		_quit_layer = CanvasLayer.new()
+		_quit_layer.layer = HINT_LAYER
+		level.add_child(_quit_layer)
+		var root := Control.new()
+		root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.modulate.a = 0.0
+		_quit_layer.add_child(root)
+		var lb := Label.new()
+		lb.text = story.txt(QUIT_HINT) if story.has_method("txt") else str(QUIT_HINT["zh"])
+		lb.position = Vector2(0, OL.SCREEN.y - QUIT_BAND - 28.0)     # 电影黑边（下面 26 高，UI 层 20）上面
+		lb.size = Vector2(OL.SCREEN.x, OL.HINT_H)
+		lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		lb.add_theme_font_override("font", UITheme.font())
+		lb.add_theme_font_size_override("font_size", 14)
+		lb.add_theme_color_override("font_color", UITheme.TEXT)
+		lb.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+		root.add_child(lb)
+		var x0 := roundf((OL.SCREEN.x - QUIT_BAR_W) / 2.0)
+		var y0 := OL.SCREEN.y - QUIT_BAND - 8.0
+		var bg := ColorRect.new()                     # 槽：淡
+		bg.color = Color(UITheme.TEXT, 0.25)
+		bg.position = Vector2(x0, y0)
+		bg.size = Vector2(QUIT_BAR_W, 2)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(bg)
+		_quit_bar = ColorRect.new()
+		_quit_bar.color = UITheme.TEXT
+		_quit_bar.position = Vector2(x0, y0)
+		_quit_bar.size = Vector2(0, 2)
+		_quit_bar.visible = false
+		_quit_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(_quit_bar)
+		var tw := root.create_tween()
+		tw.tween_method(func(v: float): root.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.25)
+	elif not on and _quit_layer != null:
+		var ly := _quit_layer
+		_quit_layer = null
+		_quit_bar = null
+		var root: Control = ly.get_child(0)
+		var tw := root.create_tween()
+		tw.tween_method(func(v: float): root.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, 0.3)
+		tw.tween_callback(ly.queue_free)
 
 
 # ----------------------------------------------------------------------- 摆人
@@ -425,6 +604,12 @@ func _setup() -> void:
 
 func _teardown() -> void:
 	listening = false
+	_active = false
+	_quit_held = false
+	if _quit_layer != null:
+		_quit_layer.queue_free()
+		_quit_layer = null
+		_quit_bar = null
 	if _catch != null:
 		_catch.queue_free()
 		_catch = null
@@ -441,6 +626,7 @@ func _teardown() -> void:
 	_reset_chen()
 	if chen != null:
 		chen.input_enabled = _was_input
+	_rabbit_rate(1.0)
 	_rabbit_play("idle")
 
 
@@ -455,15 +641,22 @@ func _wait(sec: float) -> void:
 
 
 # ----------------------------------------------------------------------- 兔子
+func _rabbit_rate(r: float) -> void:
+	if rabbit != null and "anim_rate" in rabbit:
+		rabbit.set("anim_rate", r)
+
+
 func _rabbit_play(n: String) -> void:
 	if rabbit != null and rabbit.has_method("play"):
 		rabbit.play(n, true)
 
 
 ## 屏幕上的方向 → 兔子那一段：图是朝右画的，朝左站（翻过来）时左右两段互换
-func _rabbit_move(d: String) -> void:
+## f = 这一下用的时间 / 正常（STEP_SEC）：快的时候动作帧跟着播快，不会每一下都被下一下截断
+func _rabbit_move(d: String, f := 1.0) -> void:
 	if rabbit == null:
 		return
+	_rabbit_rate(1.0 / maxf(f, 0.1))
 	var a := d
 	if int(rabbit.get("facing")) < 0 and d in ["left", "right"]:
 		a = "right" if d == "left" else "left"
@@ -683,6 +876,15 @@ func check(story: Node, st: Dictionary) -> Array:
 			for h in st["hide"]:
 				if not str(h) in MODES:
 					out.append("hide 里的 %s 不是 show / fade / hidden" % h)
+	if st.has("speed"):
+		if not st["speed"] is Array:
+			out.append("speed 要是每轮一项（数，或一串数 = 变速）")
+		else:
+			for v in st["speed"]:
+				var vs: Array = v if v is Array else [v]
+				for x in vs:
+					if not (x is float or x is int) or float(x) <= 0.0:
+						out.append("speed 里的 %s 要是大于 0 的数" % str(x))
 	for m in ["at", "chen_at"]:
 		if st.has(m) and st[m] is String and not story.world.has_marker(str(st[m])):
 			out.append("%s 的 marker %s 找不到" % [m, st[m]])

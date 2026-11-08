@@ -1916,6 +1916,12 @@
 			{"do": "face", "who": "chen", "to": "rabbit"},
 			{"do": "choice", "options": [{"zh": "好，我陪你练。", "en": "Sure. Let's practice.", "scene": "c1_rabbit_practice"}, {"zh": "下次吧。", "en": "Maybe next time.", "scene": "c1_rabbit_later"}]}
 		],
+		"c1_rabbit_practice_quit": [
+			{"do": "music", "track": "forest", "fade": 1.5, "_note": "11-08 作者：练舞卡住了长按 Esc 退出（rabbit_dance quit_ok）。不给奖励，母兔回远处，下次再跟兔子说话从这一轮接着练"},
+			{"say": "rabbit", "zh": "……没关系，我再自己想想。首领想好了再来。", "en": "...It's okay. I'll think it over. Come back when you're ready, Chief.", "added": true},
+			{"do": "walk", "who": "rabbit_doe", "to": "c1_rabbit_doe", "speed": 120, "wait": false},
+			{"do": "hide", "who": "rabbit_doe", "fade": 1.2}
+		],
 		"c1_rabbit_later": [
 			{"say": "rabbit", "zh": "那……首领想好了再来找我。", "en": "Then... come find me when you're ready, Chief.", "added": true}
 		],
@@ -1924,7 +1930,7 @@
 			{"do": "walk", "who": "rabbit_doe", "to": "c1_rabbit_doe_near", "speed": 120, "_note": "11-08 作者：练舞时母兔从右边跑过来，站在右边观战（练完就留在那儿，可以跟她说话）"},
 			{"do": "face", "who": "rabbit_doe", "to": "rabbit"},
 			{"do": "music", "track": "rabbit_beat", "fade": 0.8},
-			{"do": "mechanic", "id": "rabbit_dance", "save_key": "rabbit_practice", "at": "c1_rabbit", "retry": true, "seqs": [["left", "up", "down", "right", "up"], ["down", "left", "right", "up", "right", "down"], ["right", "up", "left", "down", "up", "left", "right"]], "sets": ["c1_rabbit_helped"]},
+			{"do": "mechanic", "id": "rabbit_dance", "save_key": "rabbit_practice", "at": "c1_rabbit", "retry": true, "seqs": [["left", "up", "down", "right"], ["up", "right", "left", "down"], ["down", "left", "right", "up", "right"], ["right", "up", "left", "down", "up", "left"]], "speed": [1.4, 1.4, [0.8, 0.8, 1.5, 1.5, 1.0], 1.0], "sets": ["c1_rabbit_helped"], "quit_ok": true, "quit_scene": "c1_rabbit_practice_quit", "_note": "11-08 作者：主线太难，主线 3 4 4 5；练舞支线是快的 4、4，变速的 5（慢慢快快正常），正常的 6"},
 			{"do": "music", "track": "forest", "fade": 2.5},
 			{"say": "rabbit", "zh": "我记住啦！这个送你。", "en": "I've got it! Here, this is for you.", "added": true},
 			{"do": "give", "items": ["rabbit_fur"], "toast": "got_items"},

@@ -49,6 +49,7 @@ var _ph := false                       # 这套形态是占位色块
 var _anim := "idle"
 var _anim_def := {}
 var _anim_t := 0.0
+var anim_rate := 1.0                   # 动作帧播多快（1 = 按 json 的 ms）；兔子舞步跳得快时调大（rabbit_dance._rabbit_rate）
 var _done := false
 var _walk_x := NAN
 var _walk_speed := 0.0
@@ -377,7 +378,7 @@ func _process(delta: float) -> void:
 			play("walk")
 	if is_nan(_walk_x) and has_meta("y_lag"):
 		_snap_walk(delta)
-	_anim_t += delta
+	_anim_t += delta * anim_rate
 	_show_frame()
 
 

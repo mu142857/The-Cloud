@@ -4762,7 +4762,9 @@ func _clear_x(mover: Node2D, x: float, room: String, lv := -1, from_x := NAN, sk
 	var best := x
 	var best_s := INF
 	for c in cands:
-		if c < w.x + 4.0 or c > w.y - 4.0:
+		# 11-08 作者「你看那边，母兔在左边，应该在最右边」：剧本要站墙外（c1_rabbit_doe 4700 > 右墙 4550，只让镜头看过去）
+		# 原来连 x 自己也因为在墙外被剔掉，挑了墙里最近的空地 = 兔子左边。x 本身没压到人就照原样站；挪开的空地还是只在墙里找
+		if (c < w.x + 4.0 or c > w.y - 4.0) and c != x:
 			continue
 		var ok := true
 		for b in bl:

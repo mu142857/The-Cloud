@@ -133,6 +133,7 @@ static func go(tree: SceneTree, ch: String) -> void:
 		register_items(str(p))
 	register_side_items()
 	Engine.set_meta(CARRY_META, StoryState.to_dict())
+	write_save(ch, Engine.get_meta(CARRY_META))
 	Engine.set_meta(CHAPTER_META, ch)
 	Engine.set_meta(PICK_META, true)          # 换章也要压过命令行 --chapter=（不然 --chapter=flight1 --story_chain 演完又回到 flight1 开头）
 	for prev in CHAPTERS:
@@ -205,6 +206,61 @@ static func _free_and_reload(tree: SceneTree) -> void:
 	s.get_parent().remove_child(s)
 	s.free()
 	tree.change_scene_to_file(path)
+
+
+## ---- 存档（标题「继续游戏」）
+## 只在章节开头存（go() 换章那一下）：存的就是带去下一章的那份 StoryState（和换章一模一样的起点），
+## 继续 = 按换章的路子重新载入，只是不出章节卡。章节中途不存（剧情播到一半的状态恢复不了），
+## 所以第一关（森林）里退出没有存档可继续；中途退出，继续时从这一章开头来。
+## 用 ConfigFile 不用 JSON：JSON 读回来整数都变成浮点，props 里的数会变样。
+## 调试 / 截图 / 命令行跑（GameSettings.no_save）不写，免得 SEED 状态盖掉玩家的存档。
+## 新游戏不删存档：下一次换章才覆盖（点错「开始游戏」也丢不了进度）；打通也留着（终章四个结局可以再试）。
+const SAVE_PATH := "user://save.cfg"
+const SAVE_VERSION := 1
+
+
+static func write_save(ch: String, carry) -> void:
+	if GameSettings.no_save or not CHAPTERS.has(ch) or ch == "forest" or not carry is Dictionary:
+		return
+	var cf := ConfigFile.new()
+	cf.set_value("save", "version", SAVE_VERSION)
+	cf.set_value("save", "chapter", ch)
+	cf.set_value("save", "carry", carry)
+	cf.set_value("save", "time", Time.get_unix_time_from_system())
+	if cf.save(SAVE_PATH) != OK:
+		push_warning("存档写不进去：%s" % SAVE_PATH)
+
+
+## 存档里的章节名；没有 / 坏了 / 章节不认得 → ""
+static func saved_chapter() -> String:
+	var cf := ConfigFile.new()
+	if cf.load(SAVE_PATH) != OK:
+		return ""
+	var ch := str(cf.get_value("save", "chapter", ""))
+	if int(cf.get_value("save", "version", 0)) != SAVE_VERSION or ch == "forest" or not CHAPTERS.has(ch) \
+			or not cf.get_value("save", "carry", null) is Dictionary:
+		return ""
+	return ch
+
+
+static func has_save() -> bool:
+	return saved_chapter() != ""
+
+
+## 「继续游戏」：把存档放进 Engine meta（和 go() 换章时一样），调用方再重新载入本场景。读不出来 → false
+static func load_save() -> bool:
+	var ch := saved_chapter()
+	if ch == "":
+		return false
+	var cf := ConfigFile.new()
+	cf.load(SAVE_PATH)
+	for p in info(ch).get("items_extra", []):
+		register_items(str(p))
+	register_side_items()
+	Engine.set_meta(CARRY_META, (cf.get_value("save", "carry", {}) as Dictionary).duplicate(true))
+	Engine.set_meta(CHAPTER_META, ch)
+	Engine.set_meta(PICK_META, true)          # 和 go() 一样：压过命令行 --chapter=
+	return true
 
 
 ## 回标题（新游戏）：清掉章节和带过去的状态

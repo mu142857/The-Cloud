@@ -184,7 +184,12 @@ func _main() -> void:
 	ev.keycode = KEY_LEFT
 	ok(RD.dir_of(ev) == "left", "按键：← = left")
 	# 箭头一轮比一轮少；同一步错超过两次给辅助
-	ok(RD.SEQS.size() == 4 and (RD.SEQS[3] as Array).size() == 6, "规则：默认四轮，第四轮 6 步")
+	ok(RD.SEQS.map(func(q): return (q as Array).size()) == [3, 4, 4, 5], "规则：默认四轮 3 4 4 5 步（11-08 作者嫌难）")
+	ok(is_equal_approx(RD.step_sec(st, 0, 0), RD.STEP_SEC), "速度：没写 speed = 正常")
+	var sp := {"speed": [1.4, [0.8, 1.5]]}
+	ok(RD.step_sec(sp, 0, 3) < RD.STEP_SEC and is_equal_approx(RD.step_sec(sp, 0, 0), RD.STEP_SEC / 1.4), "速度：整轮快 1.4 倍")
+	ok(RD.step_sec(sp, 1, 0) > RD.STEP_SEC and RD.step_sec(sp, 1, 1) < RD.STEP_SEC and is_equal_approx(RD.step_sec(sp, 1, 5), RD.step_sec(sp, 1, 1)), "速度：一串数 = 每一下变速，不够长按最后一个")
+	ok(is_equal_approx(RD.step_sec(sp, 2, 0), RD.STEP_SEC), "速度：没写到的轮 = 正常")
 	ok([RD.round_mode(st, 0), RD.round_mode(st, 1), RD.round_mode(st, 2), RD.round_mode(st, 3)] == ["show", "fade", "hidden", "hidden"], "规则：show / fade / hidden / hidden")
 	ok(RD.round_mode({"hide": ["hidden", "show"]}, 1) == "show", "规则：hide 可以一轮一轮指定")
 	var rt := {"retry": true}
@@ -220,7 +225,7 @@ func _main() -> void:
 	var U := [KEY_NONE, KEY_W, "up"]
 	var R := [KEY_RIGHT, KEY_NONE, "right"]
 	var D := [KEY_NONE, KEY_S, "down"]
-	var keys := [U, D, U, L, R, L, D, U, R, R, U, D, L, U, D, R, U, L, D, U]
+	var keys := [U, D, U, L, R, L, D, U, R, R, U, D, L, D, R, U, L, U]
 	var r: Array = await _play_keys(env, stp, keys)
 	ok(r[2], "run: 跑完了")
 	ok(r[1] == keys.size(), "run: %d 个键全用上了（键丢了的话会少按、跑不完）" % r[1])

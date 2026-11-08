@@ -198,7 +198,6 @@ var _impact_k := 0.0          # 撞地那一下的暖光 0..1
 var _title_k := 0.0           # 标题淡入进度 0..1（字往上飘 3 像素，按整像素走）
 var _start_hot := 0.0         # 「开始」悬停 / 聚焦的高亮 0..1（两边的小横线跟着伸出来）
 var _start_hover := false
-var _start_fc := Color(0, 0, 0, 0)   # 「开始」现在的字色（变了才重设，免得每帧发主题变更）
 
 # ---- 对话框
 var _dlg: PanelContainer
@@ -219,6 +218,10 @@ var _title_lines: Array[ColorRect] = []   # 副标题两边的细线
 var _start_btn: Button
 var _start_marks: Array[ColorRect] = []   # 「开始」两边悬停时伸出来的小横线
 var _credits_btn: Button         # 「开始」下面的「制作人员」（更小、更暗）
+var _continue_btn: Button        # 有存档（chapter_flow.gd SAVE_PATH）时「开始」上面的「继续游戏」，样子和「开始」一样
+var _continue_marks: Array[ColorRect] = []
+var _continue_hover := false
+var _has_save := false           # 进标题时查一次存档（_ready）
 var _credits_page = null         # 打开着的制作人员页（scripts/credits_page.gd）
 var _leaving_title := false      # 设置面板点了「返回标题」，正在淡到黑（_back_to_title）
 var _gear: TextureButton
@@ -234,7 +237,14 @@ var _achievement_progress := -1
 var _achievement_toasts: CanvasLayer
 
 var _hud_obj: Label
-var _hud_side: RichTextLabel                    # 任务列表
+var _hud_side: Control                          # 任务列表（11-08 改成一行一个节点 _side_rows：做完的划掉→淡出→下面的上移）
+var _side_rows := {}                            # key → RichTextLabel
+var _side_order: Array = []                     # 从上到下的 key
+var _side_fading := {}                          # 正在划掉 / 淡出的 key
+var _side_text := ""                            # 现在列出来的几行拼一起（对话框遮挡判断、qa_live 用）
+const SIDE_ROW_H := 14.0
+const SIDE_DONE_HOLD := 1.2                     # 划掉以后停多久再淡出
+const SIDE_FADE := 0.8
 const FUEL_BAR_GD := preload("res://scripts/fuel_bar.gd")
 const FUEL_BAR_FLAG := "c1_fuel_bar"           # 11-08：弥洛讲完「500 动力」设这个 flag，上方正中的燃料条从此一直在
 const FUEL_BAR_NEED := 500                     # 森林里要攒的动力（弥洛原话「大概需要500动力的燃料才能飞到下一个目的地」）
@@ -487,6 +497,7 @@ func _ready() -> void:
 	add_child(pzf)
 	_apply_quality()
 	_build_audio()
+	_has_save = CHAPTER_GD.has_save()
 	_build_ui()
 	_build_story()
 	# 11-07 作者：跟着鹿去找背包那段的原地循环（不按 Shift 跑就出不去）+ 一直不跑的结局「倔强的灵魂」；片头 CG 也在它的跑步机上跑。见 scripts/c1_loop.gd
@@ -751,30 +762,18 @@ func _build_ui() -> void:
 		ln.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_title_root.add_child(ln)
 		_title_lines.append(ln)
-	_start_btn = Button.new()
-	UITheme.flat_button(_start_btn)
-	_start_btn.add_theme_font_override("font", UITheme.spaced_font(START_SPACING))
-	_start_btn.add_theme_font_size_override("font_size", 14)
-	_start_btn.add_theme_color_override("font_color", START_COLOR)
-	_start_btn.add_theme_color_override("font_hover_color", START_HOT)
-	_start_btn.add_theme_color_override("font_focus_color", START_HOT)
-	_start_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_start_btn.add_theme_color_override("font_shadow_color", Color(0.05, 0.02, 0.08, 0.5))   # 雾最亮的地方也看得清
-	_start_btn.add_theme_constant_override("shadow_offset_x", 0)
-	_start_btn.add_theme_constant_override("shadow_offset_y", 1)
-	_start_btn.position = Vector2(0, START_Y)
+	_start_btn = _make_title_btn(_start_marks)
 	_start_btn.pressed.connect(_on_start)
-	_start_btn.focus_entered.connect(func(): _sfx_soft())
 	_start_btn.mouse_entered.connect(_on_start_hover.bind(true))
 	_start_btn.mouse_exited.connect(_on_start_hover.bind(false))
-	_title_root.add_child(_start_btn)
-	for i in 2:
-		var m := ColorRect.new()
-		m.color = START_HOT
-		m.size = Vector2(0, 1)
-		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_title_root.add_child(m)
-		_start_marks.append(m)
+	# 11-08 作者「加一个继续游戏的按钮」：有存档才出现，在「开始游戏」上面（_layout_title 排位置）
+	_continue_btn = _make_title_btn(_continue_marks)
+	_continue_btn.pressed.connect(_on_continue)
+	_continue_btn.mouse_entered.connect(func():
+		_continue_hover = true
+		_sfx_soft())
+	_continue_btn.mouse_exited.connect(func(): _continue_hover = false)
+	_continue_btn.visible = _has_save
 	_credits_btn = Button.new()
 	UITheme.flat_button(_credits_btn)
 	_credits_btn.add_theme_font_override("font", UITheme.spaced_font(START_SPACING))
@@ -834,18 +833,11 @@ func _build_ui() -> void:
 	_hud_obj.visible = false
 	_hud_burn.add_child(_hud_obj)
 	# 支线（第一关）：主目标下面一行、暗一点，「（可选）…」；挂在目标那行底下，跟着它淡入淡出
-	_hud_side = RichTextLabel.new()
-	_hud_side.bbcode_enabled = true
-	_hud_side.fit_content = true
-	_hud_side.scroll_active = false
+	_hud_side = Control.new()
 	_hud_side.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hud_side.size.x = 255
-	_hud_side.add_theme_color_override("default_color", UITheme.TEXT_DIM)
-	_hud_side.add_theme_font_size_override("normal_font_size", 11)
-	_hud_side.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.6))
-	_hud_side.add_theme_constant_override("shadow_offset_x", 0)
-	_hud_side.add_theme_constant_override("shadow_offset_y", 1)
+	_hud_side.size = Vector2(255, 0)
 	_hud_side.position = Vector2(0, 17)
+	_hud_side.visible = false
 	_hud_side.modulate.a = 0.75
 	_hud_obj.add_child(_hud_side)
 	var fl := TextureRect.new()
@@ -1009,6 +1001,32 @@ func _build_ui() -> void:
 func _on_dim_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
 		_close_panels()
+
+
+## 标题界面的大按钮（「开始游戏」「继续游戏」）：同一个样子，两边各一条悬停时伸出来的小横线（放进 marks）
+func _make_title_btn(marks: Array[ColorRect]) -> Button:
+	var b := Button.new()
+	UITheme.flat_button(b)
+	b.add_theme_font_override("font", UITheme.spaced_font(START_SPACING))
+	b.add_theme_font_size_override("font_size", 14)
+	b.add_theme_color_override("font_color", START_COLOR)
+	b.add_theme_color_override("font_hover_color", START_HOT)
+	b.add_theme_color_override("font_focus_color", START_HOT)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.add_theme_color_override("font_shadow_color", Color(0.05, 0.02, 0.08, 0.5))   # 雾最亮的地方也看得清
+	b.add_theme_constant_override("shadow_offset_x", 0)
+	b.add_theme_constant_override("shadow_offset_y", 1)
+	b.position = Vector2(0, START_Y)
+	b.focus_entered.connect(func(): _sfx_soft())
+	_title_root.add_child(b)
+	for i in 2:
+		var m := ColorRect.new()
+		m.color = START_HOT
+		m.size = Vector2(0, 1)
+		m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_title_root.add_child(m)
+		marks.append(m)
+	return b
 
 
 func _on_start_hover(on: bool) -> void:
@@ -1588,6 +1606,7 @@ func _retext() -> void:
 	_title_label.text = I18n.t("title")
 	_title_sub.text = I18n.t("title_sub")
 	_start_btn.text = I18n.t("start")
+	_continue_btn.text = I18n.t("continue")
 	_skip_label.text = I18n.t("skip_again")
 	_layout_title()
 	for l in _lang_btns:
@@ -1631,13 +1650,20 @@ func _layout_title() -> void:
 	var mid := _title_sub.position.y + 7.0
 	_title_lines[0].position = Vector2(_title_sub.position.x - 10.0 - _title_lines[0].size.x, mid)
 	_title_lines[1].position = Vector2(_title_sub.position.x + sw + 10.0, mid)
+	# 有存档：继续游戏 150 / 开始游戏 172 / 制作人员 196；没有：开始游戏 150 / 制作人员 174（和原来一样）
+	var y := START_Y
+	if _has_save:
+		var kw := _center_x(_continue_btn, UITheme.spaced_font(START_SPACING), _continue_btn.text, 14, START_SPACING)
+		_continue_btn.size = Vector2(kw + START_SPACING, 20)
+		_continue_btn.position.y = y
+		y += 22.0
 	var bw := _center_x(_start_btn, UITheme.spaced_font(START_SPACING), _start_btn.text, 14, START_SPACING)
 	_start_btn.size = Vector2(bw + START_SPACING, 20)
-	_start_btn.position.y = START_Y
+	_start_btn.position.y = y
 	_credits_btn.text = I18n.t("credits")
 	var cw := _center_x(_credits_btn, UITheme.spaced_font(START_SPACING), _credits_btn.text, 12, START_SPACING)
 	_credits_btn.size = Vector2(cw + START_SPACING, 18)
-	_credits_btn.position.y = START_Y + 24.0
+	_credits_btn.position.y = y + 24.0
 
 
 ## 中文标题只有一个字，字距没用；英文拉开 3 像素（= 42 号字的 1 格）
@@ -1761,6 +1787,84 @@ func fuel_bar_value() -> Array:
 	return [s, FUEL_BAR_NEED]
 
 
+## 支线列表，一条一行（11-08 作者「完成了一个任务以后，被划掉以后，可以慢慢的消失，然后把空出来的位置留给其他任务，其他任务上移」）：
+## 新出来的淡入、排在最下面；做完的先划掉，停 SIDE_DONE_HOLD 秒再淡出，下面的往上补；
+## 条件不满足了（比如送还的东西提前烧了）直接淡出、不划。读档时已经做完的不显示。
+func _sync_side_rows(list: Array) -> void:
+	var want := {}
+	for e in list:
+		var k: String = e["key"]
+		want[k] = true
+		if _side_fading.has(k):
+			continue
+		if _side_rows.has(k):
+			var row: RichTextLabel = _side_rows[k]
+			if e["completed"]:
+				_side_fade_out(k, true)
+			elif str(row.get_meta("txt", "")) != str(e["text"]):     # 换了语言
+				row.text = e["text"]
+				row.set_meta("txt", e["text"])
+		elif not e["completed"]:
+			_side_add_row(k, e["text"])
+	for k in _side_order.duplicate():
+		if not want.has(k) and not _side_fading.has(k):
+			_side_fade_out(k, false)
+	var parts: PackedStringArray = []
+	for k in _side_order:
+		parts.append(str((_side_rows[k] as RichTextLabel).get_meta("txt", "")))
+	_side_text = "\n".join(parts)
+	_hud_side.size.y = SIDE_ROW_H * _side_order.size()
+
+
+func _side_add_row(k: String, text: String) -> void:
+	var row := RichTextLabel.new()
+	row.bbcode_enabled = true
+	row.fit_content = true
+	row.scroll_active = false
+	row.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.size = Vector2(255, SIDE_ROW_H)
+	row.add_theme_color_override("default_color", UITheme.TEXT_DIM)
+	row.add_theme_font_size_override("normal_font_size", 11)
+	row.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.6))
+	row.add_theme_constant_override("shadow_offset_x", 0)
+	row.add_theme_constant_override("shadow_offset_y", 1)
+	row.text = text
+	row.set_meta("txt", text)
+	row.position.y = SIDE_ROW_H * _side_order.size()
+	row.self_modulate.a = _hud_dim
+	_hud_side.add_child(row)
+	_side_rows[k] = row
+	_side_order.append(k)
+	if _hud_side.visible:          # 整块第一次出现时整块淡入，这里不再单独淡
+		row.modulate.a = 0.0
+		create_tween().tween_property(row, "modulate:a", 1.0, 0.6)
+
+
+func _side_fade_out(k: String, strike: bool) -> void:
+	var row: RichTextLabel = _side_rows[k]
+	_side_fading[k] = true
+	var tw := create_tween()
+	if strike:
+		row.text = "[s]" + str(row.get_meta("txt", "")) + "[/s]"
+		tw.tween_interval(SIDE_DONE_HOLD)
+	tw.tween_property(row, "modulate:a", 0.0, SIDE_FADE)
+	tw.tween_callback(_side_remove.bind(k))
+
+
+func _side_remove(k: String) -> void:
+	var row = _side_rows.get(k)
+	_side_rows.erase(k)
+	_side_order.erase(k)
+	_side_fading.erase(k)
+	if is_instance_valid(row):
+		row.queue_free()
+	for i in _side_order.size():          # 下面的往上补
+		var r2: RichTextLabel = _side_rows[_side_order[i]]
+		if not is_equal_approx(r2.position.y, SIDE_ROW_H * i):
+			create_tween().tween_property(r2, "position:y", SIDE_ROW_H * i, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
 ## 左上角「当前目标」（剧本顶层 objectives，第一个满足条件的）：show_fuel = 目标 + 燃烧值，不然只有目标。
 ## 换目标时淡入、翻页声。没有 objectives（或一条都不满足）就照旧只有燃烧值。开场（坠毁之前）不显示。
 func _update_objective() -> void:
@@ -1772,17 +1876,14 @@ func _update_objective() -> void:
 	if opening:
 		return
 	var o: Dictionary = story.objective()
-	var side_lines: PackedStringArray = []
-	for so in story.side_objectives(chapter == "forest"):
-		var line: String = story.txt(so)
-		side_lines.append("[s]" + line + "[/s]" if so.get("completed", false) else line)    # 11-08 作者：去掉列表前面的点
+	var side_list: Array = []     # [{key, text, completed}]；11-08 作者：去掉列表前面的点、「支线」标题去掉
+	for so in story.side_objectives(true):
+		side_list.append({"key": str(so.get("zh", "")), "text": story.txt(so), "completed": so.get("completed", false)})
 	if chapter == "forest" and StoryState.has("c1_rabbit_done"):
 		var practice := I18n.pick({"zh": "陪兔子练舞", "en": "Practice dancing with the rabbit"})
-		side_lines.append("[s]" + practice + "[/s]" if StoryState.has("c1_rabbit_helped") else practice)
-	var side_line := ""
-	if not side_lines.is_empty():
-		# 11-08 修：原来写成 "\\n"，屏幕上直接露出「\n」两个字
-		side_line = "\n".join(side_lines)        # 11-08 作者：「支线」标题去掉，多余
+		side_list.append({"key": "c1_rabbit_practice", "text": practice, "completed": StoryState.has("c1_rabbit_helped")})
+	_sync_side_rows(side_list)
+	var side_line := _side_text
 	# 11-08 修：原来修好飞船后把划掉的「修好飞船」塞进支线那一块（暗色小字、夹在主线和「支线」标题之间，看着像支线），
 	# 而且主线还没走完（还要「出发，回飞船」）时也显示「主线已完成」。现在：修好了但下一条主线还没出来 → 主线那行写「修好飞船（完成）」。
 	# 11-08 作者：左上角「主线」「支线」字样去掉，多余
@@ -1791,12 +1892,10 @@ func _update_objective() -> void:
 	if repaired:
 		main_done_txt = I18n.pick({"zh": "修好飞船（完成）", "en": "Repair the ship (done)"})
 	var key: String = main_done_txt + str(not side_line.is_empty()) if o.is_empty() else str(story.txt(o)) + "|" + str(o.get("show_fuel", false))
-	if _hud_side.text != side_line:
-		_hud_side.text = side_line
-		if side_line != "" and not _hud_side.visible:
-			_hud_side.modulate.a = 0.0
-			create_tween().tween_property(_hud_side, "modulate:a", 0.75, 0.6)
-		_hud_side.visible = side_line != ""
+	if side_line != "" and not _hud_side.visible:
+		_hud_side.modulate.a = 0.0
+		create_tween().tween_property(_hud_side, "modulate:a", 0.75, 0.6)
+	_hud_side.visible = side_line != ""
 	if key == _obj_key:
 		return
 	var first := _obj_key == "-"
@@ -2020,6 +2119,7 @@ func _show_title() -> void:
 	_title_label.modulate.a = 0.0
 	_title_sub.modulate.a = 0.0
 	_start_btn.modulate.a = 0.0
+	_continue_btn.modulate.a = 0.0
 	_credits_btn.modulate.a = 0.0
 	_lang_corner.modulate.a = 0.0
 	for ln in _title_lines:
@@ -2030,7 +2130,8 @@ func _show_title() -> void:
 	tw.parallel().tween_property(_title_sub, "modulate:a", 1.0, 1.6).set_delay(0.8)
 	tw.parallel().tween_property(_title_lines[0], "modulate:a", 1.0, 1.6).set_delay(0.8)
 	tw.parallel().tween_property(_title_lines[1], "modulate:a", 1.0, 1.6).set_delay(0.8)
-	tw.parallel().tween_property(_start_btn, "modulate:a", 1.0, 1.2).set_delay(1.6)
+	tw.parallel().tween_property(_continue_btn, "modulate:a", 1.0, 1.2).set_delay(1.6)
+	tw.parallel().tween_property(_start_btn, "modulate:a", 1.0, 1.2).set_delay(1.8 if _has_save else 1.6)
 	tw.parallel().tween_property(_credits_btn, "modulate:a", 0.85, 1.2).set_delay(2.0)
 	tw.parallel().tween_property(_lang_corner, "modulate:a", 1.0, 1.2).set_delay(1.6)
 	# 不抢焦点：不然「开始」一出来就是高亮的。Enter / 空格照样能开始（见 _input），按方向键才聚焦。
@@ -2051,6 +2152,7 @@ func _skip_to_title() -> void:
 	for ln in _title_lines:
 		ln.modulate.a = 1.0
 	_start_btn.modulate.a = 1.0
+	_continue_btn.modulate.a = 1.0
 	_credits_btn.modulate.a = 0.85
 	_lang_corner.modulate.a = 1.0
 
@@ -2157,10 +2259,46 @@ func _open_credits() -> void:
 
 
 func _on_start() -> void:
-	if state != S.TITLE or _settings.visible or _credits_page != null or _state_t < 0.3:
+	if state != S.TITLE or _settings.visible or _credits_page != null or _state_t < 0.3 or _leaving_title:
 		return
 	_sfx("ui_click", -8.0)
 	_start_descent()
+
+
+## 「继续游戏」：读存档（chapter_flow.load_save，放进 Engine meta，和换章一样），标题和环境声淡到黑，重新载入本场景；
+## _ready 看到 CHAPTER_META 就走 _start_chapter（从那一章开头开始，不出章节卡、不走下落）。
+## 存档读不出来（被删了 / 坏了）：按钮藏掉，留在标题。
+const CONTINUE_VEIL := 0.9
+
+
+func _on_continue() -> void:
+	if state != S.TITLE or _settings.visible or _credits_page != null or _state_t < 0.3 or _leaving_title:
+		return
+	if not CHAPTER_GD.load_save():
+		_has_save = false
+		_continue_btn.visible = false
+		_continue_btn.release_focus()
+		for m in _continue_marks:
+			m.visible = false
+		_layout_title()
+		return
+	_leaving_title = true                          # 淡到黑的路上按什么都不算（gate_event）
+	_sfx("ui_click", -8.0)
+	_continue_btn.release_focus()
+	print("CONTINUE chapter=%s" % str(Engine.get_meta(CHAPTER_GD.CHAPTER_META)))
+	_fade_db(_title_wind, -60.0, CONTINUE_VEIL)
+	_fade_db(_title_rain, -60.0, CONTINUE_VEIL)
+	var veil := ColorRect.new()
+	veil.color = Color(0, 0, 0, 0)
+	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+	veil.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_gate.ui_root.add_child(veil)
+	var vt := veil.create_tween()
+	vt.tween_property(veil, "color:a", 1.0, CONTINUE_VEIL).set_trans(Tween.TRANS_SINE)
+	vt.tween_interval(0.2)
+	vt.tween_callback(func():
+		(load("res://scripts/audio_fade.gd") as GDScript).release(self, 0.4)
+		CHAPTER_GD.hard_reload(get_tree()))
 
 
 # ======================================================================= 3. 开场动画
@@ -3146,8 +3284,8 @@ func _close_panels(_viewing_photo := false) -> void:
 	if bag_was:
 		_bag_in_story = false
 	if state == S.TITLE:
-		if _panel_prev_focus == _start_btn:
-			_start_btn.grab_focus()
+		if _panel_prev_focus in [_start_btn, _continue_btn] and _panel_prev_focus.is_visible_in_tree():
+			_panel_prev_focus.grab_focus()
 	elif _panel_prev_focus != null and is_instance_valid(_panel_prev_focus) and _panel_prev_focus.is_visible_in_tree():
 		_panel_prev_focus.grab_focus()
 	else:
@@ -3242,14 +3380,21 @@ func _input(event: InputEvent) -> void:
 		S.HEADPHONES:
 			_handled()
 		S.TITLE:
-			# 「开始」平时不拿焦点（不然一出来就是高亮的）：Enter / 空格直接开始，方向键才把焦点给它
+			# 「开始」平时不拿焦点（不然一出来就是高亮的）：Enter / 空格直接开始（有存档 = 继续游戏），方向键才把焦点给它。
+			# 11-08：方向键选中了别的按钮（继续 / 制作人员）时按 Enter = 按那个按钮（原来不管选中哪个都是开始新游戏）
+			var focus := get_viewport().gui_get_focus_owner()
 			if event.is_action_pressed("ui_accept"):
 				_handled()
-				_on_start()
-			elif get_viewport().gui_get_focus_owner() == null and (event.is_action_pressed("ui_up") \
+				if focus == _credits_btn:
+					_open_credits()
+				elif focus == _continue_btn or (focus != _start_btn and _has_save):
+					_on_continue()
+				else:
+					_on_start()
+			elif focus == null and (event.is_action_pressed("ui_up") \
 					or event.is_action_pressed("ui_down") or event.is_action_pressed("ui_left") or event.is_action_pressed("ui_right")):
 				_handled()
-				_start_btn.grab_focus()
+				(_continue_btn if _has_save else _start_btn).grab_focus()
 		S.INTRO:
 			if confirm:
 				_handled()                        # 11-07 作者：耳机提示 → 标题这一段不许用空格 / 回车 / 点击跳过（_skip_to_title 只留给 --stage=title）
@@ -3414,7 +3559,7 @@ func _process(delta: float) -> void:
 		# 对话框和目标那一块碰上了，目标（连燃料表）淡到 HUD_UNDER，框走了再回来
 		var under := _hud_covered()
 		_hud_dim = HUD_UNDER if under else move_toward(_hud_dim, 1.0, delta * 3.0)    # 框一出来立刻让开，框走了慢慢回来
-		for n2: CanvasItem in [_hud_obj, _hud_side, _hud_flame, _hud_burn_label]:
+		for n2: CanvasItem in [_hud_obj, _hud_flame, _hud_burn_label] + _side_rows.values():    # self_modulate 不往子节点传，支线要一行行设
 			if n2 != null:
 				n2.self_modulate.a = _hud_dim
 	_update_fuel_bar(delta)
@@ -3449,28 +3594,36 @@ func _update_title(delta: float) -> void:
 	var breath := 0.9 + 0.1 * sin(_t * TAU / 7.0)
 	_title_label.modulate.a = _title_k * breath
 	_title_label.position.y = TITLE_Y + roundf(3.0 * (1.0 - _title_k))
-	# 「开始」：悬停 / 聚焦时变亮，两边的小横线从 0 伸到 8 像素
-	var hot := _start_hover or _start_btn.has_focus()
-	_start_hot = move_toward(_start_hot, 1.0 if hot else 0.0, delta * 6.0)
-	var w := roundf(8.0 * _start_hot)
-	var y := _start_btn.position.y + 10.0
-	_start_marks[0].size.x = w
-	_start_marks[1].size.x = w
-	_start_marks[0].position = Vector2(_start_btn.position.x - 6.0 - w, y)
-	_start_marks[1].position = Vector2(_start_btn.position.x + _start_btn.size.x - START_SPACING + 7.0, y)
-	# 字色跟着 _start_hot 渐变（悬停 / 聚焦 / 方向键选中都一样，不是一下子跳亮）
-	var fc := START_COLOR.lerp(START_HOT, _start_hot)
-	if fc != _start_fc:
-		_start_fc = fc
+	# 「开始」「继续」：悬停 / 聚焦时变亮，两边的小横线从 0 伸到 8 像素
+	_start_hot = _title_btn_tick(_start_btn, _start_marks, _start_hover, _start_hot, delta)
+	if _continue_btn.visible:
+		_continue_btn.set_meta("hot", _title_btn_tick(_continue_btn, _continue_marks, _continue_hover, float(_continue_btn.get_meta("hot", 0.0)), delta))
+
+
+## 一个标题大按钮的悬停动画：hot 0..1 渐变，返回新的 hot
+func _title_btn_tick(b: Button, marks: Array[ColorRect], hover: bool, hot_k: float, delta: float) -> float:
+	var hot := hover or b.has_focus()
+	hot_k = move_toward(hot_k, 1.0 if hot else 0.0, delta * 6.0)
+	var w := roundf(8.0 * hot_k)
+	var y := b.position.y + 10.0
+	marks[0].size.x = w
+	marks[1].size.x = w
+	marks[0].position = Vector2(b.position.x - 6.0 - w, y)
+	marks[1].position = Vector2(b.position.x + b.size.x - START_SPACING + 7.0, y)
+	# 字色跟着 hot 渐变（悬停 / 聚焦 / 方向键选中都一样，不是一下子跳亮）；变了才重设，免得每帧发主题变更
+	var fc := START_COLOR.lerp(START_HOT, hot_k)
+	if fc != b.get_meta("fc", Color(0, 0, 0, 0)):
+		b.set_meta("fc", fc)
 		for k in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color", "font_hover_pressed_color"]:
-			_start_btn.add_theme_color_override(k, fc)
-	var a := _start_btn.modulate.a
-	for m in _start_marks:
-		m.modulate.a = a * _start_hot * 0.8
+			b.add_theme_color_override(k, fc)
+	var a := b.modulate.a
+	for m in marks:
+		m.modulate.a = a * hot_k * 0.8
 	if not hot:
-		_start_btn.self_modulate.a = 0.78 + 0.12 * sin(_t * 1.6)    # 没碰它的时候很轻地呼吸
+		b.self_modulate.a = 0.78 + 0.12 * sin(_t * 1.6)    # 没碰它的时候很轻地呼吸
 	else:
-		_start_btn.self_modulate.a = 1.0
+		b.self_modulate.a = 1.0
+	return hot_k
 
 
 func _update_camera(delta: float) -> void:
@@ -4007,7 +4160,7 @@ func _hud_covered() -> bool:
 	if story == null or story.dlg == null:
 		return false
 	var hud := Rect2(_hud_burn.position, _hud_burn.size)
-	if _hud_side != null and _hud_side.visible and _hud_side.text != "":
+	if _hud_side != null and _hud_side.visible and _side_text != "":
 		hud = hud.merge(Rect2(_hud_burn.position + _hud_side.position, _hud_side.size))
 	for box_name in ["_box"]:
 		for host in [story.dlg, story.bark]:
