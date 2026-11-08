@@ -206,6 +206,11 @@ var ship_vy := 0.0                       # 船现在的竖直速度（像素 / �
 var steering := false                    # 正在躲碎石（不是的话 ship_goal 慢慢回 0）
 var glow: Node2D                         # 船身周围的反重力泛光（scripts/ship_glow.gd）
 var far_k := 1.0                         # 船外远景停在几倍（OUT_STEPS 里的一档 / 100）
+## 剖面缩小（11-08，cockpit_debris.gd 边躲边修用）：镜头 zoom = view_z，zoom 1 时屏幕上的点 view_p 落到屏幕 view_t
+## （level_forest._update_camera 照它摆镜头；船上下挪仍是屏幕上 ship_y 像素）。view_z = 1 且 view_t = view_p = 不缩
+var view_z := 1.0
+var view_p := Vector2(240, 135)
+var view_t := Vector2(240, 135)
 var far_glow: Node2D                     # 远景船的反重力泛光
 
 var _back: Node2D                        # 晨后面：室内 → 物件

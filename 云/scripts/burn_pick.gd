@@ -45,6 +45,7 @@ const TXT := {
 	"yes": ["Burn it", "烧掉"],
 	"no": ["Not yet", "再想想"],
 	"keys": ["← → choose   Enter burn", "← → 挑选   回车 烧掉"],
+	"power": ["Power %d", "动力 %d"],
 }
 
 var runner: Node
@@ -60,6 +61,7 @@ var _float: Sprite2D
 var _float_k := 1.0              # 翻着飘的幅度（确认以后收到 0）
 var _float_pop := 0.0            # 换一件时从下面浮上来（1 → 0）
 var _name: Label
+var _cur_name := ""          # 选中那件的名字（_name 上还带着「· 动力 N」，问「要烧掉…吗」只用名字）
 var _desc: Label
 var _keys: Label
 var _slots: Array[Panel] = []
@@ -249,7 +251,10 @@ func _show_item(first := false) -> void:
 	var id := items[_sel]
 	var it := Inventory.item(id)
 	_float.texture = Inventory.icon(id)
-	_name.text = runner.txt(it.get("name", id))
+	_cur_name = runner.txt(it.get("name", id))
+	# 11-08 作者：弥洛要「动力至少值100的物品」——名字后面标上这件值多少动力（玩家得看得出够不够 100）
+	var pw := maxi(int(it.get("keepsake_burn", 0)), int(it.get("burn", 0)))
+	_name.text = _cur_name + ("  ·  " + (_tx("power") % pw) if pw > 0 else "")
 	var w := DESC_W if I18n.is_zh() else 360.0
 	_desc.text = runner.txt(it.get("desc", ""))
 	if I18n.is_zh():
@@ -343,7 +348,7 @@ func _open_ask() -> void:
 	_style()
 	_flash[_slots[_sel]] = 0.2
 	_sound("tick", -6.0, 1.0)
-	var q := _tx("ask") % _name.text
+	var q := _tx("ask") % _cur_name
 	var f := UITheme.font()
 	var qw := f.get_string_size(q, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	var bw := 0.0

@@ -83,6 +83,7 @@ var _typing := false
 var _chars := 0.0
 var _cps := 14.0
 var _open := false                   # 在等确认
+var _rename_lock := false            # 说话人改名的渐变还没播完：确认键吞掉，不让翻到下一句
 var _age := 0.0
 var _narr: Label
 var _narr_t := 0.0
@@ -193,7 +194,9 @@ func _mk_label(c: Color) -> Label:
 
 # ======================================================================= 对话
 ## 说一句：等到玩家按确认（第二下）才返回。anchor：func() -> Vector2，说话人头顶的屏幕坐标。
-func say(who_name: String, name_color: Color, text: String, anchor: Callable, added := false, typing_sec := 0.0, layout_peer := "", voice := "") -> void:
+## rename_to：这句话打完字以后，名字那一栏渐变成 rename_to（11-08 作者：兔子说自己是首领，名字「兔子」→「兔子首领王」，
+## 渐变播完之前不能翻到下一句）
+func say(who_name: String, name_color: Color, text: String, anchor: Callable, added := false, typing_sec := 0.0, layout_peer := "", voice := "", rename_to := "") -> void:
 	if instant:
 		return
 	_murmur_t = 0.0
@@ -204,7 +207,36 @@ func say(who_name: String, name_color: Color, text: String, anchor: Callable, ad
 	_typing = true
 	_open = true
 	_age = 0.0
+	if rename_to != "" and rename_to != who_name:
+		_rename_lock = true
+		_rename(rename_to)                   # 不等：自己跑，播完解锁
 	await advanced
+
+
+## 名字渐变：等字打完、停一下，旧名字 4 档淡出 → 换字（框按新名字重新量宽、摆位置）→ 新名字 4 档淡入，带一下亮色再回原色
+func _rename(to: String) -> void:
+	while _open and _typing:
+		await get_tree().process_frame
+	await get_tree().create_timer(0.45).timeout
+	if not _open:
+		_rename_lock = false
+		return
+	var col: Color = _name.get_theme_color("font_color")
+	var tw := create_tween()
+	tw.tween_method(func(v: float): _name.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, 0.5)
+	await tw.finished
+	_name.text = to
+	_box.size = Vector2.ZERO
+	_box.reset_size()
+	_place_box()
+	_name.add_theme_color_override("font_color", col.lerp(Color(1.0, 0.93, 0.62), 0.7))
+	var tw2 := create_tween()
+	tw2.tween_method(func(v: float): _name.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.6)
+	tw2.tween_interval(0.35)
+	tw2.tween_callback(func(): _name.add_theme_color_override("font_color", col))
+	tw2.tween_interval(0.2)
+	await tw2.finished
+	_rename_lock = false
 
 
 ## 小声自言自语：不等按键，几秒后自己消失；正在对话时不说
@@ -222,6 +254,7 @@ func _show_line(who_name: String, name_color: Color, text: String, anchor: Calla
 	_anchor = anchor
 	_text.add_theme_color_override("font_color", ADDED_C if added else UITheme.TEXT)
 	_name.text = who_name
+	_name.modulate.a = 1.0                   # 上一句的改名渐变被打断时别留着半透明
 	_name.visible = who_name != ""
 	_name.add_theme_color_override("font_color", name_color)
 	_text.text = text
@@ -336,6 +369,8 @@ func confirm() -> bool:
 		_text.visible_characters = -1
 		_voice_stop()
 		return true
+	if _rename_lock:
+		return true                          # 名字还在渐变：吞掉这一下
 	_open = false
 	_box.visible = false
 	_tail.visible = false
@@ -736,6 +771,7 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 			bg.position = xy - Vector2(4, 1)
 			bg.size = Vector2(WIDTH + 8, row_heights[i] + 2)
 			bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			l.set_meta("bg", bg)
 			_menu_root.add_child(bg)
 			_menu_root.add_child(l)
 			xy.y += row_heights[i] + GAP
@@ -828,16 +864,104 @@ func _menu_choose(i: int) -> void:
 		return
 	_menu_done = true
 	_menu_set(i)
-	if sfx.is_valid():
-		sfx.call("tick", -5.0, 1.0)
 	var it: Control = _menu_items[i]
-	it.modulate = Color(1.8, 1.8, 1.8)
-	await get_tree().create_timer(0.3, false).timeout
+	if _menu_kind == "lines":
+		if sfx.is_valid():
+			sfx.call("choice_ring", -9.0, 1.0)
+		_line_chosen_fx(i)
+		await get_tree().create_timer(0.38, false).timeout
+	else:
+		if sfx.is_valid():
+			sfx.call("tick", -5.0, 1.0)
+		it.modulate = Color(1.8, 1.8, 1.8)
+		await get_tree().create_timer(0.3, false).timeout
 	_menu_kind = ""
 	if _menu_root != null:
 		_menu_root.queue_free()
 		_menu_root = null
 	menu_done.emit(i)
+
+
+## 11-08 作者「每次选择一个对话选项的时候，我都希望有一个音效和视觉触发」：
+## 选中的那句：字先亮到发白再回落、底框染一层晨的紫红；一道细光从左扫到右；箭头那里荡开两圈像素水波；
+## 几粒 1 像素的光点从这一行往上飘、一闪一闪地淡掉。没选的几句同时淡出。
+## 特效挂在对话界面自己身上（不挂 _menu_root），菜单关了以后水波和光点还会再飘一小会儿，叠在晨开口的那句上。
+const CHOICE_FX_SEC := 0.95
+const CHOICE_FX_C := Color("#f2d6ea")        # 比 ACCENT 亮的粉白：水波、扫光、光点
+
+
+func _line_chosen_fx(i: int) -> void:
+	var it: Label = _menu_items[i]
+	var bg: ColorRect = it.get_meta("bg")
+	var row := Rect2(bg.position, bg.size)
+	# 没选的淡出
+	for j in _menu_items.size():
+		if j == i:
+			continue
+		var other: Label = _menu_items[j]
+		var tw0 := create_tween().set_parallel()
+		tw0.tween_property(other, "modulate:a", 0.0, 0.22)
+		tw0.tween_property(other.get_meta("bg"), "modulate:a", 0.0, 0.22)
+	# 选中的：字亮到发白再回落，底框染紫红
+	it.modulate = Color(2.2, 2.0, 2.2)
+	var tw := create_tween().set_parallel()
+	tw.tween_property(it, "modulate", Color(1.25, 1.2, 1.25), 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(bg, "color", Color(UITheme.ACCENT.darkened(0.55), 0.9), 0.12)
+	# 水波 + 扫光 + 光点：一个只负责画的 Control，进度 0→1 用 tween 推
+	var fx := Control.new()
+	fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(fx)
+	var arrow: Label = it.get_meta("arrow")
+	var center := (it.position + arrow.position + Vector2(4.0, row.size.y / 2.0 - 1.0)).round()
+	var sparks: Array = []
+	for k in 9:
+		sparks.append({
+			"x": row.position.x + randf_range(6.0, row.size.x - 6.0),
+			"y": row.position.y + randf_range(2.0, row.size.y - 2.0),
+			"rise": randf_range(8.0, 20.0),
+			"t0": randf_range(0.0, 0.25),
+			"tw": randf_range(9.0, 16.0),
+		})
+	var state := {"p": 0.0}
+	fx.draw.connect(func() -> void:
+		var p: float = state["p"]
+		var t := p * CHOICE_FX_SEC
+		# 两圈水波（第二圈晚 0.12 秒、小一点）
+		for w in [[0.0, 22.0], [0.12, 15.0]]:
+			var q := clampf((t - float(w[0])) / 0.6, 0.0, 1.0)
+			if q > 0.0 and q < 1.0:
+				var r := lerpf(2.0, float(w[1]), 1.0 - pow(1.0 - q, 3.0))
+				fx.draw_arc(center, roundf(r), 0.0, TAU, 40, Color(CHOICE_FX_C, (1.0 - q) * 0.85), 1.0, false)
+		# 扫光：一条 5 像素宽的亮带从左扫到右，只在这一行里
+		var s := clampf(t / 0.3, 0.0, 1.0)
+		if s < 1.0:
+			var x := roundf(lerpf(row.position.x - 5.0, row.end.x, s * s * (3.0 - 2.0 * s)))
+			var band := Rect2(x, row.position.y, 5.0, row.size.y).intersection(row)
+			if band.size.x > 0.0:
+				fx.draw_rect(band, Color(CHOICE_FX_C, 0.28 * sin(PI * s)))
+				fx.draw_rect(Rect2(band.position.x + band.size.x / 2.0, band.position.y, 1.0, band.size.y).intersection(row),
+					Color(CHOICE_FX_C, 0.55 * sin(PI * s)))
+		# 光点：往上飘、闪、淡
+		for sp in sparks:
+			var u := clampf((t - float(sp["t0"])) / (CHOICE_FX_SEC - float(sp["t0"])), 0.0, 1.0)
+			if u <= 0.0 or u >= 1.0:
+				continue
+			var a := (1.0 - u) * (0.55 + 0.45 * sin(t * float(sp["tw"])))
+			var pos := Vector2(float(sp["x"]), float(sp["y"]) - float(sp["rise"]) * (1.0 - pow(1.0 - u, 2.0))).round()
+			fx.draw_rect(Rect2(pos, Vector2.ONE), Color(CHOICE_FX_C, a))
+			if u < 0.35:
+				# 刚冒出来时带个小十字，更像星光
+				fx.draw_rect(Rect2(pos + Vector2(-1, 0), Vector2.ONE), Color(CHOICE_FX_C, a * 0.4))
+				fx.draw_rect(Rect2(pos + Vector2(1, 0), Vector2.ONE), Color(CHOICE_FX_C, a * 0.4))
+				fx.draw_rect(Rect2(pos + Vector2(0, -1), Vector2.ONE), Color(CHOICE_FX_C, a * 0.4))
+				fx.draw_rect(Rect2(pos + Vector2(0, 1), Vector2.ONE), Color(CHOICE_FX_C, a * 0.4))
+	)
+	var ftw := create_tween()
+	ftw.tween_method(func(v: float) -> void:
+		state["p"] = v
+		fx.queue_redraw(), 0.0, 1.0, CHOICE_FX_SEC)
+	ftw.tween_callback(fx.queue_free)
 
 
 func _menu_input(event: InputEvent) -> bool:

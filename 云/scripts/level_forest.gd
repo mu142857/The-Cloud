@@ -235,6 +235,11 @@ var _achievement_toasts: CanvasLayer
 
 var _hud_obj: Label
 var _hud_side: RichTextLabel                    # 任务列表
+const FUEL_BAR_GD := preload("res://scripts/fuel_bar.gd")
+const FUEL_BAR_FLAG := "c1_fuel_bar"           # 11-08：弥洛讲完「500 动力」设这个 flag，上方正中的燃料条从此一直在
+const FUEL_BAR_NEED := 500                     # 森林里要攒的动力（弥洛原话「大概需要500动力的燃料才能飞到下一个目的地」）
+var _fuel_bar: Control                          # scripts/fuel_bar.gd
+var _fuel_bar_on := false                       # 上一帧是不是已经显示（flag 刚设上 = 第一次出现，播 reveal）
 var _hud_dim := 1.0                     # 对话框盖到左上角目标时淡下去（_hud_covered）
 const HUD_UNDER := 0.0
 var _hud_flame: TextureRect
@@ -266,11 +271,11 @@ var _bag: Panel
 var _bag_slots: Array[Button] = []
 var _bag_sel := 0
 var _bag_float_pop := 0.0     # 换一件时从下面浮上来（1 → 0）
-# 11-08 作者「物品可以随意的切换位置，只需要长按即可拖动」：在有东西的格子上按住鼠标 BAG_HOLD 秒 → 拿起来跟着鼠标走，
-# 松开在哪一格就和那一格换位置（空格 = 放到最后一件后面，背包里的东西一直从第一格往后排，不留空）
-const BAG_HOLD := 0.3
+# 11-08 作者「物品可以随意的切换位置」「不需要长按，直接拖动就可以」：在有东西的格子上按下鼠标、一挪动（超过 BAG_DRAG_PX）
+# 就拿起来跟着鼠标走（只点一下不动 = 照常选中），松开在哪一格就和那一格换位置（空格 = 放到最后一件后面，背包里的东西一直从第一格往后排，不留空）
+const BAG_DRAG_PX := 3.0
 var _bag_press := -1          # 按下的是哪一格（-1 = 没按）
-var _bag_press_t := 0.0
+var _bag_press_at := Vector2.ZERO
 var _bag_drag := -1           # 正拿着哪一格的东西（-1 = 没在拖）
 var _bag_ghost: TextureRect   # 拖着的那个图标
 var _bag_after_story := false             # 拾取背包特写结束后，剧情收尾时自动打开背包
@@ -853,6 +858,10 @@ func _build_ui() -> void:
 	_hud_burn.add_child(_hud_burn_label)
 	_hud_burn.modulate.a = 0.0
 	root.add_child(_hud_burn)
+	_fuel_bar = FUEL_BAR_GD.new()
+	_fuel_bar.sfx = _sfx
+	root.add_child(_fuel_bar)
+	_fuel_bar_on = StoryState.has(FUEL_BAR_FLAG)    # 读档 / 换章进来已经有了：不再播第一次出现
 
 	_bag_btn = TextureButton.new()
 	_bag_btn.texture_normal = TEX_BAG
@@ -1400,15 +1409,15 @@ func _bag_slot_input(i: int, e: InputEvent) -> void:
 		return
 	if e.pressed:
 		_bag_press = i if i < Inventory.owned.size() else -1
-		_bag_press_t = 0.0
+		_bag_press_at = _bag.get_local_mouse_position()
 		return
 	_bag_press = -1
 	if _bag_drag >= 0:
 		_bag_drop()
 
 
-## 每帧：按够了就拿起来，拿着的图标跟着鼠标
-func _bag_drag_tick(delta: float) -> void:
+## 每帧：按着一挪动就拿起来，拿着的图标跟着鼠标
+func _bag_drag_tick() -> void:
 	if not _bag.visible:
 		if _bag_drag >= 0:
 			_bag_drag_end()
@@ -1418,8 +1427,7 @@ func _bag_drag_tick(delta: float) -> void:
 		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			_bag_press = -1
 		else:
-			_bag_press_t += delta
-			if _bag_press_t >= BAG_HOLD and _bag_press < Inventory.owned.size():
+			if _bag.get_local_mouse_position().distance_to(_bag_press_at) > BAG_DRAG_PX and _bag_press < Inventory.owned.size():
 				_bag_drag_start(_bag_press)
 	if _bag_drag >= 0:
 		_bag_ghost.position = (_bag.get_local_mouse_position() - _bag_ghost.size / 2.0).round()
@@ -1486,7 +1494,7 @@ func _bag_slot_at_mouse() -> int:
 
 ## 背包里选中的物品翻着飘（_process 每帧调；背包没开不动）
 func _bag_float_tick(delta: float) -> void:
-	_bag_drag_tick(delta)
+	_bag_drag_tick()
 	if not _bag.visible:
 		return
 	var big: Sprite2D = _bag_w["big"]
@@ -1498,8 +1506,8 @@ func _bag_float_tick(delta: float) -> void:
 
 ## 背包「使用」
 func _on_use_item() -> void:
-	if _bag_sel >= Inventory.owned.size():
-		return
+	if _bag_sel >= Inventory.owned.size() or _bag_in_story:
+		return                                        # 对话中途打开的背包只看不用（不另起剧本，免得打断正在播的对话）
 	var id := Inventory.owned[_bag_sel]
 	if id == "deer_bear":
 		return
@@ -1700,6 +1708,57 @@ func _set_fuel_shown(v: float) -> void:
 	_update_hud()
 
 
+## 11-08 上方正中的燃料条（scripts/fuel_bar.gd）：剧本设 FUEL_BAR_FLAG 以后一直显示。
+## 森林：背包里所有能烧的东西的动力加起来 / 500；飞行段（剧本 fuel 步骤设过 fuel_need）：燃料 / 需要。
+## 河流篇这种 hud_fuel = false 又不在森林的章节不显示。显示的时候左上角原来那个「火苗 x / y」藏起来，不重复。
+## 电影黑边放下来就跟着往下挪到黑边下面；对话框盖到它就让开（和左上角目标一样）。
+func _update_fuel_bar(delta: float) -> void:
+	if _fuel_bar == null:
+		return
+	var flag := StoryState.has(FUEL_BAR_FLAG)
+	var chap_ok: bool = chapter == "forest" or (CHAPTER_GD.info(chapter).get("hud_fuel", true) and StoryState.fuel_on())
+	var on: bool = flag and chap_ok and state in [S.PLAY, S.CINE] and free_roam == "" and _hud_burn.visible
+	var f := fuel_bar_value()
+	_fuel_bar.set_fuel(f[0], f[1])
+	if flag and not _fuel_bar_on:
+		_fuel_bar.reveal()
+		_sfx("page_turn", -10.0)
+	elif not _fuel_bar_on:
+		_fuel_bar.snap()
+	_fuel_bar_on = flag
+	if not on:
+		_fuel_bar.alpha = 0.0
+		return
+	if _hud_flame != null:
+		_hud_flame.visible = false
+		_hud_burn_label.visible = false
+	var t := FUEL_BAR_GD.TOP
+	if _bars.size() > 0:
+		t = maxf(t, _bars[0].position.y + BAR_H + 3.0)
+	_fuel_bar.top = t
+	var covered := false
+	if story != null and story.dlg != null:
+		var r := Rect2(150, t - 2.0, 180, 16)
+		for host in [story.dlg, story.bark]:
+			var b = host.get("_box") if host != null else null
+			if b is Control and (b as Control).is_visible_in_tree() and Rect2((b as Control).global_position, (b as Control).size).grow(2.0).intersects(r):
+				covered = true
+	_fuel_bar.alpha = 0.0 if covered else move_toward(_fuel_bar.alpha, 1.0, delta * 3.0)
+
+
+## 燃料条的 [有, 要]
+func fuel_bar_value() -> Array:
+	if StoryState.fuel_on():
+		return [StoryState.fuel() if _fuel_shown < 0.0 else int(round(_fuel_shown)), StoryState.fuel_need()]
+	var s := 0
+	for id in Inventory.owned:
+		var it: Dictionary = Inventory.item(id)
+		if it.get("no_burn", false):
+			continue
+		s += maxi(int(it.get("keepsake_burn", 0)), int(it.get("burn", 0)))
+	return [s, FUEL_BAR_NEED]
+
+
 ## 左上角「当前目标」（剧本顶层 objectives，第一个满足条件的）：show_fuel = 目标 + 燃烧值，不然只有目标。
 ## 换目标时淡入、翻页声。没有 objectives（或一条都不满足）就照旧只有燃烧值。开场（坠毁之前）不显示。
 func _update_objective() -> void:
@@ -1714,16 +1773,22 @@ func _update_objective() -> void:
 	var side_lines: PackedStringArray = []
 	for so in story.side_objectives(chapter == "forest"):
 		var line: String = story.txt(so)
-		side_lines.append("•  " + ("[s]" + line + "[/s]" if so.get("completed", false) else line))
+		side_lines.append("[s]" + line + "[/s]" if so.get("completed", false) else line)    # 11-08 作者：去掉列表前面的点
 	if chapter == "forest" and StoryState.has("c1_rabbit_done"):
 		var practice := I18n.pick({"zh": "陪兔子练舞", "en": "Practice dancing with the rabbit"})
-		side_lines.append("•  " + ("[s]" + practice + "[/s]" if StoryState.has("c1_rabbit_helped") else practice))
+		side_lines.append("[s]" + practice + "[/s]" if StoryState.has("c1_rabbit_helped") else practice)
 	var side_line := ""
 	if not side_lines.is_empty():
-		side_line = I18n.pick({"zh": "支线", "en": "Side quests"}) + "\\n" + "\\n".join(side_lines)
-	if chapter == "forest" and StoryState.has("c1_fixed"):
-		side_line = "[font_size=13][s]" + I18n.pick({"zh": "修好飞船", "en": "Repair the ship"}) + "[/s][/font_size]\n" + side_line
-	var key: String = str(not side_line.is_empty()) if o.is_empty() else str(story.txt(o)) + "|" + str(o.get("show_fuel", false))
+		# 11-08 修：原来写成 "\\n"，屏幕上直接露出「\n」两个字
+		side_line = "\n".join(side_lines)        # 11-08 作者：「支线」标题去掉，多余
+	# 11-08 修：原来修好飞船后把划掉的「修好飞船」塞进支线那一块（暗色小字、夹在主线和「支线」标题之间，看着像支线），
+	# 而且主线还没走完（还要「出发，回飞船」）时也显示「主线已完成」。现在：修好了但下一条主线还没出来 → 主线那行写「修好飞船（完成）」。
+	# 11-08 作者：左上角「主线」「支线」字样去掉，多余
+	var main_done_txt := I18n.pick({"zh": "目标已完成", "en": "Objective complete"})
+	var repaired: bool = chapter == "forest" and StoryState.has("c1_fixed") and not StoryState.has("launched")
+	if repaired:
+		main_done_txt = I18n.pick({"zh": "修好飞船（完成）", "en": "Repair the ship (done)"})
+	var key: String = main_done_txt + str(not side_line.is_empty()) if o.is_empty() else str(story.txt(o)) + "|" + str(o.get("show_fuel", false))
 	if _hud_side.text != side_line:
 		_hud_side.text = side_line
 		if side_line != "" and not _hud_side.visible:
@@ -1735,13 +1800,14 @@ func _update_objective() -> void:
 	var first := _obj_key == "-"
 	_obj_key = key
 	if o.is_empty():
-		_hud_obj.text = I18n.pick({"zh": "主线已完成", "en": "Main objective complete"}) if not side_line.is_empty() else ""
-		_hud_obj.visible = not side_line.is_empty()
+		var show_done := repaired or not side_line.is_empty()
+		_hud_obj.text = main_done_txt if show_done else ""
+		_hud_obj.visible = show_done
 		var fuel_ok: bool = CHAPTER_GD.info(chapter).get("hud_fuel", true)    # 河流篇没有燃料表
 		_hud_flame.visible = fuel_ok
 		_hud_burn_label.visible = fuel_ok
 		return
-	_hud_obj.text = (I18n.pick({"zh": "主线 · ", "en": "Main · "}) if chapter == "forest" else "") + story.txt(o)
+	_hud_obj.text = story.txt(o)
 	_hud_obj.visible = true
 	var fuel: bool = o.get("show_fuel", false)
 	_hud_flame.visible = fuel
@@ -3008,13 +3074,33 @@ func _esc_is_back() -> bool:
 	return story.closeup_ui != null and story.closeup_ui.is_open() and story.closeup_ui._can_close()
 
 
+## 11-08 作者「在对话当中应该随时可以点击背包或者按下 Tab 打开背包，不会打断对话」：
+## 剧情在播、屏幕上是对话 / 旁白（不是道具选择条、特写、小游戏）而且右上角背包按钮在 → 可以开。
+## 开着的时候对话停在原地（输入都给背包），关掉接着点下去。
+var _bag_in_story := false              # 这次背包是在对话中途开的
+var _bag_prev_input := false            # 开之前晨能不能走（鹿带路的自由走），关掉还原
+func _bag_ok_in_story() -> bool:
+	if story == null or not story.busy or state != S.CINE or _settings.visible:
+		return false
+	if story.dlg.menu_open() or not story.dlg.showing():
+		return false
+	if story.closeup_ui != null and story.closeup_ui.is_open():
+		return false
+	if story.mech_node != null and is_instance_valid(story.mech_node):
+		return false
+	return _bag_btn.visible and _bag_btn.modulate.a > 0.5
+
+
 func _toggle_bag() -> void:
 	if _bag.visible:
 		_close_panels()
 		return
-	if state != S.PLAY or Inventory.owned.is_empty() or story.bag_locked():
+	var in_story := _bag_ok_in_story()
+	if not (state == S.PLAY or in_story) or Inventory.owned.is_empty() or story.bag_locked():
 		return
 	_close_panels()
+	_bag_in_story = in_story
+	_bag_prev_input = chen.input_enabled
 	_sfx("ui_click", -10.0)
 	_panel_prev_focus = null
 	# 11-04 作者「打开背包的时候还在播放制作人员」：奔跑片头的名字还没放完就打开背包 → 名字散掉收起来（主题曲照放）
@@ -3053,6 +3139,10 @@ func _close_panels(_viewing_photo := false) -> void:
 		_pause_tree(false)
 	if bag_was and state == S.PLAY:
 		chen.input_enabled = true
+	elif bag_was and _bag_in_story:
+		chen.input_enabled = _bag_prev_input       # 对话中途开的：还原（鹿带路时本来就能走）
+	if bag_was:
+		_bag_in_story = false
 	if state == S.TITLE:
 		if _panel_prev_focus == _start_btn:
 			_start_btn.grab_focus()
@@ -3098,6 +3188,13 @@ func _input(event: InputEvent) -> void:
 		return
 	# 剧情在播：按键 / 点击给对话框（确认、点选）；鹿带路时方向键照常走
 	if story.busy and not _settings.visible and not _bag.visible:
+		# 对话中途：Tab / B / I 或点右上角背包按钮 = 打开背包，对话停在原地（关掉接着播）
+		var bag_key: bool = event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_TAB, KEY_B, KEY_I]
+		var bag_click: bool = event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT 			and _bag_btn.get_global_rect().grow(2.0).has_point(event.position)
+		if (bag_key or bag_click) and _bag_ok_in_story():
+			_toggle_bag()
+			_handled()
+			return
 		if story.closeup_ui != null and story.closeup_ui.is_open() and story.closeup_ui.handle_input(event):
 			_handled()
 			return
@@ -3318,6 +3415,7 @@ func _process(delta: float) -> void:
 		for n2: CanvasItem in [_hud_obj, _hud_side, _hud_flame, _hud_burn_label]:
 			if n2 != null:
 				n2.self_modulate.a = _hud_dim
+	_update_fuel_bar(delta)
 
 	# 耳机提示：一次启动只出一次，第二次进来黑着 0.3 秒就自己往下走（远端 chapter1 update 已去掉「按任意键」那行字，这里不再呼吸它）
 	if state == S.HEADPHONES:
@@ -3395,6 +3493,12 @@ func _update_camera(delta: float) -> void:
 	if ck != null and is_nan(_cam_override.x):
 		# 驾驶舱：船上下挪 = 镜头反向偏移（晨、室内、物件一起动；船外背景在 CanvasLayer 里不动）。ship_y() 是整数像素
 		cam.position.y = 135.0 - ck.ship_y()
+		var vz: float = ck.view_z
+		if vz != 1.0 or ck.view_t != ck.view_p:
+			# 剖面缩小（cockpit_debris 边躲边修）：缩放 + 平移，让 zoom 1 时的屏幕点 view_p 落到 view_t；ship_y 换算成屏幕像素
+			cam.zoom = Vector2(vz, vz)
+			var c: Vector2 = Vector2(ck.center().x, 135.0) - Vector2(240, 135) + ck.view_p - (ck.view_t - Vector2(240, 135)) / vz
+			cam.position = Vector2(c.x, c.y - ck.ship_y() / vz)
 	elif _title_bg != null and _title_bg.descending:
 		cam.position.y = _title_bg.forest_cam_y()         # 开始界面往下落：森林跟着上来（落到位正好是 135）
 	elif is_nan(_cam_override.x):

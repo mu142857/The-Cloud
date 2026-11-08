@@ -10,12 +10,13 @@ extends RefCounted
 ##   按错不罚：兔子耸耸肩，这一轮再跳一遍。一共错三次，剩下的兔子和晨一起慢慢跳完（自动过）；
 ##   剧本写了 "retry": true 就不会自动过，一直重来（森林里两处都是这样）。
 ##   跳完兔子鞠躬认输，小游戏返回；给永燃之木、兔子皮毛由剧本（ch1-story）接着做。
+##   11-08：玩家按对时叠加 QTE 的蓄力音，最后一轮最后一步换成释放。
 ##
-## 剧本步骤：{"do": "mechanic", "id": "rabbit_dance", "at": 兔子站的 marker, "chen_at"?: 晨站的 marker,
+## 剧本步骤：{"do": "mechanic", "id": "rabbit_dance", "at": 兔子站的 marker,
 ##   "who"?: "rabbit", "sets"?: [跳完设的 flag], "seqs"?: [["up", "left", "right"], …], "max_miss"?: 3,
 ##   "retry"?: false, "hide"?: ["show", "fade", "hidden", "hidden"],
 ##   "lines"?: {start, round_1, round_2, round_3, round_4, wrong, auto, win}}
-##   at 没写：兔子在哪就在哪（没显示过就站到晨面前 64 像素）。chen_at 没写：离得太近 / 太远时晨走到兔子面前 64 像素。
+##   at 没写：兔子在哪就在哪（没显示过就站到晨面前 64 像素）。晨总是自己走到兔子正对面 FACE_DIST（64）像素（11-08，chen_at 不再用）。
 ##   lines 每一项是一串剧本步骤（say / anim / sfx……），都可以不写；wrong 只在第一次按错时播。
 ## 进度（story.mech_load）：{round, k, miss, gave_up, done, fails: {"轮:步": 错几次}}：读档回来从那一轮接着跳。
 ## 兔子的图：art/characters/rabbit/（tools/rabbit_art.py 生成的占位，等作者的美术来换），动作 idle / dance_left / dance_up /
@@ -23,11 +24,13 @@ extends RefCounted
 
 const OL := preload("res://scripts/overlay_layout.gd")
 const KIT := preload("res://scripts/river_explore_order.gd")
+const QTE_AUDIO := preload("res://scripts/qte_audio.gd")
 const ID := "rabbit_dance"
 const DIRS := ["left", "up", "right", "down"]
 const SEQS := [["up", "left", "right"], ["left", "down", "up", "right"], ["right", "up", "down", "left", "up"],
 		["down", "right", "up", "left", "down", "up"]]
 const MAX_MISS := 3
+const FACE_DIST := 64.0                 # 跳舞时晨和兔子隔多远（脚底中心到中心）
 ## 每一轮箭头怎么给（11-08 作者）：第一轮 show 一直有箭头；第二轮 fade 兔子跳到一半以后箭头渐渐淡没；
 ## 第三、四轮 hidden 完全不给，看兔子自己记。没给出的箭头在玩家按对的时候才冒出来（亮）。
 ## 剧本可以用 "hide": ["show", "fade", "hidden", …] 一轮一轮指定；没写的轮按下面这个默认。
@@ -174,6 +177,7 @@ var rabbit: Node2D
 var chen: Node2D
 var _keys: Array = []                    # 自动玩 / 测试：先按这几个，按完了按对的
 var _catch: Node
+var _qte_audio: QTE_AUDIO
 var _row: Node2D
 var _arrows: Array = []
 var _tex: Texture2D
@@ -258,8 +262,10 @@ func _play_round(seq: Array) -> void:
 
 
 ## 兔子跳一串：每跳一下头顶冒一个箭头（亮），跳完这一下变回平常。
-## mode：show 箭头都给；fade 跳到一半（第 ceil(n/2) 下）起已有的箭头渐渐淡没、后面的不再给；hidden 一个都不给。
-## 不给的箭头也占着位置（透明），玩家按对时 _reveal 冒出来。
+## mode：show 箭头都给；hidden 一个都不给；
+## fade 每个箭头照样完整冒出来，但跳到一半（第 ceil(n/2) 下）起，前面的慢慢淡没，后面每冒一个亮一下也跟着淡没，
+## 示范跳完一排都看不见了（11-08 作者第二次：「还是完整的呈现出来，但是就渐渐消失了」）。
+## 不给 / 淡没的箭头也占着位置（透明），玩家按对时 _reveal 冒出来。
 func _demo(seq: Array, mode := "show") -> void:
 	_clear_row(0.0)
 	await _wait(0.4)
@@ -267,10 +273,11 @@ func _demo(seq: Array, mode := "show") -> void:
 	for k in seq.size():
 		var d := str(seq[k])
 		_rabbit_move(d)
-		var vis := mode == "show" or (mode == "fade" and k < half)
 		if mode == "fade" and k == half:
-			_fade_row(STEP_SEC * 1.4)
-		_add_arrow(seq.size(), k, d, ROW_LIT, vis)
+			_fade_row(0.0, STEP_SEC * 1.6)           # 前半段的先开始淡（这一下的箭头还没加，不算在里面）
+		_add_arrow(seq.size(), k, d, ROW_LIT, mode != "hidden")
+		if mode == "fade" and k >= half:
+			_fade_row(0.35, 0.6)                     # 这一下的：完整亮 0.35 秒再淡，下一下来之前差不多没了
 		_tap(d, -6.0)
 		await _wait(STEP_SEC - 0.15)
 		_set_row(k, ROW_ON)
@@ -282,6 +289,8 @@ func _demo(seq: Array, mode := "show") -> void:
 func _turn(seq: Array) -> String:
 	for k in _arrows.size():
 		_set_row(k, ROW_DIM)
+	var last_round := int(s["round"]) == seqs(step).size() - 1
+	var charge_steps := seq.size() - (1 if last_round else 0)
 	while not story.ended:
 		var expect := str(seq[int(s["k"])])
 		var d: String = await _next_key(expect)
@@ -289,12 +298,17 @@ func _turn(seq: Array) -> String:
 		story.mech_save(str(step.get("save_key", ID)), s)
 		var kind := str(res["kind"])
 		if kind in ["wrong", "give_up"]:
+			_qte_audio.stop()
 			_tap(d, -10.0, 0.75, SFX_MISS)
 			return kind
 		_set_row(int(res["k"]), ROW_LIT, true)
 		_reveal(int(res["k"]))
 		_chen_move(d)
 		_tap(d, -4.0)
+		if kind == "done":
+			_qte_audio.play_release()
+		else:
+			_qte_audio.play_step(int(res["k"]) + 1, charge_steps)
 		if kind != "ok":
 			await _wait(0.45)
 			return kind
@@ -338,7 +352,8 @@ func _auto_rest() -> void:
 func _round_clear() -> void:
 	for k in _arrows.size():
 		_set_row(k, ROW_LIT)
-	_tap("up", -14.0, 1.0, SFX_ROUND)
+	if not finished(step, s) or s["gave_up"] or _qte_audio.stream == null:
+		_tap("up", -14.0, 1.0, SFX_ROUND)
 	await _wait(0.35)
 	_clear_row(0.45)
 	await _wait(0.6)
@@ -376,13 +391,17 @@ func _setup() -> void:
 		await story.run_steps([{"do": "show", "who": who, "fade": 0.6}])
 		await _wait(0.6)
 	if rabbit != null and chen != null:
-		if step.has("chen_at"):
-			await story.run_steps([{"do": "walk", "who": "chen", "to": step["chen_at"]}])
-		else:
-			var dx := chen.position.x - rabbit.position.x
-			if absf(dx) < 40.0 or absf(dx) > 110.0:
-				var side := 1.0 if dx > 0.0 else -1.0
-				await story.run_steps([{"do": "walk", "who": "chen", "to": round(rabbit.position.x + side * 64.0)}])
+		# 11-08 作者：不管哪一场（比舞 / 练舞），开跳前晨都自己走到兔子正对面、隔固定的 FACE_DIST。
+		# 站在晨原来那一侧；那一侧走不到（墙外）就换另一侧。剧本的 chen_at 不再用。
+		var dx := chen.position.x - rabbit.position.x
+		var side := 1.0 if dx > 0.0 else -1.0
+		var tx := roundf(rabbit.position.x + side * FACE_DIST)
+		if story.get("world") != null and story.world.has_method("walls"):
+			var w: Vector2 = story.world.walls(chen.position.x)
+			if tx < w.x + 2.0 or tx > w.y - 2.0:
+				tx = roundf(rabbit.position.x - side * FACE_DIST)
+		if absf(chen.position.x - tx) > 1.0:
+			await story.run_steps([{"do": "walk", "who": "chen", "to": tx}])
 		await story.run_steps([{"do": "face", "who": "chen", "to": who}, {"do": "face", "who": who, "to": "chen"}])
 	if chen != null:
 		_was_input = chen.input_enabled
@@ -390,6 +409,10 @@ func _setup() -> void:
 	_catch = KeyCatch.new()
 	_catch.m = self
 	level.add_child(_catch)
+	_qte_audio = QTE_AUDIO.new()
+	_qte_audio.bus = "SFX" if AudioServer.get_bus_index("SFX") >= 0 else "Master"
+	_qte_audio.gain_db = -12.0 + float(step.get("sfx_db", 0.0))
+	_catch.add_child(_qte_audio)
 	_row = Node2D.new()
 	_row.z_as_relative = false
 	_row.z_index = 100
@@ -546,15 +569,15 @@ func _reveal(k: int) -> void:
 	tw.tween_method(func(v: float): a.modulate.a = floorf(v * 4.0) / 4.0, 0.0, 1.0, 0.16)
 
 
-## fade 轮：已经给出的箭头一起 4 档淡没（不删，留着位置，按对时再冒出来）
-func _fade_row(sec: float) -> void:
+## fade 轮：还看得见的箭头停 hold 秒后 4 档淡没（不删，留着位置，按对时再冒出来）
+func _fade_row(hold: float, sec: float) -> void:
 	for a in _arrows:
 		var sp: Sprite2D = a
 		if sp.has_meta("hidden"):
 			continue
 		sp.set_meta("hidden", true)
 		var tw := sp.create_tween()
-		tw.tween_interval(0.25)                      # 等最近冒出来的那个淡入停稳
+		tw.tween_interval(hold)                      # 刚冒出来的那个先完整亮一下
 		tw.tween_method(func(v: float): sp.modulate.a = ceilf((1.0 - v) * 4.0) / 4.0, 0.0, 1.0, sec)
 		sp.set_meta("tw", tw)
 

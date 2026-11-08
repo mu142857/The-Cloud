@@ -318,6 +318,7 @@ scene 里的步骤（引擎全部要支持，剧本只用这些）：
   引擎：`scripts/phone_ui.gd`（界面 + 步骤 + `--story_check` 校验）、`scripts/phone_state.gd`（状态，跟 StoryState 一起 reset / 存档）。
   `phone_msg` 正文里的换行 = 几条连续气泡；没有 `reply` 的只有「收起」。背包里选通讯器按「查看」（或 E / 空格 / 回车 / Z）打开；F12「开关」页有「打开通讯器」「模拟一条消息」。
 - **give 数组**：`{"do": "give", "items": [..], "toast": "luggage_items"}`：一起飞进背包（错开 0.07 秒，约 1 秒），提示合成一条（I18n key，默认 `got_items`）。
+- **说话人改名**（11-08）：speakers 里可以带 `"by_flag": [{"flag", "zh", "en"}, …]`，设了哪个 flag 就用哪个名字（后面的优先）；`say` 带 `"rename": flag` 时，这句打完字后才设这个 flag，名字栏旧名字淡出、新名字淡入，播完之前按确认翻不过去（兔子：兔子 → 兔子首领王 → 普通兔子）。
 - **bark**：`{"say": "chen", "zh": "…", "bark": true}`：晨头顶的小气泡（`scripts/story_bark.gd`），不等、不锁人、几秒后自己淡掉，多句排队；
   对话框 / 点选 / 通讯器 / 背包开着时先藏着、计时停住。
 - **走过去就捡**：hotspot 写 `"trigger": "enter", "pickup": true, "range": 14`：晨经过就捡，不停下（`scripts/story_quick.gd`）。

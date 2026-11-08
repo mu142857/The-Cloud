@@ -96,7 +96,7 @@ extends Node
 ##     顶着往回走浮出潜意识字（每次间隔 ONE_WAY_EVERY 秒）。"item_views": [{"item", "need", "not", "scene"}]：背包里选中这件按「查看」播 scene
 ##     （自动玩 / 跳节拍：条件满足就直接播）。"bag_lock": {"from", "until"}：这期间背包按钮、Tab 都不出来。"hide_props": [物件…]：一开始就藏起来
 ##     （wood = 关卡的发光木头）。"retired": true 的 hotspot（旧流程）整个不加载。
-## 母星闪回（11-02）：{"do": "flashback", "id", "place", "end", "lines", "fall", "hold"} / {"do": "flashback_wake", "wait"}，
+## 母星闪回（11-02）：{"do": "flashback", "id", "place", "end", "lines", "fall", "hold", "enter"（"lids" = 从黑里睁眼进，11-08）} / {"do": "flashback_wake", "wait"}，
 ##   玩法和参数见 scripts/flashback.gd 文件头；四次在哪、F8 怎么看见 docs/闪回_实现说明.md。
 ##   --fb_dev=N              和 --beat=（FLASHBACK_DEV 里那一行的 beat）一起：跳完节拍从第 N 次闪回前几步开始播（= F8「闪回 N」）
 ##   --fb_caught             自动玩到闪回时站着不动（走被追上那条路）；--fb_full 自动玩也按真实时长播闪回
@@ -908,12 +908,16 @@ func _step(st: Dictionary) -> String:
 			if not ff:
 				await _treeline_match()
 		"journal_mark":
+			if not _journal_writable():
+				return ""
 			var mm := str(st.get("match", ""))
 			if StoryState.mark(mm) == 0:
 				_warn_once("journal_mark：日记里没有含「%s」的条目" % mm)
 			if not ff and not st.has("sfx"):
 				_sfx({"name": "pen_write", "db": -8.0})
 		"journal_strike":
+			if not _journal_writable():
+				return ""
 			var m := str(st.get("match", ""))
 			if StoryState.strike(m) == 0:
 				_warn_once("journal_strike：日记里没有含「%s」的条目" % m)
@@ -1141,11 +1145,19 @@ func _burn_pick(st: Dictionary) -> String:
 	n.name = "burn_pick"
 	if not ff:
 		dlg.close_box()
+	# 11-08 作者：「开始烧物品的时候应该触发 space choice 这个 bgm」——放进转化装置烧（burn: true）的那种和 keepsake_choice 一样，
+	# 进来就放 space_choice，选完淡掉（交给弥洛那种不放）
+	var bgm = BGM_GD.get_bgm(level.get_tree())
+	var music := bool(st.get("burn", false)) and not ff
+	if music:
+		bgm.play("space_choice", NAN, 2.0)
 	dlg.add_child(n)
 	cockpit_ui = n                           # 软锁检测：这期间是在等玩家的界面
 	var r: String = await n.play(self, st)
 	cockpit_ui = null
 	n.queue_free()
+	if music and bgm.current() == "space_choice":
+		bgm.stop(2.5)
 	return r
 
 
@@ -1157,8 +1169,27 @@ func _wait(sec: float) -> void:
 
 
 # ----------------------------------------------------------------------- 说话
+## 说话人名字：speakers 里可以带 "by_flag": [{"flag", "zh", "en"}, …]，设了哪个 flag 就用哪个名字（后面的优先）。
+## 11-08 作者：兔子一开始叫「兔子」，说自己是首领时渐变成「兔子首领王」，比舞输了再渐变成「普通兔子」。
+func speaker_def(who: String):
+	var d = speakers.get(who, who)
+	if d is Dictionary and d.get("by_flag") is Array:
+		var list: Array = d["by_flag"]
+		for i in range(list.size() - 1, -1, -1):
+			var v = list[i]
+			if v is Dictionary and StoryState.has(str(v.get("flag", ""))):
+				return v
+	return d
+
+
 func _say(st: Dictionary) -> void:
 	lines += 1
+	# say 的 "rename": flag：这句话打完字以后说话人名字渐变成 by_flag 里这个 flag 的名字（这时才设 flag）。
+	# 先记下旧名字、再设 flag：快进 / 跳过时 flag 照样设上，后面的台词名字对
+	var rename_flag := str(st.get("rename", ""))
+	var old_def = speaker_def(str(st.get("say", ""))) if rename_flag != "" else null
+	if rename_flag != "":
+		StoryState.set_flag(rename_flag)
 	if ff:
 		return
 	if st.get("bark", false):
@@ -1172,13 +1203,14 @@ func _say(st: Dictionary) -> void:
 	# 别人说话时，站着的晨转过去看说话的人
 	if n != null and n != chen and n.visible and chen._vel <= 0.0:
 		chen._set_facing(1 if n.position.x > chen.position.x else -1)
-	var nm := txt_in(speakers.get(who, who), str(tl[1]))
+	var nm := txt_in(speaker_def(who) if old_def == null else old_def, str(tl[1]))
+	var rename_to := txt_in(speaker_def(who), str(tl[1])) if rename_flag != "" else ""
 	var gn: Node2D = n if n != null and npcs.values().has(n) else null
 	if gn != null:
 		gn.talk(true)
 	var source_text := txt_in(st, "zh")
 	var typing_sec := clampf(float(source_text.length()) / dlg.CPS_ZH, 0.25, 4.0)
-	await dlg.say(nm, NAME_COLORS.get(who, UITheme.ACCENT), text, _anchor.bind(who), bool(st.get("added", false)) and mark_added, typing_sec, txt_in(st, "en" if I18n.is_zh() else "zh"), who)
+	await dlg.say(nm, NAME_COLORS.get(who, UITheme.ACCENT), text, _anchor.bind(who), bool(st.get("added", false)) and mark_added, typing_sec, txt_in(st, "en" if I18n.is_zh() else "zh"), who, rename_to)
 	if gn != null and is_instance_valid(gn):
 		gn.talk(false)
 	speaking = ""
@@ -1832,6 +1864,10 @@ func _journal(st: Dictionary) -> void:
 	if st.has("tag"):
 		e["tag"] = str(st["tag"])
 	var holder := _journal_holder()
+	# 11-08 作者：笔记本是小鹿临走前给的（items.json journal）。没拿到（森林里）、或者烧掉了，就不写也不新增；
+	# 原来这里背包里没有日记就凭空补一本，现在不补了。结局里专门给的借来的纸照旧能写（_journal_holder）。
+	if holder == "journal" and not Inventory.has("journal"):
+		return
 	if holder != "journal":
 		e["tag"] = "on_" + holder
 	StoryState.add_journal(e)
@@ -1841,12 +1877,6 @@ func _journal(st: Dictionary) -> void:
 		if not ff:
 			dlg.toast(Inventory.icon(holder), I18n.t("paper_added") % txt(Inventory.item(holder).get("name", holder)))
 		return
-	if not Inventory.has("journal"):
-		if not Inventory.defined("journal"):
-			Inventory.register_fallback({"id": "journal", "name": {"zh": "日记", "en": "Journal"}, "rarity": "common",
-				"burn": 0, "personal": true, "icon": "res://art/forest_story/icon_journal.png", "desc": {"zh": "", "en": ""}})
-		Inventory.add("journal")
-		level.on_inventory_changed()
 	if not ff:
 		dlg.toast(Inventory.icon("journal"), I18n.t("journal_added"))
 
@@ -1855,6 +1885,12 @@ func _journal(st: Dictionary) -> void:
 ## 记的东西写在借来的纸上（结局里 give borrowed_paper），没有纸就写在航图背面（结局四「写在航图背面吧」）。
 ## 这些条目带 tag on_<那件>，背包里那件的描述后面接着列出来（desc_from_tag）。日记首页（journal_first_page）永远不写：
 ## 「我一定要找到大象，因为」后面一直空着，只能看。
+## 11-08：现在能不能往本子 / 纸上写（没有笔记本、也没有结局里借来的纸 = 不写，标记 / 划掉也跳过）
+func _journal_writable() -> bool:
+	var h := _journal_holder()
+	return h != "journal" or Inventory.has("journal")
+
+
 func _journal_holder() -> String:
 	if Inventory.has("journal") or not StoryState.has("burned_journal"):
 		return "journal"
@@ -2474,7 +2510,7 @@ func _update_nudge(delta: float) -> void:
 				_inner({"zh": str(hl.get("zh", "")), "en": str(hl.get("en", "")), "style": "fade", "sec": 2.4})
 				return
 			var tl := txt_lang(hl)
-			dlg.murmur(txt_in(speakers.get(who, who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
+			dlg.murmur(txt_in(speaker_def(who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
 				_anchor.bind(who), bool(hl.get("added", false)) and mark_added, who)
 		return
 	var t := main_target()
@@ -2488,7 +2524,7 @@ func _update_nudge(delta: float) -> void:
 		if st is Dictionary and st.has("say"):
 			var who := str(st["say"])
 			var tl := txt_lang(st)
-			dlg.murmur(txt_in(speakers.get(who, who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
+			dlg.murmur(txt_in(speaker_def(who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
 				_anchor.bind(who), bool(st.get("added", false)) and mark_added, who)
 			break
 
@@ -3993,7 +4029,7 @@ func _generic(who: String) -> Node2D:
 		return null
 	var n: Node2D = NPC_GD.new()
 	n.setup(who)
-	if who == "rabbit_doe":
+	if who == "rabbit_doe" and not NPC_GD.has_own_doe_art():   # 母兔没自己的图时：借兔子的图，头顶贴个蝴蝶结
 		var bow := Polygon2D.new()
 		bow.polygon = PackedVector2Array([Vector2(-6, -4), Vector2(0, -1), Vector2(6, -4),
 			Vector2(6, 3), Vector2(0, 1), Vector2(-6, 3)])

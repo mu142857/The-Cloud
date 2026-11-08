@@ -22,7 +22,7 @@ const PICK_META := "the_cloud_chapter_pick"            # F8 跳节拍换了章�
 const BARTER_FOREST := ["barter_any", "barter_toucan", "barter_toucan_feather", "barter_toucan_whistle", "barter_toucan_rain"]
 const BARTER_RIVER := ["barter_rat_chef", "barter_rat_chef_soup", "barter_rat_chef_recipe", "barter_rat_chef_fire"]
 ## 第一关新版（11-02）：亲情关系（鹿叫晨妈妈 / 孩子）和飞行一烧掉的新物品；后面章节的 if 可以看这些
-const C1_FLAGS := ["c1_mom", "c1_child", "c1_bear_given", "burned_family_photo", "burned_deer_bear", "burned_miluo_letter",
+const C1_FLAGS := ["c1_mom", "c1_child", "c1_fuel_bar", "c1_bear_given", "burned_family_photo", "burned_deer_bear", "burned_miluo_letter",
 	"burned_rabbit_fur", "burned_floorboard"]
 
 const CHAPTERS := {
@@ -50,10 +50,10 @@ const CHAPTERS := {
 ## 河流篇 / 终章里看旧 flag 的分支（burned_blue_stone 这些）照旧由 SEED_FLIGHT1 给。
 const SEED := {
 	"flags": ["crashed", "c1_crashed", "c1_saw_bag", "c1_mom", "c1_deer_met", "c1_asked_bag", "c1_follow", "c1_run", "c1_got_bag",
-		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_danced", "c1_got_wood", "c1_rabbit_done", "c1_rabbit_helped",
+		"c1_got_map", "c1_chase_done", "c1_woke", "c1_bear_given", "c1_need_wood", "c1_to_rabbit", "c1_rabbit_chief", "c1_danced", "c1_rabbit_plain", "c1_got_wood", "c1_rabbit_done", "c1_rabbit_helped",
 		"c1_fixed", "c1_seed", "c1_ready", "launched"],
 	"owned": ["elephant_drawing", "deer_bear", "rabbit_fur", "floorboard", "floorboard",
-		"miluo_letter", "clear_seed", "miluo_note"],
+		"miluo_letter", "clear_seed", "miluo_note", "journal"],   # 11-08：小鹿临走前给的笔记本
 	"journal": [],
 }
 

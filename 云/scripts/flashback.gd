@@ -46,15 +46,27 @@ extends Control
 ## 声音：heartbeat（一下「咚咚」0.77 秒，同一个播放器按快慢重放，HEART_DB 跟着触手多近变响）、flashback_tense（24 秒，
 ##   导入没开循环：放完自己从头再放，音量 TENSE_DB 跟着触手多近平滑变）、train_door_close；缺的静默跳过，记进
 ##   runner.missing_sfx（--story_check 列出来）。都走 Music 总线；闪回期间 SFX 总线（原场景的环境声）压低 DUCK dB，醒的时候放回去。
+## 11-08：推障和冲刺共用起身 QTE 音色，推开障碍或冲刺逃脱时释放。
 ## 自动玩：时长 × AUTO_K；连按 E（一秒五下，跑掉、拿成就那条路）；第四次站着不动（停下来那条路）。
 ##   --fb_caught：自动玩一下也不按（被抓那条路，按真实时长）；--fb_rate=N：自动玩一秒按 N 下（按真实时长，调手感用）；
 ##   --fb_debug：每秒打一行触手离她多远；--fb_full：自动玩也按真实时长。跳节拍（ff）时 runner 直接跳过，不建它。
+## 第一次（11-08 作者再改）：「查看大象的画以后，应该有一个渐变过渡到黑的过程，然后黑屏直接睁眼效果到这个回忆杀区域。在这里的话，
+##   还是玩家自主操控，而不是目前的自动，触手最开始看不到，但是很快从后面就能够看到，这里的触手保持缓慢匀速前进，当玩家走的太远，
+##   就会加速，等到达玩家视角在放慢」：
+##   - 进场 "enter": "lids"：画慢慢压黑在 paper_view（"out": "black"）里做；这里从全黑开始，黑里音乐、心跳起来，停 LIDS_HOLD 秒，
+##     然后眼皮从上下睁开（和醒同一套：睁一半、合一点、再睁开），糊的街一起变清楚。没写 enter 的照旧（压黑 → 街从黑里淡出来）。
+##   - 晨由玩家操控（← → / A D 走，Shift 快跑，chen.gd 自己读键盘）；撞上障碍时收回操控，狂按 E 推开以后还给玩家。自动玩照旧自己往右跑。
+##   - 触手：开跑 T_DELAY 秒后从画面左边外面出发；在画面外（尖的屏幕 x < T_LOST）就加速到 T_FAST，进到画面里（≥ T_SEEN）就平滑地
+##     慢回 T_SLOW 匀速走（比晨走路慢，所以她一直走就会把它甩出画面，它再追进来）。追到照片以前就被碰到 = 一把卷住、直接黑。
+##   - 11-08 晚：障碍改成三个（OBSTACLES）：路障按 Q、纸箱按 E、路障来回按 ← →（交替才算）；提示只有起身同款的键帽（_set_qkeys），
+##     没有字。触手碰到她 = 关灯（_lights_out）：「啪」一声 light_off（作者给的 open light.mp3），直接全黑，声音全掐，黑 LIGHTS_OUT 3 秒。
 ## F8 传送页每章下面有「闪回」按钮（dev_panel.gd，表在 story_runner.gd 的 FLASHBACK_DEV）。
 
 const CITY_SCENE := "res://scenes/city_test.tscn"
 const ENV_LIGHT := preload("res://scripts/env_light.gd")
 const SCREEN_SH := preload("res://scripts/flashback_screen.gdshader")
 const VIEW_SH := preload("res://scripts/flashback_view.gdshader")
+const QTE_AUDIO := preload("res://scripts/qte_audio.gd")
 const PAPER_TEX := preload("res://art/forest_story/icon_drawing.png")
 const TRAIN_DOOR_L := preload("res://art/flashback/train_door_l.png")
 const TRAIN_DOOR_R := preload("res://art/flashback/train_door_r.png")
@@ -131,13 +143,25 @@ const PAPER_HAND := Vector2(9.0, 201.0)   # 晨手的位置（相对她的 x、�
 const PHOTO_AT := 2.2           # 开跑多久以后照片从右边飘进来
 const PHOTO_FROM := 520.0       # 从屏幕 x 多少飘进来（画面外右边）
 const PHOTO_LEAD_BLOCKED := 150.0   # 被障碍挡住时照片飘得远一点（在前面等）
-const OBSTACLES := [[1150.0, "barrier"], [2450.0, "boxes"]]   # [离起点多远（世界 x），哪种]
-const OB_NEED := 8              # 每个障碍按几下 E 推开
+# 11-08 作者：「障碍物这里，应该有三个，一个是按 q，一个是按 e，还有一个是需要来回按左右才行」
+const OBSTACLES := [[900.0, "barrier", "q"], [1900.0, "boxes", "e"], [2900.0, "barrier", "lr"]]   # [离起点多远（世界 x），哪种图，按什么]
+const OB_NEED := 8              # q / e：按几下推开
+const OB_NEED_LR := 10          # lr：左右交替几下推开（← → 各算一下，连按同一边不算）
+const LIGHTS_OUT := 3.0         # 触手碰到她：关灯声 + 黑屏停这么久（11-08 作者「应该是黑屏三秒钟才对的」）
 const OB_STOP := 10.0           # 晨的中心停在障碍左边缘前多远
 const OB_GUARD := 40.0          # 一直不按：这么多秒以后障碍自己倒（防软锁，正常玩碰不到）
 const CATCH_AFTER := 1.6        # 过了最后一个障碍再跑多久，照片落下来、被她抓住
 const RUSH := 1.0               # 触手从画面左边缘扑到她身上要多久（越来越快）
 const RUSH_WAIT := 0.5          # 照片进背包以后停多久，触手才来（晨回头）
+# 第一次：玩家操控时的触手（11-08，见文件头）
+const T_DELAY := 1.0            # 玩家能动以后多久触手才出发
+const T_START := 520.0          # 出发时触手尖在晨身后多远（画面外）
+const T_SLOW := 52.0            # 在画面里：缓慢匀速（晨走路 150）
+const T_FAST := 360.0           # 在画面外：加速追进来
+const T_SEEN := 64.0            # 尖进到屏幕 x 这么多就算「到了玩家视角」，开始放慢
+const T_LOST := -40.0           # 尖退到屏幕 x 这么多以外就算「走太远了」，开始加速
+const T_RATE := 4.0             # 速度平滑地追目标（1/秒）
+const LIDS_HOLD := 0.6          # enter: lids：黑里停多久才睁眼
 # 第二次：车站闪回的公交和车门
 const TRAIN_Y := 100.0
 const DOOR_POS := Vector2(24, 22)   # 尾门门洞在车厢图里的左上角；36×96，门扇各 18
@@ -156,6 +180,10 @@ const WHITE_STOP := 0.6         # 跑掉以后她再跑多久就慢下来
 const FLASH := [[0.6, 0.04], [0.3, 0.07], [1.0, 0.15]]   # 闪白：[到多少, 用几秒]——先轻轻一闪、落一点，再缓出冲到满白
 const FLASH_HOLD := 0.9         # 满白以后残像停多久
 const GHOST_OUT := 1.4          # 残像淡掉要多久
+# 追照片那次推障碍：和起身 QTE 一样的键帽（getup_qte.gd）
+const QKEY_Y := 226.0
+const QKEY_BORDER := Color(0.6, 0.72, 0.66, 0.8)
+const QKEY_BORDER_HOT := Color(0.88, 0.95, 0.9, 1.0)
 # 提示：「狂按 E 冲刺」+ E 键帽，在对话那一带（story_dialogue.gd BAND_TOP 184）上面
 const PROMPT_Y := 164.0
 const PROMPT_Y_PHOTO := 122.0   # 追照片那次：提示放在晨和障碍头顶上（164 会压在她身上）
@@ -205,9 +233,15 @@ var _key: Control
 var _prompt_a := 0.0
 var _prompt_t := -999.0
 var _key_down := 0.0
+var _qkeys: Array = []            # 追照片那次：起身同款的键帽（只有键，没有字）：Q / E 一个，左右两个（← →）
+var _qkey_styles: Array = []
+var _qpress := 0.0
+var _qpress_i := 0                # 刚按下的是第几个键帽
+var _ob_fx: Node2D                # 这个障碍的 qte_fx（每个障碍一份，释放以后它自己连同那层收掉）
 var _music: AudioStreamPlayer
 var _rain: AudioStreamPlayer      # 城市的雨，垫在紧张的音乐底下
 var _heart_p: AudioStreamPlayer
+var _qte_audio: QTE_AUDIO
 var _bus := "Master"
 var _sfx_db := 0.0
 var _ducked := false
@@ -262,6 +296,8 @@ var _obs: Array = []              # 障碍：[{n: Node2D, kind, x: 左边缘世�
 var _block := -1                  # 正被第几个障碍挡着（-1 = 没有）
 var _block_t := 0.0
 var _clear_t := -1.0              # 最后一个障碍推开以后跑了多久（-1 = 还没推开完）
+var _t_go := false                # 触手出发了没有
+var _t_catch := true              # 触手在画面外、正在加速追进来
 # 第二次：列车
 var _train: Node2D
 var _stop_sign: Node2D
@@ -300,6 +336,10 @@ func play(r: Node, step: Dictionary) -> void:
 		elif a.begins_with("--fb_shot_every="):
 			_shot_every = float(a.trim_prefix("--fb_shot_every="))
 	_bus = "Music" if AudioServer.get_bus_index("Music") >= 0 else "Master"
+	_qte_audio = QTE_AUDIO.new()
+	_qte_audio.bus = _bus
+	_qte_audio.gain_db = -12.0 if _photo else -17.0
+	add_child(_qte_audio)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_build()
@@ -398,6 +438,7 @@ func _build_city() -> void:
 	if id == 1:
 		for o in OBSTACLES:
 			_build_obstacle(_chen.position.x + float(o[0]), str(o[1]))
+			_obs[_obs.size() - 1]["key"] = str(o[2])
 		_paper = Sprite2D.new()
 		_paper.name = "FlashbackPaper"
 		_paper.texture = PAPER_TEX
@@ -489,7 +530,10 @@ func _build_lines() -> void:
 		_line_t.append((LINE_ONE if n == 1 else LINE_FIRST + float(i) * every) * _k)
 
 
-## 「狂按 E 冲刺」：左边一个 13×14 的 E 键帽（程序画），右边字；整组居中
+## 「狂按 E 冲刺」：左边一个 13×14 的 E 键帽（程序画），右边字；整组居中。
+## 追照片那次（障碍）：11-08 作者「这里的 qte 不需要有文字描述，同理只显示按键即可，而且最好和游戏开头起身的 qte 一样视觉效果和音效」——
+## 只有一个 E 键帽，和起身 QTE（getup_qte.gd）同一个样子、同一个位置（下方正中 y 226），一呼一吸；按下去压 1 像素、边框亮一下；
+## 光圈 / 火星 / 蓄力光 / 推开那下的释放用 qte_fx.gd（_ob_fx），声音照旧是 _qte_audio（五级蓄力 + 释放）。
 func _build_prompt() -> void:
 	_prompt = Control.new()
 	_prompt.size = Vector2(480, 16)
@@ -497,6 +541,9 @@ func _build_prompt() -> void:
 	_prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_prompt.modulate.a = 0.0
 	add_child(_prompt)
+	if _photo:
+		_prompt.position = Vector2.ZERO           # 键帽撞上障碍时才按那个障碍要的键建（_set_qkeys）
+		return
 	var txt := _tx("push" if _photo else "hint")
 	var w := UITheme.font().get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	var x0 := roundf(240.0 - (13.0 + 5.0 + w) / 2.0)
@@ -541,6 +588,9 @@ static func _tx(k: String) -> String:
 
 # ======================================================================= 进
 func _intro() -> void:
+	if str(st.get("enter", "")) == "lids":
+		await _intro_lids()
+		return
 	# 原场景很快地压黑：缓出（头几帧就暗下去一大截），带一点糊和去色，像门一关
 	_screen.visible = true
 	_smat.set_shader_parameter("veil", DARK_C)
@@ -564,6 +614,37 @@ func _intro() -> void:
 	_screen.visible = false
 	# 最后那点糊一边退、触手一边涌进来（不等它全清楚：画面一出来两秒内就要看出为什么跑）
 	create_tween().tween_method(_vp_blur, 4.0, 0.0, 1.2 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+## enter: lids（第一次，11-08）：前一步已经慢慢压到全黑（paper_view "out": "black" + 剧本黑幕），这里从黑开始：
+## 音乐、心跳在黑里响起，停 LIDS_HOLD 秒，然后眼皮睁开到街上（读屏幕的那层挪到街上面，画眼皮；糊、去色、暗角跟着退）
+func _intro_lids() -> void:
+	_music_hit()
+	_vmat.set_shader_parameter("blur", 0.0)
+	_view.modulate.a = 1.0
+	_view.visible = true
+	_screen.visible = true
+	move_child(_screen, _view.get_index())       # 挪到街上面（_screen 原来在 _view 前一个，挪到 _view 的位置 = 它后面）：读的是街
+	_smat.set_shader_parameter("veil", BLACK_C)
+	_smat.set_shader_parameter("veil_a", 0.0)
+	_smat.set_shader_parameter("lids", 1.0)
+	_smat.set_shader_parameter("blur", 5.0)
+	_smat.set_shader_parameter("desat", 0.6)
+	_smat.set_shader_parameter("vig", 0.6)
+	await _sleep(LIDS_HOLD)
+	var tl := create_tween()
+	tl.tween_method(_sp.bind("lids"), 1.0, 0.45, 0.9 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tl.tween_method(_sp.bind("lids"), 0.45, 0.7, 0.35 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tl.tween_method(_sp.bind("lids"), 0.7, 0.0, 1.1 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var tw := create_tween().set_parallel()
+	tw.tween_method(_sp.bind("blur"), 5.0, 0.0, 2.8 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_method(_sp.bind("desat"), 0.6, 0.0, 2.8 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tw.tween_method(_sp.bind("vig"), 0.6, 0.0, 2.8 * _k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	await tl.finished                               # 眼睛睁开就能动（糊、暗角再退一会儿）
+	tw.finished.connect(func():
+		if is_instance_valid(_screen):
+			_screen.visible = false
+			move_child(_screen, _view.get_index()))   # 放回街下面（醒的时候读原场景）
 
 
 func _sp(v: float, key: String) -> void:
@@ -618,8 +699,41 @@ func _surge_in() -> void:
 	_prompt_on(0.0)
 
 
+## 撞上障碍：按它要的键建键帽（起身 QTE 同款：深青底、浅灰绿 1 像素边、14 号字），下方正中；左右的两个并排、中间空 4 像素
+func _set_qkeys(key: String) -> void:
+	for l in _qkeys:
+		(l as Node).queue_free()
+	_qkeys.clear()
+	_qkey_styles.clear()
+	var texts: Array = {"q": ["Q"], "e": ["E"], "lr": ["←", "→"]}.get(key, ["E"])
+	var w := 0.0
+	for t in texts:
+		var l := Label.new()
+		l.text = str(t)
+		l.theme = UITheme.get_theme()
+		l.add_theme_font_size_override("font_size", 14)
+		l.add_theme_color_override("font_color", UITheme.TEXT)
+		var sb := UITheme.box(Color(0.06, 0.1, 0.09, 0.85), QKEY_BORDER, 1, Vector4(3, 0, 2, 0))
+		l.add_theme_stylebox_override("normal", sb)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_prompt.add_child(l)
+		l.reset_size()
+		_qkeys.append(l)
+		_qkey_styles.append(sb)
+		w += l.size.x
+	w += 4.0 * float(texts.size() - 1)
+	var x := roundf((480.0 - w) * 0.5)
+	for l in _qkeys:
+		(l as Label).position = Vector2(x, QKEY_Y)
+		x += (l as Label).size.x + 4.0
+	_qpress = 0.0
+
+
 func _prompt_on(delay: float) -> void:
-	create_tween().tween_property(self, "_prompt_a", 0.9, 0.6).set_delay(delay)
+	if _photo:                            # 起身同款键帽：0.35 秒淡进来、满不透明
+		create_tween().tween_property(self, "_prompt_a", 1.0, 0.35).set_delay(delay)
+	else:
+		create_tween().tween_property(self, "_prompt_a", 0.9, 0.6).set_delay(delay)
 	_prompt_t = -delay
 
 
@@ -703,7 +817,7 @@ func _run_step(dt: float) -> void:
 ## 11-07 作者：「刚刚进入场景的时候不会显示触手，只有场景，前进一段时间以后，会有一个照片从右边飘过来……玩家只需要一直追这个照片……
 ## 中间会碰到障碍物，这个时候需要按E很多次来通过……追到照片以后，会把物品加入到背包……然后触手会从左边快速的靠近玩家，碰到玩家的一瞬间直接黑屏」。
 ## 晨自己一直往右跑；PHOTO_AT 秒后照片从屏幕右边外飘进来，在她前面一点飘；撞上障碍就停住，出「狂按 E 推开」，
-## 按 OB_NEED 下推开（每下障碍晃一下、往前挪一格，她往前顶一下）；过了最后一个障碍 CATCH_AFTER 秒，照片落回她手里，
+## 按够下数推开（Q / E 各 OB_NEED 下，左右交替 OB_NEED_LR 下）（每下障碍晃一下、往前挪一格，她往前顶一下）；过了最后一个障碍 CATCH_AFTER 秒，照片落回她手里，
 ## 飞进右上角的背包（和剧本 give 同一个动画：runner._fly_to_bag 的那套轨迹 + level.bag_bump），出「获得：地图」（剧本 got）；
 ## 然后她回头，触手从左边画面外越来越快地扑过来，一碰到她，整屏直接黑（不淡）。
 func _photo_step(dt: float) -> void:
@@ -713,6 +827,7 @@ func _photo_step(dt: float) -> void:
 	if _block >= 0:
 		var o: Dictionary = _obs[_block]
 		_block_t += dt
+		_chen.input_enabled = false             # 顶着障碍：操控收回来，狂按 E 推开
 		_chen.auto_dir = 0.0
 		_chen.set("_vel", 0.0)
 		_chen.position.x = minf(_chen.position.x, float(o["x"]) - OB_STOP)
@@ -720,18 +835,13 @@ func _photo_step(dt: float) -> void:
 			_auto_press_t -= dt
 			if _auto_press_t <= 0.0:
 				_auto_press_t = _auto_every
-				_ob_push()
+				_ob_key("auto")
 		if _block >= 0 and _block_t >= OB_GUARD:
 			_ob_break(_block)
 	else:
-		_chen.auto_dir = 1.0
-		var vel := float(_chen.get("_vel"))
-		if vel > 1.0:
-			_extra += RUN_BONUS * dt
-			var px := floorf(_extra)
-			if px >= 1.0:
-				_chen.position.x += px
-				_extra -= px
+		# 11-08：玩家自己走（自动玩照旧自己往右跑）；不再加 RUN_BONUS
+		_chen.input_enabled = not _auto
+		_chen.auto_dir = 1.0 if _auto and not _auto_caught else 0.0   # --fb_caught：自动玩站着不动，走被碰到那条路
 		for i in _obs.size():
 			var o: Dictionary = _obs[i]
 			if bool(o["done"]):
@@ -743,9 +853,35 @@ func _photo_step(dt: float) -> void:
 		_clear_t += dt
 		if _clear_t >= CATCH_AFTER * _k and _paper_mode == "fly":
 			_paper_mode = "catch"
+	_photo_tentacles(dt)
 	if _paper_mode == "done" or _run_t >= 150.0:
-		result = "caught"
+		result = "got"
 		_running = false
+	elif _front >= _chen.position.x - 4.0:
+		result = "caught"                       # 还没追到照片就被碰到
+		_running = false
+
+
+## 第一次的触手（11-08）：画面外就加速追进来，进了画面就慢回缓慢匀速
+func _photo_tentacles(dt: float) -> void:
+	if not _t_go:
+		if _run_t < T_DELAY * _k:
+			return
+		_t_go = true
+		_tent_a = 1.0
+		_front = _chen.position.x - T_START
+		_tv = T_FAST
+		_t_catch = true
+		print("FLASHBACK_TENT go t=%.1f" % _run_t)
+	var sx := _front - (_cam.position.x - 240.0)   # 触手尖在屏幕上的 x
+	if _t_catch and sx >= T_SEEN:
+		_t_catch = false
+	elif not _t_catch and sx < T_LOST:
+		_t_catch = true
+	_tv = lerpf(_tv, T_FAST if _t_catch else T_SLOW, 1.0 - exp(-T_RATE * dt))
+	_front += _tv * dt
+	if "--fb_debug" in OS.get_cmdline_user_args() and int(_run_t * 60.0) % 60 == 0:
+		print("FB_DBG t=%.1f gap=%.0f sx=%.0f tv=%.0f catch=%s chen=%.0f" % [_run_t, _chen.position.x - _front, sx, _tv, _t_catch, _chen.position.x])
 
 
 ## 照片从屏幕右边外飘进来，飘到她前面
@@ -763,7 +899,7 @@ func _build_obstacle(x: float, kind: String) -> void:
 	n.name = "Obstacle_" + kind
 	_world.add_child(n)
 	_world.move_child(n, _chen.get_index())     # 在晨后面：她顶上去的时候身子压在它前面一点
-	var o := {"n": n, "kind": kind, "x": x, "hits": 0, "done": false, "parts": [], "lamp": null}
+	var o := {"n": n, "kind": kind, "x": x, "hits": 0, "done": false, "parts": [], "lamp": null, "key": "e", "last": ""}
 	if kind == "barrier":
 		n.position = Vector2(x + 22.0, GROUND)  # 原点在底边中间：晃的时候绕着脚晃
 		var s := Sprite2D.new()
@@ -805,25 +941,54 @@ func _draw_ob_lamp(l: Node2D) -> void:
 func _ob_hit(i: int) -> void:
 	_block = i
 	_block_t = 0.0
+	_chen.input_enabled = false
 	_chen.auto_dir = 0.0
 	_chen.set("_vel", 0.0)
 	_chen.position.x = float(_obs[i]["x"]) - OB_STOP
 	_kick = -6.0
 	_play("pat", -8.0)
 	_shake_ob(_obs[i], 0.06)
+	_set_qkeys(str(_obs[i]["key"]))
 	_prompt_on(0.15)
+	_ob_fx_new()
 	print("FLASHBACK_OBSTACLE hit %d %s t=%.1f" % [i, _obs[i]["kind"], _run_t])
 
 
-## 按一下 E：障碍晃一下、往前挪一格，她往前顶一下；够 OB_NEED 下就推开
+## 按了一个键（q / e / l / r；tap = 鼠标、触屏点按，auto = 自动玩，都算按对）：是这个障碍要的键才算一下。
+## lr：← → 交替才算，连按同一边不算；第一下哪边都行
+func _ob_key(k: String) -> void:
+	if _block < 0 or not _running:
+		return
+	var o: Dictionary = _obs[_block]
+	var want := str(o["key"])
+	if want == "lr":
+		if k == "tap" or k == "auto":
+			k = "r" if str(o["last"]) == "l" else "l"
+		if (k != "l" and k != "r") or k == str(o["last"]):
+			return
+		o["last"] = k
+		_qpress_i = 0 if k == "l" else 1
+	else:
+		if k != want and k != "tap" and k != "auto":
+			return
+		_qpress_i = 0
+	_ob_push()
+
+
+func _ob_need(o: Dictionary) -> int:
+	return OB_NEED_LR if str(o["key"]) == "lr" else OB_NEED
+
+
+## 按对一下：障碍晃一下、往前挪一格，她往前顶一下；够 _ob_need 下就推开
 func _ob_push() -> void:
 	if _block < 0 or not _running:
 		return
 	var o: Dictionary = _obs[_block]
+	var need := _ob_need(o)
 	_presses += 1
 	o["hits"] = int(o["hits"]) + 1
 	_key_down = 0.09
-	var k := float(o["hits"]) / float(OB_NEED)
+	var k := float(o["hits"]) / float(need)
 	o["x"] = float(o["x"]) + 1.0
 	(o["n"] as Node2D).position.x += 1.0
 	_chen.position.x = float(o["x"]) - OB_STOP
@@ -838,14 +1003,49 @@ func _ob_push() -> void:
 		_dust_p.append({"p": feet + Vector2(randf_range(-4.0, 4.0), 0.0),
 			"v": Vector2(randf_range(-90.0, -30.0), randf_range(-50.0, -15.0)),
 			"life": randf_range(0.25, 0.4), "max": 0.4, "s": 1.0})
-	_play("tap", -12.0)
-	if int(o["hits"]) >= OB_NEED:
+	_qpress = 1.0
+	var key_rect := _qkey_rect()
+	if int(o["hits"]) >= need:
+		if is_instance_valid(_ob_fx):
+			var tl := _cam.position - Vector2(240.0, 135.0)
+			_ob_fx.release(key_rect, Vector2(_chen.position.x, GROUND) - tl)
+			_ob_fx = null
 		_ob_break(_block)
+		_qte_audio.play_release()
+	else:
+		if is_instance_valid(_ob_fx):
+			_ob_fx.press(int(o["hits"]), key_rect, need - 1)
+		_qte_audio.play_step(int(o["hits"]), need - 1)
+
+
+## 这个障碍的按键特效（qte_fx.gd，和起身同一套画面；silent：声音由 _qte_audio 播）。挂在自己的 CanvasLayer 上，
+## 在闪回这层（55）上面、F8（60）下面；释放以后它自己连同那层收掉
+func _ob_fx_new() -> void:
+	if is_instance_valid(_ob_fx):
+		_ob_fx.get_parent().queue_free()
+	var layer := CanvasLayer.new()
+	layer.name = "FlashbackQTEFx"
+	layer.layer = 56
+	add_child(layer)
+	_ob_fx = preload("res://scripts/qte_fx.gd").new()
+	_ob_fx.silent = true
+	layer.add_child(_ob_fx)
+
+
+func _qkey_rect() -> Rect2:
+	if _qkeys.is_empty():
+		return Rect2(234, QKEY_Y, 12, 16)
+	var r := Rect2()
+	for i in _qkeys.size():
+		var l: Label = _qkeys[i]
+		var ri := Rect2(l.position.x, QKEY_Y, l.size.x, l.size.y)
+		r = ri if i == 0 else r.merge(ri)
+	return r
 
 
 ## 晃一下：路障绕着脚歪过去再回来（越推越歪），纸箱一只只抖，上面那只抖得最厉害
 func _shake_ob(o: Dictionary, amp: float) -> void:
-	var k := float(o["hits"]) / float(OB_NEED)
+	var k := float(o["hits"]) / float(_ob_need(o))
 	if str(o["kind"]) == "barrier":
 		var n: Node2D = o["n"]
 		var tw := n.create_tween()
@@ -866,7 +1066,13 @@ func _ob_break(i: int) -> void:
 	var o: Dictionary = _obs[i]
 	o["done"] = true
 	_block = -1
-	_prompt_a = 0.0
+	if _photo:                                  # 键帽和起身一样 0.25 秒淡掉
+		create_tween().tween_property(self, "_prompt_a", 0.0, 0.25)
+	else:
+		_prompt_a = 0.0
+	if is_instance_valid(_ob_fx):                # 没按满就倒了（OB_GUARD 兜底）：特效收掉
+		_ob_fx.get_parent().queue_free()
+	_ob_fx = null
 	_kick = 10.0
 	_play("pat", -4.0)
 	var n: Node2D = o["n"]
@@ -909,8 +1115,21 @@ func _box_arc(s: Sprite2D, to: Vector2, h: float, sec: float) -> void:
 ## 追到照片：照片飞进右上角的背包（和剧本 give 一样：先往上一跳，再划个弧飞过去，背包弹一下、「嗒」一声），出「获得：地图」；
 ## 然后她回头，触手从左边画面外越来越快地扑过来，碰到她的那一下直接黑屏。
 func _end_photo() -> void:
+	if is_instance_valid(_ob_fx):                # 顶着障碍被碰到：蓄力光别留在黑屏上面
+		_ob_fx.get_parent().queue_free()
+	_ob_fx = null
+	_chen.input_enabled = false
 	_chen.auto_dir = 0.0
 	_prompt_a = 0.0
+	if result == "caught":                      # 还没追到照片就被触手碰到：一把卷住，直接黑
+		if _paper != null:
+			create_tween().tween_property(_paper, "modulate:a", 0.0, 0.3)
+		_tmode = "grab"
+		_force_tension = 1.0
+		await _sleep(0.45)
+		print("FLASHBACK_PHOTO caught before photo t=%.1f" % _t)
+		await _lights_out()
+		return
 	if st.has("got"):
 		await _photo_to_bag()
 	elif _paper != null:
@@ -923,18 +1142,36 @@ func _end_photo() -> void:
 	if _toast_l != null:
 		create_tween().tween_property(_toast_l, "modulate:a", 0.0, 0.3)
 	_tent_a = 1.0
-	_front = _cam.position.x - 240.0 - 10.0     # 尖刚好在画面左边缘外：一回头就看得见它们伸进来
+	_front = maxf(_front, _cam.position.x - 240.0 - 10.0)   # 已经在画面里的从原地扑过来；在外面的从左边缘外伸进来
 	_force_tension = 1.0
 	var tw := create_tween()
 	tw.tween_property(self, "_front", _chen.position.x - 6.0, RUSH * _k).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	await tw.finished
-	# 碰到她：一下子全黑（不淡）
+	print("FLASHBACK_PHOTO tentacle hit t=%.1f" % _t)
+	await _lights_out()
+
+
+## 触手碰到她的那一下：像关灯——「啪」一声（light_off，素材是作者给的 open light.mp3），整屏直接全黑（不淡），
+## 音乐、雨、心跳一起掐掉，黑里停 LIGHTS_OUT 秒（11-08 作者「应该是黑屏三秒钟才对的，触碰到的一瞬间，请你加上这个关灯音效」）
+func _lights_out() -> void:
 	_veil.color = Color(BLACK_C, 1.0)
 	_end_color = BLACK_C
 	_bpm = 0.0
 	_force_tension = 0.0
+	_prompt_a = 0.0
+	_play("light_off", -2.0)
+	if _rain == _music:                          # 没有紧张的音乐时 _music 就是雨：_music_off 一并收掉
+		_rain = null
 	_music_off(0.05)
-	print("FLASHBACK_PHOTO tentacle hit t=%.1f" % _t)
+	if _rain != null and is_instance_valid(_rain):
+		var r := _rain
+		_rain = null
+		var tw := create_tween()
+		tw.tween_property(r, "volume_db", -60.0, 0.05)
+		tw.tween_callback(r.queue_free)
+	if _heart_p != null:
+		_heart_p.stop()
+	await _sleep(LIGHTS_OUT)
 
 
 func _photo_to_bag() -> void:
@@ -1009,6 +1246,8 @@ func _press() -> void:
 	_key_down = 0.09
 	_kick = minf(_kick + 5.0, 12.0)
 	_dash_fx()
+	var progress := _run_t / (RUN * _k)
+	_qte_audio.play_step(ceili(progress * QTE_AUDIO.STEPS))
 
 
 func _input(e: InputEvent) -> void:
@@ -1018,8 +1257,20 @@ func _input(e: InputEvent) -> void:
 		var k: InputEventKey = e
 		if k.keycode == KEY_F8 or k.keycode == KEY_ESCAPE:
 			return
-		if k.pressed and not k.echo and (k.keycode == KEY_E or k.physical_keycode == KEY_E):
-			_e_pressed()
+		if k.pressed and not k.echo:
+			if _photo:                              # 推障碍：Q / E / ← →（A D）各算各的，_ob_key 看对不对
+				var code := k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode
+				match code:
+					KEY_Q:
+						_ob_key("q")
+					KEY_E:
+						_ob_key("e")
+					KEY_LEFT, KEY_A:
+						_ob_key("l")
+					KEY_RIGHT, KEY_D:
+						_ob_key("r")
+			elif k.keycode == KEY_E or k.physical_keycode == KEY_E:
+				_e_pressed()
 		get_viewport().set_input_as_handled()      # 闪回里别的键不给关卡（背包、对话推进）
 	elif e is InputEventMouseButton and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		if e.pressed:
@@ -1034,7 +1285,7 @@ func _input(e: InputEvent) -> void:
 ## 按 E（鼠标 / 触屏点按也算）：追照片那次只在障碍前有用（推开），别的几次是冲刺
 func _e_pressed() -> void:
 	if _photo:
-		_ob_push()
+		_ob_key("tap")
 	else:
 		_press()
 
@@ -1196,6 +1447,22 @@ func _prompt_step(delta: float) -> void:
 	var ph := maxf(_prompt_t, 0.0)
 	var amp := lerpf(0.35, 1.0, 1.0 - smoothstep(3.0, 4.5, ph))
 	var w := 0.5 + 0.5 * cos(ph * TAU / 0.8)
+	if _photo:                                  # 起身同款键帽：一呼一吸（1.1 秒），按下去压 1 像素、边框亮一下
+		_qpress = move_toward(_qpress, 0.0, delta / 0.12)
+		_prompt.modulate.a = _prompt_a
+		var breath := 0.78 + 0.22 * (0.5 + 0.5 * cos(_t * TAU / 1.1))
+		var last := ""
+		if _block >= 0 and _block < _obs.size():
+			last = str(_obs[_block]["last"])
+		for i in _qkeys.size():
+			var l: Label = _qkeys[i]
+			var hot := _qpress if i == _qpress_i else 0.0
+			l.position.y = QKEY_Y + (1.0 if hot > 0.5 else 0.0)
+			(_qkey_styles[i] as StyleBoxFlat).border_color = QKEY_BORDER.lerp(QKEY_BORDER_HOT, hot)
+			# 左右交替：刚按过的那边暗下去，该按的那边照常一呼一吸
+			var dim := _qkeys.size() == 2 and last == ("l" if i == 0 else "r") and hot <= 0.5
+			l.self_modulate.a = 0.4 if dim else breath
+		return
 	_prompt.modulate.a = _prompt_a * lerpf(1.0, 0.55 + 0.45 * w, amp)
 	_key.queue_redraw()
 
@@ -1411,6 +1678,10 @@ func _quad(a: Vector2, b: Vector2, c: Vector2, d: Vector2, col: Color) -> void:
 
 # ======================================================================= 结束
 func _ending() -> void:
+	if result == "escaped" and _presses > 0:
+		_qte_audio.play_release()
+	elif result == "caught":
+		_qte_audio.stop()
 	_spr.position = Vector2.ZERO
 	if _photo:
 		await _end_photo()
@@ -1742,7 +2013,7 @@ func _exit_tree() -> void:
 	if tree == null:
 		return
 	for c in get_children():
-		if c is AudioStreamPlayer and (c as AudioStreamPlayer).playing and (c as AudioStreamPlayer).stream != null \
+		if c != _qte_audio and c is AudioStreamPlayer and (c as AudioStreamPlayer).playing and (c as AudioStreamPlayer).stream != null \
 				and (c as AudioStreamPlayer).stream.get_length() >= 2.0:
 			var a := c as AudioStreamPlayer
 			remove_child.call_deferred(a)

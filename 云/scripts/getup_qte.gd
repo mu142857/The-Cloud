@@ -4,6 +4,7 @@ extends Node
 ## 键帽和森林里互动提示的「E」同一个样子（hotspots.gd：深青底、浅灰绿 1 像素边、14 号像素字），
 ## 11-07：雨和雷跟着按键慢慢停（level.qte_weather / qte_thunder）：每按一下雨稀一点，隔一阵一声雷、越来越远，站起来时停完。
 ## 没按时轻轻一呼一吸（提示「按它」），每按一下往下压 1 像素、边框亮一下再回去（提示「再按」）。
+## 11-08 作者：加按键特效 + 「逐渐升华、最后释放」的音效 → qte_fx.gd（光圈 / 火星 / 蓄力光 / 释放；声音按级切段播）。
 signal completed
 
 const PRESSES := 6
@@ -29,6 +30,7 @@ var _key_y := 0.0
 var _press_k := 0.0                       # 按下去的那一下：1 → 0
 var _key_style: StyleBoxFlat
 var _thunder_at := 1.2                    # 下一声雷在 _time 的第几秒
+var _fx: Node2D                           # qte_fx.gd，挂在关卡下自己的 CanvasLayer 上（释放要比 QTE 活得久）
 
 const KEY_BORDER := Color(0.6, 0.72, 0.66, 0.8)
 const KEY_BORDER_HOT := Color(0.88, 0.95, 0.9, 1.0)
@@ -57,6 +59,12 @@ func _ready() -> void:
 	_key.position = Vector2(roundf((480.0 - _key.size.x) * 0.5), _key_y)
 	_key.modulate.a = 0.0
 	_key.create_tween().tween_property(_key, "modulate:a", 1.0, 0.35)
+	var fx_layer := CanvasLayer.new()
+	fx_layer.name = "GetupQTEFx"
+	fx_layer.layer = 39                    # 键帽（40）下面一层：光圈从键帽后面扩出来
+	level.add_child(fx_layer)
+	_fx = preload("res://scripts/qte_fx.gd").new()
+	fx_layer.add_child(_fx)
 
 
 func _input(event: InputEvent) -> void:
@@ -75,11 +83,16 @@ func press() -> void:
 	# 天气调用放在 has_method 后面：11-07 曾经出现 getup_qte.gd 是新版、level_forest.gd 是旧版（没有 qte_weather），
 	# 调用报错让 press() 中途退出，晨永远站不起来（QTE 卡死）。两个文件不同步时也只是没有天气变化，不会卡。
 	var has_weather: bool = level.has_method("qte_weather")
+	var key_rect := Rect2(_key.position.x, _key_y, _key.size.x, _key.size.y)
 	if count < PRESSES:
 		if has_weather:
 			level.qte_weather(_weather_k())
+		if is_instance_valid(_fx):
+			_fx.press(count, key_rect)
 	else:
 		rising = true
+		if is_instance_valid(_fx):
+			_fx.release(key_rect, level.chen.get_global_transform_with_canvas().origin)
 		if has_weather:
 			level.qte_weather(0.0, 1.4)
 		var kt := _key.create_tween()
@@ -135,6 +148,9 @@ func _update_key(delta: float) -> void:
 
 func cancel() -> void:
 	_finished = true
+	# 没释放就被跳过（调试跳节拍等）：特效和声音一起收掉；释放过的让它自己放完再收
+	if is_instance_valid(_fx) and not _fx._released:
+		_fx.get_parent().queue_free()
 	level.chen.spr.position = _sprite_home
 	level.cam.zoom = Vector2.ONE
 	level.cam.position = _home

@@ -59,15 +59,22 @@ var _t := 0.0
 var _tex_cache := {}
 
 
-## 用哪个文件夹的图：母兔、小兔子用兔子的图；小兔子有了自己的原尺寸图（art/characters/rabbit_kit/，11-07 请 elephant-sister 画）就用它
+## 用哪个文件夹的图：母兔、小兔子用兔子的图；小兔子有了自己的原尺寸图（art/characters/rabbit_kit/，11-07 请 elephant-sister 画）就用它；
+## 母兔有了自己的图（art/characters/rabbit_doe/，11-08 tools/rabbit_doe_art.py，蝴蝶结画在像素里）也用它
 static func art_for(id: String) -> String:
 	if id.begins_with("rabbit_kit_") and has_own_kit_art():
 		return "rabbit_kit"
+	if id == "rabbit_doe" and has_own_doe_art():
+		return "rabbit_doe"
 	return "rabbit" if id.begins_with("rabbit_") else id
 
 
 static func has_own_kit_art() -> bool:
 	return FileAccess.file_exists((DIR % "rabbit_kit") + "rabbit_kit.json")
+
+
+static func has_own_doe_art() -> bool:
+	return FileAccess.file_exists((DIR % "rabbit_doe") + "rabbit_doe.json")
 
 
 func setup(id: String) -> void:

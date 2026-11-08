@@ -355,11 +355,12 @@ func _build_rabbit(sl: Dictionary, done: bool) -> void:
 	if not done:
 		return
 	var doe := _npc(sl, "rabbit_doe", 284, -1)
-	var bow := Polygon2D.new()                      # 母兔的蝴蝶结：和 story_runner._generic 一样
-	bow.polygon = PackedVector2Array([Vector2(-6, -4), Vector2(0, -1), Vector2(6, -4), Vector2(6, 3), Vector2(0, 1), Vector2(-6, 3)])
-	bow.position = Vector2(1, -44)
-	bow.color = Color("#d88a9c")
-	doe.add_child(bow)
+	if not NPC_GD.has_own_doe_art():                # 母兔的蝴蝶结：和 story_runner._generic 一样（有自己的图时画在像素里了）
+		var bow := Polygon2D.new()
+		bow.polygon = PackedVector2Array([Vector2(-6, -4), Vector2(0, -1), Vector2(6, -4), Vector2(6, 3), Vector2(0, 1), Vector2(-6, 3)])
+		bow.position = Vector2(1, -44)
+		bow.color = Color("#d88a9c")
+		doe.add_child(bow)
 	var kits: Array = []
 	var at := [[150, 1], [178, 1], [206, 1], [318, -1], [346, -1], [380, -1]]
 	for i in at.size():

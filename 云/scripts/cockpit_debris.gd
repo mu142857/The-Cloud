@@ -65,6 +65,8 @@ extends Control
 ## 11-08 作者（「飞船需要进一步缩小，屏幕可以更早的显示障碍物，增加难度」「同时操作左右，维修和上下」「维修不需要任何剧情停顿」）：
 ##   FAR_K 0.65 → 0.55、FAR_X 0.73 → 0.8（碎石进画面到撞船头约 1.9 秒）、FAR_SLOW 0.9 → 1.0、PLAN 9 波 → 11 波；
 ##   剧本 "leaks"：躲的同时船舱里漏气，←→ 走、按住 E 修、↑↓ 照样躲（见 LEAK_* 上面的说明）。飞行一的漏气不再是躲完以后停下来的剧情段。
+##   二改（作者：「保持这个视角，但是飞机缩小」）：有 leaks 时不拉到船外，剖面整体缩到 VIEW_Z、挪到屏幕 VIEW_X（碎石提前量约 1.7 秒），
+##   晨本人走去窗 / 副驾驶座 / 工具箱修；远景（far）参数只剩终章在用。
 ## story_runner.gd 的 _cockpit_step 建它（挂在对话界面下，按键先到这里）：await play(runner, st)。
 
 signal done
@@ -150,18 +152,23 @@ const RUMBLE_PITCH := 0.28    # 轰鸣音高：船每偏一条道（× _shift）
 const HUM_SOFT := -8.0        # 安静航道里引擎声低多少 dB（相对 level.HUM_DB）
 const HUM_TENSE := 3.0        # 偏了一条道以上引擎声高多少 dB
 const DARK_NEAR := 0.3        # 离安全航道不到 0.3 × _shift 算「进了航道」
-## 边躲边修（11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」）：剧本 "leaks": [{"t", "x", "edge"}]
-##   t = 第几秒漏（按 sec / 40 缩放），x = 漏在船舱哪儿（0 = 机头那头 .. 1 = 船尾那头），edge = -1 船顶 / +1 船底。
-##   远景小船上剖开一条舱（_cab_*），里面一个小小的晨（←→ / A D 走）；漏的地方船壳上一闪一闪、往外喷白汽（风往船尾吹），嘶嘶声。
-##   晨走到漏点（LEAK_REACH 像素内）按住 E 约 LEAK_HOLD 秒 = 修好；修的时候晨站着不走，↑↓ 照样躲。
-##   没修的漏点：每个让船上下挪变慢 LEAK_DRAG（最慢 LEAK_MIN），嘶嘶声越来越响——不扣燃料、不会输。
-##   波次排完了还有漏没修：接着来零星的单块（和 repair_at 一样），修完才收尾；超时兜底直接算修好。
-##   只在远景里有（剖面里晨本人就在舱里，交给剧本原来的 hotspot）。
-const LEAK_REACH := 4.0
+## 边躲边修（11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」；二改：「保持这个视角，但是飞机缩小，
+##   窗外，副驾驶，和工具位置分别对应了三个要修的点」）：剧本 "leaks": [{"t": 秒, "at": 物件 / 标记名}]，t 按 sec / 40 缩放。
+##   有 leaks 就不拉到船外远景，而是**剖面整体缩小**（_zoom：镜头 zoom 到 VIEW_Z、船挪到屏幕 VIEW_X；cockpit.view_* →
+##   level_forest._update_camera），舱里、晨、物件都看得见；碎石、预告、碰撞按缩小后的船身轮廓（_scale_hull）算。
+##   晨本人（←→ / A D）自己走；漏点在那件东西上一闪一闪、冒白汽、嘶嘶响；走到它的标记 LEAK_REACH 像素内按住 E 约 LEAK_HOLD 秒 = 修好
+##   （修的时候晨播 repair、不走；↑↓ 照样躲）。没修的漏点每个让船上下挪变慢 LEAK_DRAG（最慢 LEAK_MIN）——不扣燃料、不会输。
+##   波次排完了还有漏没修：接着来零星的单块，修完才收尾；超时兜底直接算修好。
+const LEAK_REACH := 14.0      # 世界像素
 const LEAK_HOLD := 0.7
 const LEAK_DRAG := 0.35
 const LEAK_MIN := 0.4
-const WALK := 46.0            # 小晨每秒走多少像素（屏幕）
+const VIEW_Z := 0.6           # 剖面缩到几倍
+const VIEW_X := 0.78          # 缩小后船（图的中线）停在屏幕宽度的这个比例：左边留出看碎石的距离
+const VIEW_CY := 140.0        # 缩小后主船身中线的屏幕 y
+const VIEW_SHIFT := 48.0      # 缩小后船上下最多挪多少像素
+const VIEW_MOVE := 100.0
+const VIEW_SEC := 1.5         # 缩小 / 放回各多少秒
 const STEAM_C := Color(0.86, 0.9, 0.88)
 const CRACK_C := Color(1.0, 0.62, 0.3)
 const TXT := {
@@ -249,13 +256,14 @@ var _leak_plan: Array = []    # 还没漏的 {t, x, edge}
 var _leaks: Array = []        # 漏着 / 修好的 {x, y0, edge, prog, fixed, wrenched, age}
 var _leaks_fixed := 0
 var _steam: Array = []        # 白汽 {p, v, age}
-var _cabin: Node2D            # 船舱剖开那一条 + 小晨 + 漏点（画在 UI 层，船上面）
-var _cab_x0 := 0.0
-var _cab_x1 := 0.0
-var _mx := 0.0                # 小晨的 x（屏幕，船没挪时）
-var _m_face := -1.0
-var _m_walk := 0.0            # 走路动画计时（100ms 一帧）
-var _m_fixing := false
+var _leak_fx: Node2D          # 漏点 + 白汽 + 修理进度（画在 UI 层，船上面）
+var _fixing := false
+var _zoom := false            # 剖面缩小（不拉到船外）：晨看得见、自己走去修
+var _view_k := VIEW_Z
+var _view_u := 0.0
+var _view_go := 0.0
+var _view_p := Vector2(240, 135)
+var _view_t := Vector2(240, 135)
 var _hiss: AudioStreamPlayer
 var _leak_tip: Label
 var _extra_lane := -1
@@ -285,7 +293,19 @@ func play(r: Node, st: Dictionary) -> String:
 			k = float(a.trim_prefix("--far_scale="))
 		elif a.begins_with("--far_x="):
 			fx = float(a.trim_prefix("--far_x="))
-	_far = _repair_at == "" and k < 0.99 and cockpit.far_ready(k)
+	_zoom = _repair_at == "" and st.get("leaks") is Array
+	_far = not _zoom and _repair_at == "" and k < 0.99 and cockpit.far_ready(k)
+	if _zoom:
+		_zoom_sec = 0.8 if _auto and not real else VIEW_SEC
+		_view_k = clampf(float(st.get("view_scale", VIEW_Z)), 0.4, 1.0)
+		var h0: Dictionary = cockpit.hull()
+		_view_p = Vector2(cockpit.img_rect.get_center().x, (float(h0.get("T", 100)) + float(h0.get("B", 206))) / 2.0)
+		_ship_cx = roundf(clampf(float(st.get("view_x", VIEW_X)), 0.5, 0.85) * 480.0)
+		_view_t = Vector2(_ship_cx, VIEW_CY)
+		_view_go = 1.0
+		_shift = VIEW_SHIFT
+		_move = VIEW_MOVE
+		_rock_v = ROCK_V * (0.5 + 0.5 * _view_k) * FAR_SLOW
 	if _far:
 		_zoom_sec = 1.2 if _auto and not real else float(cockpit.FAR_SEC)
 		_ship_cx = roundf(clampf(fx, 0.5, 0.8) * 480.0)
@@ -306,11 +326,11 @@ func play(r: Node, st: Dictionary) -> String:
 		for p in ROCKS:
 			if ResourceLoader.exists(p):
 				_rock_tex.append(load(p))
-	_hull = cockpit.far_hull() if _far else cockpit.hull()
+	_hull = cockpit.far_hull() if _far else (_scale_hull(cockpit.hull()) if _zoom else cockpit.hull())
 	_air_qa = "--qa_live" in OS.get_cmdline_user_args()
 	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
 	_x1 = float(int(_hull.get("x0", 80)) + tops.size())
-	if _far:
+	if _far or _zoom:
 		_warn = WARN_OFF + (_nose() + 2.0) / _rock_v       # 碎石进画面以后飞多久到船头 + 进画面前的预告
 	# 波次：真实时长按 sec / 40 缩放；自动玩只播两波（第一波等拉远差不多了再来）
 	var final := str(st.get("plan", "")) == "final"
@@ -320,7 +340,7 @@ func play(r: Node, st: Dictionary) -> String:
 			_dark_wait = maxf(0.0, float(a.trim_prefix("--dark_wait=")))
 	if _auto and not real:
 		_dark_lead = maxf(DARK_LEAD_AUTO, _dark_wait + 1.5)
-		var t0 := 1.3 if _far else 0.8
+		var t0 := 1.3 if _far or _zoom else 0.8
 		for w in (PLAN_AUTO_DARK if final else PLAN_AUTO):
 			var e: Dictionary = (w as Dictionary).duplicate()
 			e["t"] = t0 + float(e["t"])
@@ -334,8 +354,8 @@ func play(r: Node, st: Dictionary) -> String:
 				e["k"] = "pair"
 			e["t"] = float(e["t"]) * sc
 			_plan.append(e)
-	# 边躲边修：只在远景里（自动玩：第一波一出就漏一处，近一点）
-	if _far and st.get("leaks") is Array:
+	# 边躲边修（自动玩：只漏一处，近一点）
+	if _zoom:
 		var sc2 := clampf(sec / 40.0, 0.75, 1.5)
 		for l in (st["leaks"] as Array):
 			var e: Dictionary = (l as Dictionary).duplicate()
@@ -355,6 +375,12 @@ func play(r: Node, st: Dictionary) -> String:
 	cockpit.steering = false
 	if _far and cockpit.far_u() > 0.0:
 		cockpit.far_snap(false)
+	if _zoom:
+		_view_reset()
+		runner.chen.input_enabled = false
+		runner.chen.auto_dir = 0.0
+		if _fixing:
+			runner._anim({"who": "chen", "name": "idle"})
 	if is_instance_valid(_fx):
 		_fx.queue_free()
 	for w in _waves:
@@ -404,8 +430,8 @@ func _build() -> void:
 	create_tween().tween_property(_hint, "modulate:a", 0.85, 0.6)
 	_play("flight_rumble", -14.0)
 	_air = _loop("airflow_loop", -60.0)
-	if not _leak_plan.is_empty():
-		_build_cabin()
+	if _zoom:
+		_build_leaks()
 	if _repair_at != "":
 		_hint.text = I18n.pick({"zh": "← → 在舱内移动     ↑ ↓ 驾驶飞船", "en": "← → Walk in the cabin     ↑ ↓ Steer the ship"})
 
@@ -446,44 +472,73 @@ func _repair() -> void:
 
 
 # ======================================================================= 边躲边修（见 LEAK_* 上面的说明）
-func _build_cabin() -> void:
-	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
-	var x0 := float(int(_hull.get("x0", 80)))
-	var first := -1
-	var last := -1
-	for i in tops.size():
-		if tops[i] >= 0:
-			if first < 0:
-				first = i
-			last = i
-	var w := float(last - first)
-	_cab_x0 = roundf(x0 + float(first) + w * 0.2)
-	_cab_x1 = roundf(x0 + float(first) + w * 0.8)
-	_mx = roundf(lerpf(_cab_x0, _cab_x1, 0.15))      # 晨从驾驶座（机头那头）出发
-	_cabin = Node2D.new()
-	_cabin.name = "LeakCabin"
-	_cabin.draw.connect(_draw_cabin)
-	add_child(_cabin)
+## 剖面缩小（_zoom）：每帧把 _view_u 往 _view_go 走，smootherstep 后给 cockpit.view_*（level_forest 的镜头照它缩放 / 平移）
+func _view_step(delta: float) -> void:
+	if not _zoom:
+		return
+	_view_u = move_toward(_view_u, _view_go, delta / maxf(0.01, _zoom_sec))
+	var p := _view_u
+	var e := p * p * p * (p * (p * 6.0 - 15.0) + 10.0)
+	cockpit.view_z = lerpf(1.0, _view_k, e)
+	cockpit.view_p = _view_p
+	cockpit.view_t = _view_p.lerp(_view_t, e)
+
+
+func _view_reset() -> void:
+	if not _zoom:
+		return
+	_view_u = 0.0
+	_view_go = 0.0
+	cockpit.view_z = 1.0
+	cockpit.view_t = cockpit.view_p
+	level.cam.zoom = Vector2.ONE
+
+
+## 剖面船轮廓（zoom 1 时的屏幕坐标）→ 缩小以后的屏幕坐标：s' = (s − P) × z + T
+func _scale_hull(h: Dictionary) -> Dictionary:
+	var z := _view_k
+	var tops: PackedInt32Array = h.get("top", PackedInt32Array())
+	var bots: PackedInt32Array = h.get("bot", PackedInt32Array())
+	var x0 := float(int(h.get("x0", 80)))
+	var nx0 := int(floorf((x0 - _view_p.x) * z + _view_t.x))
+	var n := int(ceilf(float(tops.size()) * z))
+	var nt := PackedInt32Array()
+	var nb := PackedInt32Array()
+	for j in n:
+		var sx := float(nx0 + j) + 0.5
+		var i := clampi(int(floorf((sx - _view_t.x) / z + _view_p.x - x0)), 0, tops.size() - 1)
+		if tops[i] < 0:
+			nt.append(-1)
+			nb.append(-1)
+		else:
+			nt.append(int(roundf((float(tops[i]) - _view_p.y) * z + _view_t.y)))
+			nb.append(int(roundf((float(bots[i]) - _view_p.y) * z + _view_t.y)))
+	return {"x0": nx0, "top": nt, "bot": nb,
+		"T": int(roundf((float(h.get("T", 100)) - _view_p.y) * z + _view_t.y)),
+		"B": int(roundf((float(h.get("B", 206)) - _view_p.y) * z + _view_t.y))}
+
+
+func _build_leaks() -> void:
+	_leak_fx = Node2D.new()
+	_leak_fx.name = "LeakFx"
+	_leak_fx.draw.connect(_draw_leaks)
+	add_child(_leak_fx)
 	_leak_tip = Label.new()
 	_leak_tip.text = _tx("leak_e")
-	_leak_tip.add_theme_font_size_override("font_size", 10)
+	_leak_tip.add_theme_font_size_override("font_size", 11)
+	_leak_tip.add_theme_stylebox_override("normal", UITheme.box(Color("#293332"), Color("#ddc08a"), 1, Vector4(3, 0, 3, 0)))
 	_leak_tip.add_theme_color_override("font_color", Color("#ddc08a"))
-	_leak_tip.add_theme_color_override("font_shadow_color", Color(0.0, 0.03, 0.02, 0.9))
-	_leak_tip.add_theme_constant_override("shadow_offset_y", 1)
 	_leak_tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_leak_tip.hide()
 	add_child(_leak_tip)
 	_hint.text = _tx("hint_leak")
 	_hiss = _loop("hiss_thin", -60.0)
+	runner.chen.input_enabled = not _auto
 
 
-## 船舱地板（屏幕 y，船没挪时）：那一列船身下沿往上一点
-func _floor_y(x: float) -> float:
-	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
-	var bots: PackedInt32Array = _hull.get("bot", PackedInt32Array())
-	var i := clampi(int(x) - int(_hull.get("x0", 80)), 0, bots.size() - 1)
-	var h := float(bots[i] - tops[i])
-	return float(bots[i]) - maxf(4.0, roundf(h * 0.18))
+## 世界坐标 → 屏幕（镜头缩放过）
+func _ws(p: Vector2) -> Vector2:
+	return (p - level.cam_left()) * level.cam.zoom.x
 
 
 ## 没修的漏点让船挪得慢
@@ -496,8 +551,9 @@ func _leak_drag() -> float:
 
 
 func _leak_step(delta: float) -> void:
-	if not is_instance_valid(_cabin):
+	if not is_instance_valid(_leak_fx):
 		return
+	var chen: Node2D = runner.chen
 	# 新漏点
 	var i := 0
 	while i < _leak_plan.size():
@@ -507,92 +563,77 @@ func _leak_step(delta: float) -> void:
 			_leak_open(e)
 		else:
 			i += 1
-	# 小晨：←→ / A D 走；在漏点上按住 E 修（修的时候不走）
+	# 晨（真人，←→ / A D 自己走）站在哪个漏点上；按住 E 修（修的时候不走），↑↓ 照样躲
 	var target: Dictionary = {}
 	for l in _leaks:
-		if not l["fixed"] and absf(float(l["x"]) - _mx) <= LEAK_REACH:
+		if not l["fixed"] and absf(float(l["wx"]) - chen.position.x) <= LEAK_REACH:
 			target = l
 			break
 	var want_fix := false
-	var wd := 0.0
 	if _auto:
-		var goal := _mx
+		var goal := NAN
 		for l in _leaks:
 			if not l["fixed"]:
-				goal = float(l["x"])
+				goal = float(l["wx"])
 				break
 		want_fix = not target.is_empty()
-		if not want_fix and absf(goal - _mx) > 0.5:
-			wd = signf(goal - _mx)
+		chen.auto_dir = 0.0 if want_fix or is_nan(goal) or absf(goal - chen.position.x) < 2.0 else signf(goal - chen.position.x)
 	else:
-		want_fix = Input.is_key_pressed(KEY_E) and not target.is_empty()
-		wd = Input.get_axis("ui_left", "ui_right")
-		if Input.is_key_pressed(KEY_A):
-			wd -= 1.0
-		if Input.is_key_pressed(KEY_D):
-			wd += 1.0
-		wd = clampf(wd, -1.0, 1.0)
-	_m_fixing = want_fix
+		want_fix = Input.is_key_pressed(KEY_E) and not target.is_empty() and not _ending
+	if want_fix != _fixing:
+		_fixing = want_fix
+		chen.input_enabled = not _fixing and not _auto
+		runner._anim({"who": "chen", "name": "repair" if _fixing else "idle"})
 	if want_fix:
 		if not target["wrenched"]:
 			target["wrenched"] = true
-			_play("wrench", -10.0, 1.0, _pan(float(target["x"])))
+			_play("wrench", -10.0, 1.0, _pan(_ws(target["p"]).x))
 		target["prog"] = float(target["prog"]) + delta / LEAK_HOLD
-		_m_face = signf(float(target["x"]) - _mx) if absf(float(target["x"]) - _mx) > 0.5 else _m_face
-		_m_walk += delta
 		if float(target["prog"]) >= 1.0:
 			_leak_fix(target)
 	else:
 		for l in _leaks:                              # 松手：进度慢慢退（别一松就清零）
 			if not l["fixed"]:
 				l["prog"] = maxf(0.0, float(l["prog"]) - delta * 0.5)
-		if wd != 0.0:
-			_mx = clampf(_mx + wd * WALK * delta, _cab_x0, _cab_x1)
-			_m_face = signf(wd)
-			_m_walk += delta
-			_hint_out_after_leak()
-		else:
-			_m_walk = 0.0
-	# 白汽：每个漏点往外喷（风往船尾吹）
+	# 白汽（世界坐标，往船尾那边飘）
 	var open := 0
 	for l in _leaks:
 		l["age"] = float(l["age"]) + delta
 		if l["fixed"]:
 			continue
 		open += 1
-		if _rng.randf() < delta * 26.0:
-			var e := float(l["edge"])
-			_steam.append({"p": Vector2(float(l["x"]), float(l["y0"])), "v": Vector2(_rng.randf_range(25.0, 70.0), e * _rng.randf_range(8.0, 26.0)),
-				"age": 0.0})
+		if _rng.randf() < delta * 40.0:
+			_steam.append({"p": (l["p"] as Vector2) + Vector2(_rng.randf_range(-2.0, 2.0), _rng.randf_range(-2.0, 2.0)),
+				"v": Vector2(_rng.randf_range(20.0, 60.0), _rng.randf_range(-30.0, -8.0)), "age": 0.0})
 	for j in range(_steam.size() - 1, -1, -1):
 		var s: Dictionary = _steam[j]
 		s["age"] = float(s["age"]) + delta
 		s["p"] = (s["p"] as Vector2) + (s["v"] as Vector2) * delta
-		if float(s["age"]) > 0.6:
+		if float(s["age"]) > 0.7:
 			_steam.remove_at(j)
 	if is_instance_valid(_hiss):
-		var want := -60.0 if open == 0 or _ending else -20.0 + 4.0 * float(open - 1)
+		var want := -60.0 if open == 0 or _ending else -18.0 + 3.0 * float(open - 1)
 		_hiss.volume_db = move_toward(_hiss.volume_db, want, 40.0 * delta)
-	# 「E」提示：站在漏点上才出
-	var sy := float(cockpit.ship_y())
-	var show_tip: bool = not target.is_empty() and not _ending and float(cockpit.far_u()) >= 1.0
+	# 「E」：站在漏点上才出，浮在晨头顶（进度条在它下面）
+	var show_tip: bool = not target.is_empty() and not _ending
 	_leak_tip.visible = show_tip
 	if show_tip:
-		_leak_tip.position = Vector2(roundf(float(target["x"]) - 3.0), roundf(_floor_y(_mx) + sy - 22.0))
-		_leak_tip.modulate.a = 1.0 if int(_t * 4.0) % 2 == 0 or _m_fixing else 0.55
-	_cabin.queue_redraw()
+		var hp: Vector2 = runner._anchor("chen")
+		_leak_tip.position = Vector2(roundf(hp.x - _leak_tip.size.x / 2.0), roundf(hp.y - 24.0))
+		_leak_tip.modulate.a = 1.0 if int(_t * 4.0) % 2 == 0 or _fixing else 0.6
+	_leak_fx.queue_redraw()
 
 
 func _leak_open(e: Dictionary) -> void:
-	var x := roundf(lerpf(_cab_x0, _cab_x1, clampf(float(e.get("x", 0.7)), 0.0, 1.0)))
-	var edge := -1.0 if int(e.get("edge", -1)) < 0 else 1.0
-	var tops: PackedInt32Array = _hull.get("top", PackedInt32Array())
-	var bots: PackedInt32Array = _hull.get("bot", PackedInt32Array())
-	var ci := clampi(int(x) - int(_hull.get("x0", 80)), 0, tops.size() - 1)
-	var y0 := float(tops[ci]) if edge < 0.0 else float(bots[ci])
-	_leaks.append({"x": x, "y0": y0, "edge": edge, "prog": 0.0, "fixed": false, "wrenched": false, "age": 0.0})
-	_play("hiss_thin", -8.0, 1.1, _pan(x))
-	_play("debris_bump", -14.0, 1.3, _pan(x))
+	var id := str(e.get("at", "cockpit_toolbox"))
+	var wx := float(runner.world.resolve(id).get("x", runner.chen.position.x))
+	var r: Rect2 = cockpit.prop_rect(id)
+	var p := Vector2(wx, float(runner.chen.position.y) - 30.0)
+	if r.size != Vector2.ZERO:
+		p = r.get_center() if id == "cockpit_window" else Vector2(r.get_center().x, r.position.y + r.size.y * 0.35)
+	_leaks.append({"id": id, "wx": wx, "p": p.round(), "prog": 0.0, "fixed": false, "wrenched": false, "age": 0.0})
+	_play("hiss_thin", -6.0, 1.1, _pan(_ws(p).x))
+	_play("debris_bump", -14.0, 1.3, _pan(_ws(p).x))
 	level._shake = 0.2
 	level._shake_amp = 1.0
 	if _leaks.size() == 1 and not _auto:            # 第一次漏：提示亮一下（4 秒后淡掉）
@@ -610,71 +651,38 @@ func _leak_fix(l: Dictionary) -> void:
 	l["prog"] = 1.0
 	l["age"] = 0.0
 	_leaks_fixed += 1
-	_play("wrench", -8.0, 1.15, _pan(float(l["x"])))
-	var g: Node2D = cockpit.far_glow if _far and cockpit.far_glow != null else cockpit.glow
-	if g != null:
-		g.strength = 0.6
+	_play("wrench", -8.0, 1.15, _pan(_ws(l["p"]).x))
+	if cockpit.glow != null:
+		cockpit.glow.strength = 0.6
 	if _auto:
-		print("LEAK fixed t=%.2f x=%d (%d/%d)" % [_t, int(l["x"]), _leaks_fixed, _leaks.size()])
+		print("LEAK fixed t=%.2f at=%s (%d/%d)" % [_t, str(l["id"]), _leaks_fixed, _leaks.size()])
 
 
-func _hint_out_after_leak() -> void:
-	if not _leaks.is_empty() and _t > 0.6:
-		_hint_out()
-
-
-## 舱剖开的一条（暗的、上下一像素亮边）+ 漏点（船壳上一闪一闪的橙点 + 白汽）+ 小晨（7 像素高，走路两帧 100ms）+ 修的进度
-func _draw_cabin() -> void:
-	if _ending or cockpit.far_u() < 1.0:
-		return
-	var sy := float(cockpit.ship_y())
-	var fy0 := _floor_y(_cab_x0)
-	var band := Rect2(_cab_x0 - 3.0, fy0 + sy - 10.0, _cab_x1 - _cab_x0 + 6.0, 11.0)
-	_cabin.draw_rect(band, Color(0.03, 0.06, 0.06, 0.62))
-	_cabin.draw_rect(Rect2(band.position, Vector2(band.size.x, 1)), Color(0.55, 0.7, 0.64, 0.35))
-	_cabin.draw_rect(Rect2(band.position + Vector2(0, band.size.y - 1.0), Vector2(band.size.x, 1)), Color(0.55, 0.7, 0.64, 0.5))
+## 漏点（一闪一闪的橙色裂口 + 白汽）、修好那一下的淡绿闪、晨头顶的修理进度（UI 层，按镜头缩放换算到屏幕）
+func _draw_leaks() -> void:
 	for l in _leaks:
-		var x := float(l["x"])
-		var y := float(l["y0"]) + sy
+		var sp := _ws(l["p"]).round()
 		if l["fixed"]:
-			if float(l["age"]) < 0.6:                 # 修好那一下：一圈淡绿闪掉
-				_cabin.draw_rect(Rect2(x - 2, y - 1, 5, 3), Color(AIR_C, 0.8 * (1.0 - float(l["age"]) / 0.6)))
+			if float(l["age"]) < 0.6:
+				var a := 0.8 * (1.0 - float(l["age"]) / 0.6)
+				_leak_fx.draw_rect(Rect2(sp - Vector2(3, 3), Vector2(7, 7)), Color(AIR_C, a), false)
 			continue
 		var on := int(_t * 5.0) % 2 == 0
-		_cabin.draw_rect(Rect2(x - 1, y - (1.0 if float(l["edge"]) < 0.0 else 0.0), 2, 2), Color(CRACK_C, 1.0 if on else 0.55))
-		# 舱里对应的位置：地板上一个小标（晨要走到这儿）
-		_cabin.draw_rect(Rect2(x - 1, _floor_y(x) + sy, 3, 1), Color(CRACK_C, 0.9 if on else 0.4))
+		var ring := 4.0 + floorf(fmod(float(l["age"]) * 3.0, 1.0) * 4.0) * 2.0      # 一圈往外扩的方框：远一点也看得见哪儿在漏
+		_leak_fx.draw_rect(Rect2(sp - Vector2(ring, ring), Vector2(ring, ring) * 2.0 + Vector2.ONE), Color(CRACK_C, 0.45 - ring * 0.03), false)
+		_leak_fx.draw_rect(Rect2(sp - Vector2(1, 1), Vector2(3, 3)), Color(CRACK_C, 1.0 if on else 0.6))
+		_leak_fx.draw_rect(Rect2(sp + Vector2(2, -2), Vector2(2, 1)), Color(CRACK_C, 0.8 if on else 0.35))
+		_leak_fx.draw_rect(Rect2(sp + Vector2(-3, 2), Vector2(2, 1)), Color(CRACK_C, 0.8 if on else 0.35))
 	for s in _steam:
-		var k := 1.0 - float(s["age"]) / 0.6
-		var p := (s["p"] as Vector2) + Vector2(0.0, sy)
-		var sz := 1.0 if float(s["age"]) < 0.25 else 2.0
-		_cabin.draw_rect(Rect2(p.round(), Vector2(sz, sz)), Color(STEAM_C, floorf(k * 4.0) / 4.0 * 0.7))
-	# 小晨（脚在地板上）
-	var fx := roundf(_mx)
-	var fy := _floor_y(_mx) + sy
-	var fr := int(_m_walk / 0.1) % 2
-	var coat := Color(0.86, 0.6, 0.38)
-	var skin := Color(0.95, 0.84, 0.7)
-	var hair := Color(0.22, 0.17, 0.15)
-	if _m_fixing:
-		_cabin.draw_rect(Rect2(fx - 1, fy - 3, 3, 3), coat)                       # 蹲着修
-		_cabin.draw_rect(Rect2(fx - 1, fy - 5, 2, 2), skin)
-		_cabin.draw_rect(Rect2(fx - 1 - (0.0 if _m_face > 0.0 else -1.0), fy - 6, 2, 1), hair)
-		_cabin.draw_rect(Rect2(fx + (2.0 if _m_face > 0.0 else -2.0), fy - 3 - float(fr), 1, 1), Color(0.75, 0.78, 0.8))   # 扳手一上一下
-	else:
-		_cabin.draw_rect(Rect2(fx - 1, fy - 2, 1, 2) if fr == 0 else Rect2(fx - 1, fy - 1, 1, 1), hair)   # 腿
-		_cabin.draw_rect(Rect2(fx + 1, fy - 2, 1, 2) if fr == 1 else Rect2(fx + 1, fy - 1, 1, 1), hair)
-		_cabin.draw_rect(Rect2(fx - 1, fy - 5, 3, 3), coat)
-		_cabin.draw_rect(Rect2(fx - 1, fy - 7, 2, 2) if _m_face < 0.0 else Rect2(fx, fy - 7, 2, 2), skin)
-		_cabin.draw_rect(Rect2(fx - 1 if _m_face > 0.0 else fx + 1, fy - 8, 2 if _m_face > 0.0 else 1, 1), hair)
-		_cabin.draw_rect(Rect2(fx + (1.0 if _m_face < 0.0 else -1.0), fy - 7, 1, 2), hair)
-	# 修的进度：头顶一道
+		var k := 1.0 - float(s["age"]) / 0.7
+		var sz := 1.0 if float(s["age"]) < 0.2 else 2.0
+		_leak_fx.draw_rect(Rect2(_ws(s["p"]).round(), Vector2(sz, sz)), Color(STEAM_C, floorf(k * 4.0) / 4.0 * 0.75))
 	for l in _leaks:
 		if not l["fixed"] and float(l["prog"]) > 0.0:
-			var px := float(l["x"]) - 4.0
-			var py := fy - 12.0
-			_cabin.draw_rect(Rect2(px, py, 9, 3), Color(0.03, 0.06, 0.06, 0.85))
-			_cabin.draw_rect(Rect2(px + 1, py + 1, roundf(7.0 * float(l["prog"])), 1), Color("#ddc08a"))
+			var hp: Vector2 = runner._anchor("chen")
+			var bp := Vector2(roundf(hp.x - 7.0), roundf(hp.y - 8.0))
+			_leak_fx.draw_rect(Rect2(bp, Vector2(15, 3)), Color(0.03, 0.06, 0.06, 0.85))
+			_leak_fx.draw_rect(Rect2(bp + Vector2(1, 1), Vector2(roundf(13.0 * float(l["prog"])), 1)), Color("#ddc08a"))
 
 
 static func _tx(k: String) -> String:
@@ -689,6 +697,7 @@ func _process(delta: float) -> void:
 		dev_skip()
 		return
 	_t += delta
+	_view_step(delta)
 	_repair_step()
 	_air_step(delta)
 	_dark_step(delta)
@@ -718,7 +727,7 @@ func _process(delta: float) -> void:
 		if _auto:
 			step = minf(step, absf(_auto_goal() - cockpit.ship_goal))
 		cockpit.ship_goal = clampf(cockpit.ship_goal + dir * step, -_shift, _shift)
-		if _t > 0.6 and not is_instance_valid(_cabin):  # 边躲边修的提示长一点（三样键都要看到），到 7 秒再淡
+		if _t > 0.6 and not _zoom:  # 边躲边修的提示长一点（三样键都要看到），到 7 秒再淡
 			_hint_out()
 	else:
 		_idle += delta
@@ -1312,6 +1321,7 @@ func dev_skip() -> void:
 		return
 	if _far:
 		cockpit.far_snap(false)
+	_view_reset()
 	cockpit.ship_goal = 0.0
 	_done()
 
@@ -1328,7 +1338,7 @@ func _finish() -> void:
 			l["fixed"] = true
 			_leaks_fixed += 1
 	_leak_plan.clear()
-	if not _far:
+	if not _far and not _zoom:
 		_done()
 		return
 	_ending = true
@@ -1344,8 +1354,12 @@ func _end_step(delta: float) -> void:
 	_fx.queue_redraw()
 	if not _back_in and _end_t >= (0.2 if _auto and not _real else END_WAIT):
 		_back_in = true
-		cockpit.far_in(_zoom_sec)
-	if _back_in and cockpit.far_u() <= 0.0:
+		if _zoom:
+			_view_go = 0.0
+		else:
+			cockpit.far_in(_zoom_sec)
+	if _back_in and (_view_u <= 0.0 if _zoom else cockpit.far_u() <= 0.0):
+		_view_reset()
 		_done()
 
 

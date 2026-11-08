@@ -1,0 +1,79 @@
+{
+ "_comment": "母兔原尺寸图：tools/rabbit_doe_art.py 生成（借 tools/rabbit_art.py 的画法），毛色比兔子首领浅暖一点，蝴蝶结画在前耳根上、跟着呼吸动。只有 idle，别的动作都退回 idle。画的是朝右，100ms 一帧。",
+ "frame": [
+  44,
+  52
+ ],
+ "sheet": "rabbit_doe.png",
+ "anchor": [
+  22,
+  50
+ ],
+ "faces": "right",
+ "ms": 100,
+ "tint": true,
+ "head": 46,
+ "speed": 30,
+ "color": "#f6ba9e",
+ "anims": {
+  "idle": {
+   "frames": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    2,
+    2,
+    0,
+    0,
+    0,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "loop": true
+  }
+ },
+ "alias": {
+  "talk": "idle",
+  "walk": "idle",
+  "nod": "idle",
+  "laugh": "idle",
+  "give": "idle",
+  "hand": "idle",
+  "point": "idle",
+  "shrug": "idle",
+  "bow": "idle",
+  "hop": "idle",
+  "dance_left": "idle",
+  "dance_up": "idle",
+  "dance_right": "idle",
+  "dance_down": "idle"
+ }
+}

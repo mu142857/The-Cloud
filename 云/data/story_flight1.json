@@ -333,34 +333,6 @@
 				"sec": 1.0
 			},
 			{
-				"do": "anim",
-				"who": "chen",
-				"name": "relax"
-			},
-			{
-				"do": "wait",
-				"sec": 1.5
-			},
-			{
-				"do": "anim",
-				"who": "chen",
-				"name": "pat_console"
-			},
-			{
-				"do": "sfx",
-				"name": "pat"
-			},
-			{
-				"do": "inner",
-				"zh": "这次不错。别刚夸完就出事。",
-				"en": "Not bad this time. Don't break the second I say that.",
-				"style": "fade",
-				"sec": 3.6,
-				"wait": true,
-				"added": true,
-				"_note": "11-07 作者：晨的独白要少，留下的打在屏幕上（原来是对话框）"
-			},
-			{
 				"do": "prop",
 				"id": "cockpit_window",
 				"state": "forest_below"
@@ -425,11 +397,11 @@
 				"fuel_per_bump": 1,
 				"fuel_max_loss": 5,
 				"leaks": [
-					{"t": 6.0, "x": 0.85, "edge": -1},
-					{"t": 15.5, "x": 0.3, "edge": 1},
-					{"t": 24.0, "x": 0.6, "edge": -1}
+					{"t": 6.0, "at": "cockpit_window"},
+					{"t": 15.5, "at": "cockpit_copilot"},
+					{"t": 24.0, "at": "cockpit_toolbox"}
 				],
-				"_note": "11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」——漏气改成躲碎石途中边躲边修（cockpit_debris.gd 的 leaks），修完直接接 flight1_leak_done，不再停下来找漏点"
+				"_note": "11-08 作者：「同时操作左右，维修和上下」「维修本身不需要任何的剧情停顿」——漏气改成躲碎石途中边躲边修（cockpit_debris.gd 的 leaks），修完直接接 flight1_leak_done，不再停下来找漏点。二改：「保持这个视角，但是飞机缩小，窗外，副驾驶，和工具位置分别对应了三个要修的点」——剖面整体缩小，晨本人走去窗、副驾驶座、工具箱修"
 			},
 			{
 				"do": "goto",

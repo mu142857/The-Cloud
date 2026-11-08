@@ -12,6 +12,9 @@ extends RefCounted
 ##     "reveal": true   打开是正面，停 0.9 秒自己翻到地图（追逐结束、「大象画的背面就是地图」那一下）；翻完照常能看、能翻、能收起
 ##     "sec": 2.5       不等玩家，这么多秒后自己收起（按键可以提前收）；第 8 步「全屏大象画 → 直接黑屏进闪回」用
 ##     "sets": [flag…]  收起时设上
+##     "out": "black"   收起时不淡掉露出场景，而是整屏（连纸）慢慢压到全黑（OUT_BLACK 秒），黑到底就把剧本的黑幕（runner._blackout_step，
+##                      BLACKOUT_LAYER 35）铺上再拿掉这一层，下一步（闪回 enter: lids）从黑里睁眼。11-08 作者：「查看大象的画以后，
+##                      应该有一个渐变过渡到黑的过程，然后黑屏直接睁眼效果到这个回忆杀区域」
 ## 进度：无（每次打开都从头看）。
 
 const ID := "paper_view"
@@ -22,6 +25,7 @@ const SCALE := 2.0
 const DIM := Color(0.02, 0.03, 0.04, 0.78)
 const FLIP_SEC := 0.36
 const REVEAL_WAIT := 0.9
+const OUT_BLACK := 1.6          # "out": "black"：看完画慢慢压到全黑要多久
 const LABEL_INK := Color8(40, 48, 104)
 ## 背面的地名：[中文, 英文, 中心 x, 上沿 y]，纸上坐标（和 tools/paper_map_art.py 的 LABELS 同步）
 const BACK_LABELS := [
@@ -54,6 +58,8 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	layer.add_child(v)
 	v.setup(st, auto_mode)
 	var side: String = await v.done
+	if v.out_black and not r.ff and r.has_method("_blackout_step"):
+		r._blackout_step(true)                   # 同一帧铺上剧本的黑幕（35，在这一层下面），拿掉这一层也不露出场景
 	layer.queue_free()
 	for f in st.get("sets", []):
 		StoryState.set_flag(str(f))
@@ -94,6 +100,7 @@ class View extends Control:
 	var _can_flip := true
 	var _busy := false
 	var _closing := false
+	var out_black := false
 
 	static func load_tex(p: String) -> Texture2D:
 		if ResourceLoader.exists(p):
@@ -115,6 +122,7 @@ class View extends Control:
 		_tex["front"] = load_tex(FRONT)
 		_tex["back"] = load_tex(BACK)
 		_side = "back" if str(st.get("side", "front")) == "back" else "front"
+		out_black = str(st.get("out", "")) == "black"
 		_can_flip = bool(st.get("flip", true)) and _tex["back"] != null
 		_paper = TextureRect.new()
 		_paper.texture = _tex[_side] if _tex[_side] != null else _tex["front"]
@@ -203,6 +211,19 @@ class View extends Control:
 		if _closing:
 			return
 		_closing = true
+		if out_black:                              # 连纸带场景慢慢压到全黑（缓进缓出），黑到底停一下
+			_hint.visible = false
+			var black := ColorRect.new()
+			black.color = Color(0.0, 0.0, 0.0, 0.0)
+			black.size = size
+			black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(black)
+			var tb := create_tween()
+			tb.tween_property(black, "color:a", 1.0, OUT_BLACK).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			tb.tween_interval(0.25)
+			await tb.finished
+			done.emit(_side)
+			return
 		var tw := create_tween()
 		tw.tween_property(self, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_SINE)
 		await tw.finished

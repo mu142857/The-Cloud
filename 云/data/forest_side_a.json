@@ -92,6 +92,14 @@
  ],
  "objectives": [
   {
+   "need": ["c1_need_wood"],
+   "not": ["sa_house_searched"],
+   "zh": "在弥洛的小屋里寻找其他可以燃烧的物品",
+   "en": "Search Milo's hut for anything else that might burn",
+   "added": true,
+   "_note": "11-08 作者：支线写得隐晦一点——树屋里收音机 / 路标 / 油灯，每点一件就多一条送还的支线（各自 need sa_has_*）"
+  },
+  {
    "need": [
     "c1_side_open"
    ],
@@ -104,7 +112,6 @@
   },
   {
    "need": [
-    "c1_side_open",
     "sa_has_radio"
    ],
    "not": [
@@ -116,7 +123,6 @@
   },
   {
    "need": [
-    "c1_side_open",
     "sa_has_sign"
    ],
    "not": [
@@ -128,7 +134,6 @@
   },
   {
    "need": [
-    "c1_side_open",
     "sa_has_lamp",
     "sa_got_sap"
    ],
@@ -141,7 +146,6 @@
   },
   {
    "need": [
-    "c1_side_open",
     "sa_has_lamp"
    ],
    "not": [
@@ -692,6 +696,13 @@
    {
     "do": "flag",
     "set": "sa_has_radio"
+   },
+   {
+    "do": "count",
+    "flags": ["sa_has_radio", "sa_has_sign", "sa_has_lamp"],
+    "set": "sa_house_searched",
+    "at_least": 3,
+    "_note": "11-08 作者：支线「在弥洛的小屋里寻找其他可以燃烧的物品」，三件都拿到算完成"
    }
   ],
   "sa_stall": [
@@ -987,6 +998,13 @@
    {
     "do": "flag",
     "set": "sa_has_sign"
+   },
+   {
+    "do": "count",
+    "flags": ["sa_has_radio", "sa_has_sign", "sa_has_lamp"],
+    "set": "sa_house_searched",
+    "at_least": 3,
+    "_note": "11-08 作者：支线「在弥洛的小屋里寻找其他可以燃烧的物品」，三件都拿到算完成"
    }
   ],
   "sa_sign": [
@@ -1246,6 +1264,13 @@
    {
     "do": "flag",
     "set": "sa_has_lamp"
+   },
+   {
+    "do": "count",
+    "flags": ["sa_has_radio", "sa_has_sign", "sa_has_lamp"],
+    "set": "sa_house_searched",
+    "at_least": 3,
+    "_note": "11-08 作者：支线「在弥洛的小屋里寻找其他可以燃烧的物品」，三件都拿到算完成"
    }
   ],
   "sa_house": [
