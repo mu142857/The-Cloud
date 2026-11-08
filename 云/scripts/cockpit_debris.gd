@@ -297,6 +297,13 @@ var _hit_drain := 0.0
 var _hit_sec := 3.0
 var _leak_drain := 0.0
 var _safe := 0.0
+## 11-08 作者「绿线应该是会一点一点降低的」「绿线降低到 0，就是到达目的地」：绿线从 safe 匀速降到 0，
+##   降到 0 的时刻 = 最后一波排好的时间 + ARRIVE_PAD（最后那排碎石过完）；降的过程中燃料低于它照样要回货舱；
+##   到 0 = 到了：燃料不再烧，等碎石过完就收尾（还没修的漏点算修好，不再拖）。添燃料时（_paused）_t 不走，线也停住。
+const ARRIVE_PAD := 5.0
+var _safe0 := 0.0
+var _arrive := 0.0
+var _arrived := false
 var _fuel_f := 0.0
 var _hit_t := 0.0
 var _paused := false
@@ -326,6 +333,7 @@ func play(r: Node, st: Dictionary) -> String:
 	_hit_sec = float(st.get("hit_sec", 3.0))
 	_leak_drain = float(st.get("leak_drain", 0.0))
 	_safe = float(st.get("safe", 0.0))
+	_safe0 = _safe if _fuel_mode else 0.0
 	_crash_scene = str(st.get("crash", ""))
 	_refuel_st = st.get("refuel", {}) if st.get("refuel", {}) is Dictionary else {}
 	_fuel_f = float(StoryState.fuel())
@@ -827,6 +835,18 @@ func _process(delta: float) -> void:
 	_leak_step(delta)
 	_fuel_tick(delta)
 	if _finished or _paused:
+		return
+	if _arrived and _plan.is_empty() and not busy:
+		_finish()                                    # 绿线到 0 = 到了：碎石过完就收尾，漏点不再拖（_finish 里算修好）
+		return
+	if _safe0 > 0.0 and not _arrived and _t <= sec * 1.5 + 10.0:
+		# 还没到（绿线没降到 0）：波次先排完了就零星来单块（上下轮着），没漏的漏点马上出来；到了才收尾
+		if _plan.is_empty() and not busy:
+			for l in _leak_plan:
+				l["t"] = _t
+			if _t + 1.4 < _arrive:
+				_extra_lane *= -1
+				_plan.append({"t": _t + 1.4, "k": "one", "lane": _extra_lane})
 		return
 	var leaks_left := not _leak_plan.is_empty() or _leaks_fixed < _leaks.size()
 	if leaks_left and _t <= sec * 1.5 + 10.0:
@@ -1450,6 +1470,24 @@ func _flash_once(a: float, sec: float) -> void:
 func _fuel_tick(delta: float) -> void:
 	if not _fuel_mode or _crashed or _ending:
 		return
+	if _safe0 > 0.0 and not _arrived:
+		if _arrive <= 0.0:
+			var last := 0.0
+			for e in _plan:
+				last = maxf(last, float(e["t"]))
+			_arrive = maxf(last + ARRIVE_PAD, 5.0)
+		_safe = _safe0 * maxf(0.0, 1.0 - _t / _arrive)
+		var si := str(int(ceilf(_safe)))
+		if si != str(StoryState.props.get("fuel_safe", "")):
+			StoryState.set_prop("fuel_safe", si)      # 燃料条上的绿线跟着往下走（fuel_bar.gd 每帧读）
+		if _safe <= 0.0:
+			_arrived = true
+			StoryState.set_prop("fuel_safe", "0")
+			print("COCKPIT arrived t=%.1f fuel=%d" % [_t, StoryState.fuel()])
+	if _arrived:
+		if _refuel_hint != null:
+			_refuel_hint.visible = false
+		return                                        # 到了：不再烧
 	_hit_t = maxf(0.0, _hit_t - delta)
 	var open := 0
 	for l in _leaks:

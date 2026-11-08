@@ -24,7 +24,7 @@ extends Control
 ##   （full 先看一眼第二件；加 --burn_pick_back 先按一次「再想想」再确认）。
 ## "until_at": n（11-08 飞行一货舱）：repeat 时燃料到 n 就停（until_fuel 是要到「需要的量」）。
 ## "go_at": n（11-08 作者：「按照 250 这个先来，只要燃烧超过了这个线，就可以继续了，具体就会有一个继续前行的按钮出现」）：
-##   repeat 时不自动停；标题下面一行写「燃料 当前 / n」，燃料到 n 以后右下角出「继续前行」（F / 点它），
+##   repeat 时不自动停；标题下面是一条燃料条（_draw_bar：选中那件会加多少一闪一闪、绿线 = n 下面标数字），燃料到 n 以后右下角出「继续前行」（F / 点它），
 ##   玩家可以接着烧，也可以按它走（play 返回 then）。没到 n 就烧光了 = 也只能走。
 ##   自动玩 / 跳节拍：到了 n 就走。
 ## story_runner.gd 的 _burn_pick 建它（挂在对话界面下，按键先到这里）：var scene = await play(runner, st)。
@@ -36,7 +36,11 @@ const EDGE := Color(0.5, 0.6, 0.55, 0.45)
 const DIM := Color(0.02, 0.04, 0.035, 0.62)       # 整屏压暗（不用纯黑）
 const NAME_C := Color("#dcc39a")
 const DESC_C := Color("#b9c9bf")
-const FLOAT_AT := Vector2(240, 78)                  # 飘的中心
+const FLOAT_AT := Vector2(240, 78)                  # 飘的中心（上面有燃料条时往下挪 BAR_PUSH）
+const FB := preload("res://scripts/fuel_bar.gd")     # 燃料条的颜色 / 火苗（烧东西界面里那条照它画）
+const BAR_W2 := 200.0                               # 界面里的燃料条宽度（屏幕上方那条的 84 加宽，看得出一件加多少）
+const BAR_Y := 34.0                                 # 轨道那一行的 y（标题下面）
+const BAR_PUSH := 8.0
 const FLOAT_SCALE := 4.0                            # 图标放大几倍（11×13 的熊 → 44×52）
 const NAME_Y := 118.0
 const DESC_Y := 136.0
@@ -53,8 +57,6 @@ const TXT := {
 	"power": ["Power %d", "动力 %d"],
 	"go": ["Move on", "继续前行"],
 	"go_key": ["   F move on", "   F 继续前行"],
-	"fuel_line": ["Fuel %d / %d", "燃料 %d / %d"],
-	"fuel_ok": ["Fuel %d / %d · you can move on", "燃料 %d / %d · 可以继续前行了"],
 }
 const GO_Y := 238.0                                 # 「继续前行」按钮（右下角，和按键提示一行）
 
@@ -86,7 +88,8 @@ var _auto_step := 0
 var _go_at := -1                 # go_at（没写 = -1）
 var _can_go := false             # 这一轮燃料已经到 go_at：出「继续前行」
 var _go_btn: Label
-var _fuel_lbl: Label
+var _bar: Control                # 燃料条（真烧的时候才有）
+var _float_at := FLOAT_AT
 
 
 func play(r: Node, step: Dictionary) -> String:
@@ -172,7 +175,8 @@ func _reset() -> void:
 	_auto_t = 0.0
 	_auto_step = 0
 	_go_btn = null
-	_fuel_lbl = null
+	_bar = null
+	_float_at = FLOAT_AT
 	_can_go = false
 
 
@@ -230,9 +234,18 @@ func _build() -> void:
 	_title.size = Vector2(480, 16)
 	_title.position = Vector2(0, 14)
 	add_child(_title)
+	if bool(st.get("burn", false)) and StoryState.fuel_on():
+		# 11-08 作者「与其说文字显示燃料和所需要的值，不如直接利用现有的燃料条和绿色条……每一个物品选择的时候，
+		# 都会直观的显示会增加这个燃料条增加多少，绿色条的位置用一个简单的数字指示」
+		_bar = Control.new()
+		_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_bar.size = Vector2(480, 64)
+		_bar.draw.connect(_draw_bar)
+		add_child(_bar)
+		_float_at = FLOAT_AT + Vector2(0, BAR_PUSH)     # 条下面的数字不压到飘着的那件
 	_float = Sprite2D.new()
 	_float.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_float.position = FLOAT_AT
+	_float.position = _float_at
 	add_child(_float)
 	_name = _label("", NAME_C)
 	_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -250,14 +263,6 @@ func _build() -> void:
 	_keys.position = Vector2(0, KEYS_Y)
 	_keys.modulate.a = 0.7
 	add_child(_keys)
-	if _go_at >= 0:
-		# 燃料离线还差多少（到了变暖色）
-		var f := StoryState.fuel()
-		_fuel_lbl = _label((_tx("fuel_ok") if _can_go else _tx("fuel_line")) % [f, _go_at], UITheme.WARM if _can_go else UITheme.TEXT_DIM)
-		_fuel_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_fuel_lbl.size = Vector2(480, 16)
-		_fuel_lbl.position = Vector2(0, 32)
-		add_child(_fuel_lbl)
 	if _can_go:
 		_go_btn = _label(_tx("go"), UITheme.TEXT)
 		_go_btn.add_theme_stylebox_override("normal", UITheme.box(Color(0.06, 0.1, 0.09, 0.85), UITheme.ACCENT, 1, Vector4(6, 1, 6, 1)))
@@ -347,7 +352,7 @@ func _process(delta: float) -> void:
 	# 闪回一里那张照片的动法（flashback.gd：PAPER_LEAD ± 18·sin(0.8t)、y 7·sin(2.3t) + 3·sin(5.1t)、rotation、scale.x 翻面）
 	if _mode != "busy":
 		_float_pop = maxf(0.0, _float_pop - delta * 4.0)
-		float_pose(_float, FLOAT_AT, FLOAT_SCALE, _t, _float_k, _float_pop)
+		float_pose(_float, _float_at, FLOAT_SCALE, _t, _float_k, _float_pop)
 	for c in _flash.keys():
 		_flash[c] = float(_flash[c]) - delta
 		if is_instance_valid(c):
@@ -355,6 +360,48 @@ func _process(delta: float) -> void:
 		if float(_flash[c]) <= 0.0:
 			_flash.erase(c)
 	_auto_tick(delta)
+	if is_instance_valid(_bar):
+		_bar.queue_redraw()
+
+
+## 界面里的燃料条（照屏幕上方 fuel_bar.gd 的画法：1 像素暗轨、3 像素琥珀色填充、没满的那段玫瑰色虚点，加宽到 BAR_W2）：
+##   选中的那件烧掉会加到哪：现在的填充后面接一段一闪一闪的亮色，头上一根短刻度；
+##   绿线 = go_at（到了才能继续前行），下面标一个数字；选中的那件烧完能过线，数字亮一档。没有 go_at 就不画绿线。
+func _draw_bar() -> void:
+	var need := maxf(1.0, float(StoryState.fuel_need()))
+	var have := float(StoryState.fuel())
+	var bx := roundf(240.0 - BAR_W2 / 2.0)
+	var by := BAR_Y
+	var fw := float(FB.FLAME.get_width())
+	_bar.draw_texture(FB.FLAME, Vector2(bx - fw - 4.0, by - 5.0))
+	_bar.draw_rect(Rect2(bx, by, BAR_W2, 1.0), FB.C_DIM)
+	var fill := roundf(BAR_W2 * clampf(have / need, 0.0, 1.0))
+	if fill > 0.0:
+		_bar.draw_rect(Rect2(bx, by - 1.0, fill, 3.0), FB.C_AMBER)
+	var add := 0.0
+	var reach := false
+	if _mode == "pick" or _mode == "ask":
+		if not items.is_empty():
+			add = float(runner.fuel_of(items[_sel]))
+			reach = _go_at >= 0 and have < float(_go_at) and have + add >= float(_go_at)
+	var to := roundf(BAR_W2 * clampf((have + add) / need, 0.0, 1.0))
+	if to > fill:
+		var on := int(_t * 4.0) % 2 == 0
+		_bar.draw_rect(Rect2(bx + fill, by - 1.0, to - fill, 3.0), Color("ffe0a8") if on else Color(FB.C_AMBER, 0.5))
+		_bar.draw_rect(Rect2(bx + to, by - 3.0, 1.0, 7.0), FB.C_FULL)
+	var xx := bx + maxf(fill, to) + 1.0
+	while xx < bx + BAR_W2:
+		_bar.draw_rect(Rect2(xx, by, 1.0, 1.0), FB.C_SHORT)
+		xx += 2.0
+	if _go_at >= 0:
+		var gx := bx + roundf(BAR_W2 * clampf(float(_go_at) / need, 0.0, 1.0))
+		var ok := have >= float(_go_at)
+		_bar.draw_rect(Rect2(gx, by - 4.0, 1.0, 9.0), FB.C_SAFE)
+		var f := UITheme.font()
+		var tx := str(_go_at)
+		var tw := f.get_string_size(tx, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		var c: Color = FB.C_FULL if (ok or reach) else FB.C_SAFE
+		_bar.draw_string(f, Vector2(roundf(gx - tw / 2.0), by + 17.0), tx, HORIZONTAL_ALIGNMENT_LEFT, -1, 14, c)
 
 
 ## 一排格子居中摆在下面；放不下（> CAP）就只摆 CAP 格、跟着选中的滚
@@ -476,14 +523,14 @@ func _confirm() -> void:
 		_flash[_ask] = 0.2
 	await get_tree().create_timer(0.3, false).timeout
 	var tw := create_tween().set_parallel(true)
-	for c in [_dim, _title, _name, _desc, _keys, _ask, _fuel_lbl, _go_btn] + _slots + _more:
+	for c in [_dim, _title, _name, _desc, _keys, _ask, _bar, _go_btn] + _slots + _more:
 		if is_instance_valid(c):
 			tw.tween_property(c, "modulate:a", 0.0, 0.3)
 	# 不再翻：从现在的样子平平地收回正面
 	var tw2 := create_tween().set_parallel(true)
 	tw2.tween_property(_float, "rotation", 0.0, 0.25)
 	tw2.tween_property(_float, "scale", Vector2(FLOAT_SCALE, FLOAT_SCALE), 0.25)
-	tw2.tween_property(_float, "position", FLOAT_AT, 0.25)
+	tw2.tween_property(_float, "position", _float_at, 0.25)
 	await tw2.finished
 	var to := str(st.get("to", ""))
 	var target := Vector2(NAN, NAN)
@@ -534,7 +581,7 @@ func _burn_away() -> void:
 	_sound("fire_flare", -8.0, 1.0)
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(_float, "modulate", Color(1.7, 1.15, 0.6, 1.0), 0.35)
-	tw.tween_property(_float, "position:y", FLOAT_AT.y - 6.0, 0.9).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(_float, "position:y", _float_at.y - 6.0, 0.9).set_trans(Tween.TRANS_SINE)
 	tw.chain().tween_property(_float, "modulate:a", 0.0, 0.5)
 	var sz := _float.texture.get_size() * FLOAT_SCALE
 	var rng := RandomNumberGenerator.new()
@@ -544,7 +591,7 @@ func _burn_away() -> void:
 		e.size = Vector2(2, 2) if i % 3 == 0 else Vector2(1, 1)
 		e.color = UITheme.WARM if i % 2 == 0 else Color("#f0a058")
 		e.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var p0 := FLOAT_AT + Vector2(rng.randf_range(-0.4, 0.4) * sz.x, rng.randf_range(-0.3, 0.5) * sz.y)
+		var p0 := _float_at + Vector2(rng.randf_range(-0.4, 0.4) * sz.x, rng.randf_range(-0.3, 0.5) * sz.y)
 		e.position = p0.round()
 		e.modulate.a = 0.0
 		add_child(e)
@@ -604,7 +651,7 @@ func _input(event: InputEvent) -> void:
 			elif i >= 0:
 				_set_sel(i)
 				_open_ask()
-			elif Rect2(FLOAT_AT - Vector2(30, 34), Vector2(60, 68)).has_point(event.position):
+			elif Rect2(_float_at - Vector2(30, 34), Vector2(60, 68)).has_point(event.position):
 				_open_ask()                      # 点飘着的那件也行
 		elif i >= 0:
 			_press_btn(i)
