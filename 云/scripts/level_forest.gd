@@ -55,7 +55,7 @@ extends Node2D
 ##                      换地方的交互照常（E / 点击：进出屋、上下楼、市集 / 旧街 / 仓库 / 南桥，走到边上的出口），不看剧情 flag。
 ##                      拍截图也可以直接给房间名（treehouse / cockpit / river_home / market / oldstreet / warehouse / southbridge），
 ##                      和 --chen_x=x|left|mid|right、--shot= 一起用（面板不开；要开加 --dev）
-##   --free_check [--free_shots=目录]  （和 --free=forest|river 一起）自测：按进出口把这一章走一遍（河岸 → 妮芙家 → 上楼 → 下楼 → 出门 →
+##   --free_check [--free_shots=目录]  （和 --free=forest|river 一起）自测：按进出口把这一章走一遍（河岸 → 泥芙家 → 上楼 → 下楼 → 出门 →
 ##                      市集 → 旧街 → 仓库 → 回旧街 → 南桥 → 回旧街；森林 → 树屋段 → 树屋 → 出来 → 回旧路），每一步打印 FREE_TOUR，
 ##                      一路有没有对话 / 点选 / 目标 / 剧情 hotspot 出来过；给了目录就每一步存一张图。打印 FREE_CHECK 后退出
 ##                      --free_tour=market,river_bank 只走这几步（房间名 / up / down / edge:left|right）；
@@ -3696,7 +3696,7 @@ func _update_camera(delta: float) -> void:
 		cam.offset = Vector2.ZERO
 
 
-## 多房间章节（河岸、妮芙家、市集、旧街、仓库、南桥……）里，森林的角色和林子里的动物一律不出现、不跑：
+## 多房间章节（河岸、泥芙家、市集、旧街、仓库、南桥……）里，森林的角色和林子里的动物一律不出现、不跑：
 ## 鹿、弥洛、外星人同伴藏起来停掉；ForestShadows（林子深处的鹿 / 驼鹿 / 狐狸剪影）停掉，连它开场搬出去的 Deep 层
 ## （驼鹿那层，forest_shadows.tscn 的 deep_before 把它挪到 level 底下，_start_chapter 藏 ForestShadows 藏不到它）。
 ## 10-30 作者：旧街水里、仓库柜子上站着一只第一章的「鹿」，其实是 Deep 层的驼鹿剪影。不靠 story_runner，每帧都管。
@@ -3770,7 +3770,7 @@ var _cam_hold := 0.0
 var _cam_bar_dy := 0.0                     # 剧情黑边放下来时镜头往下挪的那一点（_bar_cam_dy）
 
 
-## 剧情黑边放下来的时候（10-31 作者：旧街挂钩那里镜头把晨和妮芙压在画面最底边）：地面低的地方（旧街右半段地面在 236）
+## 剧情黑边放下来的时候（10-31 作者：旧街挂钩那里镜头把晨和泥芙压在画面最底边）：地面低的地方（旧街右半段地面在 236）
 ## 脚贴着下面那条黑边。镜头跟着黑边往下挪，最多一条黑边高（BAR_H），让脚落回 BAR_FEET_Y 上下；挪出房间的那一截
 ## 正好被下面的黑边盖住。挪多少跟着黑边放下 / 收起的进度走，收起来的同时回原位，房间外面一直露不出来。
 const BAR_FEET_Y := 212.0
@@ -5435,7 +5435,7 @@ func _free_tick() -> void:
 			(n as CanvasItem).visible = false
 
 
-## 场景里的人：剧本的角色（鹿、弥洛、妮芙、阿汀……）+ 房间 walkers 路人（+ 森林的外星人同伴）
+## 场景里的人：剧本的角色（鹿、弥洛、泥芙、阿汀……）+ 房间 walkers 路人（+ 森林的外星人同伴）
 func free_people() -> Array:
 	var out: Array = []
 	for n in [story.deer, story.miluo, alien]:

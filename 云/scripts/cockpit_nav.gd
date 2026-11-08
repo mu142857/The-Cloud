@@ -160,7 +160,7 @@ func _build() -> void:
 			l.position = Vector2(10, y)
 			_card.add_child(l)
 			_rows.append(l)
-			w = maxf(w, _tw("▸ " + _opt_label(i)) + 20.0)
+			w = maxf(w, _tw(UITheme.MARK + " " + _opt_label(i)) + 20.0)
 			y += 18.0
 		y += 2.0
 	for i in opts.size():
@@ -196,7 +196,7 @@ func _confirm_text(i: int) -> String:
 func _style() -> void:
 	for i in _rows.size():
 		var on := i == _sel
-		_rows[i].text = ("▸ " if on else "  ") + _opt_label(i)
+		_rows[i].text = (UITheme.MARK + " " if on else UITheme.MARK_OFF + " ") + _opt_label(i)
 		_rows[i].add_theme_color_override("font_color", UITheme.TEXT if on and _short(i) <= 0 else UITheme.TEXT_DIM)
 		_rows[i].modulate.a = (1.0 if _mode == "pick" or on else 0.45) * (0.55 if _short(i) > 0 else 1.0)
 	if _name != null:
@@ -206,7 +206,7 @@ func _style() -> void:
 	for i in _btns.size():
 		var on := i == _btn_sel
 		var l := _btns[i]
-		l.text = ("▸ " if on else "  ") + str(l.get_meta("text"))
+		l.text = (UITheme.MARK + " " if on else UITheme.MARK_OFF + " ") + str(l.get_meta("text"))
 		l.add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
 
 
@@ -344,7 +344,7 @@ func _choose() -> void:
 		l.position = Vector2(x, _prompt.position.y + 18.0)
 		_card.add_child(l)
 		_btns.append(l)
-		x += _tw("▸ " + s) + 18.0
+		x += _tw(UITheme.MARK + " " + s) + 18.0
 	_btn_sel = 1                       # 光标先停在「再想想」：手快连按两下不会直接定下结局
 	_style()
 

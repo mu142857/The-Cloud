@@ -3,7 +3,7 @@ extends RefCounted
 ##   forest   木星森林：开场 → 坠毁 → 修船 → 起飞（data/story_forest.json）。剧本 end_chapter：照旧播起飞，黑屏以后接 flight1。
 ##   flight1  第一次飞行，驾驶舱（data/story_flight1.json，入口 start_flight1）。end_chapter：往前一冲（cockpit_dash）、淡到黑、
 ##            「第一章结束」淡出后留三秒黑场，再出「第二章开始」，淡入 river。
-##   river    河流篇「妮芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
+##   river    河流篇「泥芙的三分钟」（data/story_river.json，入口 start_river，房间 river_bank；多房间，见 docs/river_rooms_contract.md）。
 ##            end_chapter：驾驶舱里写完日记，「第二章 完」卡，接 final。
 ##   final    终章「还剩下什么 · 四个结局 · 尾声」（data/story_final.json，入口 start_final，从驾驶舱开始；多房间，计划见 docs/第三章计划.md）。
 ##            end_chapter（母星尾声最后）：没有下一章，last_card = 出「全剧终」卡，3 秒以后按任意键回标题（新游戏）。
@@ -39,7 +39,7 @@ const CHAPTERS := {
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "saw_rock", "musicbox_fixed",
 			"sa_sign_done", "sa_radio_done",   # 11-05：尾声鹿 / 弥洛按新第一关「送回路标 / 收音机」支线分支（旧版的 returned_all / returned_any 新版不设了）
 			"river_cup_traced",             # 11-02 河流篇来客册改成可选：epi_miluo 按它分支
-			"river_n_courier",   # 河流篇开头怎么回妮芙：终章她的消息按这个称呼晨
+			"river_n_courier",   # 河流篇开头怎么回泥芙：终章她的消息按这个称呼晨
 			"river_seal_cabinet", "river_seal_market", "river_jelly_given"]   # 11-07 终章真结局：密封圈从绿柜子 / 市集来、给没给水母东西
 			+ BARTER_FOREST + BARTER_RIVER + C1_FLAGS,
 		"items_extra": ["res://data/items_later.json", "res://data/items_final.json"], "last_card": true},

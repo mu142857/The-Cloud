@@ -1,9 +1,9 @@
 extends "res://scripts/river_kit.gd"
 ## 河流篇小游戏 river_thread：修飞机，把管道接头拧回去（11-04 新做）。docs/剧情改动/第二章可玩性_设计.md 第 8 步。
 ##
-## 画面：一截管子，中间一只六角接头。管子上印着一个箭头「↻ 拧紧」（往右）。妮芙在接头旁边贴了一张便条：「反方向」。
+## 画面：一截管子，中间一只六角接头。管子上印着一个箭头「↻ 拧紧」（往右）。泥芙在接头旁边贴了一张便条：「反方向」。
 ## 怎么玩：按住 ←/→（或按住鼠标左 / 右半边）拧接头。往右（照印着的箭头）= 接头往外退、管子嘶嘶冒气；往左 = 拧进去。
-##   拧进去 TURNS 圈 =「咔」，做完。第一次往右拧松了：播 lines.wrong（妮芙：「反方向呀，本子上写着呢。」）。
+##   拧进去 TURNS 圈 =「咔」，做完。第一次往右拧松了：播 lines.wrong（泥芙：「反方向呀，本子上写着呢。」）。
 ## 放水：往右拧松到底 FAILS_GIVE 次（接头掉下来又被晨按回去），或第 ENTER_GIVE 次进：接头自己拧进去。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "river_thread", "sets"?, "turns"?, "note": {zh, en}（便条上的字）, "arrow": {zh, en}（印着的箭头字）,
@@ -147,7 +147,7 @@ func _draw_board(b: Control) -> void:
 	_line(b, Vector2(134, 50), Vector2(176, 50), PAPER_DIM, 1.0)
 	_line(b, Vector2(172, 47), Vector2(176, 50), PAPER_DIM, 1.0)
 	_line(b, Vector2(172, 53), Vector2(176, 50), PAPER_DIM, 1.0)
-	# 妮芙的便条（贴在接头左边，一角翘着）
+	# 泥芙的便条（贴在接头左边，一角翘着）
 	var nr := Rect2(30, 96, 76, 22)
 	b.draw_rect(nr, Color("#e9e0a8"))
 	b.draw_rect(Rect2(nr.position + Vector2(nr.size.x - 5, 0), Vector2(5, 3)), Color("#c9c08a"))
@@ -166,7 +166,7 @@ func _draw_board(b: Control) -> void:
 
 
 # ----------------------------------------------------------------------- 夜测机器人（--mech_play）
-## 先照印着的箭头往右拧（拧松、妮芙「反方向呀」），再往左拧进去
+## 先照印着的箭头往右拧（拧松、泥芙「反方向呀」），再往左拧进去
 func _bot_play() -> void:
 	await _bot_ready()
 	await _bot_wait(0.8)

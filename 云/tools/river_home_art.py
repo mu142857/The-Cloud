@@ -1,4 +1,4 @@
-"""河流篇：妮芙家（剖面小屋）+ 屋里会换状态的物件 + 特写大图。以后改这些图只改这一个文件。
+"""河流篇：泥芙家（剖面小屋）+ 屋里会换状态的物件 + 特写大图。以后改这些图只改这一个文件。
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/river_home_art.py [--preview 目录]
 
@@ -1134,7 +1134,7 @@ NOTEBOOK_PAGES = ["page1", "page1_circled", "tea_arrow", "circle_not_eaten", "cr
                   "record_behind_photo"]
 
 
-# ---- 妮芙的小本子（桌上那本，原文 81：翻得很软）：合着 / 摊开；8 页的字在特写里
+# ---- 泥芙的小本子（桌上那本，原文 81：翻得很软）：合着 / 摊开；8 页的字在特写里
 NB_X = T_X0 + 47
 NB_W, NB_H = 12, 5
 
@@ -1228,7 +1228,7 @@ def guestbook_frames():
     return frames, states
 
 
-# ---- 晨坐的椅子：原来靠在柜子边上 → 妮芙搬到窗边通风的地方（原文 92）
+# ---- 晨坐的椅子：原来靠在柜子边上 → 泥芙搬到窗边通风的地方（原文 92）
 CH_X0 = WIN_RECT[0] + 2
 CH_X1 = CAB_X0 - 1
 CH_W, CH_H = CH_X1 - CH_X0 + 1, 30
@@ -1850,7 +1850,7 @@ C_PAPER = col(0.86, 0.022, 90)
 C_PAPER_D = col(0.78, 0.024, 85)
 C_PAPER_E = col(0.70, 0.026, 80)
 C_RULE = col(0.80, 0.02, 230)
-C_INK = col(0.34, 0.05, 255)           # 妮芙的笔：深灰蓝
+C_INK = col(0.34, 0.05, 255)           # 泥芙的笔：深灰蓝
 C_RED = col(0.52, 0.11, 25)            # 红铅笔：圈、星星、划线
 C_PENCIL = col(0.50, 0.012, 260)       # 晨的铅笔
 CLOSEUP_ADDED = []                     # (图名, 行) 原文没写、补的字
@@ -1987,9 +1987,9 @@ def tr(zh, en):
     return {"zh": zh, "en": en}
 
 
-# ---- 妮芙的本子：8 页（剧本 niff_notebook 的 8 个状态）。一页 200×150，左边订口，横格。
+# ---- 泥芙的本子：8 页（剧本 niff_notebook 的 8 个状态）。一页 200×150，左边订口，横格。
 NB_PAGE = (200, 186)
-L_P1 = tr("你叫妮芙。这是你的家。", "You are Niff. This is your home.")
+L_P1 = tr("你叫泥芙。这是你的家。", "You are Niff. This is your home.")
 L_P2 = tr("先看桌上的本子，再出门。", "Read the notebook on the table before you go out.")
 L_P3 = tr("锅里有东西的时候，不要离开厨房。", "Don't leave the kitchen when something's on the stove.")
 L_CHEN = tr("晨。", "Chen.")
@@ -2309,7 +2309,7 @@ def sluice_log(lang):
     y = 94
     for k in range(4):                                         # 接连签着她的名字，几次的时间挨得很近（原文 114）
         a[y + k * 12 + 8, 12:52, :3] = col(0.50, 0.03, 250)
-        put_text(a, 80, y + k * 12, T(tr("开　　妮芙", "Open   Niff")), C_INK)
+        put_text(a, 80, y + k * 12, T(tr("开　　泥芙", "Open   Niff")), C_INK)
     return a
 
 
@@ -2484,7 +2484,7 @@ def chen_drawing():
     poly([(172, 82), (172, 66), (176, 60), (180, 66), (180, 82)])            # 阿汀（画得年轻了一点）
     a[56:60, 175:178, :3] = pen
     poly([(173, 68), (179, 68), (179, 80), (173, 80)])          # 围裙
-    a[73:76, 175:178, :3] = col(0.56, 0.02, 80)                 # 补丁（妮芙提醒才添上的）
+    a[73:76, 175:178, :3] = col(0.56, 0.02, 80)                 # 补丁（泥芙提醒才添上的）
     put_text(a, 24, 108, "晨", pen)                             # 签名（写大一点）
     poly([(52, 118), (52, 108), (60, 104), (70, 106), (72, 114), (66, 118)])  # 小象
     poly([(70, 110), (76, 116), (78, 122)])                     # 鼻子（又添了一笔，像水壶）
@@ -2559,7 +2559,7 @@ def build():
     save("home_front", front())
     save("home_light", light_layer())
     meta = {
-        "_comment": "妮芙家（剖面小屋）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。"
+        "_comment": "泥芙家（剖面小屋）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。"
                     "tools/river_home_art.py 生成，别手改。地板下面泡在水里的旧一层（旧门、旧门牌）是会话 C 画在河岸栈道下面的。",
         "kind": "house",
         "host": "river_bank",
@@ -2669,7 +2669,7 @@ def _frames_of(v):
 
 
 def room_image(states=None, chen_at=None, niff_at=None, front_alpha=0.0):
-    """按给的状态把屋子拼起来（states: {prop: 状态名}），可选摆一个晨（idle 第一帧）和妮芙的占位色块。"""
+    """按给的状态把屋子拼起来（states: {prop: 状态名}），可选摆一个晨（idle 第一帧）和泥芙的占位色块。"""
     meta = json.loads((OUT / "room.json").read_text())
     im = Image.new("RGBA", (W, H), (24, 30, 36, 255))
     im.alpha_composite(Image.open(OUT / meta["back"]))
@@ -2719,7 +2719,7 @@ def preview(out_dir: Path):
     out_dir.mkdir(parents=True, exist_ok=True)
     meta = json.loads((OUT / "room.json").read_text())
     font = ImageFont.truetype(str(FONT), 11)
-    # 1) 屋子：默认 + 晨 + 妮芙占位；前墙盖上
+    # 1) 屋子：默认 + 晨 + 泥芙占位；前墙盖上
     full = Image.new("RGBA", (W, H * 2 + 8), (24, 30, 36, 255))
     full.alpha_composite(room_image(chen_at="river_home_chen", niff_at="river_home_niff"), (0, 0))
     full.alpha_composite(room_image(front_alpha=1.0), (0, H + 8))

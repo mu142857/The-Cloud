@@ -1,5 +1,5 @@
 {
-	"_comment": "最终航行「还剩下什么」+ 三个去处 + 人物短尾声（剧情姐合订稿 in1030/yun1.txt 第 153–240 行）。入口 start_final。11-07 作者：通讯器/手机全删（妮芙消息、结局一发消息、各处拿出通讯器看聊天记录都没了；想朋友的话还在，闪回四的字也在）。燃料界面（todo_mechanic final_flight）选中一件纪念品时播 look_<id>，确认转化后播 burn_<id>（设 burned_<id>）。11-07 结局重构：一次 pick（final_nav，ui action）三个去处——西侧旧货场的芦苇地（真结局 ending1，燃料要 760：全收集、全炸、全烧，灰掉时写还差多少）、居民区=云层小镇（ending3，停在小镇，全剧终）、掉头回母星（ending_home，直接接列车 epi_home，全剧终）；结局二、四删了。燃料柜 final_paper 一次就能烧完（min 300 能收起，fuel_need 760）。设 final_ending_1 / final_ending_3 / final_ending_home；结局里的动作和尾声按 burned_* / final_seed_planted / 森林 returned_all、returned_any、saw_rock 分支。if / goto 是跳转（不返回）。带 added 的是补写。终章引擎（10-31）：结局一、二都在芦苇地 reed_field（yard_* 在西半边、east_* 在东半边，写的是房间 x，美术定了再挪）；尾声森林的 forest_* 是森林的世界 x（树屋那一段），treehouse_* / forest_treehouse 写成第一章 marker 的名字（别名）；rooms 里的 river_bank 只为妮芙家这间小屋有地方放（小屋的 host）。两次 pick 带 ui（cockpit_nav.gd：二次确认、导航屏三个点）。",
+	"_comment": "最终航行「还剩下什么」+ 三个去处 + 人物短尾声（剧情姐合订稿 in1030/yun1.txt 第 153–240 行）。入口 start_final。11-07 作者：通讯器/手机全删（泥芙消息、结局一发消息、各处拿出通讯器看聊天记录都没了；想朋友的话还在，闪回四的字也在）。燃料界面（todo_mechanic final_flight）选中一件纪念品时播 look_<id>，确认转化后播 burn_<id>（设 burned_<id>）。11-07 结局重构：一次 pick（final_nav，ui action）三个去处——西侧旧货场的芦苇地（真结局 ending1，燃料要 760：全收集、全炸、全烧，灰掉时写还差多少）、居民区=云层小镇（ending3，停在小镇，全剧终）、掉头回母星（ending_home，直接接列车 epi_home，全剧终）；结局二、四删了。燃料柜 final_paper 一次就能烧完（min 300 能收起，fuel_need 760）。设 final_ending_1 / final_ending_3 / final_ending_home；结局里的动作和尾声按 burned_* / final_seed_planted / 森林 returned_all、returned_any、saw_rock 分支。if / goto 是跳转（不返回）。带 added 的是补写。终章引擎（10-31）：结局一、二都在芦苇地 reed_field（yard_* 在西半边、east_* 在东半边，写的是房间 x，美术定了再挪）；尾声森林的 forest_* 是森林的世界 x（树屋那一段），treehouse_* / forest_treehouse 写成第一章 marker 的名字（别名）；rooms 里的 river_bank 只为泥芙家这间小屋有地方放（小屋的 host）。两次 pick 带 ui（cockpit_nav.gd：二次确认、导航屏三个点）。",
 	"speakers": {
 		"chen": {"zh": "晨", "en": "Light"},
 		"elephant": {"zh": "大象", "en": "Elephant"},
@@ -10,7 +10,7 @@
 		"broadcast": {"zh": "城市广播", "en": "City broadcast"},
 		"deer": {"zh": "鹿", "en": "Deer"},
 		"miluo": {"zh": "弥洛", "en": "Milo"},
-		"niff": {"zh": "妮芙", "en": "Niff"}
+		"niff": {"zh": "泥芙", "en": "Niff"}
 	},
 	"markers": {
 		"cockpit_bell": 0,
@@ -70,7 +70,7 @@
 	"rooms": ["cockpit", "reed_field", "town", "town_room", "forest", "treehouse", "river_bank", "river_home", "city", "home_train"],
 	"objectives": [
 		{"need": ["final_epi_niff"], "not": ["final_done"], "zh": "回家", "en": "Go home", "show_fuel": false, "added": true},
-		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "zh": "去河流城市看妮芙", "en": "Visit Niff in the river city", "show_fuel": false, "added": true},
+		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "zh": "去河流城市看泥芙", "en": "Visit Niff in the river city", "show_fuel": false, "added": true},
 		{"need": ["final_epi_deer"], "not": ["final_epi_miluo"], "zh": "去树屋看弥洛", "en": "Visit Milo at the treehouse", "show_fuel": false, "added": true},
 		{"need": ["final_e1_seed_done"], "not": ["final_epilogue"], "zh": "回飞机", "en": "Back to the ship", "show_fuel": false, "added": true},
 		{"need": ["final_e1_soil"], "not": ["final_seed_planted"], "zh": "把种子种进湿土", "en": "Plant the seed in the damp soil", "show_fuel": false, "added": true},
@@ -90,7 +90,7 @@
 	],
 	"hints": [
 		{"need": ["final_epi_niff"], "not": ["final_done"], "lines": [{"zh": "该回家了。", "en": "Time to go home.", "added": true}]},
-		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "lines": [{"zh": "妮芙还在等我讲完。", "en": "Niff's still waiting for me to finish.", "added": true}]},
+		{"need": ["final_epi_miluo"], "not": ["final_epi_niff"], "lines": [{"zh": "泥芙还在等我讲完。", "en": "Niff's still waiting for me to finish.", "added": true}]},
 		{"need": ["final_epi_deer"], "not": ["final_epi_miluo"], "lines": [{"zh": "弥洛的树屋就在前面。", "en": "Milo's treehouse is just ahead.", "added": true}]},
 		{"need": ["final_e1_prints"], "not": ["final_e1_met"], "lines": [{"zh": "咀嚼声在水边。", "en": "Chewing, by the water.", "added": true}]},
 		{"need": ["final_e1_landed"], "not": ["final_e1_prints"], "lines": [{"zh": "指示牌指着大象喝水的地方。", "en": "The sign points to where the elephant drinks.", "added": true}]},
@@ -126,7 +126,7 @@
 		{"id": "forest_treehouse", "at": "forest_treehouse", "room": "forest", "label": {"zh": "去树屋", "en": "To the treehouse"}, "need": ["final_epi_deer"], "not": ["final_epi_miluo"], "once": false, "scene": "epi_miluo"},
 		{"id": "treehouse_miluo", "at": "treehouse_miluo", "room": "treehouse", "label": {"zh": "弥洛", "en": "Milo"}, "need": ["final_epi_miluo"], "not": [], "once": false, "scene": "epi_miluo_chat"},
 		{"id": "treehouse_out", "at": "treehouse_door", "room": "treehouse", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_miluo"], "not": ["final_epi_niff"], "once": false, "scene": "epi_niff"},
-		{"id": "river_home_niff", "at": "river_home_niff", "room": "river_home", "label": {"zh": "妮芙", "en": "Niff"}, "need": ["final_epi_niff"], "not": [], "once": false, "scene": "epi_niff_chat"},
+		{"id": "river_home_niff", "at": "river_home_niff", "room": "river_home", "label": {"zh": "泥芙", "en": "Niff"}, "need": ["final_epi_niff"], "not": [], "once": false, "scene": "epi_niff_chat"},
 		{"id": "river_home_out", "at": "river_home_door", "room": "river_home", "label": {"zh": "门", "en": "Door"}, "need": ["final_epi_niff"], "not": ["final_epi_city"], "once": false, "scene": "epi_city"},
 		{"id": "city_station", "at": "city_station", "room": "city", "label": {"zh": "车站", "en": "Station"}, "need": ["final_epi_city"], "not": ["final_epi_train"], "once": false, "scene": "epi_home", "trigger": "enter", "range": 30, "cutscene": true, "added": true}
 	],
@@ -260,7 +260,7 @@
 			{"narr": {"zh": "瓶子上的标签：「晨来过的那条河」", "en": "The label on the bottle: \"The river Light came to\""}}
 		],
 		"look_river_water_c": [
-			{"narr": {"zh": "瓶子上的标签：「寄件人：妮芙」", "en": "The label on the bottle: \"Sender: Niff\""}, "added": true}
+			{"narr": {"zh": "瓶子上的标签：「寄件人：泥芙」", "en": "The label on the bottle: \"Sender: Niff\""}, "added": true}
 		],
 		"burn_river_water": [
 			{"do": "sfx", "name": "water_pour"},
@@ -505,6 +505,7 @@
 		"ending1": [
 			{"do": "flag", "set": "final_ending_1"},
 			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
+			{"do": "music", "track": "gymnopedie1", "fade": 3.0, "_note": "11-08 作者：终章云层星配乐用萨蒂 Gymnopédie No.1（裸体圆舞曲）。冲出去以后飞船配乐还在响，黑屏里交叉过去，落地时这首已经起来；芦苇地、回驾驶舱、森林尾声一路垫着，进树屋交叉到 forest"},
 			{"do": "fade_to", "room": "reed_field", "at": "yard_landing"},
 			{"do": "sfx", "name": "rough_landing"},
 			{"do": "wait", "sec": 1.5},
@@ -701,6 +702,7 @@
 		"ending3": [
 			{"do": "flag", "set": "final_ending_3"},
 			{"do": "cockpit_dash", "_note": "11-02 作者：窗外开云、降落那几张很奇怪，「还是老样子加速飞走然后黑屏切换」——和飞行一结尾同一套往前一冲"},
+			{"do": "music", "track": "gymnopedie1", "fade": 3.0, "_note": "11-08 作者：终章云层星配乐用萨蒂 Gymnopédie No.1（裸体圆舞曲）。冲出去以后飞船配乐还在响，黑屏里交叉过去，落地时这首已经起来；一直放到结局回看（回看自己交叉到 forest）"},
 			{"do": "fade_to", "room": "town", "at": "town_landing"},
 			{"do": "sfx", "name": "landing_soft"},
 			{"do": "show", "who": "townsfolk", "at": "town_helper"},
@@ -882,7 +884,7 @@
 			{"say": "townsfolk", "zh": "不急。慢慢看。", "en": "No rush. Take your time.", "added": true}
 		],
 		"epilogue": [
-			{"do": "flag", "set": "final_epilogue", "spec": "【11-07 结局重构：只有芦苇地（真结局）有完整尾声：鹿 → 弥洛 → 妮芙 → 城市 → 列车。回母星直接接列车（epi_home），云层小镇停在小镇。物品状态改变相关动作和局部对白。】"},
+			{"do": "flag", "set": "final_epilogue", "spec": "【11-07 结局重构：只有芦苇地（真结局）有完整尾声：鹿 → 弥洛 → 泥芙 → 城市 → 列车。回母星直接接列车（epi_home），云层小镇停在小镇。物品状态改变相关动作和局部对白。】"},
 			{"do": "fade_to", "room": "forest", "at": "forest_crossroad", "place": {"deer": "forest_deer"}, "_note": "11-04 夜测：人在黑幕里先站好，淡入以后不再凭空冒出来"},
 			{"do": "show", "who": "deer", "at": "forest_deer"},
 			{"do": "face", "who": "deer", "to": "chen"},

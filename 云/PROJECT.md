@@ -54,6 +54,49 @@
 
 ## 5. 改动记录（新的写在最上面）
 
+### 2026-11-08（二十一） · Claude (compress-river) · 绿柜子随时给密封圈、南桥后出密封圈目标、旧街「回泥芙家」
+- `story_river.json`：
+  - 热点 `wh_cabinet_seal` 的 need 清空，删掉 `wh_cabinet_look`。
+  - `dock_plate_12` 末尾加 `if !river_seal_got → seal_quest_start`，`south_back` 里的那条去掉。
+  - 新热点 `home_shortcut`，配同名 scene：旧街 → 泥芙家二楼，方格转场，need `river_got_head`。
+  - 浮箱子机制没动。
+- `tools/story_to_txt.py`：认得 `music` 步骤，说明同步更新；重新导出了第二章剧本。
+- 验证 headless：river story_check 0 错；auto qa_live 0，到 END_CARD。
+
+### 2026-11-08 · Claude (ch1-dance) · 兔子舞步「挡住兔子，跳舞就看不清」
+- headless 量出来的：鹿被带到 `c1_rabbit_deer` 4495，兔子在 4516，鹿的身子压在兔子身上（开跳前那段对话里和跳舞时都是）。对话框本身没压到兔子：兔子 / 晨说话时框在 y119–158，兔子加箭头从 y162 起。
+- `c1_rabbit_deer` 改成 4400，`c1_deer_go` 的淡入点改成晨 4365、鹿 4390：鹿停在晨身后。
+- `rabbit_dance.gd`：晨走到 FACE_DIST 以后，谁（鹿 / 母兔 / 弥洛，或剧本 `clear`）的身子碰到兔子或晨，就走到晨身后或兔子身后（`_clear_stage`，量的是不透明像素）。
+- `story_dialogue.gd` 加 `keep_clear`（只在 `_place_box` 里加了几行）：舞步期间框要是碰到兔子 + 头顶那排箭头，就挪到它上面，上面放不下就放到它下面。舞步期间剧本没有台词，这条是防以后加台词。
+- 自动玩时打 `RABBIT_QA stage_before / stage_after / box_probe` 和 `RABBIT_QA_SUMMARY`。验证：森林自动玩两场舞 box_hits=0、overlaps=0，0 脚本错；story_check 0 错；rabbit_dance_test PASS。画面没看过。
+
+### 2026-11-08（二十） · Claude (ch1-fx) · 选项箭头「▸」字体里没有 → 画进字体
+- 作者截图：选项前的箭头显示成「25b8」框框。`tools/level1_font.py` 加 EXTRA：按点阵格把 ▸（4×7，7 像素宽）、同宽空白 U+2007、♪、▶ 画进 `fonts/PixelFont_ui.ttf`，原有字形不动。
+- `UITheme.MARK` / `MARK_OFF`：`story_dialogue`、`burn_pick`、`cockpit_nav`、`cockpit_keepsake` 的选中标记统一用它；没选中的行用同宽空白，选中切换时字不跳。
+- `story_runner._choice` 自动玩时打 `QA_CHOICE`（选项文字 + 字体里有没有 MARK）。
+- 验证 headless：`--import` 后四个新字 has_char 都是 true；森林自动玩 8 次选项 font_has_mark=true（含鹿要背包 c1_ask_bag），STORY_DONE；四章 story_check 0 错。画面没看过。
+
+### 2026-11-08（十九） · Claude (ch1-fx) · 全盘去白噪声
+- 作者：「不要有白噪声……不要，有也极端小声」。`tools/forest_story_sfx.py` 开头加规矩和 `HUSH` / `soft` / `under` / `rub`：垫在下面的噪声层删掉（乘 0，随机数不变，其余音效逐字节不变），声音本身是噪声的低通到 2 kHz，收音机沙沙压到 -30 dB。改了 forest_story_sfx、flight1_sfx、river_sfx、flight_sfx、level1_sfx、choice_sfx；river_sfx / level1_sfx 不再覆盖已换成录音的 `river_flow` / `rain_loop`。
+- 重新生成 60 个 `audio/sfx/*.wav` 并 `--headless --import`；录音、音乐、ambient 都没动。表（每个文件 RMS、2k / 4k 以上占比前后）在 `docs/夜测_11-05_汇总.md`「全盘去白噪声」。
+- 验证 headless：四章自动玩 + qa_audio，飞行一 / 河流 / 终章全 0；森林 4 条在没碰的 qte_rise / flashback_tense 上（别人的代码）。没听过。
+
+### 2026-11-08（二十一） · Claude（结局回看会话）· 终章云层星配乐 gymnopedie1.wav
+- 作者：「没有就搜索裸体圆舞曲 no1」。用的是萨蒂 Gymnopédie No.1，Robin Alciatore 钢琴演奏（Musopen 的录音，Wikimedia Commons 标公有领域）。来源、许可和没选的几份见 `docs/第三章计划.md` 〇·三；版权说明写在 `data/credits.json` 的 `_音乐版权`，不上屏。
+- 新文件 `audio/music/gymnopedie1.wav`（+ `.import`）：44.1k 16bit，去掉开头 1.7 秒空白，结尾加 0.7 秒渐弱，181 秒，32 MB，导入后 6.5 MB。`bgm.gd` TRACKS 加 `gymnopedie1`（-9 dB，整首循环）。
+- `story_final.json` 在 `ending1`（芦苇地）和 `ending3`（云层小镇）的往前一冲之后各加一步 `music gymnopedie1 fade 3`，黑屏里和飞船配乐交叉。芦苇地这条一直放到尾声进树屋，由原来的那步交叉到 forest。小镇这条一直放到结局回看，由回看交叉到 forest，再接 theme。回母星那条没动。
+- 验证 headless：`--chapter=final --story_check` 0 错。三条结局各跑 `--story_auto` + `qa_audio` 到 CREDITS_DONE，hard_start / hard_stop / jump / gap 全 0，脚本错误 0。没人耳听过。
+
+### 2026-11-08（二十） · Claude (compress-river) · 河流篇配乐 river.wav
+- 本2兔交的 `une barque d'ocean.wav` 放到 `audio/music/river.wav`，导入设置照 forest。`bgm.gd` TRACKS 加 `river`（-10 dB，整首循环）。`story_river.json` 加了两步：`start_river` 开头淡入 4 秒，`depart` 里 `end_chapter` 前淡出 3 秒。
+- `audio/sfx/tools_clink.wav.import` 的 `loop_mode` 从 0 改成 2，和其他环境循环声一样，解决工具摊循环声每 5 秒硬重开的问题。
+- 验证 headless：river story_check 0 错；auto-play 加 qa_audio 跑到 END_CARD，hard_start / hard_stop / jump / gap 全 0。
+
+### 2026-11-08（十九） · Claude (compress-river) · 妮芙 → 泥芙，全仓库改回原稿写法
+- 作者：剧情姐原稿叫泥芙，「全部给我改回去」。用脚本把中文文本里的「妮芙」改成「泥芙」，共 2220 处、84 个文件：`data/*.json`、`scripts/*.gd`（只动中文字符串和注释）、`docs/`、`tools/*.py`、`art/` 里 json 的注释，还有本文件。`docs/剧情改动/3_妮芙的三分钟.md` 已经 `git mv` 成 `3_泥芙的三分钟.md`。
+- 没改的：英文 Niff 和标识符 niff；`docs/qa/night_1105/` 两张截图的文件名和 `.import`；文档里引用这两个截图文件名的 3 处。替换前的清单和备份在共享笔记 `nifu_rename_1108/`。
+- 验证 headless：6 个改过的 json 都过了 `json.tool`；19 个 .gd 跑 check-only 0 错；森林、飞行一、河流、终章的 `--story_check` 都是 0 错。
+
 ### 2026-11-08（十八） · Claude (ch1-fx) · 飞行一：漏气的嘶嘶声一直响到章节结束
 - 作者：「当飞船被撞了，或者自主出现故障时，这个管道炸裂的声音会一直存在，直到章节结束」。原因：`hiss_thin.wav` 导入时开了循环，却被当一次性音效放（`cockpit_debris.gd` 撞出漏点时的 `_play`、剧本 `flight1_leak` 的 `sfx`）；循环流不发 `finished`，`queue_free` 永远等不到。
 - `story_runner.gd`：新加 `_sfx_loop_once`，`_sfx` 遇到循环导入的一次性音效只放一遍，快完时淡出再删（`sec` 可指定时长）。河流 `river_salvage` 沉下去的 `water_hollow` 同一个问题，一起好了。`cockpit_debris.gd` 的 `_play` 也走它；撞出那一下标 `qa_attack_until`（故意硬起音）。自测开关 `--no_leak_fix`。`tools/qa_audio.gd` 加 `--track=名字`。
@@ -177,18 +220,18 @@
 - A：云层星黄昏，晨 ×2 站在木栈桥（`art/cloud_town/deck_main.png` 右边那截，镜像）桥头回头看，远处云海地平线上奥斯卡的大象按明度映成深靛紫剪影（像帽子），「云」在左上角的天上。B：标题页那座风帆小镇（照 `art/town/room.json` 的层和视差取广场那一屏，cam 770），晨 ×2 站在广场前景。图标 A 是余晖 + 大象剪影 + 云，图标 B 是晨的头 + 云。
 - 做法：纯 Pillow，不开 Godot；只读 art/ 的图（手改清单里的象只读不写、不缩放）。背景整体提亮一档（伽马 0.66、黑垫成深紫，封面不要黑边暗角），A 和图标去掉 `art/cloud/wash.png`（云海里那块固定的黑色大云台）。字用 `fonts/PixelFont.ttf` 14 号点阵一格一像素，×10 / ×2 NEAREST 放大，加一格靛紫描边。画布比 270 高的部分往上补天（sky 顶色 + 撒星）。
 - 参数：`--version A|B|all`、`--title`、`--sub`、`--out`、`--no-icon`。改字、换帧、挪位置改脚本里 `cover_a / cover_b / icon_a / icon_b` 就行。
-- **C / D 版（作者看完 A/B：字要英文、主角换妮芙、要参考图那种大头）**：不画新角色（画过一张 `art/promo/niff_portrait.png`，作者否了，已删）。把游戏里妮芙的待机帧（`niff_swim.png` 帧 0，头到胸口 21×26 那截）NEAREST ×14 放大占左边 61%，一个像素不改；右边两行像素字 The / Cloud；底是河岸月夜 `river_bank` 1500 那屏，提亮后压一点、微虚。D 版再把晨 idle 帧头到胸口那截同样 ×14 放她右肩旁。图标 C = 她的头 16×16 ×32 = 512。
+- **C / D 版（作者看完 A/B：字要英文、主角换泥芙、要参考图那种大头）**：不画新角色（画过一张 `art/promo/niff_portrait.png`，作者否了，已删）。把游戏里泥芙的待机帧（`niff_swim.png` 帧 0，头到胸口 21×26 那截）NEAREST ×14 放大占左边 61%，一个像素不改；右边两行像素字 The / Cloud；底是河岸月夜 `river_bank` 1500 那屏，提亮后压一点、微虚。D 版再把晨 idle 帧头到胸口那截同样 ×14 放她右肩旁。图标 C = 她的头 16×16 ×32 = 512。
 - **截图 `../宣传素材/截图/`（480×270 ×3 = 1440×810，不加 UI 和字）**，底图和 NPC 都按游戏数据摆：`Room` 类照 `room_stage.gd` 读 room.json（层 / tile / 视差 / z / alpha / objects 默认帧 / 折线 ground），`river_water` 和 `river_moonpath` 两个 shader 在 TIME=0 的那一帧用 numpy 静态算了，sway 原图画；森林没有 room.json，按 `level_forest.tscn` 的 Parallax2D（CRASH_DX −960）和 `story_world.gd` 的雾公式拼；驾驶舱按 `cockpit_room.gd`（sky_final cloud_sea + cockpit_back (75,60) + 物件帧 0 + 终章 copilot/tools）；芦苇地的芦苇按 reeds.json rows 静止角度贴图集、白鹭按 fauna.json、fg.png scroll 1.6。
-  - 01 兔子 4516 + 母兔 4558 朝左、晨 4478（作者看过第一版说森林不好：雾压到 0.18、加游戏的暗角 Overlay，整体暗绿、树干清楚，按他做的森林封面）；01b 改成树屋**室内**（treehouse_back + treehouse.json 物件 + room_light，前墙不画，晨在桌椅旁）；02 鹿 4480 + 晨 4432 面对面 + 雾墙；03b 妮芙家室内（river_home kind=house 挂在河岸 1570，origin = (x−w/2, 地面+1−高)，桌子 two_bowls_water、标签 on、来客册 drying，晨 154 / 妮芙 212，home_light 盖在人下面）；03 河岸阿汀 1110、晨 1200、妮芙 1318（hover 2）、右边是亮灯的人家；04 鼠妈 1095 守锅、晨 1129；05 楼梯间水母 396（z −2 在柜台后）；05b 水底仓库绿柜子那屏（水母和绿柜子不在同一个房间，拆成两张）；06 驾驶舱：游戏里没有「整只大象在窗外云上」的状态，这张是按作者要的画面把 elephant.png 做成深色剪影放在 cs_mid 云顶；07 云层小镇镇民 862 + 晨 896 + 围观 crowd_night 1116；08 芦苇地 cl 1440、晨 1700（默认没有 NPC，只有白鹭）。
+  - 01 兔子 4516 + 母兔 4558 朝左、晨 4478（作者看过第一版说森林不好：雾压到 0.18、加游戏的暗角 Overlay，整体暗绿、树干清楚，按他做的森林封面）；01b 改成树屋**室内**（treehouse_back + treehouse.json 物件 + room_light，前墙不画，晨在桌椅旁）；02 鹿 4480 + 晨 4432 面对面 + 雾墙；03b 泥芙家室内（river_home kind=house 挂在河岸 1570，origin = (x−w/2, 地面+1−高)，桌子 two_bowls_water、标签 on、来客册 drying，晨 154 / 泥芙 212，home_light 盖在人下面）；03 河岸阿汀 1110、晨 1200、泥芙 1318（hover 2）、右边是亮灯的人家；04 鼠妈 1095 守锅、晨 1129；05 楼梯间水母 396（z −2 在柜台后）；05b 水底仓库绿柜子那屏（水母和绿柜子不在同一个房间，拆成两张）；06 驾驶舱：游戏里没有「整只大象在窗外云上」的状态，这张是按作者要的画面把 elephant.png 做成深色剪影放在 cs_mid 云顶；07 云层小镇镇民 862 + 晨 896 + 围观 crowd_night 1116；08 芦苇地 cl 1440、晨 1700（默认没有 NPC，只有白鹭）。
 - 跑法：`python3 tools/toy_cover.py --version C`、`--shots`（全部）或 `--shots 06_驾驶舱_云层星`。
 - **角色卡排版**（作者 11-08：「文字和角色保持一点距离，名字长的字体小一点」）：名字不再压角色，和角色之间空 100 像素；字号按名字长度定：16 号点阵（大写 9 格）整数倍放大，倍数取「名字宽 ≤ 那半边可用宽（8% 边距到角色边减间距）」和「字母高 ≤ 27% 画面高」里小的，大象那张按实际露出的部分算。Milo ×32（288 高）、Light ×27、Nimbus ×28、Niff ×21、??? ×26 左右。
 - **云层小镇的「棕色」**（作者 11-08 指出，角色卡 05 / 分割条 04 / 截图 07 / 封面 B 都有）：原因是 `scripts/cloud_town.gd` 运行时把 `streaks`、`wash` 两层设成 `BLEND_MODE_ADD`（cloud_test.tscn 同），`spires` 只取前 181 行，room.json 里没写；Pillow 按普通透明叠，`wash.png` 那块深色大云台就成了一块棕板。`Room` 类加了 `ROOM_LAYER_FIX`（blend=add 用加法、rows 截行），`cloud_scene` 同改，四张重出。角色卡名字缩到 512 号（292 高，27%），字色各取自己场景里已有的像素色：Milo 森林雾青绿 #6e8e78、Niff 鲸鱼壳青 #49cdde、??? 芦苇黄 #f2cb40、Light 晨头发淡紫 #d5deff、Nimbus 镇上花圃粉 #ecc4d4。
 - **分割条**（`--dividers`，11-08）：作者要的「很长但不宽」是横着的分割线，竖图那五张删了，改出 `../宣传素材/分割条/01_森林 … 06_列车.png`（1920×320 = 960×160 ×2）：各场景按游戏图层直接拼成 960 宽（Room / forest_shot / reed_scene 加了 size 参数，钉在屏幕上的 480 宽天空横向接着铺），再取地平线附近 160 行；列车车厢是 480 宽的剖面，镜像接成两节。
-- **角色卡第四版 + 星图英文 + 竖图 04 重拼**（11-08）：名字改 Milo / Niff / ??? / Light / Nimbus（文件 01_Milo、04_Light），字号到「半个屏幕」：Milo 760 号（434 高，40%），其余按宽度压到 640 / 608 / 512，名字在下层、角色盖在字上，左右交错都看着中间（Milo、大象在右朝左，Niff、Light、Nimbus 在左朝右），妮芙的鲸鱼壳和羊的背从左边出血一点免得盖住首字母。星图地名换成 paper_view 的英文（Home / Forest / River / Clouds / Town / Reeds）。竖图 04 原来的问题：小镇下面是云海不是地，把底边 12 行往下平铺出一大块黑；中间那块固定的黑色大云台（wash）正好压在人后面；右边的塔被裁半。改成 cl=700 从路灯起那段完整街景（路灯、带阳台的塔、亮窗的房子、长椅、镇民），上面多接 90 行天到 360 高、不接地；所有竖图接天那段上下翻一下，渐变和场景第 0 行接得上。
-- **星图 + 竖图**（`--extra`，11-08）：`../宣传素材/截图/星图.png` 照 `scripts/paper_view.gd`：树屋门口那一屏盖 DIM 0.78，paper_map.png ×2 居中上提 6，地名用 PixelFont_ui 14 号墨色 (40,48,104) 80 宽居中；`../宣传素材/竖图/01_森林 … 05_芦苇地.png`（540×1080）：从森林树屋门口 / 河岸妮芙家 / 水底仓库绿柜子 / 云层小镇广场 / 芦苇地各裁 180×360 ×3，上面接该场景天空层最上 45 行（水底那张从 deep.png 左边取，躲开亮斑），下面把地面 12 行往下接。顺手修了 forest_shot：treehouse_front 在晨后面（之前盖住了门口的晨）。
+- **角色卡第四版 + 星图英文 + 竖图 04 重拼**（11-08）：名字改 Milo / Niff / ??? / Light / Nimbus（文件 01_Milo、04_Light），字号到「半个屏幕」：Milo 760 号（434 高，40%），其余按宽度压到 640 / 608 / 512，名字在下层、角色盖在字上，左右交错都看着中间（Milo、大象在右朝左，Niff、Light、Nimbus 在左朝右），泥芙的鲸鱼壳和羊的背从左边出血一点免得盖住首字母。星图地名换成 paper_view 的英文（Home / Forest / River / Clouds / Town / Reeds）。竖图 04 原来的问题：小镇下面是云海不是地，把底边 12 行往下平铺出一大块黑；中间那块固定的黑色大云台（wash）正好压在人后面；右边的塔被裁半。改成 cl=700 从路灯起那段完整街景（路灯、带阳台的塔、亮窗的房子、长椅、镇民），上面多接 90 行天到 360 高、不接地；所有竖图接天那段上下翻一下，渐变和场景第 0 行接得上。
+- **星图 + 竖图**（`--extra`，11-08）：`../宣传素材/截图/星图.png` 照 `scripts/paper_view.gd`：树屋门口那一屏盖 DIM 0.78，paper_map.png ×2 居中上提 6，地名用 PixelFont_ui 14 号墨色 (40,48,104) 80 宽居中；`../宣传素材/竖图/01_森林 … 05_芦苇地.png`（540×1080）：从森林树屋门口 / 河岸泥芙家 / 水底仓库绿柜子 / 云层小镇广场 / 芦苇地各裁 180×360 ×3，上面接该场景天空层最上 45 行（水底那张从 deep.png 左边取，躲开亮斑），下面把地面 12 行往下接。顺手修了 forest_shot：treehouse_front 在晨后面（之前盖住了门口的晨）。
 - **角色卡**（`../宣传素材/角色卡/`，1920×1080，`--cards`）：作者 11-07 晚改主意，场景截图不再补（已出的留着），改成五张角色卡：左边 pixel.ttf 大名字（272 号、大写约 155 像素高；米白 #f4efe4，芦苇地那张浅底用深色 #1e2a26；不描边不垫条；8% 边距、垂直 44%），右边角色待机帧 NEAREST ×19（晨 50 格 → 950 高，88%），脚踩同一条基线 1020，背景用该场景现成图层叠好后原色 ×4（作者 11-08：压暗了看不清，改回原色；描边也去掉了）。01 Miluo（森林树屋外）、02 Niff（河岸月夜）、03 ???（大象，芦苇地；同一倍数 2584 宽，从右边进来只露头那半截，出血裁掉）、04 Chen（母星城市 + 人流剪影）、05 Nimbus = 云层镇民 townsfolk_art（作者定名 Nimbus）。名字按作者定的：Miluo / Niff / ???（大象是梦里的那只，没名字）/ Chen / Nimbus；注意游戏 i18n 里弥洛是 Milo，卡上按作者要的写 Miluo。
 - **00 母星城市 / 00b 列车**：00 按 `scripts/flashback.gd` 拼第一次闪回：city_test 六层楼（屏幕 y = 世界 y − 40）+ 五排兜帽人流（tscn 的人数 / 脚底行 / tint 或 ramp 参数，ramp 照 `city_crowd_ramp.gdshader` 映射）+ 晨跑步帧在屏幕 x 300 + 照片 icon_drawing 在 PAPER_Y 190 + 纸箱三只和路障（`_build_obstacle` 的偏移）+ 七条触手（把 `_spine / _tentacle` 搬成 Python，在 t=0、_front = 晨 − 30、grab 0.5 那一帧）+ 左边整片压黑 + 暗角。00b 按 `scripts/home_train.gd`：sky + 作者 city 四层按车速退（t=4 秒）+ 高架桥面路灯 + car / glass + 光束加法（被楼挡的 0.35，occlusion.json）+ 乘客吊环第 0 帧，晨在 train_seat=305；chen.gd 没有坐姿帧，游戏里 sit 退回待机，所以是站着的。
-- **itch.io Banner**（`../宣传素材/banner_960x400.png` + `_无字.png`，480×200 ×2）：作者的想法「角色一排、左右各几个、中间标题、城市背景」。下半截是 `scenes/city_test.tscn` 那套城市层（cam_y 175 → 屏幕 y = 世界 y − 40）压暗偏冷、顶部渐隐进夜空；上半截深冷渐变 + stars.png + 作者云层的 far.png 压暗，elephant.png 压暗 40% 当远景剪影站在云上、标题后面。十个角色全 1×、站同一条地面线：左边朝右 晨 / 兔子首领 / 鹿 / 大嘴鸟 / 弥洛，右边朝左 妮芙 / 阿汀 / 鼠妈 / 水母 / 云层镇民。标题字体 `小游戏/无引擎小样/assets/pixel.ttf`（The 24 淡紫、Cloud 48 白），和作者自己做的封面字形最接近。`--banner`。
+- **itch.io Banner**（`../宣传素材/banner_960x400.png` + `_无字.png`，480×200 ×2）：作者的想法「角色一排、左右各几个、中间标题、城市背景」。下半截是 `scenes/city_test.tscn` 那套城市层（cam_y 175 → 屏幕 y = 世界 y − 40）压暗偏冷、顶部渐隐进夜空；上半截深冷渐变 + stars.png + 作者云层的 far.png 压暗，elephant.png 压暗 40% 当远景剪影站在云上、标题后面。十个角色全 1×、站同一条地面线：左边朝右 晨 / 兔子首领 / 鹿 / 大嘴鸟 / 弥洛，右边朝左 泥芙 / 阿汀 / 鼠妈 / 水母 / 云层镇民。标题字体 `小游戏/无引擎小样/assets/pixel.ttf`（The 24 淡紫、Cloud 48 白），和作者自己做的封面字形最接近。`--banner`。
 - 没 commit。
 
 ### 2026-11-08 · Claude · 树屋三件：送还前低动力，做完换 100~130 的奖励
@@ -348,7 +391,7 @@
 - 转圈抽成 `scripts/loading_spin.gd`（Sprite2D：`show_spin()` / `hide_spin()` 转完当前一圈再淡出），`main.gd` 用它；`level_forest.gd` 恢复原样，没有转圈。
 - 没在 Godot 里跑过。
 
-### 2026-11-08 · Claude · 启动加载：左下角妮芙转圈
+### 2026-11-08 · Claude · 启动加载：左下角泥芙转圈
 
 - 作者「最开始黑屏加载这里，可以在左下角放一个鲸鱼妹妹转圈的动画，正好表示游戏正在加载」。
 - `scripts/main.gd`：第一关从同步 `change_scene_to_file` 改成 `ResourceLoader.load_threaded_request` 后台加载；等的时候左下角（离边 8 像素）播 `niff_spin.png`（4 帧 100ms 循环，缩到 0.5 倍约 45 像素，nearest）。加载不到 0.15 秒就不出现；出现了就转完当前一圈再淡出（0.2 秒）才切场景。底色同 boot_splash。线程加载失败就退回原来的同步切换。
@@ -479,7 +522,7 @@
 
 ### 2026-11-07（十）· Claude（终章会话）· 结局回看蒙太奇
 
-- 作者要「回看过往」：三个去处的结局最后、全剧终之前，先母星列车，再每个支线 NPC 一镜（兔子、大嘴鸟、鹿、弥洛的小屋、阿汀、鼠妈、水母、妮芙），每镜约 3.4 秒，按 flag 分「做了任务 / 没做」两版，不可跳过，约 41 秒。
+- 作者要「回看过往」：三个去处的结局最后、全剧终之前，先母星列车，再每个支线 NPC 一镜（兔子、大嘴鸟、鹿、弥洛的小屋、阿汀、鼠妈、水母、泥芙），每镜约 3.4 秒，按 flag 分「做了任务 / 没做」两版，不可跳过，约 41 秒。
 - 新 `scripts/ending_montage.gd`；`story_runner.gd` 加 `montage` 步骤（`_montage`、`montage_ui`）；`level_forest.gd` 回看时 Esc、齿轮不开设置；`npc_generic.gd` 加 `art_for`（小兔子有自己的图就不缩）；`data/story_final.json` 两处 `end_chapter` 前加 `{"do": "montage"}`。
 - 验证：headless story_check 0 错；三个去处加全支线 seed 各自动玩到制作人员，AUDIO_QA、QA_LIVE 全 0。明细见 `docs/第三章计划.md` 〇·二、`docs/夜测_11-05_汇总.md` 末尾。没开窗口，画面还没人看过。
 

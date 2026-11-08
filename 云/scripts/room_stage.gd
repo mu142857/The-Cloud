@@ -72,7 +72,7 @@ var _rope: Node2D
 var _amb: Array = []                   # [{player, cfg}]
 var _warned := {}
 var _ph_node: Node2D                   # 占位的底图
-# 多层小屋（room.json levels / stairs，只有妮芙家用）：每层一条地面线 + 左右范围，层之间是斜的石阶
+# 多层小屋（room.json levels / stairs，只有泥芙家用）：每层一条地面线 + 左右范围，层之间是斜的石阶
 var _levels: Array = []                # [{id, pts: [[x, y], …], walk: Vector2}]（图里的坐标）
 var _stairs: Array = []                # [{a: 层号, xa, b: 层号, xb}]：从 a 层的 xa 沿斜线走到 b 层的 xb
 var _marker_lv := {}                   # marker → 层号

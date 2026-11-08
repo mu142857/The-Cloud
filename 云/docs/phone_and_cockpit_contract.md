@@ -11,7 +11,7 @@
   {"contacts": {
      "friend": {"name": {"zh": "…", "en": ""}, "history": [{"from": "chen"|"friend", "zh": "…", "en": "", "date": "…", "added": true}]},
      "miluo":  {"name": {"zh": "弥洛·修理", "en": ""}, "hidden": true, "history": []},
-     "nifu":   {"name": {"zh": "妮芙·河岸", "en": ""}, "hidden": true, "history": []}
+     "nifu":   {"name": {"zh": "泥芙·河岸", "en": ""}, "hidden": true, "history": []}
   }}
   ```
   `hidden: true` 的联系人在 `phone_add` 之前不显示。失联朋友的窗口里最后一条是晨发的、对方没回。

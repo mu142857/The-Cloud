@@ -20,6 +20,12 @@ const TRACKS := {
 	# 11-05 作者「每个飞船游戏都要播放音乐」，给的 jam(1).wav 就是 theme.wav：同一个文件另起一条 track——循环、不接 forest、
 	# 比片头轻 4 dB（压在碎石段的气流 / 轰鸣提示下面）、停下记位置（story_runner._cockpit_step：躲碎石、往前一冲）
 	"flight_theme": {"file": "theme", "db": -9.0, "loop": true, "resume": true},
+	# 11-08 本2兔给的河流篇配乐（une barque d'ocean.wav，98 秒）。平均响度和 forest 一样（RMS -28 dB），所以也用 -10。
+	# 首尾是接好的（首帧 0、尾帧不到 1%，结尾没有渐弱），和其他几首一样整首循环
+	"river": {"db": -10.0, "loop": true},
+	# 11-08 作者「终章配乐用裸体圆舞曲 no1」：萨蒂 Gymnopédie No.1，Robin Alciatore 演奏（Musopen，公有领域，来源见 docs/第三章计划.md）。
+	# 原录音比 forest 轻 1 dB（RMS -29），所以 -9；去掉开头 1.7 秒空白、结尾 0.7 秒渐弱，整首循环（181 秒）。云层星 / 云层小镇 / 芦苇地起这首
+	"gymnopedie1": {"db": -9.0, "loop": true},
 }
 const NODE_NAME := "BGM"
 const THEN_XF := 3.0     # 不循环的曲子结尾前多久开始交叉到 then

@@ -3,15 +3,15 @@ extends RefCounted
 ##   原文 102：探索顺序 河岸住处—高处市集—旧街水闸—水下仓库—南桥；记忆变化由关键剧情节点触发；已完成的小游戏进度保留；
 ##   重复介绍的对话随剧情推进；关键任务记录始终可以查看。
 ##   顺序 = 剧本 flag 锁好的（没到的地方门不开）；铃只在剧本写好的节点响；闲聊按 flag 换（剧本已写）。这里只做最后一句：
-##   「关键任务记录」= 阿汀给的防水板（原文 101 递给妮芙「出门的事项写齐」、106 闸的刻度记在板上、110 交给晨、写着名字 / 来取什么 /
+##   「关键任务记录」= 阿汀给的防水板（原文 101 递给泥芙「出门的事项写齐」、106 闸的刻度记在板上、110 交给晨、写着名字 / 来取什么 /
 ##   返回的方向 /「跟着导绳走」）。板上一行一行，做完的划一道；行由剧本写（river_explore_order 自己的 run / ff 把 rows 用 board_add 加上去，mode "add" 只加不弹）。
 ##   11-05：旧水闸 river_sluice.gd 删了（以前它往板上记验证过的刻度）；现在的水闸 river_valve.gd 不写板子。
 ##
 ## 剧本步骤（都在 story_river.json）：
 ##   {"do": "mechanic", "id": "river_explore_order", "rows": [{k, zh, en, done?: flag, added}…], "lines": {after}}
-##       第一次：妮芙写板子（rows 写上去）→ 给玩家看一眼板子特写 → 关掉，接着播 lines.after。
+##       第一次：泥芙写板子（rows 写上去）→ 给玩家看一眼板子特写 → 关掉，接着播 lines.after。
 ##   {"do": "mechanic", "id": "river_explore_order", "mode": "add", "rows": [...]}   只往板上加几行（110 交板前写名字那些），不弹出来
-##   {"do": "mechanic", "id": "river_explore_order", "mode": "view"}                 看一眼板子（妮芙拿着板的时候点她）
+##   {"do": "mechanic", "id": "river_explore_order", "mode": "view"}                 看一眼板子（泥芙拿着板的时候点她）
 ##   行的 done = 那个 flag 设了就划掉（气瓶 river_breather、回程水位 river_sluice_done、绳子 river_roped）。
 ##   板子特写：closeup img "board"（art/river_story/closeup_board.png，会话 D 画），行字叠在图上（lines，划掉的带 struck: true）。
 ##
@@ -23,7 +23,7 @@ extends RefCounted
 ##   steps / lines：播一串剧本步骤（story.run_steps）。node / local_x：物件节点、marker 的房间 x。
 
 const BOARD_KEY := "river_board"
-const HINT_SEC := 12.0         # 等互动时玩家这么久没选：妮芙用手指一下对的东西（水下不说话）
+const HINT_SEC := 12.0         # 等互动时玩家这么久没选：泥芙用手指一下对的东西（水下不说话）
 
 
 # ======================================================================= 防水板
@@ -132,7 +132,7 @@ static func has_lines(step: Dictionary, key: String) -> bool:
 
 ## 等玩家互动一个点：opts = [{tok, at, label, correct?, no_auto?, accepts?}]，返回 tok。
 ## m = 小游戏实例：m.auto_mode 时不等玩家，直接挑 correct 的（story.auto == "full" 时先把没试过的错的各试一次，no_auto 的不试）。
-## hint：玩家这么久没选就调一次（妮芙指一下）。
+## hint：玩家这么久没选就调一次（泥芙指一下）。
 static func choose(m: Object, story: Node, opts: Array, hint := Callable()) -> String:
 	if opts.is_empty():
 		return ""

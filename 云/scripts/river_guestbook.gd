@@ -1,11 +1,11 @@
 extends "res://scripts/river_kit.gd"
 ## 河流篇小游戏 river_guestbook：扇干来客册（可选支线，11-04 新做）。docs/剧情改动/第二章可玩性_设计.md 支线「来客册」。
 ##
-## 画面：摊开的来客册，右边那页泡得发皱，一块一块深色的水渍；左下角一把妮芙的蒲扇。
+## 画面：摊开的来客册，右边那页泡得发皱，一块一块深色的水渍；左下角一把泥芙的蒲扇。
 ## 怎么玩：←/→ 交替按（或鼠标左右来回晃、连点）= 扇风。水渍一块块缩小，干了的地方露出字：一行一行来客名单。
-##   名单是剧本给的（guests，按 flag 挑）：前面几条是别人，最后几条是今天的「湿湿的人」——妮芙每忘一次就记一笔。
+##   名单是剧本给的（guests，按 flag 挑）：前面几条是别人，最后几条是今天的「湿湿的人」——泥芙每忘一次就记一笔。
 ##   全干了 = 名单念完，做完（剧本接着讲弥洛的朋友那页）。
-## 放水：DRY_HELP 秒没扇动，妮芙凑过来吹（自己慢慢干）。第 ENTER_GIVE 次进 = 一进来就是干的。
+## 放水：DRY_HELP 秒没扇动，泥芙凑过来吹（自己慢慢干）。第 ENTER_GIVE 次进 = 一进来就是干的。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "river_guestbook", "guests": [{zh, en, need?, not?}…], "lines": {intro, give, done}}
 ## 进度：{enter, fails, done}。
@@ -139,7 +139,7 @@ func _tick(dt: float) -> void:
 	if _accept and dry < 1.0:
 		_idle += dt
 		if _idle > DRY_HELP:
-			dry = minf(1.0, dry + dt * 0.12)    # 妮芙凑过来吹
+			dry = minf(1.0, dry + dt * 0.12)    # 泥芙凑过来吹
 
 
 func _draw_board(b: Control) -> void:

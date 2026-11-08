@@ -136,7 +136,7 @@ static func is_enter(h: Dictionary) -> bool:
 
 
 ## 范围：按键互动的点最少 MIN_RANGE；走进来触发的照剧本给的。
-## 找人说话（妮芙、阿汀、摊主……）：站在他身子外面就够得着，晨不用走进人身子里（人和人不叠，story_runner.gd 的 clear_dist）
+## 找人说话（泥芙、阿汀、摊主……）：站在他身子外面就够得着，晨不用走进人身子里（人和人不叠，story_runner.gd 的 clear_dist）
 func range_of(h: Dictionary) -> float:
 	var r := float(h.get("range", RANGE))
 	if is_enter(h):

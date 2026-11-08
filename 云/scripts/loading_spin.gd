@@ -1,5 +1,5 @@
 extends Sprite2D
-## 左下角的「加载中」：妮芙（鲸鱼妹）高兴转圈（niff_spin.png，4 帧 100ms 循环，见 niff.json 的 spin）。
+## 左下角的「加载中」：泥芙（鲸鱼妹）高兴转圈（niff_spin.png，4 帧 100ms 循环，见 niff.json 的 spin）。
 ## 11-08 作者：启动黑屏加载时放一个（main.gd）。
 ## 耳机提示和后面的雨声黑屏都不放（作者「耳机过后还是不加了，影响听力」）。
 

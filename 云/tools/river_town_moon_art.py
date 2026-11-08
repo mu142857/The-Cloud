@@ -1508,7 +1508,7 @@ def market_layers():
     # 930..1240 留白：什么都不能点，只有平台、两盏路灯、后面的石柱和雾
     lamp_post(m, 1010, gb, 30)
     lamp_post(m, 1176, gb, 30)
-    # 妮芙常站的这家：一根高石柱，脚下一扇亮着的门，柱身上一路凿上去几扇小窗，门边铁臂上挂一盏灯
+    # 泥芙常站的这家：一根高石柱，脚下一扇亮着的门，柱身上一路凿上去几扇小窗，门边铁臂上挂一盏灯
     dwelling_pillar(m, 1262, gb, 46, 176, 447, [(-18, "arch", 9, 18, True, True), (-50, "arch", 5, 7, True, False),
                                                 (-86, "round", 5, 5, True, False), (-120, "arch", 4, 6, False, False),
                                                 (-152, "arch", 4, 6, True, False)])
@@ -1922,7 +1922,7 @@ def oldstreet_layers():
         m.rect(x0, y0, x0 + 8, y0 + 3, BM.STONE[2])
         m.hline(x0, x0 + 8, y0, BM.STONE[5])
     BM.stone_lantern(m, 44, ub)
-    # 妮芙等的这家：巨石屋
+    # 泥芙等的这家：巨石屋
     boulder(m, 98, ub, 80, 62, 61, openings=(("arch", 10, 28, 5, 7, True, False), ("arch", 62, 28, 5, 7, True, False),
                                                        ("arch", 34, 0, 9, 16, True, True)), pipe=58)
     stone_post(m, 150, OS_UP - 1)
@@ -1943,7 +1943,7 @@ def oldstreet_layers():
     m.hline(x + 7, x + w - 6, 96, C(.18, 70, .03))
     for wid, (x, y, w, h) in WHEELS.items():             # 轮轴后面的墙上一块暗的底座
         m.rect(x + w // 2 - 2, y + h - 2, x + w // 2 + 2, y + h + 2, DARK)
-    # 闸边的矮栏杆（妮芙趴在这儿听）：画在墙前、管子后面，不挡管子
+    # 闸边的矮栏杆（泥芙趴在这儿听）：画在墙前、管子后面，不挡管子
     wood_rail(m, 262, 342, 128, OS_UP - 1, 610, mid=138)
     # 两根管子：从小闸轮底下出来，顺着墙走，过了大闸轮就翻下码头钻进水里
     # （a：左边那只、下面那根，先下水；b：右边那只、上面那根，走得更远、下得更深）
@@ -2253,7 +2253,7 @@ def pipes_frames():
 
 
 def height_mark():
-    """oldstreet_height_wall：2 帧 20×12（贴在身高墙红线上方）。帧 0 空；帧 1 = 看过以后，妮芙在红线旁边添的一道新粉笔记号。"""
+    """oldstreet_height_wall：2 帧 20×12（贴在身高墙红线上方）。帧 0 空；帧 1 = 看过以后，泥芙在红线旁边添的一道新粉笔记号。"""
     w, h = 20, 12
     out = np.zeros((h, w * 2, 4), np.uint8)
     cv = Cv(w, h)

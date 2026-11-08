@@ -1,4 +1,4 @@
-# 连拍日志 → 每段妮芙的毛病计数：python3 niff_defects.py BURST日志
+# 连拍日志 → 每段泥芙的毛病计数：python3 niff_defects.py BURST日志
 import sys, re, collections
 rows = collections.defaultdict(list)
 for line in open(sys.argv[1], errors='ignore'):

@@ -63,7 +63,7 @@ extends Node2D
 ##   碰到这些房间都交给 room_stage。marker 在哪个房间：room.json 的 markers → 名字前缀 <room>_ → story_runner 从剧本推出来的
 ##   （hotspot / fade_to 引用它时所在的房间）。room.json 没给坐标的 marker 按剧本里出现的顺序在房间里排开（占位）。
 ##   剖面小屋（river_home，kind: house）在 host 房间里：进出屋前墙淡出 / 淡入（和树屋一样），镜头往屋子中心收。
-##   水下（env: underwater）：晨每帧走的距离 ×UNDERWATER_SLOW（_Slow 节点在晨后面处理，动画照常 100ms 一帧），妮芙换 swim 形态。
+##   水下（env: underwater）：晨每帧走的距离 ×UNDERWATER_SLOW（_Slow 节点在晨后面处理，动画照常 100ms 一帧），泥芙换 swim 形态。
 ## 看得见的边（不用台词推人）：倒木没推开之前，旧路到倒木为止（倒木右边一点）；塌陷口（hollow）是个坑，晨走到坑边就停住，
 ##   像碰到边（不自动往回走）。
 ##   布条：在雾里每隔 CLOTH_GUST 秒被风吹一下（换帧），同时周围亮一点点（加法的小光晕），让人注意到。

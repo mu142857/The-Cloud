@@ -4,7 +4,7 @@
 
 做法和 tools/forest_story_sfx.py 一样（直接 import 它的合成工具：滤波、混响、敲击模态、低鸣……），
 输出 audio/sfx/*.wav（44.1kHz 单声道 16 位），已有的文件一个都不动（wrench 用森林那个）；跑完打印每个文件的时长 / 峰值 / RMS / 频谱质心，
-环境声另外打印接缝检查。方向：安静、克制、偏低频、不刺耳；河边的声音带一点水边的混响，妮芙家里的带一点小屋混响。
+环境声另外打印接缝检查。方向：安静、克制、偏低频、不刺耳；河边的声音带一点水边的混响，泥芙家里的带一点小屋混响。
 峰值和森林同类音效对齐（敲击 0.3~0.5、大动静 0.55~0.65、环境声 0.45~0.55），游戏里再按 bus 统一。
 
 原文写到声音的地方照原文（行号 = 剧情姐合订稿）：
@@ -27,7 +27,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import forest_story_sfx as F  # noqa: E402
-from forest_story_sfx import (SR, add, band, burst, fades, loop_xfade, lp, lp_tv, mix, modal, noise,  # noqa: E402,F401
+from forest_story_sfx import (HUSH, soft, rub, SR, add, band, burst, fades, loop_xfade, lp, lp_tv, mix, modal, noise,  # noqa: E402,F401
                               reverb, rotate_to_zero, tone, tt, unit, wet_room)
 
 OUT = F.OUT
@@ -78,7 +78,7 @@ def hatch_open():
     hinge = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.5 + 0.3 * np.sin(4 * np.pi * np.cumsum(f) / SR)
     hinge *= np.sin(np.pi * sq / 0.45) ** 2 * (0.6 + 0.4 * unit(band(noise(len(sq), 3), 20, 60)))
     add(x, 0.12, band(hinge, 400, 3000), 0.22)
-    air = unit(band(noise(len(t), 4), 200, 1500)) * env(t, 0.3, 0.6) * 0.18
+    air = unit(band(noise(len(t), 4), 200, 1500)) * env(t, 0.3, 0.6) * 0.18 * HUSH      # 11-08 气声删掉
     x += air * (t > 0.15)
     add(x, 0.25, water_grains(0.9, 10, 300, 2500, 5), 0.05)
     return wet_river(band(x, 60, 6000), 0.15)
@@ -111,7 +111,7 @@ def rope_throw():
     x = np.zeros(len(t))
     w = tt(0.45)
     cut = 300 + 1300 * np.sin(np.pi * w / 0.45)
-    swish = lp_tv(band(noise(len(w), 8), 150, None), cut) * np.sin(np.pi * w / 0.45) ** 2
+    swish = soft(lp_tv(band(noise(len(w), 8), 150, None), cut)) * np.sin(np.pi * w / 0.45) ** 2
     add(x, 0.0, unit(swish), 0.5)
     add(x, 0.48, mix(tone(120, 0.25, 0.05, 0.8), burst(0.12, 0.03, 100, 1200) * 0.7, modal([(260, 0.05, 0.3)], 0.2)))
     add(x, 0.62, burst(0.06, 0.015, 300, 2500), 0.25)
@@ -156,7 +156,7 @@ def rail_tap():
     return wet_river(band(x, 200, 4000), 0.3)
 
 
-# ================================================================== 妮芙家
+# ================================================================== 泥芙家
 def kitchen_timer():
     """计时器响起（原文 82）：发条小铃，铃锤快敲 1.1 秒，有点旧、不刺耳；最后发条转完「嗒」一下。"""
     sec = 1.7
@@ -188,7 +188,7 @@ def cup_scrape():
     sec = 0.6
     t = tt(sec)
     g = 0.4 + unit(lp(np.abs(noise(len(t), 33)), 120)) ** 2
-    x = unit(band(noise(len(t), 34), 600, 3200)) * g * np.sin(np.pi * np.clip(t / 0.45, 0, 1)) ** 0.7
+    x = unit(rub(noise(len(t), 34), 600, 3200)) * g * np.sin(np.pi * np.clip(t / 0.45, 0, 1)) ** 0.7
     x += unit(band(noise(len(t), 35), 120, 500)) * 0.35 * np.sin(np.pi * np.clip(t / 0.45, 0, 1))
     return wet_room(band(x, 100, 5000), 0.12)
 
@@ -219,7 +219,7 @@ def pencil():
     """写几个字（原文 93：在鹿角旁添了两根细枝）：铅笔沙沙的短笔画。"""
     x = F.pen_strokes([(0.0, 0.12, 0.8), (0.18, 0.09, 0.7), (0.33, 0.16, 0.9), (0.56, 0.07, 0.6), (0.7, 0.2, 0.8)],
                       1800, 6000, 51, body=0.15)
-    return wet_room(band(x, 400, 8000), 0.08)
+    return wet_room(soft(band(x, 400, 8000)), 0.08)
 
 
 def tape_motor(sec, seed, f0=118):
@@ -228,7 +228,7 @@ def tape_motor(sec, seed, f0=118):
     f = f0 * (1 + 0.012 * np.sin(2 * np.pi * 0.9 * t) + 0.004 * np.sin(2 * np.pi * 7 * t))
     ph = 2 * np.pi * np.cumsum(f) / SR
     hum = 0.5 * np.sin(ph) + 0.25 * np.sin(2 * ph) + 0.1 * np.sin(3 * ph)
-    hiss = unit(band(noise(len(t), seed), 2500, 9000)) * 0.18
+    hiss = unit(band(noise(len(t), seed), 2500, 9000)) * 0.18 * HUSH      # 11-08 带子的嘶删掉
     return hum * 0.5 + hiss
 
 
@@ -258,7 +258,7 @@ def tape_glitch():
     t = tt(sec)
     n = len(t)
     gate = (np.sin(2 * np.pi * (9 + 14 * t) * t) > 0.2).astype(float)
-    hiss = unit(band(noise(n, 71), 800, 9000)) * gate * np.clip((1.0 - t) / 0.2, 0, 1)
+    hiss = unit(soft(band(noise(n, 71), 800, 9000))) * gate * np.clip((1.0 - t) / 0.2, 0, 1)
     f = 118 * np.clip(1 - (t - 0.6) / 0.55, 0.2, 1)
     ph = 2 * np.pi * np.cumsum(f) / SR
     motor = (0.5 * np.sin(ph) + 0.2 * np.sin(2 * ph)) * np.clip((1.15 - t) / 0.55, 0, 1)
@@ -266,7 +266,7 @@ def tape_glitch():
     for at in (0.18, 0.42, 0.7):
         add(x, at, burst(0.05, 0.012, 1500, 9000), 0.4)
     add(x, 1.18, mix(modal([(800, 0.03, 0.5), (1900, 0.015, 0.3)], 0.12), burst(0.02, 0.004, 900, 5000) * 0.3))
-    return wet_room(band(x, 60, 9000), 0.1)
+    return wet_room(soft(band(x, 60, 9000)), 0.1)      # 11-08 断续的嘶、噼啪都低通到 2 kHz
 
 
 def button():
@@ -295,7 +295,7 @@ def lofi(x, seed, lo=260, hi=2600):
     y = np.concatenate([y, np.zeros(len(x) - len(y))]) if len(y) < len(x) else y[:len(x)]
     y = band(y, lo, hi, order=3)
     y = np.tanh(unit(y) * 1.6) * 0.8
-    return y + unit(band(noise(len(x), seed), 2000, 8000)) * 0.06
+    return y + unit(band(noise(len(x), seed), 2000, 8000)) * 0.06 * HUSH      # 11-08 带子的嘶删掉
 
 
 def low_call_tape():
@@ -309,7 +309,7 @@ def low_call_tape():
     add(x, 0.35, lp(dry, 900, 2), 0.25)                          # 水面上的回声
     x = lofi(x, 81, lo=110, hi=2200)
     t = tt(sec)
-    x += unit(band(noise(len(t), 82), 3000, 9000)) * 0.04
+    x += unit(band(noise(len(t), 82), 3000, 9000)) * 0.04 * HUSH      # 11-08 删
     return wet_room(x * np.clip((sec - t) / 0.4, 0, 1) * np.clip(t / 0.05, 0, 1), 0.12)
 
 
@@ -320,7 +320,7 @@ def tape_rewind():
     f = 300 + 900 * np.clip(t / 0.25, 0, 1) - 150 * np.clip((t - 0.7) / 0.2, 0, 1)
     ph = 2 * np.pi * np.cumsum(f) / SR
     whirr = (0.5 * np.sin(ph) + 0.25 * np.sin(2 * ph)) * (0.7 + 0.3 * np.sin(2 * np.pi * 31 * t))
-    chat = unit(band(noise(len(t), 91), 1500, 7000)) * 0.25 * (0.5 + 0.5 * np.sin(2 * np.pi * 47 * t))
+    chat = unit(rub(noise(len(t), 91), 1500, 7000)) * 0.25 * (0.5 + 0.5 * np.sin(2 * np.pi * 47 * t))
     x = (whirr * 0.35 + chat) * np.clip(t / 0.05, 0, 1) * np.clip((0.92 - t) / 0.08, 0, 1)
     add(x, 0.92, mix(modal([(900, 0.03, 0.5), (2000, 0.015, 0.3)], 0.15), burst(0.015, 0.003, 1000, 6000) * 0.3))
     return wet_room(band(x, 100, 9000), 0.08)
@@ -339,7 +339,7 @@ def tape_noise():
     for _ in range(9):
         add(x, r.uniform(0.05, sec - 0.2), burst(0.01, 0.002, 1500, 8000), r.uniform(0.1, 0.3))
     x += tape_motor(sec, 103) * 0.15 * env(t, 0.1, 0.3)
-    return wet_room(band(x, 80, 9000), 0.08)
+    return wet_room(soft(band(x, 80, 9000)), 0.08)      # 11-08 嘶声低通到 2 kHz（这个音效本身就是调杂音）
 
 
 def table_hum():
@@ -434,7 +434,7 @@ def water_drop():
     t = tt(sec)
     n = len(t)
     glug = water_grains(sec, 22, 120, 1800, 151, (150, 500)) * np.clip((1.3 - t) / 0.5, 0, 1)
-    rush = lp_tv(band(noise(n, 152), 100, None), 1600 - 1100 * np.clip(t / sec, 0, 1))
+    rush = soft(lp_tv(band(noise(n, 152), 100, None), 1600 - 1100 * np.clip(t / sec, 0, 1)))
     x = unit(glug) * 0.6 + unit(rush) * 0.4 * env(t, 0.15, 0.8)
     return wet_river(band(x, 60, 4000), 0.22)
 
@@ -447,7 +447,7 @@ def sluice_open():
     x = np.zeros(n)
     add(x, 0.0, mix(modal([(240, 0.3, 0.6), (610, 0.2, 0.4), (1330, 0.1, 0.2)], 0.8), tone(80, 0.4, 0.08, 0.7),
                     burst(0.06, 0.015, 100, 2000) * 0.5))
-    rush = lp_tv(band(noise(n, 161), 120, None), 2200 - 1400 * np.clip((t - 0.3) / 2.3, 0, 1))
+    rush = soft(lp_tv(band(noise(n, 161), 120, None), 2200 - 1400 * np.clip((t - 0.3) / 2.3, 0, 1)))
     x += unit(rush) * 0.6 * np.clip((t - 0.15) / 0.3, 0, 1) * np.clip((sec - t) / 1.6, 0, 1)
     x += unit(water_grains(sec, 25, 200, 3000, 162)) * 0.25 * np.clip((sec - t) / 1.2, 0, 1)
     return wet_river(band(x, 50, 5000), 0.22)
@@ -460,7 +460,7 @@ def splash_in():
     n = len(t)
     x = np.zeros(n)
     sp = tt(0.5)
-    add(x, 0.0, unit(lp_tv(band(noise(len(sp), 171), 150, None), 3500 - 2800 * sp / 0.5)) * np.exp(-sp / 0.14), 0.8)
+    add(x, 0.0, unit(soft(lp_tv(band(noise(len(sp), 171), 150, None), 3500 - 2800 * sp / 0.5))) * np.exp(-sp / 0.14), 0.8)
     add(x, 0.02, tone(90, 0.3, 0.08, 0.6))
     bub = water_grains(1.4, 18, 200, 1500, 172, (300, 900))
     add(x, 0.3, lp(unit(bub), 1200), 0.35)
@@ -485,7 +485,7 @@ def water_rinse():
     x = np.zeros(n)
     for k, at in enumerate((0.0, 0.42, 0.85)):
         s = tt(0.4)
-        sw = lp_tv(band(noise(len(s), 181 + k), 200, None), 1200 + 1400 * np.sin(np.pi * s / 0.4))
+        sw = soft(lp_tv(band(noise(len(s), 181 + k), 200, None), 1200 + 1400 * np.sin(np.pi * s / 0.4)))
         add(x, at, unit(sw) * np.sin(np.pi * s / 0.4) ** 1.5, 0.6)
     x += unit(water_grains(sec, 30, 300, 3500, 185)) * 0.25 * np.clip((sec - t) / 0.5, 0, 1)
     return wet_river(band(x, 100, 6000), 0.2)
@@ -509,7 +509,7 @@ def engine_idle():
     f = 46 + 1.2 * np.sin(2 * np.pi * 0.6 * t)
     x = F.drone(t, f, 0.0) * env(t, 0.5, 0.8)
     x *= 1 + 0.06 * np.sin(2 * np.pi * 7.5 * t)
-    x += unit(band(noise(len(t), 191), 100, 600)) * 0.07 * env(t, 0.5, 0.8)
+    x += unit(band(noise(len(t), 191), 100, 600)) * 0.07 * env(t, 0.5, 0.8) * HUSH      # 11-08 底噪删掉
     return band(x, 30, 2500)
 
 
@@ -521,7 +521,7 @@ def engine_up():
     f = 46 + 26 * rise ** 1.3
     x = F.drone(t, f, rise) * (0.7 + 0.3 * rise) * np.clip(t / 0.3, 0, 1) * np.clip((sec - t) / 0.6, 0, 1)
     air = lp_tv(band(noise(len(t), 201), 120, None), 400 + 1200 * rise)
-    x += unit(air) * (0.1 + 0.3 * rise) * np.clip((sec - t) / 0.6, 0, 1)
+    x += unit(air) * (0.1 + 0.3 * rise) * np.clip((sec - t) / 0.6, 0, 1) * HUSH      # 11-08 气流底噪删掉
     return wet_river(band(x, 30, 3500), 0.12)
 
 
@@ -573,7 +573,7 @@ def _gurgle(sec):
         add(x, at, g, r.uniform(0.4, 1.0))
         at += r.uniform(0.07, 0.22) if r.random() < 0.75 else r.uniform(0.35, 0.6)
     x = F.peak_eq(x, 420, 6, 1.5)
-    x += unit(band(noise(n, 232), 80, 400)) * 0.12
+    x += unit(band(noise(n, 232), 80, 400)) * 0.12 * HUSH      # 11-08 底噪删掉
     x = reverb(x, decay=0.35, wet=0.35, lo=150, hi=1500, pre=0.004, seed=233)   # 管子里的空
     return band(x, 70, 3000)
 
@@ -620,6 +620,8 @@ JOBS = [
 ]
 LOOPS = {"river_flow", "underwater", "pipe_gurgle"}           # .import 设 loop_mode=2（tools_clink 不设，见文件头）
 KEEP = {"wrench"}                                              # 已有、不重做
+# 11-08：river_flow 早换成了录音（ambient_from_recordings.py river），这里再写就把录音盖掉了——跳过（合成的那份还算，随机数不变）
+RECORDED = {"river_flow"}
 
 
 def set_loop_imports():
@@ -639,7 +641,10 @@ def set_loop_imports():
 def main():
     for name, fn, pk in JOBS:
         assert name not in KEEP
-        F.save(name, fn(), pk, loop=name in LOOPS)
+        x = fn()
+        if name in RECORDED:
+            continue
+        F.save(name, x, pk, loop=name in LOOPS)
     F.report()
     set_loop_imports()
 

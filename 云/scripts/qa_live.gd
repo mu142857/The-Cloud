@@ -30,6 +30,8 @@ var _scene_changed_t := -1.0
 var _bark_text := ""
 var _bark_since := 0.0
 var _chapter_key_done := false
+var _menu_key_n := 0
+var _menu_key_last: Object = null
 
 
 ## 软锁：左上角目标一直是这一个、这么久一个新 flag 都没设（自动玩会自己找点去互动，正常一两分钟总有进展）
@@ -52,6 +54,7 @@ func _process(delta: float) -> void:
 	if not _chapter_key_done and level != null and bool(level.get("_chapter_going")) and float(level.get("_end_t")) > 3.5:
 		_chapter_key_done = true
 		_chapter_key_test()
+	_menu_key_test()
 	_dialogue_state()
 	_softlock()
 	_menu_hover_test()
@@ -395,3 +398,61 @@ func _chapter_key_test() -> void:
 	var title := Engine.has_meta("level_forest_title_fade")
 	var ok := ch == str(cf.info(str(level.get("chapter"))).get("next", "")) and not title
 	print("QA_CHAPTER_KEY %s 按键后章节=%s 回标题=%s" % ["ok" if ok else "FAILED", ch, title])
+
+
+## 对话选项按方向键当帧就换（QA_MENU_KEY，11-08 作者「我选选选为什么变得迟钝了」）：选项开着时走真的输入管线
+## （Input.parse_input_event → 各节点的 _input → 关卡 → 对话框）按 ↓ 再按 ↑，每按一下选中项都要立刻变。
+## 中途有节点把键吞了、或者有冷却，这里就报 FAILED。自动玩时关卡不吃键、对话框会自己选：测的那一下临时关掉
+const MENU_KEY_MAX := 6
+func _menu_key_test() -> void:
+	var dlg = story.dlg
+	if _hover == 1:
+		return                             # QA_MENU_HOVER 正在测这一组（它数 ui_click 响了几声）：别搅进去
+	if _menu_key_n >= MENU_KEY_MAX or dlg == null or str(dlg.get("_menu_kind")) != "lines" or bool(dlg.get("_menu_done")):
+		return
+	var root = dlg.get("_menu_root")
+	if root == _menu_key_last or float(dlg.get("_menu_age")) < 0.05 or (dlg.get("_menu_opts") as Array).size() < 2:
+		return
+	_menu_key_last = root
+	_menu_key_n += 1
+	var auto = level.get("_story_auto")
+	var mauto = dlg.get("_menu_auto")
+	level.set("_story_auto", "")
+	dlg.set("_menu_auto", -1)
+	var n: int = (dlg.get("_menu_opts") as Array).size()
+	var items: Array = dlg.get("_menu_items")
+	var s0: int = dlg.get("_menu_sel")
+	var p0: Vector2 = (items[s0] as Control).get_global_rect().get_center()
+	var p1: Vector2 = (items[(s0 + 1) % n] as Control).get_global_rect().get_center()
+	var got: Array = []
+	# 光标停在当前项上；↓ 以后手在触控板上抖 1 像素（不能抢回来）；…；最后真的把鼠标挪到下一项（hover 照样能换）
+	_mouse(p0)
+	for k in [KEY_DOWN, -1, KEY_UP, KEY_S, -1, KEY_W, -2]:
+		if k == -1:
+			_mouse(p0 + Vector2(1, 1))
+		elif k == -2:
+			_mouse(p1)
+		else:
+			for pressed in [true, false]:
+				var ev := InputEventKey.new()
+				ev.keycode = k
+				ev.physical_keycode = k
+				ev.pressed = pressed
+				Input.parse_input_event(ev)
+				Input.flush_buffered_events()
+		got.append(int(dlg.get("_menu_sel")))
+	level.set("_story_auto", auto)
+	dlg.set("_menu_auto", mauto)
+	var s1 := (s0 + 1) % n
+	var want := [s1, s1, s0, s1, s1, s0, s1]
+	print("QA_MENU_KEY %s scene=%s 选项=%d 起点=%d ↓ 抖 ↑ S 抖 W 挪 后=%s 应该=%s" % ["ok" if got == want else "FAILED", str(story._cur_scene), n, s0, got, want])
+
+
+## p = 画面坐标（480×270）；parse_input_event 要的是窗口坐标（headless 的窗口很小，拉伸倍数不是 1），先换过去
+func _mouse(p: Vector2) -> void:
+	var ev := InputEventMouseMotion.new()
+	var wp: Vector2 = get_viewport().get_final_transform() * p
+	ev.position = wp
+	ev.global_position = wp
+	Input.parse_input_event(ev)
+	Input.flush_buffered_events()

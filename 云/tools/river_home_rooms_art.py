@@ -1,4 +1,4 @@
-"""河流篇 · 妮芙家 river_home（第三版：一整块巨石被一点点掏空，里面好几个小洞屋层层叠叠，石阶往上）。
+"""河流篇 · 泥芙家 river_home（第三版：一整块巨石被一点点掏空，里面好几个小洞屋层层叠叠，石阶往上）。
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/river_home_rooms_art.py [--preview 目录]
 
@@ -8,7 +8,7 @@
 
   L0（地面，和河岸同高 y279）：门厅（门、雨衣）→ 厨房（罐子、灶台）→ 上两级到餐桌（沙漏、本子、吊灯、条子板）
                               → 厚石壁里的矮门洞 → 储物（标签箱子、旧门牌、地上一层薄水）→ 楼梯井 1（石阶贴着后壁从右往左上）
-  L1（y199）：楼梯井 2（高高的拱，石阶从左往右上，阶下塞箱子）→ 上一级到卧室（妮芙睡的石水盆）→ 收藏间（高，索引柜、影像机、格子架）
+  L1（y199）：楼梯井 2（高高的拱，石阶从左往右上，阶下塞箱子）→ 上一级到卧室（泥芙睡的石水盆）→ 收藏间（高，索引柜、影像机、格子架）
   L2：阁楼（y129，来客册档案，顶斜）→ 几级台阶 → 窗台（y94，大窗、晾来客册、椅子）
   右上：一间只露出一半的小储藏室（不能进，圆窗里一点灯）。
 
@@ -1477,7 +1477,7 @@ def build_objects(dobjs, p, back):
 
 
 def cup_obj(table):
-    """尾声（story_final epi_niff_bell）妮芙递给晨的那杯（甜的，拿错了）：就是餐桌 cup_stays 那帧里的杯子，
+    """尾声（story_final epi_niff_bell）泥芙递给晨的那杯（甜的，拿错了）：就是餐桌 cup_stays 那帧里的杯子，
     一个像素不改搬出来，放在桌子晨那一头（沙漏左边）。default 空着，offered 杯子在桌上。"""
     img, frames, x, y, states, note = table
     f0, f1 = frames[states["default"]], frames[states["cup_stays"]]
@@ -1487,7 +1487,7 @@ def cup_obj(table):
     cup = np.zeros((y1 - y0, x1 - x0, 4), np.uint8)
     cup[d[y0:y1, x0:x1]] = f1[y0:y1, x0:x1][d[y0:y1, x0:x1]]
     return ("obj_cup", [np.zeros_like(cup), cup], 160, y + y0, {"default": 0, "offered": 1},
-            "尾声妮芙递给晨的那杯（餐桌 cup_stays 帧里那只杯子），offered 时在桌子晨那一头")
+            "尾声泥芙递给晨的那杯（餐桌 cup_stays 帧里那只杯子），offered 时在桌子晨那一头")
 
 
 def room_json(objs):
@@ -1508,7 +1508,7 @@ def room_json(objs):
     def mk(x, lv="l0"):
         return {"x": x, "level": lv}
     return {
-        "_comment": "妮芙家（第三版：一整块巨石被掏空的三层洞屋，石阶往上）。格式照 docs/river_rooms_contract.md 1.6"
+        "_comment": "泥芙家（第三版：一整块巨石被掏空的三层洞屋，石阶往上）。格式照 docs/river_rooms_contract.md 1.6"
                     "（多层：levels / stairs，见 scripts/room_stage.gd）；坐标都是图里的像素（左上角 0,0）。"
                     "tools/river_home_rooms_art.py 生成，别手改。地面以下泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
         "kind": "house", "host": "river_bank", "x": HOME_X, "size": [W, H],

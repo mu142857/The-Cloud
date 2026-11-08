@@ -2,14 +2,14 @@
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/river_stairwell_art.py [--preview 目录] [--jelly 水母原图]
 
-一整屏（480×270，镜头不动），凿在石头里的旧楼梯间，月夜蓝调 + 三盏黄灯，做法和质量照妮芙家（tools/river_home_rooms_art.py）：
+一整屏（480×270，镜头不动），凿在石头里的旧楼梯间，月夜蓝调 + 三盏黄灯，做法和质量照泥芙家（tools/river_home_rooms_art.py）：
   左上：平台（y118），左墙上的门洞通市集（门板往里开着，门洞外是市集那一片夜空）。
   中间：石阶从左上往右下（150→330，十级），阶面磨圆了——不画直角台阶（xiao-oscar 常见坑）：每级是一段缓坡（踏面）接一段陡坡（磨圆的阶沿），
         轮廓上相邻两行横向最多差 2 像素；后墙上一道铁扶手顺着石阶（一像素粗，四邻接，几处托架钉在墙上）；阶下凿了个放杂物的洞。
   右下：低处（y228），柜台（单独一层 counter.png，盖在水母前面、晨后面），柜台后面住着一只水母（美术姐画的，art/characters/jellyfish/）；
         右墙门洞通旧街（门槛泡着一层薄水，门外是水面）；墙根一道旧水位的湿痕。
   高处一扇拱窗，正好框住月亮（窗、门洞都是镂空的，透出 room.json 里垫在后面的市集夜空层，不画实心色块）；月光斜着落到石阶上（light.png）。
-  外面一圈是剖开的石头断面（front.png，在人前面），和妮芙家的剖面屋一个意思。
+  外面一圈是剖开的石头断面（front.png，在人前面），和泥芙家的剖面屋一个意思。
 
 输出 art/river_city/stairwell/：back.png、counter.png、light.png、front.png、room.json；
 --jelly：把原图（480×480，32×32 像素画放大 15 倍）按格取样还原成 1 倍，存 art/characters/jellyfish/jellyfish.png（不重画、不改色），原图复制一份在旁边。

@@ -143,7 +143,7 @@ def whoosh():
     tone += np.sin(2 * np.pi * np.cumsum(tone_f * 1.5) / SR) * 0.1
     e = (t / sec) ** 1.6
     e *= np.clip((sec - t) / 0.05, 0, 1)
-    return (norm(out) + tone) * e
+    return (norm(lp_fast(out, 2000, n=2)) + tone) * e      # 11-08 呼啸的噪声再低通到 2 kHz，不沙
 
 
 def impact():
@@ -208,12 +208,12 @@ def burn_ding():
 def fire_crackle(sec=8.0):
     """坠毁的飞船冒烟时很轻的噼啪（循环）。"""
     n = int(sec * SR)
-    x = lp_fast(rng.standard_normal(n + SR), 300, n=2) * 0.4
+    x = lp_fast(rng.standard_normal(n + SR), 300, n=2) * 0.4 * 0.0      # 11-08 作者「不要白噪声」：底下那层闷噪删掉，只留噼啪
     for _ in range(int(sec * 14)):
         p = rng.integers(0, n + SR - 600)
         L = rng.integers(60, 400)
         x[p:p + L] += rng.standard_normal(L) * np.exp(-np.arange(L) / (L / 4)) * rng.uniform(0.3, 1.0)
-    x = lp_fast(x, 3000)
+    x = lp_fast(lp_fast(x, 2000, n=2), 2000, n=2)      # 11-08 噼啪低通到 2 kHz（原来 3k 一阶）
     head, tail = x[:SR], x[n:n + SR]
     fade = np.linspace(0, 1, SR)
     x = x[:n].copy()
@@ -222,7 +222,7 @@ def fire_crackle(sec=8.0):
 
 
 def main():
-    save("rain_loop.wav", rain(), 0.7)
+    rain()      # 11-08：rain_loop.wav 早换成了录音（ambient_from_recordings.py cityrain），不再写，免得把录音盖掉；随机数照样取，后面的不变
     save("thunder_far_1.wav", thunder_far(1), 0.75)
     save("thunder_far_2.wav", thunder_far(2), 0.7)
     save("thunder_far_3.wav", thunder_far(3, 7.0), 0.7)

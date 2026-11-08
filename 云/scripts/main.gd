@@ -3,7 +3,7 @@ extends Node
 ## 以后有存档 / 选关就在这里分流。命令行的调试参数（-- --stage=… 等）原样留给关卡读。
 ##
 ## 11-08 作者「最开始黑屏加载这里，可以在左下角放一个鲸鱼妹妹转圈的动画，正好表示游戏正在加载」：
-## 第一关改成后台线程加载（ResourceLoader.load_threaded_request），等的时候左下角转妮芙（scripts/loading_spin.gd）。
+## 第一关改成后台线程加载（ResourceLoader.load_threaded_request），等的时候左下角转泥芙（scripts/loading_spin.gd）。
 ## - 加载很快（< SHOW_AFTER 秒）就不出现，免得一闪。
 ## - 出现了就转完这一圈淡出再切（后面紧接「建议佩戴耳机」，作者：那里不能有加载动画）。
 ## - 底色和 boot_splash/bg_color 一样，和引擎启动那一下接得上。

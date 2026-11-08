@@ -222,9 +222,9 @@ def cover_b(title: str, sub: str) -> Image.Image:
     return bg
 
 
-# ----------------------------------------------------------------------- C / D 版：妮芙待机帧整数倍放大的「大头」+ 右侧大字 The Cloud
+# ----------------------------------------------------------------------- C / D 版：泥芙待机帧整数倍放大的「大头」+ 右侧大字 The Cloud
 # 作者 11-07：不画新角色；像参考图那样把现成精灵整数倍放大占半边画面，一个像素不改。
-NIFF_SHEET = ART / "characters" / "niff" / "niff_swim.png"      # 游戏里的妮芙（swim 帧 0 就是待机，niff.json idle → swim）
+NIFF_SHEET = ART / "characters" / "niff" / "niff_swim.png"      # 游戏里的泥芙（swim 帧 0 就是待机，niff.json idle → swim）
 NIFF_BUST = (49, 7, 70, 33)        # 帧 0 里头到胸口那一截：头发 y 8..21、脸 x 57..64、手和肩到 32（21×26）
 NIFF_HEAD = (51, 7, 67, 23)        # 图标用：只到下巴（16×16）
 NIFF_K = 14                        # 13 格高的头 ×14 = 182，占 360 高的一半；×18 能到 65% 但整个左半边只剩一片青壳，脸反而认不出
@@ -268,7 +268,7 @@ def cover_c(title: str, sub: str, with_chen=False) -> Image.Image:
     bg.alpha_composite(bust, (0, COVER_BASE[1] - bust.height + 4))
     if with_chen:
         ch = scale(chen_frame(9).crop(CHEN_BUST), NIFF_K)                    # 晨同样倍数，站在她右边，被底边裁到胸口
-        bg.alpha_composite(ch, (COVER_BASE[0] - ch.width - 20, COVER_BASE[1] - ch.height + 10))   # 站在妮芙右肩旁，略压住她的手
+        bg.alpha_composite(ch, (COVER_BASE[0] - ch.width - 20, COVER_BASE[1] - ch.height + 10))   # 站在泥芙右肩旁，略压住她的手
         k, y = 3, 16
     else:
         k, y = 4, 112
@@ -285,7 +285,7 @@ def cover_d(title: str, sub: str) -> Image.Image:
 
 
 def icon_c(title: str) -> Image.Image:
-    """妮芙那截裁方放大，不要字：16×16 的头 ×32 = 512。底是压暗的河岸夜。"""
+    """泥芙那截裁方放大，不要字：16×16 的头 ×32 = 512。底是压暗的河岸夜。"""
     head = niff_frame(0).crop(NIFF_HEAD)
     bg = dim_bg(river_night_bg(size=(480, 270), cam_left=1500).crop((300, 80, 316, 96)))
     bg.alpha_composite(head, (0, 0))
@@ -821,19 +821,19 @@ def room_shot(room: Room, cl: float, actors, states=None, hide=(), size=SHOT_SIZ
     return out
 
 
-@shot("03_河岸月夜_阿汀妮芙")
+@shot("03_河岸月夜_阿汀泥芙")
 def shot_river_bank():
-    """自由探索时阿汀守在河岸（place ting → river_bank_post 一带）、妮芙在她家门口（river_bank_niff=1318，hover 2），
-    晨站在两人中间；镜头往右一点，把亮灯的人家（main.png 1280 往右）收进来。阿汀美术朝左，朝右要翻；妮芙美术朝右，朝左要翻。"""
+    """自由探索时阿汀守在河岸（place ting → river_bank_post 一带）、泥芙在她家门口（river_bank_niff=1318，hover 2），
+    晨站在两人中间；镜头往右一点，把亮灯的人家（main.png 1280 往右）收进来。阿汀美术朝左，朝右要翻；泥芙美术朝右，朝左要翻。"""
     r = Room("river_city/river_bank")
     actors = [room_actor(r, "ting", 1110, flip=True), chen_actor(r, 1200), room_actor(r, "niff", 1318, flip=True, hover=2, anim="swim")]
     return room_shot(r, 1000, actors)
 
 
-@shot("03b_妮芙家_室内")
+@shot("03b_泥芙家_室内")
 def shot_niff_home():
-    """妮芙家（art/river_home/room.json，kind house，挂在河岸 x=1570，420×280，一层地板 279 ↔ 河岸地面 206）。
-    home_enter：晨 fade_to river_home_chen=154 朝妮芙，妮芙 place 在 river_home_niff=212 朝晨；home_tea 把桌子换成 two_bowls_water（两碗热水）。
+    """泥芙家（art/river_home/room.json，kind house，挂在河岸 x=1570，420×280，一层地板 279 ↔ 河岸地面 206）。
+    home_enter：晨 fade_to river_home_chen=154 朝泥芙，泥芙 place 在 river_home_niff=212 朝晨；home_tea 把桌子换成 two_bowls_water（两碗热水）。
     屋内时前墙 home_front 淡出不画；home_light 盖在物件上、人下面；标签 labels=on，来客册 drying（在阁楼窗台）。河岸本身在房子后面透出来。"""
     bank = Room("river_city/river_bank")
     hj = json.loads((ART / "river_home" / "room.json").read_text("utf-8"))
@@ -1364,7 +1364,7 @@ def banner(with_title=True) -> Image.Image:
     ramp = np.clip(np.arange(rows) / 34.0, 0, 1)[:, None]      # 顶上 34 行从 0 渐到 1
     fade[..., 3] = fade[..., 3] * ramp
     out.alpha_composite(Image.fromarray(fade.astype(np.uint8), "RGBA"), (0, band_top))
-    # 角色：全部 1×，站在同一条地面线上。左边朝右：晨、兔子首领、鹿、大嘴鸟、弥洛；右边朝左：妮芙、阿汀、鼠妈、水母、云层镇民
+    # 角色：全部 1×，站在同一条地面线上。左边朝右：晨、兔子首领、鹿、大嘴鸟、弥洛；右边朝左：泥芙、阿汀、鼠妈、水母、云层镇民
     def snake():
         sh = load("characters/snake/snake.png")
         return sh.crop((0, 0, 31, 50)), (17, 45)
@@ -1552,7 +1552,7 @@ def strips() -> dict:
     forest = forest_shot(cx - 36, [(ch, canc, cx, forest_ground(cx) + 1)],
                          props=[(back, (170, 236), TREEHOUSE_X, 229)], front_props=[(front, (170, 236), TREEHOUSE_X, 229)], fog_k=0.15)
     out["01_森林"] = strip(forest, "forest/sky.png", 200)
-    # 2 河岸月夜 + 黄灯小镇：妮芙漂在她家门口那段
+    # 2 河岸月夜 + 黄灯小镇：泥芙漂在她家门口那段
     r = Room("river_city/river_bank")
     bank = room_shot(r, 1000, [room_actor(r, "ting", 1110, flip=True), chen_actor(r, 1200), room_actor(r, "niff", 1318, flip=True, hover=2, anim="swim")])
     out["02_河岸"] = strip(bank, "river/sky.png", 290)

@@ -61,7 +61,7 @@ def engine(sec=4.0):
     f = np.linspace(0, 1, SR)
     w = w[:n].copy()
     w[:SR] = head * f + tail * (1 - f)
-    return x + w * (1 + 0.3 * np.sin(2 * np.pi * 0.5 * t))
+    return x + w * (1 + 0.3 * np.sin(2 * np.pi * 0.5 * t)) * 0.0      # 11-08 作者「不要白噪声」：气流底噪删掉，只留嗡
 
 
 def bump():
@@ -115,7 +115,7 @@ def burn():
     u = np.clip(t - 1.1, 0, None)
     warm = (t >= 1.1) * (0.35 * np.sin(2 * np.pi * 196 * u) + 0.2 * np.sin(2 * np.pi * 294 * u)) * np.exp(-u / 0.7) \
         * np.clip(u / 0.05, 0, 1)
-    return out * 0.7 + crack * 0.6 + warm
+    return lp(lp(out * 0.7 + crack * 0.6, 2000, n=2), 2000, n=2) + warm      # 11-08 「呼」和噼啪低通到 2 kHz，不沙
 
 
 def card():
@@ -126,7 +126,7 @@ def card():
     u = np.clip(t - 0.12, 0, None)
     bell = (t >= 0.12) * (0.4 * np.sin(2 * np.pi * 392 * u) + 0.22 * np.sin(2 * np.pi * 587 * u)
                           + 0.08 * np.sin(2 * np.pi * 1176 * u)) * np.exp(-u / 0.8) * np.clip(u / 0.02, 0, 1)
-    return breath + bell
+    return breath * 0.0 + bell      # 11-08 气声删掉
 
 
 def cough():

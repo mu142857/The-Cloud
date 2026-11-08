@@ -2,14 +2,14 @@ extends "res://scripts/river_kit.gd"
 ## 河流篇小游戏 river_valve：旧街水闸（11-04 重做，替掉 river_sluice 的「走过去一格一格转」）。
 ##   docs/剧情改动/第二章可玩性_设计.md 第 4 步。
 ##
-## 画面：左边一只大铁闸轮，右边一块压力表（表盘上没有数字，是妮芙画的小画：小鱼 / 鞋 / 茶壶 / 鲸鱼），
+## 画面：左边一只大铁闸轮，右边一块压力表（表盘上没有数字，是泥芙画的小画：小鱼 / 鞋 / 茶壶 / 鲸鱼），
 ##   下面一截管子，管口一直在冒泡、咕噜咕噜。左上三盏小灯 = 三道闸。
 ## 怎么玩：按住（空格 / E / 鼠标左键）转轮子，指针往上走；松手指针停住。
 ##   指针离这道闸要的位置越远，管子冒泡越凶、咕噜越响；到了那一点泡泡停、管子安静（「叮」一小声）。
 ##   这时候松手 = 这道闸卡住（灯亮、旧街的水降一档）。松早了：指针停在那，接着按接着转。
 ##   转过头（泡泡又冒起来了还不松）/ 顶到头：管子「噗」一下，指针弹回去，再来。
 ##   三道闸都卡住 = 设 sets（river_sluice_open），剧本接着演开闸、踏步露出来。
-## 放水：失败 FAILS_GIVE 次以后，妮芙用粉笔在表盘上把那一格圈出来（看得见要停在哪）；失败 FAILS_AUTO 次 → 这道闸她帮你转好。
+## 放水：失败 FAILS_GIVE 次以后，泥芙用粉笔在表盘上把那一格圈出来（看得见要停在哪）；失败 FAILS_AUTO 次 → 这道闸她帮你转好。
 ##   第 ENTER_GIVE 次进也直接圈出来。
 ##
 ## 剧本步骤：{"do": "mechanic", "id": "river_valve", "sets": ["river_sluice_open"],
@@ -283,7 +283,7 @@ func _draw_gauge(b: Control) -> void:
 	for i in 21:
 		var t := i / 20.0
 		b.draw_rect(Rect2(_gauge_pt(t, GAUGE_R - 3).round(), Vector2(1, 1)), PAPER_DIM)
-	# 妮芙的小画
+	# 泥芙的小画
 	for d in step.get("doodles", DEFAULT_DOODLES):
 		_doodle(b, _gauge_pt(float(d.get("t", 0.5)), GAUGE_R - 11), str(d.get("kind", "fish")))
 	# 粉笔圈（放水）：要停的那一格
@@ -297,7 +297,7 @@ func _draw_gauge(b: Control) -> void:
 	_disc(b, GAUGE, 3, INK)
 
 
-## 表盘上妮芙画的小画（每个 7×5 像素左右）
+## 表盘上泥芙画的小画（每个 7×5 像素左右）
 func _doodle(b: Control, p: Vector2, kind: String) -> void:
 	var o := p.round()
 	match kind:

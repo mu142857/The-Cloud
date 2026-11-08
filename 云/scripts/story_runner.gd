@@ -133,7 +133,7 @@ const ENGINE_FLAGS := ["crashed", "got_wood", "fuel_full"]
 const NAME_COLORS := {"chen": Color("#c48fb4"), "deer": Color("#c9a882"), "miluo": Color("#d6c486"), "voice": Color("#8fa69a"),
 	"niff": Color("#8ec9d6"), "ting": Color("#b8a58c"), "keeper": Color("#a89c8a"), "tape": Color("#8fa0a8"),
 	"toucan": Color("#e8b04a"), "rat_chef": Color("#d6a882")}   # 以物易物的大嘴鸟（嘴的橙黄）、料理鼠妈（毛色）
-const NPC_GD := preload("res://scripts/npc_generic.gd")         # 通用角色（妮芙、阿汀、摊主…；art/characters/<id>/<id>.json）
+const NPC_GD := preload("res://scripts/npc_generic.gd")         # 通用角色（泥芙、阿汀、摊主…；art/characters/<id>/<id>.json）
 const CLOSEUP_GD := preload("res://scripts/closeup_ui.gd")      # 特写面板
 const MECH_PREFIX := "mech."                                    # 小游戏进度存在 StoryState.props["mech.<id>"]
 const FOLLOW_GAP := 34.0
@@ -163,7 +163,7 @@ const FLASHBACK_LAYER := 55                                     # 闪回那一�
 const FLASHBACK_DEV := [
 	{"id": 1, "chapter": "forest", "beat": "c1_got_bag", "scene": "c1_drawing", "back": 1, "zh": "大象的画·追逐"},   # 第一关新版（11-02）
 	{"id": 2, "chapter": "forest", "beat": "c1_got_wood", "scene": "c1_fix", "back": 99, "zh": "修好·全家福"},
-	{"id": 3, "chapter": "river", "beat": "river_deer_msg", "scene": "home_wait_talk", "back": 4, "zh": "妮芙家"},
+	{"id": 3, "chapter": "river", "beat": "river_deer_msg", "scene": "home_wait_talk", "back": 4, "zh": "泥芙家"},
 	{"id": 4, "chapter": "final", "beat": "final_fuel_done", "scene": "approach_page", "back": 99, "zh": "燃料柜"},
 ]
 const DEV_FB_META := "the_cloud_dev_flashback"
@@ -634,9 +634,9 @@ func check_fuel_hook() -> void:
 		await play(h)
 
 
-## 连拍（11-04 作者「妮芙简直是 bug 之王」：要看清每一帧）：--burst_shots=目录 --burst=scene1,scene2,… [--burst_sec=6]
+## 连拍（11-04 作者「泥芙简直是 bug 之王」：要看清每一帧）：--burst_shots=目录 --burst=scene1,scene2,… [--burst_sec=6]
 ## 这些 scene 一开始，每 BURST_DT 秒（游戏时间）存一张图到 目录/<scene>_<第几次>/f000.png，连 burst_sec 秒（后面接着播的 scene 也拍进去）；
-## 每张同时打印一行 BURST：晨、妮芙、阿汀的位置 / 透明度 / 看不看得见 / 画在第几层、黑幕多黑。要开窗口（带 shot 的参数 gt.sh 才放行）。
+## 每张同时打印一行 BURST：晨、泥芙、阿汀的位置 / 透明度 / 看不看得见 / 画在第几层、黑幕多黑。要开窗口（带 shot 的参数 gt.sh 才放行）。
 const BURST_DT := 0.1
 var _burst_dir := ""
 var _burst_ids := {}
@@ -1356,7 +1356,7 @@ func _walk(st: Dictionary) -> void:
 				await StoryState.frame(get_tree())
 
 
-## 多层小屋（room.json levels，妮芙家）：现在这间是多层的就返回它
+## 多层小屋（room.json levels，泥芙家）：现在这间是多层的就返回它
 func _lv_stage(r := "") -> Node2D:
 	var sg: Node2D = world.stage(r if r != "" else world.room) if world != null else null
 	return sg if sg != null and sg.has_method("has_levels") and sg.has_levels() else null
@@ -1389,7 +1389,7 @@ func _lv_walk(n: Node2D, sg: Node2D, to_lv: int, x: float, st := {}) -> void:
 	n.set_meta("lv_climbing", true)
 	var sp := float(st.get("speed", -1.0))
 	if sp <= 0.0 and n != chen:
-		sp = maxf(float(n.get("speed")), 56.0)      # 换层的路远：妮芙飘得快一点（剧本没写速度时）
+		sp = maxf(float(n.get("speed")), 56.0)      # 换层的路远：泥芙飘得快一点（剧本没写速度时）
 	var route: Array = sg.route(_lv_of(n, sg), to_lv)
 	if n != chen and st.get("wait", true) and not ff:
 		# 晨被锁着等人上下楼：整段路（到楼梯口、楼梯、到目标）最多等 WALK_WAIT_MAX + 1 秒，远的就快一点（最多 WALK_HURRY 倍）
@@ -1461,7 +1461,7 @@ func _deer_moving() -> bool:
 
 
 ## solo = true（走石阶用）：不为路上的人停步、不等人——走楼梯是一整段路，半路停在楼梯口旁边会被直接接到斜线上（y 一下跳上去 = 闪现），
-## 每帧在「停 / 走」之间来回切又让跑步动画起不来（单脚滑）。11-02 作者：妮芙家第一次上楼闪现、晨没有跑步动画在单脚滑。路上的人自己让（_make_way）。
+## 每帧在「停 / 走」之间来回切又让跑步动画起不来（单脚滑）。11-02 作者：泥芙家第一次上楼闪现、晨没有跑步动画在单脚滑。路上的人自己让（_make_way）。
 func _chen_walk(x: float, solo := false) -> void:
 	var t := 0.0
 	var dir := signf(x - chen.position.x)
@@ -1585,7 +1585,7 @@ func _seen_now(n: Node2D) -> bool:
 		and _room_of(n) == world.room
 
 
-## 11-04 作者「闪现」：剧本 show at 一个已经站在画面里的人（上一段留下来的阿汀、妮芙）：原来直接放过去 = 瞬移。
+## 11-04 作者「闪现」：剧本 show at 一个已经站在画面里的人（上一段留下来的阿汀、泥芙）：原来直接放过去 = 瞬移。
 ## 近的（SHOW_GLIDE 以内）缓缓滑过去；远的、换层的先淡出（4 档）、放过去、再淡入。
 const SHOW_GLIDE := 60.0
 
@@ -1727,7 +1727,7 @@ func _env_form(n: Node2D, r: String) -> void:
 		n.set_form(f)
 
 
-## NPC 脚下的地面。悬浮的（妮芙的鲸鱼壳，hover）飘过比她窄的坑（旧街挂钩旁通仓库的下沉口）不掉进去：
+## NPC 脚下的地面。悬浮的（泥芙的鲸鱼壳，hover）飘过比她窄的坑（旧街挂钩旁通仓库的下沉口）不掉进去：
 ## 左右各 1.5 个半身宽里够得着坑沿就按坑沿的高度飘（两边都有支撑）；斜坡、台阶上两边一高一低，照原来的地面走
 func _npc_ground(n: Node2D, r: String) -> Callable:
 	var c = n.get("cur")
@@ -2149,7 +2149,7 @@ func _fade_to(st: Dictionary) -> void:
 	else:
 		await level.fade_to_black(out_sec)
 	chen.auto_dir = 0.0
-	# 11-04 作者截图（河流篇起飞以后一帧暗绿、妮芙和阿汀淡淡地浮在上面）：起飞时停住的镜头没放开，换到驾驶舱以后镜头还看着河岸。
+	# 11-04 作者截图（河流篇起飞以后一帧暗绿、泥芙和阿汀淡淡地浮在上面）：起飞时停住的镜头没放开，换到驾驶舱以后镜头还看着河岸。
 	# 黑着换房间：先放开镜头（cam 参数下面会重新停住）
 	# 还有别的淡出在走（起飞那段自己起了一个 1.2 秒的）：等真黑透了再换，不然新房间先露出来一下、又被盖黑（连拍：驾驶舱闪一下）
 	var bt := 0.0
@@ -2256,7 +2256,7 @@ func _teleport(room: String, x: float, with: Array, snap: bool) -> void:
 		var fnode := npc(str(fw))
 		if not with.has(fw) and fnode != null and fnode.visible and world.is_stage(room) and str(_npc_room.get(fnode.name, "")) == old_room:
 			with.append(fw)                # 跟着晨的人一起过去
-	# 11-05 夜测（河流篇：进妮芙家、市集→楼梯间、进南桥，一到就叠在一起几帧）：同行的人原来一律放在晨左边，
+	# 11-05 夜测（河流篇：进泥芙家、市集→楼梯间、进南桥，一到就叠在一起几帧）：同行的人原来一律放在晨左边，
 	# 淡入时晨要往左走几步（arrive）就正好走进她身上。放在晨要走的方向的反面（身后）
 	var pref := -_tp_dir if _tp_dir != 0.0 else -1.0
 	_tp_dir = 0.0
@@ -2875,6 +2875,8 @@ func _choice(st: Dictionary) -> String:
 					ai = i                       # --auto_to=：对话选项也挑走下去会设这个 flag 的那句（第一关：c1_child）
 					break
 	_ui_shot("choice", 0.35)
+	if auto != "":       # 11-08 自测：选项文字和选中标记字体里有没有（「▸」原来没有，显示成 25b8 框框）
+		print("QA_CHOICE scene=%s mark=%s font_has_mark=%s %s" % [_cur_scene, UITheme.MARK, UITheme.font().has_char(UITheme.MARK.unicode_at(0)), lines])
 	var i: int = await dlg.choose_line(lines, ai)
 	i = clampi(i, 0, opts.size() - 1)
 	var o: Dictionary = opts[i]
@@ -4212,7 +4214,7 @@ func _sync_generic_vis(instant: bool) -> void:
 			if n.position.x > cs.origin.x and n.position.x < cs.origin.x + cs.size.x:
 				a = 0.0
 		elif r != "" and r != world.room and not world.house_pair(r, world.room):
-			a = 0.0                 # 别的房间的人（换到驾驶舱以后河岸上的妮芙、阿汀）：不在这一屏里画出来
+			a = 0.0                 # 别的房间的人（换到驾驶舱以后河岸上的泥芙、阿汀）：不在这一屏里画出来
 		var old = n.get_meta("sync_tw") if n.has_meta("sync_tw") else null
 		if old is Tween and (old as Tween).is_valid():
 			(old as Tween).kill()
@@ -4226,7 +4228,7 @@ func _sync_generic_vis(instant: bool) -> void:
 
 ## pose：通用角色的图（spr）绕脚底转 rot 度、挪 dx / dy 像素，sec 秒平滑过去（sine，物理一点）；z 给了就改人的前后
 ## （物件默认 z −1：z −2 = 压到物件后面）。{"rot": 0, "dx": 0, "dy": 0} = 回到原样；z 写 0 回到平常。wait:false 不等。
-## 10-30 作者：河岸遇见妮芙，箱子后面先露出鲸鱼壳的尾巴（妮芙原图斜着扎进箱子后面），再转过来——不另画尾巴、不凭空出现。
+## 10-30 作者：河岸遇见泥芙，箱子后面先露出鲸鱼壳的尾巴（泥芙原图斜着扎进箱子后面），再转过来——不另画尾巴、不凭空出现。
 func _pose(st: Dictionary) -> void:
 	var n := npc(str(st.get("who", "")))
 	if n == null or not npcs.values().has(n):
@@ -4250,9 +4252,9 @@ func _pose(st: Dictionary) -> void:
 
 
 ## 跟着晨走（follow）：自由走动时（剧情没在播、或小游戏在等互动）每帧追晨身后 gap 像素
-## 通用角色（妮芙、阿汀……）在看得见的画面里一帧被挪了 SNAP_MIN～SNAP_MAX 像素（跟随 / 让路 / 墙把人夹回来的那种小跳）：
+## 通用角色（泥芙、阿汀……）在看得见的画面里一帧被挪了 SNAP_MIN～SNAP_MAX 像素（跟随 / 让路 / 墙把人夹回来的那种小跳）：
 ## 改成每帧最多 SNAP_MIN，几帧滑过去。更远的是剧本放到别处（换房间、show at）——那种交给剧本自己（淡入、走过来），这里不管。
-## 11-04 作者「闪现问题」，--qa_live 的 QA_JUMP 查出来的（妮芙 10～50 像素一跳）。
+## 11-04 作者「闪现问题」，--qa_live 的 QA_JUMP 查出来的（泥芙 10～50 像素一跳）。
 const SNAP_MIN := 4.0
 const SNAP_MAX := 80.0
 
@@ -4276,8 +4278,8 @@ func _no_snap() -> void:
 		n.set_meta("ns_room", room)
 
 
-## 11-05 河流篇夜测（tape_fix：妮芙从晨右边走到柜子，壳从晨身上平移穿过去）：剧本 walk 的路线经过晨，跟随让路那套管不到。
-## 浮着的（妮芙的鲸鱼壳）走近晨时往上飘到壳底比晨头顶还高 PASS_CLEAR，过了再落回来：离晨 PASS_RAMP 以外开始升（smoothstep），
+## 11-05 河流篇夜测（tape_fix：泥芙从晨右边走到柜子，壳从晨身上平移穿过去）：剧本 walk 的路线经过晨，跟随让路那套管不到。
+## 浮着的（泥芙的鲸鱼壳）走近晨时往上飘到壳底比晨头顶还高 PASS_CLEAR，过了再落回来：离晨 PASS_RAMP 以外开始升（smoothstep），
 ## 到挨上的距离（_side_gap）时已经升满，一直保持到离开。高度按两个人不透明那块的屏幕矩形算（壳比 22 高，固定拱高不够，07:20 河流复测）。
 ## 只动画出来的高度（npc_generic 的 pass_lift），不动她的位置和脚下；她本来就排在晨后面画（晨在前）
 const PASS_RATE := 240.0
@@ -4360,13 +4362,13 @@ func _update_follow(delta: float) -> void:
 		if n.has_meta("lv_climbing"):
 			continue
 		_make_way(n, _side_gap(n, float(follow[who])), free, delta)
-	# 没在跟着晨、但会飘开让路的（妮芙的鲸鱼壳悬浮着：hover）：晨走过来也让开
+	# 没在跟着晨、但会飘开让路的（泥芙的鲸鱼壳悬浮着：hover）：晨走过来也让开
 	for n in npcs.values():
 		if follow.has(str(n.get("npc_id"))) or not n.visible or _room_of(n) != world.room or n.has_meta("lv_climbing") or n.has_meta("resident"):
 			continue
 		if not (n.get("cur") is Dictionary and float((n.get("cur") as Dictionary).get("hover", 0.0)) > 0.0):
 			continue
-		# 正在 pose（10-31 河岸：妮芙斜着扎在箱子后面、转正浮起来还没落回去）：不让路。不然晨走近时 follow_to 让她转身朝晨，
+		# 正在 pose（10-31 河岸：泥芙斜着扎在箱子后面、转正浮起来还没落回去）：不让路。不然晨走近时 follow_to 让她转身朝晨，
 		# 斜着的图一翻就成了头朝上的怪姿势，转正以后 walk 又翻回去；她自己飘出来时离晨已经够远
 		var pspr: Node2D = n.spr
 		if pspr.rotation != 0.0 or pspr.position != Vector2.ZERO:
@@ -4381,7 +4383,7 @@ func _update_follow(delta: float) -> void:
 
 ## 正在走的人（剧本让她走、跟着晨的人）：
 ##   要去的地方算的时候晨在别处（还在楼梯上、换了层、后来又走动了），走着走着晨到了她的路上 → 改成停在她这一边、晨旁边；
-##   晨从后面追上来（晨比她快）→ 她走快一点，晨不从她身上穿过去（10-31 进市集晨追上往修补摊飘的妮芙，叠在她尾巴上）
+##   晨从后面追上来（晨比她快）→ 她走快一点，晨不从她身上穿过去（10-31 进市集晨追上往修补摊飘的泥芙，叠在她尾巴上）
 func _walk_guard() -> void:
 	if not chen.visible:
 		return
@@ -4408,7 +4410,7 @@ func _walk_guard() -> void:
 
 
 ## 晨正在走石阶、要上（下）到她站的那层：她站在楼梯口就先飘开，不等晨上来压到她身上再被一下推开
-## （10-31 妮芙家里晨上楼，一到楼上正好站在妮芙身上）
+## （10-31 泥芙家里晨上楼，一到楼上正好站在泥芙身上）
 func _clear_stair_end(n: Node2D, sg: Node2D, gap: float, delta: float) -> void:
 	var s: Dictionary = sg._stairs[sg.chen_stair]
 	var lv := _lv_of(n, sg)
@@ -4429,7 +4431,7 @@ func _clear_stair_end(n: Node2D, sg: Node2D, gap: float, delta: float) -> void:
 ## follow = 自由走的时候跟在晨这一边 gap 远；不跟的时候只在晨冲她走过来时让开（弹簧平滑飘开，追不上再硬推）
 ## 11-02 作者：「推着 npc 走、和 npc 一起平移一直是个问题……你得开始走，然后 npc 一个 tween 加速，再慢慢跟上」。
 ##   跟着走：晨起步以后她先停 FOLLOW_DELAY 秒，再用软弹簧（FOLLOW_W）慢慢加速追上、到了慢慢停——不再和晨焊在一起平移。
-##   晨冲她走过来（她在晨要去的那边）：浮着的（妮芙的鲸鱼壳）不再被顶着往前推，而是从晨头顶划一道弧（SWAP_ARC 高、SWAP_SEC 秒，
+##   晨冲她走过来（她在晨要去的那边）：浮着的（泥芙的鲸鱼壳）不再被顶着往前推，而是从晨头顶划一道弧（SWAP_ARC 高、SWAP_SEC 秒，
 ##   smoothstep）飘到晨身后，接着跟。不浮着的照旧让开。
 const FOLLOW_W := 3.0
 const FOLLOW_DELAY := 0.3
@@ -4444,7 +4446,7 @@ func _is_hover(n: Node2D) -> bool:
 
 
 ## 从晨头顶飘到另一边：x 沿 smoothstep 从起点走到「晨身后 gap」（跟着晨现在的位置算），y 是正弦拱
-## 11-05 河流篇夜测（压缩第二章那边报的：tape_sound 后妮芙一帧 58 像素，从晨左边直接到右边，swap=true）：
+## 11-05 河流篇夜测（压缩第二章那边报的：tape_sound 后泥芙一帧 58 像素，从晨左边直接到右边，swap=true）：
 ## 划弧中途被别的事打断（晨上楼梯那几帧走 _clear_stair_end、剧本 walk、播剧情时不叫 _make_way）以后 swap_t 还留着，
 ## 过一阵再叫到这里就接着用老的起点、老的时间算——一下子跳到弧线终点。中断过 / 被别人挪过 / 在走路：作废，不接着划。
 ## 返回 false = 作废了，_make_way 照平常的让路走。
@@ -4559,13 +4561,13 @@ func _make_way(n: Node2D, gap: float, follow_on: bool, delta: float) -> void:
 	elif not n.is_walking() and chen._vel > 0.0 and dx * side < gap + 16.0 and signf(chen.facing) == side:
 		n.follow_to(tx, chen.position.x, delta, 4.0 if _is_hover(n) else 6.0)           # 晨冲她走过来：先飘开
 	elif _is_hover(n) and not n.is_walking() and chen._vel <= 0.0 and dx * side < gap - 2.0:
-		# 11-05 河流篇复测（进妮芙家：剧本 walk 晨走到罐子，两人站定只隔 18、壳盖着晨）：过场里不跟随、晨也停了，
+		# 11-05 河流篇复测（进泥芙家：剧本 walk 晨走到罐子，两人站定只隔 18、壳盖着晨）：过场里不跟随、晨也停了，
 		# 原来就这么一直叠着。浮着的人慢慢飘开到不叠的距离（软弹簧，不推）
 		n.follow_to(tx, chen.position.x, delta, 3.0)
 	_keep_in(n, w, delta)
 	# 弹簧追不上（晨跑过来、过场里晨走过她身边）：直接推开，鲸鱼壳不压到晨身上
-	# 浮着的（妮芙）不硬推：她要么从晨头顶飘过去（上面 swap），要么弹簧自己让开——硬推就是「闪现」、被推着倒着走（11-02 作者）
-	# 11-04 --qa_live：原来直接 position.x = tx，一帧挪十几到几百像素（阿汀在妮芙家门口一下子跳 500 像素）。改成每帧最多 PUSH_MAX，滑开
+	# 浮着的（泥芙）不硬推：她要么从晨头顶飘过去（上面 swap），要么弹簧自己让开——硬推就是「闪现」、被推着倒着走（11-02 作者）
+	# 11-04 --qa_live：原来直接 position.x = tx，一帧挪十几到几百像素（阿汀在泥芙家门口一下子跳 500 像素）。改成每帧最多 PUSH_MAX，滑开
 	if not swap and not _is_hover(n) and not n.is_walking() and dx * side < gap - 0.5 and absf(tx - chen.position.x) >= gap - 0.5:
 		var lim := maxf(PUSH_MAX, chen._vel * delta + 1.0)
 		n.position.x = round(move_toward(n.position.x, tx, lim))
@@ -4596,7 +4598,7 @@ func _keep_in(n: Node2D, w: Vector2, delta: float) -> void:
 	n.set_meta("mw_x", n.position.x)
 
 
-## 跟在晨旁边至少隔多远才不叠到晨身上：比人宽的（妮芙的鲸鱼壳 71 宽，锚点到边 36）= 锚点到最远一边 + 晨半个身子 13 + CLEAR_GAP；
+## 跟在晨旁边至少隔多远才不叠到晨身上：比人宽的（泥芙的鲸鱼壳 71 宽，锚点到边 36）= 锚点到最远一边 + 晨半个身子 13 + CLEAR_GAP；
 ## 一般大小的人（帧 40 宽）照 base
 func _side_gap(n: Node2D, base: float) -> float:
 	var c = n.get("cur")
@@ -4608,15 +4610,15 @@ func _side_gap(n: Node2D, base: float) -> float:
 	return maxf(base, half + CLEAR_CHEN_HALF + CLEAR_GAP) if half > 28.0 else base     # 鲸鱼壳和晨之间留 CLEAR_GAP
 
 
-## 人和人不叠（10-30，作者：人物互相穿插就是 bug）：晨和通用角色（妮芙、阿汀、摊主……）谁也不压到谁身上，两边轮廓隔开 CLEAR_GAP。
+## 人和人不叠（10-30，作者：人物互相穿插就是 bug）：晨和通用角色（泥芙、阿汀、摊主……）谁也不压到谁身上，两边轮廓隔开 CLEAR_GAP。
 ##   剧本让人站的位置（walk / show / 换房间放下来）压到别人 → 挪到最近的空地（优先停在走过来的这一边，不穿过人站到对面）；
 ##   场景开始时晨站在别人身上（走进人身子里按的互动）→ 晨先退开，跟着晨的人压在晨身上 → 她飘开；
 ##   跟着晨的人（_update_follow）待在她现在那一边，晨冲她走过来就被推着走，不从晨身上穿过去。
-##   宽度 = 锚点到身子最远一边：晨 13；妮芙的鲸鱼壳 36；一般大小的人（帧 40 宽）当晨算 13。
+##   宽度 = 锚点到身子最远一边：晨 13；泥芙的鲸鱼壳 36；一般大小的人（帧 40 宽）当晨算 13。
 ##   json 写 "keep_clear": true 的（阿汀 = 奥斯卡的阴险守卫，比晨大一倍，会转身、背后的黑团子换边）按帧算两边里远的那边，
 ##   还能写 "avoid": [{"room", "x": [x0, x1], "prop", "states": [...]}]：物件是这些状态时他的轮廓也不压到这段（飞机舱门）。
 ##   背景走过的小人（shadow = false）不算。玩家自己走路穿过站着的人不拦。
-const CLEAR_GAP := 8.0                  # 10-31：4 像素看着还是蹭着（妮芙家里壳和尾巴挨着晨），放宽到 8
+const CLEAR_GAP := 8.0                  # 10-31：4 像素看着还是蹭着（泥芙家里壳和尾巴挨着晨），放宽到 8
 const CLEAR_CHEN_HALF := 13.0           # 晨站着的身子半宽（奥斯卡的待机帧量出来左右各 13）
 var _chen_goal := NAN                   # 剧本让晨走去的地方（还在走）：别人按这里躲
 
@@ -4709,7 +4711,7 @@ func _no_pass_chen(n: Node2D, x: float, lv: int) -> float:
 
 
 ## 剧本让晨走过去（10-31 作者：晨走路的路线上有人，要停在那人旁边，或者让那人先让开，不能穿过去）：
-##   跟着晨的人、会飘开让路的（妮芙）站着 → 被晨推着往前让（_make_way），一直让到墙边让不开了晨才停；
+##   跟着晨的人、会飘开让路的（泥芙）站着 → 被晨推着往前让（_make_way），一直让到墙边让不开了晨才停；
 ##   别的人（阿汀、摊主……）、正在走的人 → 晨停在那人（走到的地方）旁边
 func _chen_no_pass(x: float, quiet := false) -> float:
 	var cx := chen.position.x
@@ -4741,7 +4743,7 @@ func _chen_no_pass(x: float, quiet := false) -> float:
 	return out
 
 
-## 跟着晨的人、会飘开让路的人（妮芙的鲸鱼壳悬浮着）：晨走过来她自己让（_update_follow → _make_way）
+## 跟着晨的人、会飘开让路的人（泥芙的鲸鱼壳悬浮着）：晨走过来她自己让（_update_follow → _make_way）
 func _gives_way(n: Node2D) -> bool:
 	if follow.has(str(n.get("npc_id"))):
 		return true
@@ -4972,7 +4974,7 @@ func _check_jumps() -> void:
 		if _last_pos.has(key):
 			var o: Dictionary = _last_pos[key]
 			dv = p - (o["p"] as Vector2)
-			# 11-04 作者「妮芙出门开始会闪现」：看得见的人一帧挪 6 像素以上就算（最快的走路 / 跑 ≈ 3.8 像素一帧；下石阶一帧 7 像素也是太快）
+			# 11-04 作者「泥芙出门开始会闪现」：看得见的人一帧挪 6 像素以上就算（最快的走路 / 跑 ≈ 3.8 像素一帧；下石阶一帧 7 像素也是太快）
 			if vis and bool(o["vis"]) and str(o["room"]) == world.room and dv.length() > 6.0 \
 					and (_on_screen(p, 0.0) or _on_screen(o["p"], 0.0)):
 				var sg := _lv_stage()
@@ -5094,7 +5096,7 @@ func _stage_fade(st: Dictionary, room: String, x: float, arrive: float) -> bool:
 		await _stage_takeoff()             # 河岸 → 驾驶舱（原文 151–152）：飞机竖直升起、泛光、往左上飞出画面，再接原来的淡出
 		return false
 	# 11-07 作者「从上一个对话到这里应该是方格转场」：写了 "style": "pixel" 的（没另写 kind）一律走方格，
-	# 不被门（河岸 → 妮芙家是 house_pair）/ 竖直平移 / 潜水这些自动选的转场吞掉
+	# 不被门（河岸 → 泥芙家是 house_pair）/ 竖直平移 / 潜水这些自动选的转场吞掉
 	if str(st.get("style", "")) == "pixel" and not st.has("kind"):
 		return false
 	match kind:
@@ -5115,7 +5117,7 @@ func _stage_fade(st: Dictionary, room: String, x: float, arrive: float) -> bool:
 	return false
 
 
-## 进出门（不黑屏、前墙淡出淡入）：同行 / 跟着晨的人怎么过门（11-04 作者「出门和进门的时候妮芙会闪」）——
+## 进出门（不黑屏、前墙淡出淡入）：同行 / 跟着晨的人怎么过门（11-04 作者「出门和进门的时候泥芙会闪」）——
 ##   就在晨身边（同一层、相距 ≤ DOOR_NEAR）：保持她和晨原来的左右距离，一起换过去，不淡不闪，像并排走出门；
 ##   离得远（屋子另一头、楼上）：门这边看不见她了，过门以后她晚一拍从门里出来——在门口淡入、走两步站到晨身边。
 const DOOR_NEAR := 48.0
@@ -5128,7 +5130,7 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 	for f in follow:
 		if not names.has(str(f)):
 			names.append(str(f))
-	# 11-04 作者「妮芙……又是隐身（还没进门就随着主角一起变黑），又是穿墙出门」：跟着的人先自己走到门口晨身后，
+	# 11-04 作者「泥芙……又是隐身（还没进门就随着主角一起变黑），又是穿墙出门」：跟着的人先自己走到门口晨身后，
 	# 再和晨一起过门（不在原地淡没、也不在门外凭空冒出来）。走不过来的（别的层、太远）才淡入淡出。
 	await _door_gather(names)
 	for who in names:
@@ -5145,10 +5147,10 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 	var w2: Vector2 = world.walls(chen.position.x)
 	for who in near:
 		var n := npc(who)
-		# 出门以后站在晨身后（晨朝哪边，她在另一边）：晨接着往前走不会从她身上穿过去（11-04 连拍：出门后晨和妮芙叠在一起交错）
+		# 出门以后站在晨身后（晨朝哪边，她在另一边）：晨接着往前走不会从她身上穿过去（11-04 连拍：出门后晨和泥芙叠在一起交错）
 		var g := maxf(absf(float(near[who])), _side_gap(n, 22.0))
 		var off := g * -float(chen.facing)
-		# 11-05 河流篇复测（进妮芙家：晨一进门就贴着左墙，身后只剩 16 像素，被墙夹到只隔 16，接着从晨身上漂过去）：
+		# 11-05 河流篇复测（进泥芙家：晨一进门就贴着左墙，身后只剩 16 像素，被墙夹到只隔 16，接着从晨身上漂过去）：
 		# 身后站不下就站到晨前面那边
 		if chen.position.x + off < w2.x + 6.0 or chen.position.x + off > w2.y - 6.0:
 			off = -off
@@ -5161,7 +5163,7 @@ func _door_move(room: String, x: float, with: Array, st: Dictionary) -> void:
 		return
 	# 远的那个：先在门口藏着，晚一拍淡入、往外走两步
 	var door_x: float = chen.position.x
-	# 11-05 夜测（河流篇进妮芙家）：原来放在门口 = 晨脚下、淡入时往外走 26 像素——妮芙的壳半宽 37，整段都压在晨身上。
+	# 11-05 夜测（河流篇进泥芙家）：原来放在门口 = 晨脚下、淡入时往外走 26 像素——泥芙的壳半宽 37，整段都压在晨身上。
 	# 放在晨身后差一点就挨上的地方淡入，再走到不叠的距离（_side_gap）
 	var side := -1.0 if chen.facing > 0 else 1.0
 	for who in far:
@@ -5199,7 +5201,7 @@ func _door_gather(names: Array) -> void:
 		if n == null or n == chen or not n.visible or not npcs.values().has(n) or _room_of(n) != world.room:
 			continue
 		if sg != null and _lv_of(n, sg) != int(sg.chen_lv):
-			# 在别的层（妮芙在楼上、晨在一楼门口）：先沿楼梯走下来，走到晨身后（看得见地走，不在楼上淡没）
+			# 在别的层（泥芙在楼上、晨在一楼门口）：先沿楼梯走下来，走到晨身后（看得见地走，不在楼上淡没）
 			if ff:
 				_place(n, chen.position.x - float(chen.facing) * DOOR_GAP, world.room, int(sg.chen_lv))
 				continue
@@ -5212,7 +5214,7 @@ func _door_gather(names: Array) -> void:
 			continue
 		var side := -float(chen.facing) if absf(dx) < 1.0 else signf(dx)
 		var w: Vector2 = world.walls(chen.position.x)
-		var tx := clampf(chen.position.x + side * _side_gap(n, DOOR_GAP), w.x + 4.0, w.y - 4.0)     # 妮芙的鲸鱼壳宽：按身宽隔开
+		var tx := clampf(chen.position.x + side * _side_gap(n, DOOR_GAP), w.x + 4.0, w.y - 4.0)     # 泥芙的鲸鱼壳宽：按身宽隔开
 		if absf(tx - n.position.x) <= 2.0:
 			continue
 		if ff:
@@ -5292,7 +5294,7 @@ func _pan_to(room: String, x: float, with: Array, st: Dictionary) -> void:
 	var dir := -1.0 if from_st == null or to_st.origin.y < from_st.origin.y else 1.0      # -1：往上（镜头 y 变小）
 	var c0: Vector2 = level.cam.position.round()
 	level.camera_hold_at(c0)
-	# 11-04 作者「妮芙……隐身」（连拍：上市集时晨和妮芙先在河岸上淡没，空河岸停了 0.6 秒才黑）：人不再自己先淡掉，
+	# 11-04 作者「泥芙……隐身」（连拍：上市集时晨和泥芙先在河岸上淡没，空河岸停了 0.6 秒才黑）：人不再自己先淡掉，
 	# 跟着画面一起黑下去、一起亮起来
 	level.camera_pan(c0 + Vector2(0, dir * PAN_SHIFT), PAN_HALF, Tween.EASE_IN)
 	await level.fade_to_black(PAN_HALF)
@@ -5304,7 +5306,7 @@ func _pan_to(room: String, x: float, with: Array, st: Dictionary) -> void:
 			continue
 		var stw = (n as Node2D).get_meta("sync_tw") if (n as Node2D).has_meta("sync_tw") else null
 		if stw is Tween and (stw as Tween).is_valid():
-			(stw as Tween).kill()             # 换房间时 sync_npc_vis 给同行的人起的 0.5 秒淡入：停掉，和画面一起亮起来（10-31 进市集妮芙先出现）
+			(stw as Tween).kill()             # 换房间时 sync_npc_vis 给同行的人起的 0.5 秒淡入：停掉，和画面一起亮起来（10-31 进市集泥芙先出现）
 		(n as Node2D).modulate.a = 1.0
 	var start := target - Vector2(0, dir * PAN_SHIFT)
 	level.camera_hold_at(start)

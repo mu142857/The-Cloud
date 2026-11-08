@@ -223,6 +223,7 @@ var _chen_tw: Tween
 var _was_input := true
 var _said_wrong := false
 var quitted := false                     # 玩家长按 Esc 退出了（story_runner 看这个，跳去 quit_scene）
+var _qa: Node
 var _active := false                     # 摆好人、开跳了（这之后才能退）
 var _quit_held := false
 var _quit_t := 0.0
@@ -569,6 +570,8 @@ func _setup() -> void:
 		rabbit.position = Vector2(round(chen.position.x + 64.0 * chen.facing), chen.position.y)
 		await story.run_steps([{"do": "show", "who": who, "fade": 0.6}])
 		await _wait(0.6)
+	if auto_mode and rabbit != null:
+		_qa_stage("before")                          # 开跳前（= 前面那段对话时）谁站在哪
 	if rabbit != null and chen != null:
 		# 11-08 作者：不管哪一场（比舞 / 练舞），开跳前晨都自己走到兔子正对面、隔固定的 FACE_DIST。
 		# 站在晨原来那一侧；那一侧走不到（墙外）就换另一侧。剧本的 chen_at 不再用。
@@ -582,6 +585,11 @@ func _setup() -> void:
 		if absf(chen.position.x - tx) > 1.0:
 			await story.run_steps([{"do": "walk", "who": "chen", "to": tx}])
 		await story.run_steps([{"do": "face", "who": "chen", "to": who}, {"do": "face", "who": who, "to": "chen"}])
+		await _clear_stage(who)
+		if auto_mode:
+			_qa_stage("after")
+	if story.get("dlg") != null:
+		story.dlg.keep_clear = keep_rect             # 跳舞时说话的框不落到兔子和箭头上
 	if chen != null:
 		_was_input = chen.input_enabled
 		chen.input_enabled = false
@@ -600,10 +608,20 @@ func _setup() -> void:
 	if rabbit != null:
 		_row.position = Vector2(round(rabbit.position.x), round(rabbit.position.y - float(rabbit.get("head")) - AW - 6.0))
 	_tex = _load_tex(ARROWS)
+	if auto_mode:
+		_qa = RabbitQA.new()
+		_qa.m = self
+		_catch.add_child(_qa)
+		await _qa.probe_box()
 
 
 func _teardown() -> void:
 	listening = false
+	if story != null and story.get("dlg") != null:
+		story.dlg.keep_clear = Callable()
+	if _qa != null:
+		_qa.summary()
+		_qa = null
 	_active = false
 	_quit_held = false
 	if _quit_layer != null:
@@ -895,3 +913,199 @@ func check(story: Node, st: Dictionary) -> Array:
 	for k in st.get("lines", {}):
 		out.append_array(KIT.check_steps(story, "lines.%s" % k, st["lines"][k]))
 	return out
+
+
+# ----------------------------------------------------------------------- 别挡兔子
+## 11-08 作者「挡住兔子，跳舞就看不清」：比舞那场鹿被带到兔子身边 21 像素、晨从 hotspot 走过去也会站到兔子身上。
+## 开跳前（晨已经站到 FACE_DIST）：谁的身子（不透明像素）碰到兔子或晨，就走开——在晨这一侧的站到晨身后，另一侧的退到兔子身后。
+const CLEAR_GAP := 6.0
+const CLEAR_WHO := ["deer", "rabbit_doe", "miluo"]
+
+func _clear_stage(who: String) -> void:
+	var side := 1.0 if chen.position.x >= rabbit.position.x else -1.0
+	var zk := maxf(0.01, absf(rabbit.get_global_transform_with_canvas().get_scale().x))
+	for name in CLEAR_WHO + (step.get("clear", []) as Array):
+		var o: Node2D = _who(story, name)
+		if o == null or o == rabbit or o == chen or not is_instance_valid(o) or not o.visible:
+			continue
+		var ro := body_rect(o)
+		var rr := body_rect(rabbit)
+		var rc := body_rect(chen)
+		if ro.size.x <= 0.0 or not (ro.intersects(rr.grow(CLEAR_GAP)) or ro.intersects(rc.grow(2.0))):
+			continue
+		var half := ro.size.x / 2.0 / zk
+		var tx: float
+		var os := signf(o.position.x - rabbit.position.x)
+		if os == side or os == 0.0:
+			tx = chen.position.x + side * (rc.size.x / 2.0 / zk + half + CLEAR_GAP)
+		else:
+			tx = rabbit.position.x - side * (rr.size.x / 2.0 / zk + half + CLEAR_GAP + 2.0)
+		if story.get("world") != null and story.world.has_method("walls"):
+			var w: Vector2 = story.world.walls(o.position.x)
+			tx = clampf(tx, w.x + 2.0, w.y - 2.0)
+		await story.run_steps([{"do": "walk", "who": name, "to": roundf(tx)}, {"do": "face", "who": name, "to": who}])
+
+
+## 跳舞时要一直看得见的那块（屏幕坐标）：兔子身子 + 头顶那排箭头（最长一轮的宽度）
+func keep_rect() -> Rect2:
+	if rabbit == null or not is_instance_valid(rabbit) or not rabbit.visible:
+		return Rect2()
+	var r := body_rect(rabbit)
+	if _row != null and is_instance_valid(_row):
+		var o := _row.get_global_transform_with_canvas().origin
+		var n := 1
+		for q in seqs(step):
+			n = maxi(n, (q as Array).size())
+		var w := float(n * (AW + 2))
+		var band := Rect2(o.x - w / 2.0 - 2.0, o.y - 2.0, w + 4.0, AW + 4.0)
+		r = band if r.size.x <= 0.0 else r.merge(band)
+	return r
+
+
+## 一个角色身上不透明像素的外框（屏幕坐标）；看不见 = Rect2()
+static func body_rect(n: Node) -> Rect2:
+	var out := Rect2()
+	if n == null or not is_instance_valid(n) or not (n is CanvasItem) or not (n as CanvasItem).is_visible_in_tree():
+		return out
+	var stack: Array[Node] = [n]
+	while not stack.is_empty():
+		var c: Node = stack.pop_back()
+		stack.append_array(c.get_children())
+		if c is AnimatedSprite2D:
+			var ar := _anim_rect(c as AnimatedSprite2D)
+			if ar.size.x > 0.0:
+				out = ar if out.size.x <= 0.0 else out.merge(ar)
+			continue
+		if not (c is Sprite2D):
+			continue
+		var sp := c as Sprite2D
+		if sp.texture == null or not sp.is_visible_in_tree() or sp.self_modulate.a < 0.1 or sp.modulate.a < 0.1:
+			continue
+		var lr := sp.get_rect()
+		var xf := sp.get_global_transform_with_canvas()
+		var lo := Vector2(INF, INF)
+		var hi := Vector2(-INF, -INF)
+		var y := lr.position.y
+		while y < lr.end.y:
+			var x := lr.position.x
+			while x < lr.end.x:
+				if sp.is_pixel_opaque(Vector2(x + 0.5, y + 0.5)):
+					for corner in [Vector2(x, y), Vector2(x + 2.0, y + 2.0)]:
+						var p: Vector2 = xf * corner
+						lo = lo.min(p)
+						hi = hi.max(p)
+				x += 2.0
+			y += 2.0
+		if lo.x <= hi.x:
+			var rr := Rect2(lo, hi - lo)
+			out = rr if out.size.x <= 0.0 else out.merge(rr)
+	return out
+
+
+## --story_auto 时一直看：说话的框有没有落到兔子 / 箭头上、有没有谁的身子压在兔子身上。打 RABBIT_QA，结束打 RABBIT_QA_SUMMARY
+class RabbitQA extends Node:
+	var m
+	var frames := 0
+	var box_hits := 0
+	var box_seen := 0
+	var overlaps := 0
+	var _said := {}
+
+	func _process(_dt: float) -> void:
+		if m == null or m.rabbit == null:
+			return
+		frames += 1
+		var kr: Rect2 = m.keep_rect()
+		var box = m.story.dlg.get("_box") if m.story.get("dlg") != null else null
+		if box is Control and (box as Control).is_visible_in_tree() and (box as Control).modulate.a > 0.1:
+			box_seen += 1
+			var br := Rect2((box as Control).position, (box as Control).size)
+			if br.intersects(kr):
+				box_hits += 1
+				_say("box", "RABBIT_QA box_over_rabbit box=%s keep=%s" % [str(br), str(kr)])
+		var rr: Rect2 = m.body_rect(m.rabbit)
+		for name in ["chen"] + m.CLEAR_WHO:
+			var o: Node2D = m.chen if name == "chen" else (m._who(m.story, name))
+			if o == null or not is_instance_valid(o) or o == m.rabbit:
+				continue
+			var ro: Rect2 = m.body_rect(o)
+			if ro.size.x > 0.0 and ro.intersects(rr):
+				overlaps += 1
+				_say("ov_" + name, "RABBIT_QA overlap %s=%s rabbit=%s" % [name, str(ro), str(rr)])
+
+	func _say(k: String, t: String) -> void:
+		if not _said.has(k):
+			_said[k] = true
+			print(t)
+
+	## 框放哪：兔子说一句、晨说一句，各量一次（只在 --story_auto 里，一闪就关）
+	func probe_box() -> void:
+		var d = m.story.get("dlg")
+		if d == null:
+			return
+		for who in [str(m.step.get("who", "rabbit")), "chen"]:
+			d._show_line("QA", Color.WHITE, "跟着我跳，看清楚了！", m.story._anchor.bind(who), false)
+			await get_tree().process_frame
+			var b: Control = d.get("_box")
+			var br := Rect2(b.position, b.size)
+			var kr: Rect2 = m.keep_rect()
+			print("RABBIT_QA box_probe who=%s box=%s keep=%s hit=%s" % [who, str(br), str(kr), str(br.intersects(kr))])
+			if br.intersects(kr):
+				box_hits += 1
+			d.close_box()
+
+	func summary() -> void:
+		print("RABBIT_QA_SUMMARY frames=%d box_seen=%d box_hits=%d overlaps=%d" % [frames, box_seen, box_hits, overlaps])
+
+
+func _qa_stage(tag: String) -> void:
+	var rr := body_rect(rabbit)
+	var parts: Array[String] = ["rabbit x=%d body=%d..%d" % [int(rabbit.position.x), int(rr.position.x), int(rr.end.x)]]
+	for name in ["chen"] + CLEAR_WHO:
+		var o: Node2D = chen if name == "chen" else (_who(story, name))
+		if o == null or not is_instance_valid(o) or not o.visible:
+			continue
+		var ro := body_rect(o)
+		parts.append("%s x=%d body=%d..%d%s" % [name, int(o.position.x), int(ro.position.x), int(ro.end.x), " OVER_RABBIT" if ro.intersects(rr) else ""])
+	print("RABBIT_QA stage_%s %s" % [tag, " | ".join(parts)])
+
+
+static var _img_cache := {}
+
+## 鹿是 AnimatedSprite2D：拿当前帧的图，按 offset / centered / flip_h 量不透明像素
+static func _anim_rect(a: AnimatedSprite2D) -> Rect2:
+	if a.sprite_frames == null or not a.is_visible_in_tree() or a.self_modulate.a < 0.1 or a.modulate.a < 0.1:
+		return Rect2()
+	var tex := a.sprite_frames.get_frame_texture(a.animation, a.frame)
+	if tex == null:
+		return Rect2()
+	var key := tex.get_instance_id()
+	if not _img_cache.has(key):
+		_img_cache[key] = tex.get_image()
+	var img: Image = _img_cache[key]
+	if img == null:
+		return Rect2()
+	var sz := Vector2(img.get_width(), img.get_height())
+	var left := a.offset - (sz / 2.0 if a.centered else Vector2.ZERO)
+	var xf := a.get_global_transform_with_canvas()
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for iy in range(0, int(sz.y), 2):
+		for ix in range(0, int(sz.x), 2):
+			if img.get_pixel(ix, iy).a < 0.5:
+				continue
+			var lx := float(ix) if not a.flip_h else sz.x - 1.0 - float(ix)
+			for corner in [left + Vector2(lx, iy), left + Vector2(lx + 2.0, iy + 2.0)]:
+				var p: Vector2 = xf * corner
+				lo = lo.min(p)
+				hi = hi.max(p)
+	return Rect2(lo, hi - lo) if lo.x <= hi.x else Rect2()
+
+
+## 鹿 / 通用角色（剧本里没建过的 = null，不新建；测试里的假 story 没有这些字段也行）
+static func _who(st: Object, name: String) -> Node2D:
+	if name == "deer":
+		return st.get("deer") as Node2D
+	var d = st.get("npcs")
+	return d.get(name) as Node2D if d is Dictionary else null
+

@@ -2,7 +2,7 @@ extends RefCounted
 ## 河流篇小游戏 river_salvage：顺水打捞（原文 76，剧情姐写的玩法原样落地）。
 ##   76：顺着水流打捞收藏品和修船材料。水声与碰撞声提示物品方向，漂浮轨迹提供同步视觉信息。不同物品具有不同浮力，
 ##       玩家需要判断打捞顺序；错过的关键物品会停在下游浅滩，玩家可以在那里继续打捞。
-##   前情（原文 74–75，剧本已演）：妮芙掉了一箱；先捞快碰到台阶的杯子，金属盒沉进较浅的水里，「还看得见。它先坐一会儿」。
+##   前情（原文 74–75，剧本已演）：泥芙掉了一箱；先捞快碰到台阶的杯子，金属盒沉进较浅的水里，「还看得见。它先坐一会儿」。
 ##
 ## 11-02 重做（作者：「捞东西有小游戏吗？不要点点点吧」）：实时抛钩。没有计时、不会失败。
 ## 11-03 第二版（作者：「钩子有 bug，难度过高、会卡住、角色翻转直接翻到另一边」）：自动瞄准、大范围、不会卡、抛之前先转身。
@@ -21,9 +21,9 @@ extends RefCounted
 ##   浅滩：河里没东西漂了（都钩走 / 沉了 / 停在浅滩），播 lines.shallows（晨走到浅滩），再把停在那里的、连同沉在浅水里的
 ##       金属盒一样样钩上来（同样是抛钩）。错过沉掉的收藏品不扣任何东西。
 ##   兜底（不会卡住）：河里 NO_CATCH 秒没钩到东西、或者漂了 RIVER_CAP 秒，剩下漂着的一起快快漂到浅滩（这时候也不沉了）；
-##       浅滩上 SHALLOW_NET 秒没钩到、或者浅滩阶段过了 SHALLOW_CAP 秒，剩下的妮芙在下游接走（溅一下、收走）。抛钩卡在半路超过 WATCHDOG 秒就收回来重置。
-##   妮芙：实时冒一句（dlg.murmur，不挡操作，最快 SAY_GAP 秒一句）：sank_1 / sank（沉了）、got_key、站着不动 HINT_SEC 秒 hint_sink / hint。
-##   捞上来的收藏品交给妮芙（全捞到 lines.give_all，沉掉了几样 lines.give_some）。剧本接着给管道接头、「这个能用在飞机上。」
+##       浅滩上 SHALLOW_NET 秒没钩到、或者浅滩阶段过了 SHALLOW_CAP 秒，剩下的泥芙在下游接走（溅一下、收走）。抛钩卡在半路超过 WATCHDOG 秒就收回来重置。
+##   泥芙：实时冒一句（dlg.murmur，不挡操作，最快 SAY_GAP 秒一句）：sank_1 / sank（沉了）、got_key、站着不动 HINT_SEC 秒 hint_sink / hint。
+##   捞上来的收藏品交给泥芙（全捞到 lines.give_all，沉掉了几样 lines.give_some）。剧本接着给管道接头、「这个能用在飞机上。」
 ##
 ## 剧本步骤（没变）：{"do": "mechanic", "id": "river_salvage", "path": {from, to, post, stages}, "items": [{id, label, speed, sink, start, key?}…],
 ##   "box": {id, label}, "lines": {start, sank_1, sank, shallows, give_all, give_some, got_key, hint, hint_sink}}
@@ -48,12 +48,12 @@ const REACH_MAX := 190.0
 const SWEEP_SEC := 1.7         # 按住时落点从最近滑到最远要多久（再按着就滑回来，来回摆，错过了不吃亏）
 const NO_CATCH := 20.0         # 河里这么久没钩到 → 剩下的快快漂去浅滩
 const RIVER_CAP := 30.0        # 河里漂了这么久 → 同上
-const SHALLOW_NET := 12.0      # 浅滩这么久没钩到 → 剩下的妮芙接走
+const SHALLOW_NET := 12.0      # 浅滩这么久没钩到 → 剩下的泥芙接走
 const SHALLOW_CAP := 18.0      # 浅滩阶段过了这么久 → 同上（一样一样慢慢钩也不会拖太久）
 const RUSH := 8.0              # 快快漂去浅滩时的速度倍数
 const WATCHDOG := 5.0          # 抛钩卡在半路超过这么久 → 重置
-const HINT_SEC := 12.0         # 这么久没抛，妮芙提醒一句
-const SAY_GAP := 4.0           # 妮芙两句之间至少隔几秒
+const HINT_SEC := 12.0         # 这么久没抛，泥芙提醒一句
+const SAY_GAP := 4.0           # 泥芙两句之间至少隔几秒
 const DRIFT_IN := 110.0        # 第一次开始：从上游多远的地方淡入漂进来（11-02 作者：对话完漂浮物突然出现很奇怪）
 const HAND := Vector2(10, -24) # 晨的手（相对脚底，朝右；朝左翻过来）：斗篷前襟那里
 const LINE_C := Color("#c9d3cd")
@@ -329,7 +329,7 @@ class Sim:
 				events.append({"kind": "shallow", "id": id})
 		_phase()
 		if s["phase"] == "shallows" and (since >= SHALLOW_NET or phase_t >= SHALLOW_CAP):
-			# 兜底：浅滩上半天没钩到，剩下的妮芙在下游接走
+			# 兜底：浅滩上半天没钩到，剩下的泥芙在下游接走
 			for id in s["items"]:
 				if str(s["items"][id]["st"]) == "shallow":
 					s["items"][id]["st"] = "got"
@@ -1177,7 +1177,7 @@ func _ellipse_px(c: CanvasItem, ctr: Vector2, rx: float, ry: float, col: Color) 
 	_poly_px(c, pts, col)
 
 
-# ----------------------------------------------------------------------- 妮芙 / 声音
+# ----------------------------------------------------------------------- 泥芙 / 声音
 ## 实时冒一句：lines[key] 里的 say 用 murmur（不挡操作），anim / face / sfx 照播；最快 SAY_GAP 秒一句
 func _niff(key: String) -> void:
 	if story.ff or not KIT.has_lines(step, key) or _t - _said_t < SAY_GAP:
@@ -1209,7 +1209,7 @@ func _murmur(st: Dictionary) -> void:
 	d.murmur(nm, col, I18n.pick(st), Callable(story, "_anchor").bind(who), bool(st.get("added", false)) and bool(story.mark_added), who)
 
 
-## 站着半天没抛：妮芙看一眼该先捞的那样，冒一句（会沉的 hint_sink，别的 hint）
+## 站着半天没抛：泥芙看一眼该先捞的那样，冒一句（会沉的 hint_sink，别的 hint）
 func _hint() -> void:
 	var ok := best(step, s)
 	if ok == "":

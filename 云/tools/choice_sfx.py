@@ -103,7 +103,7 @@ def main():
     dry = [0.0] * N
     bell(dry, 0.000, 880.0, 0.55, 0.55)        # A5
     bell(dry, 0.070, 1318.5, 0.45, 0.75)       # E6
-    breath(dry, 0.05)
+    breath(dry, 0.05 * 0.0)      # 11-08 作者「不要白噪声」：高频气声删掉（随机数照样取）
     wet = reverb(dry)
     out = [d * 0.55 + w * 0.9 for d, w in zip(dry, wet)]
     # 尾巴最后 0.4s 淡到 0，开头精确 0

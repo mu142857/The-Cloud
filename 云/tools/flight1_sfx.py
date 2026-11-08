@@ -22,7 +22,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import forest_story_sfx as F  # noqa: E402
-from forest_story_sfx import (SR, add, band, burst, fades, loop_xfade, lp, mix, modal, noise, peak_eq,  # noqa: E402
+from forest_story_sfx import (HUSH, soft, SR, add, band, burst, fades, loop_xfade, lp, mix, modal, noise, peak_eq,  # noqa: E402
                               reverb, rotate_to_zero, tone, tt, unit, warp)
 
 OUT = F.OUT
@@ -88,7 +88,7 @@ def book_close():
     """合上本子：纸页扇一下的风声 + 封皮合上的软「啪」。"""
     x = np.zeros(int(0.6 * SR))
     t = tt(0.12)
-    add(x, 0.0, unit(band(nz(len(t), 3), 600, 3500)) * np.sin(np.pi * t / 0.12) ** 2 * 0.25)
+    add(x, 0.0, unit(soft(band(nz(len(t), 3), 600, 3500))) * np.sin(np.pi * t / 0.12) ** 2 * 0.25)
     add(x, 0.11, thump(0.3, 180, 0.03, 4, 1800) * 0.9)
     add(x, 0.11, burst(0.02, 0.003, 800, 3000) * 0.25)
     return cabin(band(x, 90, 4000), 0.1)
@@ -134,7 +134,7 @@ def drop_in():
     x = np.zeros(int(1.0 * SR))
     add(x, 0.0, modal([(1250, 0.03, 0.4), (2300, 0.015, 0.2), (480, 0.05, 0.4)], 0.25))
     tl = tt(0.25)
-    add(x, 0.06, unit(band(nz(len(tl), 21), 700, 2500)) * np.sin(np.pi * tl / 0.25) * 0.12)
+    add(x, 0.06, unit(soft(band(nz(len(tl), 21), 700, 2500))) * np.sin(np.pi * tl / 0.25) * 0.12)
     add(x, 0.42, thump(0.4, 120, 0.05, 22, 1200) * 0.6)
     add(x, 0.42, modal([(820, 0.03, 0.2), (1500, 0.015, 0.1)], 0.2))
     return cabin(band(x, 70, 3800), 0.16)
@@ -145,7 +145,7 @@ def crumbs():
     x = np.zeros(int(1.2 * SR))
     for at in (0.0, 0.28):
         tl = tt(0.22)
-        add(x, at, unit(band(nz(len(tl), int(at * 100) + 31), 300, 2200)) * np.sin(np.pi * tl / 0.22) ** 1.5 * 0.35)
+        add(x, at, unit(soft(band(nz(len(tl), int(at * 100) + 31), 300, 2200))) * np.sin(np.pi * tl / 0.22) ** 1.5 * 0.35)
     r = np.random.default_rng(32)
     for _ in range(16):
         at = float(r.uniform(0.35, 1.0))
@@ -169,7 +169,7 @@ def engine_boost():
     x = engine_tone(f, t) * 0.6
     air = unit(band(nz(len(t), 41), 200, 1500)) * (0.2 + 0.25 / (1 + np.exp(-(t - 1.1) / 0.3)))
     e = np.clip(t / 0.2, 0, 1) * np.clip((sec - t) / 0.7, 0, 1)
-    x = (x + air * 0.5) * e
+    x = (x + air * 0.5 * HUSH) * e      # 11-08 气流底噪删掉
     return cabin(band(x, 40, 1800), 0.12)
 
 
@@ -180,7 +180,7 @@ def thruster_off():
     f = 30 + 52 * np.exp(-t / 0.7)
     e = np.exp(-t / 0.9) * np.clip(t / 0.02, 0, 1)
     x = engine_tone(f, t, 0.2) * e * 0.7
-    x += unit(band(nz(len(t), 51), 100, 900)) * np.exp(-t / 0.5) * 0.2
+    x += unit(band(nz(len(t), 51), 100, 900)) * np.exp(-t / 0.5) * 0.2 * HUSH      # 11-08 底噪删掉
     add(x, 1.7, modal([(420, 0.04, 0.5), (980, 0.02, 0.3), (1900, 0.008, 0.1)], 0.3) * 0.5)
     return cabin(band(x, 30, 2200), 0.15)
 
@@ -231,7 +231,7 @@ def valve_lock():
     f = 520 + 120 * tl / 0.32
     sq = np.sin(2 * np.pi * np.cumsum(f) / SR) * (0.5 + 0.5 * np.sin(2 * np.pi * 26 * tl)) ** 3
     add(x, 0.0, sq * np.sin(np.pi * tl / 0.32) * 0.18)
-    add(x, 0.0, unit(band(nz(len(tl), 71), 400, 1800)) * np.sin(np.pi * tl / 0.32) * 0.15)
+    add(x, 0.0, unit(band(nz(len(tl), 71), 400, 1800)) * np.sin(np.pi * tl / 0.32) * 0.15 * HUSH)      # 11-08 删
     add(x, 0.40, modal([(380, 0.06, 0.6), (900, 0.03, 0.35), (2100, 0.008, 0.15)], 0.4))
     add(x, 0.40, burst(0.01, 0.002, 600, 3000) * 0.25)
     return cabin(band(x, 90, 3800), 0.15)
@@ -244,7 +244,7 @@ def hiss_thin():
     t = np.arange(n) / SR
     fl = 1 + 0.3 * unit(lp(nz(n, 81), 3)) + 0.08 * np.sin(2 * np.pi * 5.5 * t)
     h = unit(band(nz(n, 82), 2200, 3600, order=3)) * 0.6 + unit(band(nz(n, 83), 900, 2200)) * 0.25
-    x = h * fl
+    x = soft(h * fl, 1500)      # 11-08 漏气声低通（1.5 kHz，4 阶；2 kHz 时 2 kHz 以上还剩三成）：低一点的「嘶」，不沙
     y = loop_xfade(x, int(sec * SR), int(xf * SR))
     y = lp(y, 5000)                                       # 去掉最上面那点嘶，软一点
     return rotate_to_zero(cabin(y, 0.08)[: int(sec * SR)])
@@ -273,9 +273,9 @@ def splash():
     n = len(t)
     x = thump(sec, 70, 0.12, 101, 600) * 0.9
     wash_e = np.clip(t / 0.05, 0, 1) * np.exp(-t / 0.7)
-    x += unit(band(nz(n, 102), 200, 2600)) * wash_e * 0.55
+    x += unit(soft(band(nz(n, 102), 200, 2600))) * wash_e * 0.55
     hiss_e = np.clip((t - 0.3) / 0.3, 0, 1) * np.clip((sec - t) / 1.2, 0, 1)
-    x += unit(band(nz(n, 103), 500, 3000)) * hiss_e * 0.18 * (1 + 0.4 * unit(lp(nz(n, 104), 4)))
+    x += unit(band(nz(n, 103), 500, 3000)) * hiss_e * 0.18 * HUSH * (1 + 0.4 * unit(lp(nz(n, 104), 4)))
     r = np.random.default_rng(105)
     for _ in range(18):                                   # 溅起的水落回来
         at = float(r.uniform(0.4, 1.6))
@@ -290,7 +290,7 @@ def wood_knock():
     add(x, 0.0, burst(0.02, 0.004, 200, 1500) * 0.3)
     add(x, 0.0, modal([(130, 0.12, 0.15)], 0.6))
     tl = tt(0.4)
-    add(x, 0.05, unit(band(nz(len(tl), 111), 300, 1500)) * np.exp(-tl / 0.12) * 0.08)
+    add(x, 0.05, unit(band(nz(len(tl), 111), 300, 1500)) * np.exp(-tl / 0.12) * 0.08 * HUSH)      # 11-08 水声底噪删掉
     return cabin(band(x, 60, 2500), 0.15)
 
 
@@ -310,7 +310,7 @@ def crate_bump():
     add(x, 0.0, burst(0.015, 0.003, 300, 2000) * 0.25)
     add(x, 0.18, modal([(250, 0.03, 0.25)], 0.2))         # 弹开再轻碰一下
     tl = tt(0.5)
-    add(x, 0.02, unit(band(nz(len(tl), 131), 300, 1400)) * np.exp(-tl / 0.15) * 0.1)
+    add(x, 0.02, unit(band(nz(len(tl), 131), 300, 1400)) * np.exp(-tl / 0.15) * 0.1 * HUSH)      # 11-08 水声底噪删掉
     return cabin(band(x, 70, 2600), 0.14)
 
 
@@ -326,7 +326,7 @@ def debris_pass(side):
     bright = unit(band(nz(n, 143 + side), 1200, 2600)) * np.exp(-((t - 0.42) / 0.12) ** 2) * 0.15
     rumble = unit(band(nz(n, 145 + side), 40, 300)) * e * (0.6 + 0.4 * (0.5 + 0.5 * np.sin(2 * np.pi * 9 * t)))
     mono = whoosh * 0.55 + bright + rumble * 0.45
-    mono = cabin(mono, 0.1)
+    mono = cabin(soft(mono), 0.1)      # 11-08 高的那层「擦身」低通到 2 kHz
     pan = side * (0.9 - 0.4 * np.clip(t / sec, 0, 1))      # -1 左 … +1 右
     gl = np.sqrt((1 - pan) / 2)
     gr = np.sqrt((1 + pan) / 2)
@@ -373,7 +373,7 @@ def phone_send():
     t = tt(0.3)
     f = 700 + 500 * np.clip(t / 0.12, 0, 1)
     x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.clip(t / 0.01, 0, 1) * np.exp(-t / 0.07)
-    x += unit(band(nz(len(t), 171), 1500, 4000)) * np.exp(-t / 0.04) * 0.08
+    x += unit(band(nz(len(t), 171), 1500, 4000)) * np.exp(-t / 0.04) * 0.08 * HUSH
     return cabin(band(x, 300, 3500), 0.1)
 
 

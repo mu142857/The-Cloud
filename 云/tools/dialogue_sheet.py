@@ -59,7 +59,7 @@ south_dock dock_plates dock_plate_12 south_back farewell n_tea_p ch_bye_write fa
 REF_KEYS = {"scene", "then", "else", "after", "on_head", "on_seal", "quit_scene"}
 SKIP_KEYS = {"spec", "match"}          # 写给开发看的说明 / 只用来匹配的字，玩家看不到
 
-PHONE_NAMES = {"miluo": "弥洛", "friend": "她", "nifu": "妮芙"}
+PHONE_NAMES = {"miluo": "弥洛", "friend": "她", "nifu": "泥芙"}
 
 ## 代码里写死的玩家可见文字：(分组, 文件, 中文字面量)。按字面量找行（别的会话改代码后行号会变），apply 也按字面量写回。
 ## 只收第二章会显示的。默认值（DEFAULT_JUNK、DEFAULT_GATES 这些）剧本都给了，显示不出来，不收。

@@ -24,13 +24,13 @@ BASE = os.path.join(ROOT, "docs", "第二章_主线剧本.底稿.txt")
 # 段落：(场景, 标题)。第三项是同一段的另一个入口。
 MAIN = [
     ("start_river", "河面。飞机撞进水道，晨从舱门出来"),
-    ("bank_meet", "河岸。晨走到箱子边，妮芙从箱子后面钻出来"),
+    ("bank_meet", "河岸。晨走到箱子边，泥芙从箱子后面钻出来"),
     ("bank_meet_b", "河岸台阶。捞杯子，捞漂走的东西"),
-    ("bank_cup", "河岸飞机旁。阿汀把飞机拴住，妮芙邀请晨去她家"),
-    ("home_enter", "妮芙家一楼。她问晨是谁"),
-    ("home_asked", "妮芙家一楼。晨问本子里有没有大象"),
-    ("home_find", "妮芙家二楼。她翻柜子，录像带放不出，又忘了晨是谁"),
-    ("home_find_b", "妮芙家二楼。记下来，任务开始"),
+    ("bank_cup", "河岸飞机旁。阿汀把飞机拴住，泥芙邀请晨去她家"),
+    ("home_enter", "泥芙家一楼。她问晨是谁"),
+    ("home_asked", "泥芙家一楼。晨问本子里有没有大象"),
+    ("home_find", "泥芙家二楼。她翻柜子，录像带放不出，又忘了晨是谁"),
+    ("home_find_b", "泥芙家二楼。记下来，任务开始"),
     ("home_out", "出门，回河岸"),
     ("market_go", "高处市集。路过"),
     ("market_to_stairwell", "市集下楼"),
@@ -40,8 +40,8 @@ MAIN = [
     ("oldstreet_tank_take", "旧街。捡氧气瓶"),
     ("warehouse_go", "旧街仓库入口。下水"),
     ("warehouse_in", "水下仓库。找读取头"),
-    ("warehouse_out", "水下仓库。自己游到入口上去，再自己走回妮芙家（旧街 → 楼梯间 → 市集 → 河岸），路上能去市集换密封圈"),
-    ("tape_fix", "回妮芙家二楼。修好录像带，看大象"),
+    ("warehouse_out", "水下仓库。自己游到入口上去，再自己走回泥芙家（旧街 → 楼梯间 → 市集 → 河岸），路上能去市集换密封圈；也可以在旧街点「回泥芙家」直接到二楼"),
+    ("tape_fix", "回泥芙家二楼。修好录像带，看大象"),
     ("bank_to_market", "再去市集"),
     ("market_to_oldstreet_again", "再经过楼梯间，到旧街"),
     ("south_go", "南桥。到了"),
@@ -53,9 +53,9 @@ MAIN = [
     ("south_trail_end", "南桥。脚印走到旧货台"),
     ("south_dock", "南桥旧货台。查装卸记录"),
     ("dock_plates", "南桥旧货台。选编号牌"),
-    ("south_back", "回旧街。妮芙捡到铜铃，送给晨，回河岸（没有密封圈的，这时先出「获取密封圈」，拿到了才能去道别）"),
-    ("farewell", "妮芙家。喝茶，留画，拿礼物"),
-    ("farewell_b", "妮芙家。她说画得像水壶"),
+    ("south_back", "回旧街。泥芙捡到铜铃，送给晨，回河岸（没有密封圈的，南桥查完船号就出「获取密封圈」，拿到了才能去道别）"),
+    ("farewell", "泥芙家。喝茶，留画，拿礼物"),
+    ("farewell_b", "泥芙家。她说画得像水壶"),
     ("farewell_phone", "道别完，回河岸"),
     ("plane_fix", "河岸。修飞机"),
     ("depart", "河岸。起飞。第二章完"),
@@ -64,11 +64,11 @@ MAIN = [
 INLINE_ONLY = {"n_meet_plain", "n_name_p", "n_note_p", "ch_bread_busy", "rb_who_a", "deer_msg_m", "dr_el", "ch_tape_sorry",
                "n_tank_p", "sluice_open", "oldstreet_jam", "pocket_stone", "el_rope", "dock_plate_12", "n_tea_p", "ch_bye_write", "n_bye_p"}
 
-FADE_AT = {"river_bank_toolkit": "飞机旁", "river_home_chen": "妮芙家屋里", "river_home_player_r": "妮芙家二楼柜子旁（不走路，直接到）",
+FADE_AT = {"river_bank_toolkit": "飞机旁", "river_home_chen": "泥芙家屋里", "river_home_player_r": "泥芙家二楼柜子旁（不走路，直接到）",
            "oldstreet_warehouse_entry": "旧街仓库入口"}
-ROOMS = {"river_bank": "河岸", "river_home": "妮芙家", "market": "高处市集", "stairwell": "楼梯间", "oldstreet": "旧街",
+ROOMS = {"river_bank": "河岸", "river_home": "泥芙家", "market": "高处市集", "stairwell": "楼梯间", "oldstreet": "旧街",
          "warehouse": "水下仓库", "southbridge": "南桥", "cockpit": "驾驶舱"}
-WHO = {"chen": "晨", "niff": "妮芙", "ting": "阿汀", "jellyfish": "水母"}
+WHO = {"chen": "晨", "niff": "泥芙", "ting": "阿汀", "jellyfish": "水母"}
 PLACE = {
     "river_bank_crates": "箱子", "river_bank_plane": "飞机", "river_bank_hatch": "舱门", "river_bank_steps": "台阶", "river_bank_toolkit": "工具箱",
     "river_bank_ting": "岸边", "river_bank_niff": "家门口那边", "river_home_door": "门口", "river_home_table": "桌子", "river_home_kitchen": "厨房",
@@ -84,7 +84,7 @@ ANIM = {
         "reach": "伸手", "hook": "用钩子把杯子钩上来", "tie": "绑机翼", "lean_hatch": "靠着舱门", "step_off": "跳下来", "open_toolkit": "打开工具箱",
         "close_toolkit": "合上工具箱", "pickup": "捡东西", "flip_pages": "翻本子", "draw": "画画", "touch_cover": "摸本子封面", "shake_head": "摇头",
         "take_box": "接过影像盒", "plug_in": "插上播放器", "sit_up": "坐直", "press_button": "狂按按钮", "freeze_hand": "手停住", "lower_hand": "放下手",
-        "nod": "点头", "hold_box": "抱着影像盒", "tie_rope": "系绳子", "untie_rope": "解开绳子", "point_log": "指记录", "point_niff": "指妮芙",
+        "nod": "点头", "hold_box": "抱着影像盒", "tie_rope": "系绳子", "untie_rope": "解开绳子", "point_log": "指记录", "point_niff": "指泥芙",
         "show_item": "把东西拿出来", "reach_pocket": "手伸进口袋", "touch_seam": "摸到口袋缝", "withdraw_hand": "抽回手", "stop": "停住", "flip_to_page": "翻到那一页",
         "dry_sleeves": "晾袖子", "close_journal": "合上日记", "hold_paper": "拿着纸", "hold_shell": "扶住外壳", "open_mouth": "张开嘴", "laugh": "笑",
         "pen_stop": "笔停住", "glance_phone": "瞥一眼通讯器", "move_journal": "挪开日记", "listen": "听", "palm_table": "手掌贴桌面", "lift_hand": "抬起手",
@@ -136,7 +136,7 @@ KEY_LABEL = {
     "wrong": "拧反时", "aligned": "对上时", "ask": "", "right": "选对时", "miss_1": "早了时",
 }
 OPTION_NOTE = {
-    "n_meet_courier": "之后这一章妮芙都叫晨「取件员」，终章的消息也这么叫",
+    "n_meet_courier": "之后这一章泥芙都叫晨「取件员」，终章的消息也这么叫",
     "n_meet_bio": "之后和选「不是。」一样",
     "n_meet_rude": "之后和选「不是。」一样",
     "dock_plate_07": "看完回到这里重选",
@@ -160,7 +160,7 @@ COND = {
     "!river_robbed": "进门时没说打劫的人",
     "river_rule_self": "找阿汀定第十三条时选了「落水的人先捞自己」的人",
     "river_rule_wish": "找阿汀定第十三条时选了「不许对着飞机许愿」的人",
-    "river_rule_niff": "找阿汀定第十三条时选了「妮芙说了算」的人",
+    "river_rule_niff": "找阿汀定第十三条时选了「泥芙说了算」的人",
 }
 OPTIONAL = [
     "河岸可点：杯子（杯底纸条，叫小姐那句）",
@@ -168,17 +168,18 @@ OPTIONAL = [
     "河岸可点：飞机（零件、道别各一句）",
     "阿汀：一直跟他说话，就一条一条往下念河岸条例（四十来条）；另有几句跟着进度变的闲聊",
     "阿汀支线：把录像带拿给他看，定第十三条（三选一），修飞机时他会念回来",
-    "妮芙闲聊：河岸、妮芙家、市集、旧街、南桥、临走前各有一句",
-    "妮芙家可点：茶碗（你喝茶吗 / 忘了放茶叶 / 没烧水，上一轮作者写的三句）、罐子（盐的标签）、标签、沙漏、厨房",
-    "妮芙家窗边：来客册（修好录像带以前只说「还是湿的」，修好以后是来客册支线）",
+    "泥芙闲聊：河岸、泥芙家、市集、旧街、南桥、临走前各有一句",
+    "泥芙家可点：茶碗（你喝茶吗 / 忘了放茶叶 / 没烧水，上一轮作者写的三句）、罐子（盐的标签）、标签、沙漏、厨房",
+    "泥芙家窗边：来客册（修好录像带以前只说「还是湿的」，修好以后是来客册支线）",
     "市集支线：饼干摊砍价（三选一），买了饼干，旧街拐角会坐下来分着吃",
     "市集支线：料理鼠妈，帮她看锅放料（小游戏），之后可以拿东西换吃的，换了汤终章多一格燃料",
     "市集修补摊：用任意一件东西换密封圈（什么时候都能换，不用等任务）",
-    "河岸飞机：有「获取密封圈」任务时点飞机，妮芙提醒去哪拿",
+    "河岸飞机：有「获取密封圈」任务时点飞机，泥芙提醒去哪拿",
     "市集可点：吊着的篮子、屋顶的桥、摊主",
     "楼梯间：水母（没给东西时还能再给；给过以后每次点都说「好像叫寿登耄耋？」）",
     "旧街可点：拐角（果酱店、身高刻线，买过饼干会坐下来分）、水位刻线、两层招牌",
-    "水下仓库可点：破箱子那儿（标签）；绿柜子（平时只看标签「修船的，还不急」，有「获取密封圈」任务时翻出一个密封圈，拿过以后是「抽屉空了」）",
+    "旧街：拿到读取头以后多一个「回泥芙家」，方格转场直接到泥芙家二楼（不想传送的照旧自己走回去）",
+    "水下仓库可点：破箱子那儿（标签）；绿柜子（随时按 E 都翻出一个密封圈，拿过以后是「抽屉空了」；在市集换过的只看标签「修船的，还不急」）",
     "来客册支线：修好录像带以后，回窗边扇干来客册（小游戏），看名单，知道弥洛的朋友寄过信，拿到杯底记号",
     "南桥可点：灯柱、屋顶装饰",
 ]
@@ -227,7 +228,7 @@ class Writer:
     def walk(self, st):
         who, to = st.get("who"), st.get("to")
         if isinstance(to, (int, float)):
-            return {"chen": "晨走了几步", "niff": "妮芙飘到一边", "ting": "阿汀从左边走过来"}.get(who, who)
+            return {"chen": "晨走了几步", "niff": "泥芙飘到一边", "ting": "阿汀从左边走过来"}.get(who, who)
         if to == "chen":
             return "%s走到晨身边" % WHO.get(who, who)
         if to not in PLACE:
@@ -263,7 +264,7 @@ class Writer:
         if do == "flag":
             if isinstance(st.get("set"), str):
                 self.flags.add(st["set"])
-        elif do in ("wait", "face", "pose", "ambient", "follow", "goto", "journal_strike", "flashback_wake", "end_chapter"):
+        elif do in ("wait", "face", "pose", "ambient", "music", "follow", "goto", "journal_strike", "flashback_wake", "end_chapter"):
             if do == "journal_strike":
                 self.act("把日记里「%s」那句划掉" % st["match"])
             elif do == "end_chapter":
@@ -382,16 +383,16 @@ class Writer:
             names = "、".join(i["label"]["zh"] for i in st.get("items", []))
             self.act("小游戏：站在岸边抛钩，把漂过来的东西捞上来（%s，还有一个%s）" % (names, st["box"]["label"]["zh"]))
         elif mid == "river_valve":
-            self.act("小游戏：按住转闸轮，管子不咕噜了就松手，一共三道闸。表盘上是妮芙画的小鱼、鞋、茶壶、鲸鱼")
+            self.act("小游戏：按住转闸轮，管子不咕噜了就松手，一共三道闸。表盘上是泥芙画的小鱼、鞋、茶壶、鲸鱼")
         elif mid == "river_borrowed":
             boxes = "、".join("%s（她忘了时写「%s」）" % (b["label"]["zh"], b["code"]["zh"]) for b in st.get("boxes", []))
-            self.act("小游戏：水下的箱子漂来漂去，选一只打开，找读取头（箱子里没有密封圈，密封圈在绿柜子）。妮芙头上的泡泡破光了，标签就变成她的暗号。箱子：" + boxes)
+            self.act("小游戏：水下的箱子漂来漂去，选一只打开，找读取头（箱子里没有密封圈，密封圈在绿柜子）。泥芙头上的泡泡破光了，标签就变成她的暗号。箱子：" + boxes)
         elif mid == "river_thread":
-            self.act("小游戏：拧接头。管子上印着「%s」的箭头，妮芙贴的便条写着「%s」，照箭头拧会松，反着拧才紧" % (st.get("arrow", {}).get("zh", ""), st.get("note", {}).get("zh", "")))
+            self.act("小游戏：拧接头。管子上印着「%s」的箭头，泥芙贴的便条写着「%s」，照箭头拧会松，反着拧才紧" % (st.get("arrow", {}).get("zh", ""), st.get("note", {}).get("zh", "")))
         elif mid == "river_explore_order":
             rows = st.get("rows", [])
             if rows:
-                self.act("妮芙的防水板上写着：" + " / ".join(r["zh"] for r in rows))
+                self.act("泥芙的防水板上写着：" + " / ".join(r["zh"] for r in rows))
             else:
                 self.act("晨看防水板")
         else:
@@ -511,10 +512,10 @@ FINAL_PLAN = [
     ("e1_plant", "种种子（种子没烧的人才有）"),
     ("e1_evening", "傍晚。修飞机，写日记"),
     ("e1_cockpit", "驾驶舱。看窗外的大象"),
-    "尾声（只有芦苇地这条有：鹿 → 弥洛 → 妮芙 → 城市 → 列车）",
+    "尾声（只有芦苇地这条有：鹿 → 弥洛 → 泥芙 → 城市 → 列车）",
     ("epilogue", "森林路口。鹿"),
     ("epi_miluo", "树屋。弥洛"),
-    ("epi_niff", "妮芙家"),
+    ("epi_niff", "泥芙家"),
     ("epi_city", "回到城市"),
     ("epi_home", "回家的列车"),
     ("epi_home_seat", "列车上。坐下。全剧终"),
@@ -538,7 +539,7 @@ FINAL_OPTIONAL = [
     ("ck_bell", "驾驶舱：铜铃"), ("ck_drawing", "驾驶舱：最初的画"), ("yard_sign", "芦苇地：指示牌"), ("e1_elephant_chat", "芦苇地：大象"),
     ("e1_passerby_chat", "芦苇地：路过的人"), ("town_basket", "云层小镇：空篮子"),
     ("e3_crowd_chat", "云层小镇：周围的人"), ("e3_townsfolk_chat", "云层小镇：居民"), ("epi_deer_chat", "尾声：鹿"),
-    ("epi_miluo_chat", "尾声：弥洛"), ("epi_niff_chat", "尾声：妮芙"),
+    ("epi_miluo_chat", "尾声：弥洛"), ("epi_niff_chat", "尾声：泥芙"),
 ]
 # 没有字的场景，不用写进 txt
 FINAL_SILENT = {"yard_grass"}
@@ -570,9 +571,9 @@ FINAL_COND = {
 FINAL_GOTO_NOTE = {
     "final_descend": "往下接「最后的选择」", "ending1": "芦苇地", "ending3": "云层小镇", "ending_home": "回母星", "epi_home": "接「回家的列车」（和尾声最后一段一样）", "final_end_town": "全剧终",
 }
-WHO_FINAL = {"chen": "晨", "niff": "妮芙", "elephant": "大象", "deer": "鹿", "miluo": "弥洛", "passerby": "路过的人", "resident": "居民", "townsfolk": "居民", "crowd": "周围的人"}
+WHO_FINAL = {"chen": "晨", "niff": "泥芙", "elephant": "大象", "deer": "鹿", "miluo": "弥洛", "passerby": "路过的人", "resident": "居民", "townsfolk": "居民", "crowd": "周围的人"}
 ROOMS_FINAL = {"cockpit": "驾驶舱", "reed_field": "芦苇地", "town": "云层小镇", "town_room": "住处", "forest": "森林路口", "treehouse": "树屋",
-               "river_home": "妮芙家", "city": "城市", "home_train": "回家的列车"}
+               "river_home": "泥芙家", "city": "城市", "home_train": "回家的列车"}
 FADE_AT_FINAL = {"town_fountain_stand": "喷泉边", "yard_landing": "西边的旧货场", "east_landing": "东边的缓坡"}
 PLACE_FINAL = {"east_rest": "飞机旁躺下的地方", "train_seat": "座位", "yard_landing": "飞机", "east_far": "远处", "east_water": "水边", "yard_hill": "山坡那边",
                "town_bench": "长椅", "town_plaza_side": "广场那边"}
@@ -601,7 +602,7 @@ SFX_FINAL = {
     "door_open": "门开了", "elephant_breath": "大象的呼吸声", "elephant_low_call": "大象的低鸣", "engine_off": "发动机关了", "engine_steady": "发动机平稳地响", "engine_test": "试发动机",
     "footage_play": "影像放起来", "fountain": "喷泉声", "grass_tear": "扯草声", "hiss_small": "小声漏气", "hull_rattle": "船壳咯吱响", "hum_late": "哼慢了一拍", "hum_new_key": "换了个调",
     "hum_stop": "哼不下去了", "hum_wrong": "哼错一个音", "knock": "敲门", "landing_soft": "平稳落地", "latch_tap": "搭扣轻响", "leak_hiss": "漏气声", "leak_slow": "慢慢漏气", "leak_small": "还有一点漏气",
-    "musicbox_open": "音乐盒打开", "musicbox_play": "音乐盒响", "musicbox_stop": "音乐盒停了", "niff_bell": "妮芙的铃响", "plaza_noise": "广场上很吵", "rough_landing": "重重落地",
+    "musicbox_open": "音乐盒打开", "musicbox_play": "音乐盒响", "musicbox_stop": "音乐盒停了", "niff_bell": "泥芙的铃响", "plaza_noise": "广场上很吵", "rough_landing": "重重落地",
     "screw_back": "螺丝拧回去", "screw_half": "螺丝拧到一半", "seat_creak": "座椅吱呀响", "stomach": "肚子叫", "thruster_recover": "推进器缓过来", "tighten": "拧紧", "valve_close": "关阀门",
     "water_drop": "水滴声", "water_pour": "倒水", "water_slosh": "水晃", "wrench_half": "扳手转了半圈",
 }
@@ -618,7 +619,7 @@ PROP_FINAL = {
     ("cockpit_window", "cloud_orbit"): "窗外云层在下面", ("cockpit_window", "cloud_sea"): "窗外是云海", ("cockpit_window", "elephant_shadow"): "窗外有大象的影子过去",
     ("cockpit_window", "yard_elephant_far"): "窗外远处是大象", ("cockpit_window", "yard_parked"): "窗外是停飞机的地方", ("east_bed", "planted"): "花圃种上了", ("east_plane", "wing_up"): "机翼抬起来",
     ("east_toolbag", "ready"): "工具包放好", ("east_tree", "bark_rubbed"): "树皮蹭秃了", ("east_water_cup", "placed"): "旁边留了一杯水", ("forest_map", "corrected"): "地图改好了",
-    ("river_home_cup", "offered"): "妮芙递来一杯", ("sky", "day"): "天亮了", ("sky", "dusk"): "傍晚了", ("sky", "night"): "夜里", ("sky", "shadow_pass"): "一个影子掠过", ("town_bed", "planted"): "花圃种上了",
+    ("river_home_cup", "offered"): "泥芙递来一杯", ("sky", "day"): "天亮了", ("sky", "dusk"): "傍晚了", ("sky", "night"): "夜里", ("sky", "shadow_pass"): "一个影子掠过", ("town_bed", "planted"): "花圃种上了",
     ("town_toolbag", "on_seat"): "工具包放在座位上", ("train_seat", "sun_on_knees"): "太阳晒到膝盖", ("train_window", "afternoon_sun"): "窗外是下午的太阳", ("train_window", "trees_passing"): "窗外的树一棵棵过去",
     ("treehouse_glass", "paper"): "玻璃杯压住那张纸", ("yard_stone", "placed"): "放了块石头做记号", ("yard_toolbag", "placed"): "工具包放下",
 }

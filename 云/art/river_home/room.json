@@ -1,5 +1,5 @@
 {
- "_comment": "妮芙家（第三版：一整块巨石被掏空的三层洞屋，石阶往上）。格式照 docs/river_rooms_contract.md 1.6（多层：levels / stairs，见 scripts/room_stage.gd）；坐标都是图里的像素（左上角 0,0）。tools/river_home_rooms_art.py 生成，别手改。地面以下泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
+ "_comment": "泥芙家（第三版：一整块巨石被掏空的三层洞屋，石阶往上）。格式照 docs/river_rooms_contract.md 1.6（多层：levels / stairs，见 scripts/room_stage.gd）；坐标都是图里的像素（左上角 0,0）。tools/river_home_rooms_art.py 生成，别手改。地面以下泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
  "kind": "house",
  "host": "river_bank",
  "x": 1570,
@@ -403,7 +403,7 @@
     "offered": 1
    },
    "default": "default",
-   "note": "尾声妮芙递给晨的那杯（餐桌 cup_stays 帧里那只杯子），offered 时在桌子晨那一头"
+   "note": "尾声泥芙递给晨的那杯（餐桌 cup_stays 帧里那只杯子），offered 时在桌子晨那一头"
   },
   "chen_drawing": {
    "img": "obj_empty.png",

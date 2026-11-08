@@ -116,7 +116,7 @@
 		"c1_rabbit_gate": 4484,
 		"c1_rabbit": 4516,
 		"c1_rabbit_chen": 4460,
-		"c1_rabbit_deer": 4495,
+		"c1_rabbit_deer": 4400,
 		"c1_rabbit_doe": 4700,
 		"c1_rabbit_doe_near": 4558,
 		"c1_rabbit_kit_1": 4270,
@@ -1864,7 +1864,7 @@
 			{"do": "face", "who": "deer", "to": "chen"},
 			{"say": "deer", "zh": "我来带你去找永燃之木", "en": "I'll take you to find the Everburning Wood"},
 			{"do": "flag", "set": "c1_to_rabbit"},
-			{"do": "fade_to", "room": "forest", "at": 4390, "style": "pixel", "place": {"deer": 4420}},
+			{"do": "fade_to", "room": "forest", "at": 4365, "style": "pixel", "place": {"deer": 4390}, "_note": "11-08 作者「挡住兔子」：鹿原来带到 4495，正好压在兔子（4516）身上；现在停在晨身后 4400"},
 			{"do": "guide", "to": "c1_rabbit_deer", "speed": 95, "wait": false},
 			{"do": "inner", "zh": "那边……是一只兔子？", "en": "Over there... is that a rabbit?", "added": true, "_note": "11-08 作者：兔子本来就在原地，晨自己走过去跟它说话（hotspot c1_rabbit_meet），不再自动走过去、兔子不再凭空出现"}
 		],

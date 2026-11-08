@@ -261,7 +261,7 @@ func _make_slots() -> Rect2:
 		add_child(_route_btn)
 		_route_i = _slots.size()
 		_slots.append(_route_btn)
-		bx += UITheme.font().get_string_size("▸ " + _tx("route"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		bx += UITheme.font().get_string_size(UITheme.MARK + " " + _tx("route"), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
 	if _can_close():
 		_close_btn = _label("  " + _tx("close"), UITheme.TEXT_DIM)
 		_close_btn.add_theme_stylebox_override("normal", UITheme.box(BG, EDGE, 1, Vector4(4, 1, 6, 1)))
@@ -328,7 +328,7 @@ func _style() -> void:
 				UITheme.ACCENT if on else Color(0.3, 0.4, 0.35, 0.8), 1))
 		else:
 			var l: Label = c
-			l.text = ("▸ " if on else "  ") + _tx("close" if _is_close(i) else "route")
+			l.text = (UITheme.MARK + " " if on else UITheme.MARK_OFF + " ") + _tx("close" if _is_close(i) else "route")
 			l.add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
 	if _mode == "pick" and not _is_route(_sel) and not _is_close(_sel):
 		var it := Inventory.item(items[_sel])
@@ -596,14 +596,14 @@ func _buttons(labels: Array, y: float, right := false) -> void:
 	if right:                                # 靠卡片右边排（紧凑排法：和名字同一行）
 		x = _card.size.x - 10.0 + 18.0
 		for s in labels:
-			x -= UITheme.font().get_string_size("▸ " + str(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+			x -= UITheme.font().get_string_size(UITheme.MARK + " " + str(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
 	for s in labels:
 		var l := _label("", UITheme.TEXT_DIM)
 		l.set_meta("text", str(s))
 		l.position = Vector2(x, y)
 		_card.add_child(l)
 		_card_btns.append(l)
-		x += UITheme.font().get_string_size("▸ " + str(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		x += UITheme.font().get_string_size(UITheme.MARK + " " + str(s), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
 	_card_sel = 0
 	_style_btns()
 
@@ -612,7 +612,7 @@ func _style_btns() -> void:
 	for i in _card_btns.size():
 		var on := i == _card_sel
 		var l := _card_btns[i]
-		l.text = ("▸ " if on else "  ") + str(l.get_meta("text"))
+		l.text = (UITheme.MARK + " " if on else UITheme.MARK_OFF + " ") + str(l.get_meta("text"))
 		l.add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
 
 

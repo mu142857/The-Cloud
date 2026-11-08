@@ -1,4 +1,4 @@
-"""妮芙「高兴转圈圈」（作者 11-02 画的 4 帧 GIF，100ms 一帧）→ art/characters/niff/niff_spin.png，写进 niff.json 的 anims.spin。
+"""泥芙「高兴转圈圈」（作者 11-02 画的 4 帧 GIF，100ms 一帧）→ art/characters/niff/niff_spin.png，写进 niff.json 的 anims.spin。
 和 niff_from_gif.py 一样原样导入：不改色不改形、按每格中心缩回原生像素、所有帧同一块裁剪。
 每帧比平时的鲸壳大（整只转起来），所以 spin 自带 sheet / frame / anchor（npc_generic 支持按动作换图）。
 用法：python3 tools/niff_spin_from_gif.py [源.gif]

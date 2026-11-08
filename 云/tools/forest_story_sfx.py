@@ -109,6 +109,30 @@ def unit(x):
     return x / m
 
 
+# 11-08 作者：「不要有白噪声，我发现你音效很多喜欢加白噪声，不要，有也极端小声。」两条规矩（flight1_sfx / river_sfx 也用）：
+#   ① 垫在主体下面的噪声层（嘶、底噪、气声、磁带感、风盖着）删掉：乘 HUSH。随机数照样取，后面别的音效一点不变。
+#   ② 声音本身就是噪声的（漏气、风、水、纸、笔、火）低通到 2 kHz（soft，4 阶），不「沙」。
+#   一下子的「咔」「噗」（< 0.1 秒的 burst）是起音，不算白噪声，不动。
+#   必须留在主体下面的（收音机的沙沙）用 under()：低通，再按 RMS 压到主体 -30 dB。
+HUSH = 0.0
+NOISE_CUT = 2000.0
+
+
+def soft(x, cut=NOISE_CUT):
+    return band(x, None, cut, order=4)
+
+
+def under(bed, body, db=-30.0, cut=NOISE_CUT):
+    bed = soft(bed, cut)
+    rb, ro = np.sqrt(np.mean(bed ** 2)), np.sqrt(np.mean(body ** 2))
+    return bed * (ro * 10 ** (db / 20) / rb) if rb > 0 else bed
+
+
+def rub(x, lo, hi):
+    """摩擦类（笔、纸、刮）：带通的下沿最多 700 Hz、上沿 2 kHz 以下，软的「擦」，不是嘶。"""
+    return soft(band(x, min(lo, 700), hi))
+
+
 def mix(*xs):
     """长短不一的几段从同一刻开始叠在一起。"""
     y = np.zeros(max(len(v) for v in xs))
@@ -308,7 +332,7 @@ def musicbox(full=True):
     on = np.clip((t - lead + 0.1) / 0.1, 0, 1) * np.clip((play_end - t) / 0.12, 0, 1)
     if full:   # 最后发条松了：沙沙也慢慢没了
         on *= np.clip((play_end - t) / 2.5, 0, 1) ** 0.5
-    x += unit(mech) * 0.012 * on
+    x += unit(mech) * 0.012 * on * HUSH    # 11-08 底噪删掉
     if not full:
         # 卡住：那根簧片被压住，只有一声闷闷的「嗒」，滚筒顿一下停了
         at = lead + mb_time(STUCK_BEAT, beat) + 0.05
@@ -373,14 +397,14 @@ def gramo_process(x, seed, cut_hi=3000, wet=0.18, wow=True):
     hiss = band(r.standard_normal(n), 400, 2600) * 0.010 * (1 + 0.25 * np.sin(2 * np.pi * 1.3 * t))
     cr = np.zeros(n)
     for p in r.integers(0, n, int(n / SR * 9)):
-        cr[p] = r.uniform(-1, 1) * r.uniform(0.02, 0.09)
+        cr[p] = r.uniform(-1, 1) * r.uniform(0.02, 0.09) * HUSH      # 11-08 表面噼啪删掉
     for k in range(int(n / SR * 1.3)):      # 78 转：每圈一下
         p = int((k / 1.3 + 0.21) * SR)
         if p < n:
             cr[p] += 0.05
-    cr = band(cr, 500, 3500)
+    cr = soft(band(cr, 500, 3500))
     cr = cr / (np.max(np.abs(cr)) or 1) * 0.07
-    return wet_room(x / level + unit(hiss) * 0.010 + cr, wet), r
+    return wet_room(x / level + unit(hiss) * 0.010 * HUSH + cr, wet), r      # 11-08 表面嘶声删掉
 
 
 G_BEAT = 0.68
@@ -479,7 +503,7 @@ def engine_fail():
         add(x, at, mix(burst(0.25, 0.07, 40, 420) * a, tone(80, 0.2, 0.05, 0.5 * a)))
     add(x, 1.62, mix(modal([(300, 0.08, 0.35), (720, 0.05, 0.2), (1300, 0.02, 0.06)], 0.5), burst(0.04, 0.01, 100, 1500) * 0.2))
     hs = band(noise(int(0.9 * SR)), 600, 2400)
-    add(x, 1.68, unit(hs) * 0.07 * np.sin(np.pi * np.clip(tt(0.9) / 0.9, 0, 1)) ** 2)
+    add(x, 1.68, unit(hs) * 0.07 * HUSH * np.sin(np.pi * np.clip(tt(0.9) / 0.9, 0, 1)) ** 2)
     return wet_forest(band(x, 30, 3000), 0.15)
 
 
@@ -493,7 +517,7 @@ def engine_test():
     amp = np.clip((t - 0.42) / 0.35, 0, 1) * np.clip((3.25 - t) / 0.75, 0, 1)
     x += drone(t, f, 0.2) * amp * 0.85
     air = band(noise(len(t)), 120, 700)
-    x += unit(air) * 0.12 * amp
+    x += unit(air) * 0.12 * amp * HUSH        # 11-08 气流底噪删掉
     add(x, 0.45, tone(60, 0.3, 0.08, 0.5))           # 着火那一下
     return band(x, 30, 3000)
 
@@ -511,7 +535,7 @@ def engine_start():
     amp = np.clip((t - 0.6) / 0.5, 0, 1) * (0.75 + 0.25 * rise)
     away = np.clip(1 - (t - 4.8) / 2.6, 0, 1) ** 1.6      # 飞远
     x += drone(t, f, rise) * amp * away
-    w = band(noise(n), 100, None)
+    w = soft(band(noise(n), 100, None))      # 11-08 起飞的气流留着，低通到 2 kHz
     cut = 350 + 1500 * np.sin(np.pi * np.clip((t - 0.8) / 5.6, 0, 1)) ** 1.5
     air = lp_tv(lp_tv(w, cut), cut)
     air = unit(air) * (0.15 + 0.5 * np.sin(np.pi * np.clip((t - 0.8) / 6.0, 0, 1)) ** 2) * np.clip((t - 0.7) / 0.3, 0, 1)
@@ -539,7 +563,7 @@ def branch_drag():
     sec = 1.8
     t = tt(sec)
     e = np.sin(np.pi * np.clip(t / 1.55, 0, 1)) ** 0.8 * (0.75 + 0.25 * np.sin(2 * np.pi * 2.6 * t))
-    leaves = unit(drag_grains(sec, 260, 350, 2600, 21)) * e
+    leaves = unit(soft(drag_grains(sec, 260, 350, 2600, 21))) * e
     mud = unit(band(noise(len(t)), 60, 400)) * 0.35 * e
     x = leaves * 0.7 + mud
     for at in (0.42, 1.05):                                 # 小枝折一下（很软）
@@ -668,7 +692,7 @@ def kettle_whistle():
     whistle = (np.sin(ph) + 0.12 * np.sin(2 * ph)) * (0.85 + 0.15 * unit(lp(noise(n), 30)))
     breath = unit(band(noise(n), 500, 2400)) * np.clip(t / 0.6, 0, 1) * np.clip((sec - t) / 0.6, 0, 1)
     bubbles = unit(band(noise(n), 80, 400)) * 0.3 * np.clip(t / 0.3, 0, 1) * np.clip((2.2 - t) / 0.6, 0, 1)
-    x = whistle * e * 0.5 + breath * 0.35 + bubbles * 0.5
+    x = whistle * e * 0.5 + breath * 0.35 * HUSH + bubbles * 0.5      # 11-08 气声删掉，只留哨音和水泡
     return wet_room(band(x, 60, 3000), 0.15)
 
 
@@ -683,7 +707,7 @@ def sigh():
     exh = lp_tv(lp_tv(band(w, 250, None), cut), cut)
     exh = band(peak_eq(exh, 550, 5, 1.2), None, 2200)   # 一点点「哈」的腔，再压暗
     exe = np.clip((t - 0.26) / 0.1, 0, 1) * np.clip((sec - t) / 0.85, 0, 1) ** 1.6
-    return inhale + unit(exh) * exe
+    return soft(inhale + unit(exh) * exe)
 
 
 def pipe_tap(sec, modes, click_hi, damp_noise=0.0):
@@ -717,7 +741,7 @@ def pipe_hiss():
     fl = 1 + 0.25 * unit(lp(noise(n), 6)) + 0.1 * np.sin(2 * np.pi * 7 * t)
     hiss = band(noise(n), 3300, 4600, order=4)
     whistle = np.sin(2 * np.pi * np.cumsum(3750 * (1 + 0.004 * unit(lp(noise(n), 4)))) / SR)
-    x += (unit(hiss) * 0.13 + whistle * 0.06) * e * fl
+    x += (unit(hiss) * 0.13 * HUSH + whistle * 0.06) * e * fl      # 11-08 嘶声删掉，「尖响」只剩细哨音（正弦，不是噪声）
     return wet_room(x, 0.12)
 
 
@@ -749,7 +773,7 @@ def scrape():
     for s0, L in ((0.0, 0.26), (0.36, 0.3)):
         tl = tt(L)
         stick = (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(90 + 60 * tl / L) / SR)) ** 4      # 一顿一顿
-        g = unit(band(noise(len(tl)), 1300, 3800)) * stick * np.sin(np.pi * tl / L) ** 0.7
+        g = unit(rub(noise(len(tl)), 1300, 3800)) * stick * np.sin(np.pi * tl / L) ** 0.7
         add(x, s0, g)
     add(x, 0.66, modal([(2400, 0.01, 0.2)], 0.05))      # 一颗碎屑弹出去
     return wet_room(band(x, 400, 4000), 0.1)
@@ -854,7 +878,7 @@ def elephant_voice(sec=4.2, seed=0):
         a *= fk < 2600
         x += a * np.sin(k * ph + r.uniform(0, 6.28))
     breath = band(r.standard_normal(n), 150, 1000)
-    x = unit(x) + unit(breath) * 0.05
+    x = unit(x) + unit(breath) * 0.05 * HUSH      # 11-08 气声删掉
     return x * env
 
 
@@ -890,7 +914,7 @@ def elephant_call_2():
     gust = 0.55 + 0.45 * unit(lp(r.standard_normal(len(t)), 0.6))
     wind = unit(band(r.standard_normal(len(t)), 120, 1400)) * gust
     wind *= np.clip(t / 0.8, 0, 1) * np.clip((sec - t) / 1.5, 0, 1)
-    return x + wind * 0.22
+    return x + wind * 0.22 * HUSH      # 11-08 盖着的风声删掉
 
 
 def tree_sway():
@@ -904,7 +928,7 @@ def tree_sway():
         t = tt(L)
         u = i / 5
         cut = 1300 + 1000 * np.sin(np.pi * u)
-        leaf = band(r.standard_normal(len(t)), 350, cut)
+        leaf = soft(band(r.standard_normal(len(t)), 350, cut))
         flutter = 0.35 + unit(lp(np.abs(r.standard_normal(len(t))), 25)) ** 2
         g = unit(leaf * flutter) * np.sin(np.pi * t / L) ** 1.5 * (0.55 + 0.45 * np.sin(np.pi * (0.2 + 0.8 * u)))
         add(x, 0.05 + i * 0.38, g)
@@ -963,7 +987,7 @@ def pen_strokes(strokes, lo, hi, seed, body=0.25):
     for s0, d, a in strokes:
         t = tt(d)
         grain = 0.3 + unit(lp(np.abs(r.standard_normal(len(t))), 180)) ** 2
-        g = unit(band(r.standard_normal(len(t)), lo, hi)) * grain
+        g = unit(rub(r.standard_normal(len(t)), lo, hi)) * grain
         g += unit(band(r.standard_normal(len(t)), 200, 800)) * body
         add(x, s0, g * np.sin(np.pi * t / d) ** 0.6, a)
     return x
@@ -986,7 +1010,7 @@ def pen_strike():
     tl = tt(d)
     r = np.random.default_rng(83)
     grain = 0.4 + unit(lp(np.abs(r.standard_normal(len(tl))), 250)) ** 2
-    s = lp_tv(band(r.standard_normal(len(tl)), 900, None), 2200 + 1600 * tl / d)
+    s = soft(lp_tv(band(r.standard_normal(len(tl)), 700, None), 2200 + 1600 * tl / d))
     g = unit(s) * grain * np.clip(tl / 0.03, 0, 1) * np.clip((d - tl) / 0.06, 0, 1)
     g += unit(band(r.standard_normal(len(tl)), 200, 700)) * 0.3 * np.clip((d - tl) / 0.06, 0, 1)
     add(x, 0.02, g)
@@ -1004,7 +1028,7 @@ def page_turn():
         p = r.integers(0, len(crink) - 400)
         L = int(r.integers(40, 300))
         crink[p:p + L] += r.standard_normal(L) * np.exp(-np.arange(L) / (L / 3)) * r.uniform(0.2, 1.0)
-    crink = band(crink, 1500, 4200) * np.linspace(1, 0.3, len(crink))
+    crink = rub(crink, 1500, 4200) * np.linspace(1, 0.3, len(crink))
     add(x, 0.0, unit(crink) * 0.5)
     air = unit(band(r.standard_normal(len(t)), 200, 1300)) * np.sin(np.pi * np.clip((t - 0.08) / 0.45, 0, 1)) ** 2
     x += air * 0.45
@@ -1050,7 +1074,7 @@ def paper_slide():
     d = 0.6
     tl = tt(d)
     grain = 0.6 + 0.4 * unit(lp(np.abs(r.standard_normal(len(tl))), 60))
-    g = unit(band(r.standard_normal(len(tl)), 500, 2600)) * grain
+    g = unit(soft(band(r.standard_normal(len(tl)), 500, 2600))) * grain
     g *= np.clip(tl / 0.08, 0, 1) * np.clip((d - tl) / 0.15, 0, 1) ** 1.2
     x = np.zeros(len(t))
     add(x, 0.02, g)
@@ -1092,7 +1116,7 @@ def hum_note(m, dur, cents_fn=None, seed=0, cut_at=None):
         fk = k * f0
         a = (1 / k ** 1.8) * (0.4 + 1.2 * np.exp(-0.5 * ((fk - 260) / 90) ** 2)) * (1 / (1 + (fk / 900) ** 4))
         x += a * np.sin(k * ph + k)
-    breath = unit(band(r.standard_normal(n), 300, 2200)) * 0.07
+    breath = unit(band(r.standard_normal(n), 300, 2200)) * 0.07 * HUSH      # 11-08 气声删掉
     e = np.sin(np.pi / 2 * np.clip(t / 0.07, 0, 1)) ** 2
     if cut_at is None:
         e *= np.clip((dur - t) / 0.12, 0, 1)
@@ -1184,7 +1208,7 @@ def clock_open():
     add(x, 0.0, mix(modal([(1700, 0.008, 0.5), (2900, 0.004, 0.2), (650, 0.015, 0.3)], 0.06),
                     burst(0.008, 0.0012, 1000, 4500) * 0.25))
     tl = tt(0.18)
-    sc = unit(band(noise(len(tl)), 1200, 3500)) * (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(70 + 0 * tl) / SR) ** 4)
+    sc = unit(rub(noise(len(tl)), 1200, 3500)) * (0.5 + 0.5 * np.sin(2 * np.pi * np.cumsum(70 + 0 * tl) / SR) ** 4)
     add(x, 0.07, sc * np.sin(np.pi * tl / 0.18) * 0.3)
     add(x, 0.28, modal([(420, 0.04, 0.35), (980, 0.02, 0.15)], 0.2))      # 盖子放下
     add(x, 0.3, modal([(2640, 0.35, 0.06), (3960, 0.2, 0.025)], 0.7))     # 铃很轻地一声
@@ -1210,7 +1234,7 @@ def radio_static():
     syl = (0.5 + 0.5 * np.sin(2 * np.pi * 3.7 * t)) ** 2
     voice = peak_eq(band(r.standard_normal(n), 400, 1800), 700, 8, 1.5) * syl
     ghost = band(unit(chord) * 0.6 + unit(voice) * 0.5, 450, 1800) * fade
-    x = st * 0.75 + ghost * 0.22
+    x = under(st, ghost * 0.22) + ghost * 0.22      # 11-08 沙沙低通、压到残音 -30 dB：现在主要听到远处电台的残音
     x *= np.clip(t / 0.04, 0, 1) * np.clip((sec - t) / 0.25, 0, 1)
     return wet_room(x, 0.08)
 
@@ -1233,7 +1257,7 @@ def fire_flare():
     cr = band(cr, 300, 3000)
     body = unit(band(noise(n), 40, 180)) * 0.5 * np.exp(-((t - 0.35) / 0.35) ** 2)
     x = roar * 0.75 + unit(cr) * 0.35 + body
-    return wet_room(band(x, 40, 3200), 0.12)
+    return wet_room(soft(band(x, 40, 3200)), 0.12)
 
 
 # ================================================================== 主程序

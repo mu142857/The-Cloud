@@ -23,7 +23,7 @@
 | `oldstreet` 旧街 + 水闸 | `art/river_city/oldstreet/room.json` | C |
 | `warehouse` 水下仓库 | `art/river_city/warehouse/room.json` | C |
 | `southbridge` 南桥 + 货台 | `art/river_city/southbridge/room.json` | C |
-| `river_home` 妮芙家（剖面小屋，在河岸里） | `art/river_home/room.json` | D |
+| `river_home` 泥芙家（剖面小屋，在河岸里） | `art/river_home/room.json` | D |
 | `cockpit` | 照旧 `art/cockpit/cockpit.json` | — |
 
 引擎找房间：`art/river_city/<id>/room.json` → `art/<id>/room.json`。图的路径都相对 json 所在的文件夹。
@@ -152,7 +152,7 @@
   "front": "front.png",                 // 前墙（进屋 0.5 秒淡出、出屋淡回来；在人前面）
   "light": "light.png",                 // 可选：屋里的光（半透明，在人后面、物件前面）
   "view": "view.png",                   // 可选：窗玻璃遮罩（同样大小，玻璃 = 不透明）。back 在玻璃处要透明；引擎透过去画 host 里
-                                        //   比 main 远的层（scroll < 1、不是 front）+ 头顶补的夜空，位置每帧照抄 → 跟着视差动（10-31 妮芙家大窗）
+                                        //   比 main 远的层（scroll < 1、不是 front）+ 头顶补的夜空，位置每帧照抄 → 跟着视差动（10-31 泥芙家大窗）
   "floor": 190,                         // 屋内地板那一行（图里的 y）
   "walk": [30, 390],                    // 屋里能走的范围（图里的 x）
   "door": 40,                           // 门（图里的 x）：在门口互动进出，不跳位置
@@ -268,7 +268,7 @@ C 想加鸽子、闪烁窗灯、光点、小鱼之类自己的效果用这个，
 - 脚下有一块硬边小阴影（引擎画）。
 - **没有 json 或没有图**：画 `color` 的竖条色块 + 名字，所有动作打 `MISSING_ANIM`，剧情照常播。
 
-### 2.1 多套形态 `forms`（妮芙：岸上 / 水下）
+### 2.1 多套形态 `forms`（泥芙：岸上 / 水下）
 
 ```jsonc
 {
@@ -425,7 +425,7 @@ hotspot 的 `room` 写房间 id；`at` 可以是 marker、物件 id（跟着物�
 ## 5. 水下（`env: underwater`）
 
 - 晨移动 ×0.55（只改速度，动画照旧 100ms 一帧）；面罩处冒气泡（`underwater_bubbles.gd`）；焦散 + 光柱（room.json 的 layers / scripts 自己加）；
-  所有音效加一点低通；妮芙自动 `swim` 形态。
+  所有音效加一点低通；泥芙自动 `swim` 形态。
 - 晨戴面罩的动作奥斯卡画：`chen.gd` 里有 `uw_idle` / `uw_walk` / `uw_reach` 就用，没有就用平常的并打 `MISSING_ANIM uw_idle`……
 - 导绳：
 
@@ -486,7 +486,7 @@ hotspot 的 `room` 写房间 id；`at` 可以是 marker、物件 id（跟着物�
 - 下水 / 上水（进出 `env: underwater` 的房间，10-30 作者：「切换很不好，实在不行逐渐黑再逐渐亮吧」）：正弦缓入缓出渐黑 0.8 秒，开头放一声 `splash_in` / `splash`（剧本刚放过的不叠），黑着换房间、镜头直接到位，停 0.2 秒，再渐亮 0.8 秒。原来那块漫过人的半透明水和亮纹删了。
 - 河岸 → 驾驶舱（`depart` 的 `fade_to cockpit`）：房间物件 `river_bank_plane` 预热（船底泛光、1 像素抖）→ 反重力竖直升 40 像素（ship_glow.gd 泛光）
   → 往左上加速飞出画面 → 淡到黑。没有这个物件就直接淡出。剧本步骤一步没动。
-- 水下：晨移动 ×0.55（只改速度）、嘴边冒泡（underwater_bubbles.gd）、SFX 总线加低通；妮芙自动换 swim。
+- 水下：晨移动 ×0.55（只改速度）、嘴边冒泡（underwater_bubbles.gd）、SFX 总线加低通；泥芙自动换 swim。
 - 镜头平时往晨面朝的方向多看 36 像素（森林同款）。11-06 南桥取景框小游戏删了，`viewfinder` 这个键不再有。
 - 南桥「跟着痕迹走」（11-06）：三个桥洞是普通 hotspot（south_arch_left / right / far），脚印是 16 个共用图的物件（`tools/southbridge_trail_art.py` 出图、写 room.json），
   走到跟前亮下一个用 `trigger: enter` + `nolock` 的 hotspot 串起来（river_trail_N），状态存在物件和 flag 里，读档不丢。南桥 main.png 手改过，别用 river_warehouse_bridge_art.py 重出。

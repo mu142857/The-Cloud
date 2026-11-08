@@ -12,6 +12,11 @@ const TEXT := Color("#dfe8e2")
 const TEXT_DIM := Color("#8fa69a")
 const ACCENT := Color("#c48fb4")      # 晨的紫红：说话人名字、选中
 const WARM := Color("#e8b860")        # 燃烧值
+## 选中标记（对话选项、驾驶舱的路线 / 信物、烧东西的确认）：全游戏都用这一个，别各写各的。
+## 「▸」原字体没有（11-08 作者截图：显示成写着 25b8 的框框），tools/level1_font.py 画进了 PixelFont_ui.ttf（4×7 小三角，7 像素宽）。
+## MARK_OFF 是一样宽的空白（U+2007，也是画进去的）：没选中的行用它占位，换选中时字不左右跳。
+const MARK := "▸"
+const MARK_OFF := "\u2007"
 
 static var _font: FontFile
 static var _theme: Theme

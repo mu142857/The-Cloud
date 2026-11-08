@@ -1,12 +1,12 @@
 extends Node2D
-## 通用角色（河流篇的妮芙、阿汀、摊主，背景里走过的小人）：读 art/characters/<id>/<id>.json，格式见
+## 通用角色（河流篇的泥芙、阿汀、摊主，背景里走过的小人）：读 art/characters/<id>/<id>.json，格式见
 ## docs/river_rooms_contract.md 第 2 节。鹿、弥洛不用这个（各有自己的脚本）。
 ##
 ## 节点的 position = 脚底（踩在地面那一行下面一格，和晨一样：position.y = round(地面) + 1）。
 ## 帧时长：每个动作自己的 ms（默认 json 顶层 ms，再默认 100）；绝不加速，走得快慢只改移动速度。
 ## 找动作：anims[名字] → alias[名字] → GENERIC_ALIAS → idle（resolve 返回 "" 时由 story_runner 打 MISSING_ANIM）。
 ## 每个动作可选：then = 播完（不循环的）接哪段（坐下 → 坐着晃脚）；shadow = false 这段不画脚下的影子（跳上长椅以后）。
-## forms：多套形态（妮芙 land / swim），每套里写的键覆盖顶层；没有图的那套 = 占位色块。
+## forms：多套形态（泥芙 land / swim），每套里写的键覆盖顶层；没有图的那套 = 占位色块。
 ## hover / bob / bob_s（可选）：整只离地 hover 像素悬浮、上下浮 bob 像素（平滑正弦，bob_s 秒一圈，取整到像素，不改帧）。
 ## bob_top（可选，帧里的一行）：只有这一行以上往下点 bob 像素再回来，这行和下面不动（大嘴鸟蹲在自带的树桩上：头和身子轻轻起伏，
 ## 脚和树桩不动）。上半截画在下半截后面，往下压的那一行被脚挡住，不露缝、不改图。shadow_w（可选）：影子宽（默认 12）。
@@ -16,7 +16,7 @@ extends Node2D
 
 const CHEN_GD := preload("res://scripts/chen.gd")
 ## 11-04 作者「闪现」（--qa_live）：剧本催人走（WALK_HURRY 2.2 倍）和跟随追赶最快不超过这些（像素 / 秒）：
-## 再快一帧就 6、7 像素，看着像瞬移（妮芙在家里下楼一帧 7 像素）。晨跑最快 225
+## 再快一帧就 6、7 像素，看着像瞬移（泥芙在家里下楼一帧 7 像素）。晨跑最快 225
 const WALK_MAX := 200.0
 const FOLLOW_MAX := 190.0   # 走坡 / 台阶：slope_k、STEP_V 和晨用同一套
 const DIR := "res://art/characters/%s/"
@@ -132,7 +132,7 @@ func set_form(f: String) -> void:
 		spr.vframes = 1
 		spr.frame = 0
 		_label.text = npc_id + ("·" + f if f != "" else "")
-		_label_on = shadow and npc_id != "niff"        # 背景走过的小人（shadow = false）占位不写名字；妮芙有图，万一缺图也不写
+		_label_on = shadow and npc_id != "niff"        # 背景走过的小人（shadow = false）占位不写名字；泥芙有图，万一缺图也不写
 		_label.visible = _label_on
 	else:
 		_label.visible = false
@@ -353,7 +353,7 @@ func _snap_y() -> void:
 		position.y = round(float(ground_fn.call(position.x))) + 1.0
 
 
-## 原地蹦两下（剧本 anim hop；南桥妮芙跟着脚印走的时候）
+## 原地蹦两下（剧本 anim hop；南桥泥芙跟着脚印走的时候）
 func hop(times := 2) -> void:
 	_hop_t = HOP_S * times
 

@@ -475,7 +475,7 @@ func _draw_hut_glow(n: Node2D) -> void:
 
 
 # ======================================================================= 河流篇
-## 阿汀：把录像带拿给他看过（river_ting_seen，「第十三条留给外地人，你定」）= 河岸上妮芙陪着他（第十二条：罚陪妮芙喝淡茶）；没去 = 他一个人站岗
+## 阿汀：把录像带拿给他看过（river_ting_seen，「第十三条留给外地人，你定」）= 河岸上泥芙陪着他（第十二条：罚陪泥芙喝淡茶）；没去 = 他一个人站岗
 func _build_ting(sl: Dictionary, done: bool) -> void:
 	_npc(sl, "ting", 250, -1)
 	if done:
@@ -501,7 +501,7 @@ func _build_jellyfish(sl: Dictionary, done: bool) -> void:
 		_npc(sl, who, 214, 1, "idle", 1.0 if own else 0.4, -44)
 
 
-## 妮芙：陪她翻过来客册（river_cup_traced，杯子留着等人来拿）= 家门口转着圈；没翻 = 在门口漂着
+## 泥芙：陪她翻过来客册（river_cup_traced，杯子留着等人来拿）= 家门口转着圈；没翻 = 在门口漂着
 func _build_niff(sl: Dictionary, done: bool) -> void:
 	var n := _npc(sl, "niff", 210, 1)
 	sl["n"] = {"niff": n, "spun": not done}

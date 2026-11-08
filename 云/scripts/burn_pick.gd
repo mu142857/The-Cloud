@@ -443,7 +443,7 @@ func _open_ask() -> void:
 	var qw := f.get_string_size(q, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 	var bw := 0.0
 	for k in ["yes", "no"]:
-		bw += f.get_string_size("▸ " + _tx(k), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		bw += f.get_string_size(UITheme.MARK + " " + _tx(k), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
 	var w := roundf(maxf(qw, bw - 18.0) + 28.0)
 	_ask = Panel.new()
 	_ask.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -455,7 +455,7 @@ func _open_ask() -> void:
 	ql.position = Vector2(roundf((w - qw) / 2.0), 7)
 	_ask.add_child(ql)
 	_ask_btns.clear()
-	_ask_arrow = _label("▸", UITheme.TEXT)
+	_ask_arrow = _label(UITheme.MARK, UITheme.TEXT)
 	_ask.add_child(_ask_arrow)
 	var x := roundf((w - (bw - 18.0)) / 2.0)
 	for k in ["yes", "no"]:
@@ -465,7 +465,7 @@ func _open_ask() -> void:
 		_ask.add_child(l)
 		_ask_btns.append(l)
 		l.set_meta("x", x)
-		x += f.get_string_size("▸ " + _tx(k), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
+		x += f.get_string_size(UITheme.MARK + " " + _tx(k), HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x + 18.0
 	_ask_sel = 0
 	_style_btns()
 	_desc.visible = false                     # 确认框压在简介那一带：先收起来，不叠字
@@ -479,7 +479,7 @@ func _style_btns() -> void:
 		var on := i == _ask_sel
 		var l := _ask_btns[i]
 		var ax: float = l.get_meta("x")
-		l.position.x = ax + UITheme.font().get_string_size("▸ ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		l.position.x = ax + UITheme.font().get_string_size(UITheme.MARK + " ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
 		l.add_theme_color_override("font_color", UITheme.TEXT if on else UITheme.TEXT_DIM)
 		if on and _ask_arrow != null:
 			_ask_arrow.position = Vector2(ax, l.position.y)

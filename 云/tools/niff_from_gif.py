@@ -1,4 +1,4 @@
-"""美术组的鲸鱼妹（= 妮芙，作者 10-29 确认）→ art/characters/niff/niff_swim.png + niff.json。
+"""美术组的鲸鱼妹（= 泥芙，作者 10-29 确认）→ art/characters/niff/niff_swim.png + niff.json。
 
 原样导入：不改色、不改形、帧长保留 GIF 里的 200ms（docs/river_plan.md 第 3.4 节）。和 snake_from_gif.py 的做法一样，
 只有三处不同：
@@ -94,7 +94,7 @@ def main():
     print(f"每帧最下一行 {bottoms} → 锚点 {anchor}；共 {len(colors)} 色")
 
     meta = {
-        "_comment": "妮芙 = 美术组的鲸鱼妹（作者 10-29 确认；10-30 作者定：整个河流篇都用这张鲸鱼壳动图，岸上不用占位）。swim 是 GIF 原样导入（tools/niff_from_gif.py），不改色不改形不缩放，"
+        "_comment": "泥芙 = 美术组的鲸鱼妹（作者 10-29 确认；10-30 作者定：整个河流篇都用这张鲸鱼壳动图，岸上不用占位）。swim 是 GIF 原样导入（tools/niff_from_gif.py），不改色不改形不缩放，"
                     "帧长保留 200ms；头朝右，朝左用水平翻转；tint false = 不着色不压暗。两套形态都用这张图：land = 坐在水壳里悬浮在地面上方 hover 像素、"
                     "整只上下 bob 像素（平滑正弦，bob_s 秒一圈，只动位置不改帧），地上留影子；swim = 水下，只浮 1 像素、没影子。alias 把 idle/walk/talk 都接到 swim；"
                     "剧本里别的动作（tail_up、write……）没有帧，退回这张动图并打 MISSING_ANIM niff.<名字>。anchor = 鲸壳底边中点（帧内像素坐标）；head = 对话框离脚底多高。",
@@ -102,7 +102,7 @@ def main():
         "frame": [fw, fh],
         "anchor": anchor,
         "faces": "right",
-        "speed": 70,      # 10-30 作者：妮芙走得太慢、老得等她（原来默认 36；跟晨时最快 2.2 倍 ≈ 晨跑步 150）
+        "speed": 70,      # 10-30 作者：泥芙走得太慢、老得等她（原来默认 36；跟晨时最快 2.2 倍 ≈ 晨跑步 150）
         "anims": {"swim": {"frames": list(range(len(crop))), "ms": ms[0] if len(set(ms)) == 1 else ms}},
         "alias": {"idle": "swim", "walk": "swim", "talk": "swim"},
         "forms": {

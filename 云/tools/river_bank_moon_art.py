@@ -1,17 +1,17 @@
-"""河流篇 · 河岸 river_bank + 妮芙家 river_home（月夜版）。
+"""河流篇 · 河岸 river_bank + 泥芙家 river_home（月夜版）。
 
     "/Users/jiamulin/Desktop/程序programs/AI Oscar/.venv/bin/python" tools/river_bank_moon_art.py [--preview 目录] [--only bank,home]
 
 底子是作者原来的蓝色月夜河岸（art/river/*，tools/river_art.py）：天、月亮、远岸石柱、雾、对岸怪树、水面碎光那几层原样引用
 （room.json 里写 res://art/river/…），在它前面加剧本要的东西：
   岸边卵石滩 + 窄水道（飞机）、一排箱子、木桩、台阶、浅滩、小船、面包店和修补摊（中间一块木板）、
-  石柱顶上的两间小屋和屋顶窄桥（邮差）、去市集的石阶、妮芙家（新旧水位交界：水下还有旧一层、旧门牌）。
+  石柱顶上的两间小屋和屋顶窄桥（邮差）、去市集的石阶、泥芙家（新旧水位交界：水下还有旧一层、旧门牌）。
 规矩：夜里，光只有右上的月亮 + 窗里、灯里一点暖黄；近处的东西是暗的剪影（右沿一条月光），晨的白发最亮；
 小屋各自分开、不重叠；没有高楼、没有兜帽人群。所有随机固定 seed，alpha 只有 0/255。
 
 输出：art/river_city/river_bank/（层、物件、room.json）、art/river_home/（back / front / light、物件重新上色、room.json）。
 物件的 id、状态名、markers 名字、portals 和旧版一样（剧本 story_river.json、打捞 river_salvage.gd 靠它们）。
-飞机、箱子、金属盒、漂浮物的形状借 tools/river_city_art.py 的函数画，再换成月夜的颜色；妮芙家的屋内借 tools/river_home_art.py。
+飞机、箱子、金属盒、漂浮物的形状借 tools/river_city_art.py 的函数画，再换成月夜的颜色；泥芙家的屋内借 tools/river_home_art.py。
 """
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ HOME_DIR = ROOT / "art" / "river_home"
 RIVER = ROOT / "art" / "river"
 
 SW, SH = 480, 270
-W = 2320                        # 河岸宽（第三版加长：飞机在最左，晨先一个人走一大段空的河岸，才碰到箱子后面的妮芙）
+W = 2320                        # 河岸宽（第三版加长：飞机在最左，晨先一个人走一大段空的河岸，才碰到箱子后面的泥芙）
 G = 206                         # 岸（石砌码头）的地面
 WL = 218                        # 近处的水面（water 层的上沿）
 LONE = (330, 820)               # 空的那一段：只有月亮、石柱、垂枝树、雾、水面碎光，什么都不能点、没有人家
@@ -48,8 +48,8 @@ POST = 872                      # 木桩（阿汀撑船靠过来）
 CRATES = 904                    # 一排箱子（物件左边）
 STEPS_X = 1022                  # 台阶（码头上沿往下到水边的平台）
 SHALLOW = (1180, 1320)          # 下游浅滩（水底的旧街砖）
-HOME_X = 1570                   # 妮芙家底边中点
-HOME = (1360, 1780)             # 妮芙家占的那一段（house 的 back 画在这里，主层这段只画地面和水下的旧一层）
+HOME_X = 1570                   # 泥芙家底边中点
+HOME = (1360, 1780)             # 泥芙家占的那一段（house 的 back 画在这里，主层这段只画地面和水下的旧一层）
 BAKERY = 1870                   # 面包店（巨石里凿的）
 INLET = (1930, 2050)            # 面包店和修补摊之间那一小片浅水
 STALL = (1975, 2025)            # 修补摊（浅水里一块平顶大石头）
@@ -1272,7 +1272,7 @@ def steps(cv: Cv):
 
 
 def underwater_old_floor(cv: Cv, rng):
-    """妮芙家下面泡在水里的旧一层：旧墙、旧门、旧门牌（和现在门边那块同一个 x、同样的字迹）。
+    """泥芙家下面泡在水里的旧一层：旧墙、旧门、旧门牌（和现在门边那块同一个 x、同样的字迹）。
     几扇泡水的窗（窗框间有小鱼）。"""
     old = ra.bramp(4, .09, .2, 252, 240)
     h0 = HOME[0]
@@ -1579,9 +1579,9 @@ def bank_main():
     doors = towers(cv)
     doors += market_gate(cv)
     doors += bakery(cv)
-    doors.append((HOME[0] + 40, 20))                  # 妮芙家的门（门在 house 的 front 上，门口的光落在码头上）
+    doors.append((HOME[0] + 40, 20))                  # 泥芙家的门（门在 house 的 front 上，门口的光落在码头上）
     LIGHTS_X.append((HOME[0] + 48, 2))               # 房子本身（三层的巨石屋）是 tools/river_home_rooms_art.py 画的，这里只管门口
-    # 路灯：稀疏的几盏（空的那一段一盏都没有）——箱子那里一盏、妮芙家门口前一盏、面包店前一盏
+    # 路灯：稀疏的几盏（空的那一段一盏都没有）——箱子那里一盏、泥芙家门口前一盏、面包店前一盏
     stone_lantern(cv, STEPS_X - 26, G)
     stone_lantern(cv, HOME[0] - 22, G)
     stone_lantern(cv, BAKERY - 64, G)
@@ -1709,9 +1709,9 @@ def night(a: np.ndarray, dark=0.72, keep_warm=True) -> np.ndarray:
 def crates_frames():
     """岸边一排箱子（原文 74），按月夜河岸的画法重画（第三版：作者嫌原来的亮木箱突兀）：
     泡过水的旧木箱，和码头石头一个调子——暗蓝灰，只有上沿、右沿一条月光；一块旧油布搭在后面那只上，一根绳捆着；
-    妮芙的标签是几张很小的旧纸片（字是一道细线，不画点，免得像眼睛）。
+    泥芙的标签是几张很小的旧纸片（字是一道细线，不画点，免得像眼睛）。
     尺寸跟旧的一样（76×58，上面空 14 行），只有一帧。10-31：以前 0/1 两帧是箱子后面一条平涂的蓝色占位尾巴，
-    没设状态时引擎把几帧轮着播，F8 自由探索里妮芙不在、箱子后面却立着那条尾巴——删掉了。妮芙（连尾巴）是剧本 show 出来的人物。"""
+    没设状态时引擎把几帧轮着播，F8 自由探索里泥芙不在、箱子后面却立着那条尾巴——删掉了。泥芙（连尾巴）是剧本 show 出来的人物。"""
     W_, H_ = 76, 44
     wood = [B(.07, .018, 262), B(.095, .02, 258), B(.12, .022, 254), B(.155, .024, 250), B(.2, .026, 246),
             B(.26, .028, 242)]
@@ -1829,7 +1829,7 @@ def objects():
     return out
 
 
-# ============================================================ 妮芙家（剖面小屋，学树屋）
+# ============================================================ 泥芙家（剖面小屋，学树屋）
 # 屋内（家具、标签、柜子、影像机……）是会话 D 的 tools/river_home_art.py 画的，这里借它的函数重画一遍：
 # 白天的冷光换成月夜（暗一档、往月光蓝推），桌子上方那盏吊灯点亮（一小圈暖黄，别的地方还是冷的）；窗外换成月下的河。
 # 屋后加一根大石柱（像树屋靠着大树：前墙淡掉以后，石柱、屋顶还在，分层清楚）；前墙重画成小屋的立面。
@@ -1983,8 +1983,8 @@ def bank_json(objs):
         "size": [W, SH], "env": "river", "bg": ["#0b1220", "#141d2c"],
         "layers": layers, "ground": GROUND, "markers": markers, "objects": objd,
         "water": {"y": WL}, "walk": [150, END_X - 10],
-        # 没遇到妮芙以前最远走到箱子跟前（停在 meet_niff 的触发范围里：路过时正好在播别的、没触发，停下来也会补上）
-        # （10-30 作者：晨一个人走过了箱子、一直走到妮芙家门口，没有妮芙、没有任何提示）
+        # 没遇到泥芙以前最远走到箱子跟前（停在 meet_niff 的触发范围里：路过时正好在播别的、没触发，停下来也会补上）
+        # （10-30 作者：晨一个人走过了箱子、一直走到泥芙家门口，没有泥芙、没有任何提示）
         "walk_when": [{"need": ["river_ashore"], "not": ["river_met"],
                        "walk": [150, markers["river_bank_crates"] + 50]}],
         "scripts": [{"script": "res://scripts/river_far_lantern.gd", "x": 0, "y": 0,
@@ -1998,7 +1998,7 @@ def bank_json(objs):
 HOUSE_DOOR = 48
 
 
-# ============================================================ 妮芙家：屋内 / 前墙 / 光
+# ============================================================ 泥芙家：屋内 / 前墙 / 光
 
 def _rha():
     import river_home_art as rha
@@ -2128,7 +2128,7 @@ HOME_WINDOWS = ((104, 70, 9, 13, "arch", True), (192, 66, 12, 16, "arch", True),
 
 
 def home_rock(rha, hh):
-    """妮芙家 = 三根石柱的脚长在一起，屋子凿在柱脚里（作者喜欢的「打洞的石柱房」，学树屋：大树 → 石柱）。
+    """泥芙家 = 三根石柱的脚长在一起，屋子凿在柱脚里（作者喜欢的「打洞的石柱房」，学树屋：大树 → 石柱）。
     三根柱子高矮不一，柱顶之间露出天和月亮（不是一整面墙）；柱子之间长在一起的那块是两道深的石缝（影子里）。
     和河岸的石柱同一种画法（river_art.pillar）。返回 (mask, RGBA)。"""
     w = rha.W
@@ -2362,7 +2362,7 @@ def build_home():
             d["note"] = note
         od[prop] = d
     meta = {
-        "_comment": "妮芙家（剖面小屋，月夜）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。"
+        "_comment": "泥芙家（剖面小屋，月夜）。格式照 docs/river_rooms_contract.md 1.6：坐标都是图里的像素（左上角 0,0）。"
                     "tools/river_bank_moon_art.py 生成（屋内借 tools/river_home_art.py 的画法重新上色），别手改。"
                     "地板下面泡在水里的旧一层（旧门、旧门牌）画在河岸主层里。",
         "kind": "house", "host": "river_bank", "x": HOME_X, "size": [rha.W, rha.H + HDY],
@@ -2494,7 +2494,7 @@ def render(room, base, cam_x, states=None, chen_x=None, house=None, house_front=
             for (fr, ox, oy) in objs_:
                 rca._blit(im, fr, hx + ox - cam_x, hy + oy, 1.0)
             if light is not None:
-                ly0 = max(0, -hy)                             # 房子顶伸出画面上沿（妮芙家三层，比画面高）
+                ly0 = max(0, -hy)                             # 房子顶伸出画面上沿（泥芙家三层，比画面高）
                 lt = light[ly0:]
                 reg = im[max(0, hy):hy + light.shape[0], :]
                 lt = lt[:reg.shape[0]]

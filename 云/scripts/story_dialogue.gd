@@ -52,6 +52,7 @@ var sfx: Callable                    # func(name, db, pitch)：选择 / 确认�
 var avoid: Callable                  # func() -> Array[Rect2]：画面里的人占的屏幕矩形（story_runner），选项躲开它们
 var chooser_rect: Callable           # func() -> Rect2：晨的屏幕矩形（story_runner.chen_screen_rect），选项躲人时贴着晨
 var panel_rect: Callable             # func() -> Rect2：开着的小游戏面板（story_runner.mech_panel_rect），对话框不落进去
+var keep_clear: Callable             # func() -> Rect2：小游戏里要一直看得见的人（兔子舞步：兔子 + 头顶箭头），对话框挪到它上面
 var _murmur_t := 0.0
 # 菜单（道具选择条 / 对话选项）
 var _menu_kind := ""                 # "" / "items" / "lines"
@@ -395,6 +396,13 @@ func _place_box() -> void:
 				y = below
 			elif pr.position.y - 3.0 - sz.y >= top_limit:
 				y = pr.position.y - 3.0 - sz.y
+	if keep_clear.is_valid():
+		# 11-08 作者「挡住兔子，跳舞就看不清」：框挪到它上面（顶到 top_limit 为止），上面放不下就放到它下面
+		var kr: Rect2 = keep_clear.call()
+		if kr.size.x > 0.0 and kr.intersects(Rect2(x, y, sz.x, sz.y + 3.0)):
+			y = maxf(top_limit, kr.position.y - 4.0 - sz.y)
+			if kr.intersects(Rect2(x, y, sz.x, sz.y + 3.0)):
+				y = minf(kr.end.y + 2.0, 268.0 - sz.y)
 	var xy := _dodge_cards(Rect2(x, y, sz.x, sz.y + 3.0))
 	x = xy.x
 	y = xy.y
@@ -504,6 +512,7 @@ func pick(options: Array, auto_pick := -1) -> int:
 		return maxi(0, auto_pick)
 	_pick_opts = options
 	_pick_sel = 0
+	_kbd_mouse = _last_mouse                 # 选项刚出来：鼠标没真的挪过，就不抢选中（停在那里的光标、手搭在触控板上的抖动）
 	_pick_age = 0.0
 	_pick_auto = auto_pick
 	_pick_on = true
@@ -669,6 +678,7 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 	_menu_kind = kind
 	_menu_opts = opts
 	_menu_sel = 0
+	_kbd_mouse = _last_mouse
 	_menu_age = 0.0
 	_menu_auto = auto_i
 	_menu_done = false
@@ -739,7 +749,7 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 		var WIDTH := 308.0
 		const GAP := 3.0
 		# 选项文字固定缩进一格；箭头是单独的小 label 放在缩进里，选中才显示——换选项时文字不跳
-		var indent := ceilf(UITheme.font().get_string_size("▸ ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
+		var indent := ceilf(UITheme.font().get_string_size(UITheme.MARK + " ", HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x)
 		# 11-08 作者：只有一个选项（第一关问背包）也要在屏幕正中，不然看不出要点；框收窄到字宽
 		var single := opts.size() == 1
 		if single:
@@ -754,7 +764,7 @@ func _open_menu(kind: String, opts: Array, auto_i: int) -> void:
 			row_heights.append(row_height)
 			height += row_height + GAP
 			var arrow := _mk_label(UITheme.TEXT)
-			arrow.text = "▸"
+			arrow.text = UITheme.MARK
 			arrow.position = Vector2(-indent, 0)
 			arrow.visible = false
 			l.add_child(arrow)
@@ -971,13 +981,17 @@ func _menu_input(event: InputEvent) -> bool:
 		if k in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z, KEY_E]:
 			_menu_choose(_menu_sel)
 		elif k in [KEY_LEFT, KEY_A, KEY_UP, KEY_W]:
+			_kbd_mouse = _last_mouse
 			_menu_set((_menu_sel + n - 1) % n)
 		elif k in [KEY_RIGHT, KEY_D, KEY_DOWN, KEY_S]:
+			_kbd_mouse = _last_mouse
 			_menu_set((_menu_sel + 1) % n)
 		elif k == KEY_ESCAPE and _menu_kind == "items":
 			_menu_choose(n - 1)
 		return true
 	if event is InputEventMouseMotion:
+		if not _mouse_awake(event.position):
+			return false
 		var hi := _menu_at(event.position)
 		if hi >= 0:
 			_menu_set(hi)
@@ -993,6 +1007,28 @@ func _menu_input(event: InputEvent) -> bool:
 ## 循环里先选上一项再选下一项，鼠标每动一下就响两声。现在一个位置只算一个结果：文字选项按行距接成一条（不留缝、不重叠）；
 ## 再留一点粘性：鼠标还在选中那项外面 MENU_STICK 像素以内就不换，手抖、压在交界线上也不会来回切。点击用同一个判定，点到的就是亮着的那项。
 const MENU_STICK := 3.0
+## 11-08 作者「我选选选为什么变得迟钝了」：鼠标停在选项上（选项常常正好弹在光标底下），手搭着触控板一抖就发一条 1 像素的 MouseMotion，
+## hover 立刻把选中抢回光标下那项——键盘刚按的 ↓ 被抵消，看起来像按了没反应、要按好几下。现在：键盘换过选项（或选项刚弹出来）以后，
+## 鼠标离开那时的位置 MOUSE_WAKE 像素以内的移动不算；真的挪开了，hover 再接管。
+const MOUSE_WAKE := 6.0
+const NO_MOUSE := Vector2(-9999, -9999)
+var _last_mouse := NO_MOUSE          # 最近一次鼠标事件的位置（_input 里记）
+var _kbd_mouse := NO_MOUSE           # 键盘换选项 / 选项弹出时鼠标在哪；NO_MOUSE = hover 照常
+
+
+## 鼠标在哪：所有鼠标事件都记（不吞），剧情外挪过鼠标也算——选项弹出时就知道光标停在哪
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouse:
+		_last_mouse = (event as InputEventMouse).position
+
+
+func _mouse_awake(p: Vector2) -> bool:
+	if _kbd_mouse == NO_MOUSE:
+		return true
+	if p.distance_to(_kbd_mouse) < MOUSE_WAKE:
+		return false
+	_kbd_mouse = NO_MOUSE
+	return true
 
 
 func _menu_rect(i: int) -> Rect2:
@@ -1106,12 +1142,14 @@ func handle_input(event: InputEvent) -> bool:
 		if k in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_Z, KEY_E]:
 			is_confirm = true
 		elif _pick_on and not _pick_opts.is_empty() and k in [KEY_LEFT, KEY_A, KEY_UP]:
+			_kbd_mouse = _last_mouse
 			_set_sel((_pick_sel + _pick_opts.size() - 1) % _pick_opts.size())
 			return true
 		elif _pick_on and not _pick_opts.is_empty() and k in [KEY_RIGHT, KEY_D, KEY_DOWN]:
+			_kbd_mouse = _last_mouse
 			_set_sel((_pick_sel + 1) % _pick_opts.size())
 			return true
-	elif event is InputEventMouseMotion and _pick_on and not _pick_row.visible:
+	elif event is InputEventMouseMotion and _pick_on and not _pick_row.visible and _mouse_awake(event.position):
 		# 两个点选物件的判定框叠在一起时同样不来回切（见 _menu_at）：还在选中那个的框里就不换，否则取第一个中的
 		var sel_ok: bool = _pick_sel >= 0 and _pick_sel < _pick_opts.size() \
 				and _grow_min((_pick_opts[_pick_sel]["rect"] as Callable).call()).grow(MENU_STICK).has_point(event.position)
