@@ -24,10 +24,10 @@ const BRAKE := 1.6                        # 按下以后还要转多少才停（
 const RIG := 2
 const SPIN_UP := 0.9                      # 停下以后多久转回全速
 const NAMES := [
-	{"zh": "云那边", "en": "Clouds"}, {"zh": "老松", "en": "Old pine"}, {"zh": "树屋", "en": "Treehouse"},
-	{"zh": "雾", "en": "Fog"}, {"zh": "你", "en": "You"}, {"zh": "小吃棚", "en": "Snack stall"},
-	{"zh": "空地", "en": "Clearing"}, {"zh": "商店", "en": "Shop"}]
-const HINT := {"zh": "按一下刹住，让它指着空地", "en": "Press to brake. Make it point at the Clearing."}
+	{"zh": "云那边", "en": "Clouds", "fr": "Nuages"}, {"zh": "老松", "en": "Old pine", "fr": "Vieux pin"}, {"zh": "树屋", "en": "Treehouse", "fr": "Cabane"},
+	{"zh": "雾", "en": "Fog", "fr": "Brume"}, {"zh": "你", "en": "You", "fr": "Toi"}, {"zh": "小吃棚", "en": "Snack stall", "fr": "Buvette"},
+	{"zh": "空地", "en": "Clearing", "fr": "Clairière"}, {"zh": "商店", "en": "Shop", "fr": "Boutique"}]
+const HINT := {"zh": "按一下刹住，让它指着空地", "en": "Press to brake. Make it point at the Clearing.", "fr": "Appuie pour freiner. Fais-le pointer vers la clairière."}
 const WOOD := [Color("#2c2118"), Color("#4d3a2a"), Color("#634a34"), Color("#7a5c40"), Color("#94744f")]
 const GRASS_DARK := Color("#16241c")
 const WARM := Color("#e8795a")

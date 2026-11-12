@@ -13,6 +13,7 @@ const PATH := "user://settings.cfg"
 const OPENING_BUS := "OpeningSFX"
 
 static var lang := "en"
+static var _chosen_lang := ""
 static var vol_master := 0.8
 static var vol_music := 0.8
 static var vol_sfx := 0.8
@@ -24,15 +25,22 @@ static var no_save := false           # 调试 / 截图跑的时候不写设置�
 
 static func load_and_apply() -> void:
 	var cf := ConfigFile.new()
+	var locale := OS.get_locale()
+	if OS.has_feature("web"):
+		var browser_locale = JavaScriptBridge.eval("window.cloudGetLanguage ? window.cloudGetLanguage() : navigator.language")
+		if browser_locale is String:
+			locale = browser_locale
+	lang = I18n.match_locale(locale)
+	_chosen_lang = ""
 	if cf.load(PATH) == OK:
-		lang = str(cf.get_value("game", "lang", lang))
+		_chosen_lang = str(cf.get_value("game", "lang", ""))
+		if I18n.LANGS.has(_chosen_lang):
+			lang = _chosen_lang
 		vol_master = float(cf.get_value("audio", "master", vol_master))
 		vol_music = float(cf.get_value("audio", "music", vol_music))
 		vol_sfx = float(cf.get_value("audio", "sfx", vol_sfx))
 		quality = str(cf.get_value("video", "quality", quality))
 		fullscreen = bool(cf.get_value("video", "fullscreen", fullscreen))
-	if not I18n.LANGS.has(lang):
-		lang = "en"
 	loaded = true
 	no_save = not OS.get_cmdline_user_args().is_empty()
 	I18n.lang = lang
@@ -45,16 +53,25 @@ static func save() -> void:
 	if no_save:
 		return
 	var cf := ConfigFile.new()
-	cf.set_value("game", "lang", lang)
+	if I18n.LANGS.has(_chosen_lang):
+		cf.set_value("game", "lang", _chosen_lang)
 	cf.set_value("audio", "master", vol_master)
 	cf.set_value("audio", "music", vol_music)
 	cf.set_value("audio", "sfx", vol_sfx)
 	cf.set_value("video", "quality", quality)
 	cf.set_value("video", "fullscreen", fullscreen)
 	cf.save(PATH)
+	if OS.has_feature("web") and I18n.LANGS.has(_chosen_lang):
+		var window := JavaScriptBridge.get_interface("window")
+		if window != null and window.cloudRememberLanguage != null:
+			window.cloudRememberLanguage(_chosen_lang)
 
 
-static func set_lang(l: String) -> void:
+static func set_lang(l: String, remember := false) -> void:
+	if not I18n.LANGS.has(l):
+		return
+	if remember:
+		_chosen_lang = l
 	lang = l
 	I18n.lang = l
 

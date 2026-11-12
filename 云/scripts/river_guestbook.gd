@@ -14,7 +14,7 @@ const PAGE := Rect2(100, 20, 140, 108)    # 右页（一行放得下 9 个字）
 const FAN := Vector2(44, 112)
 const DRY_HELP := 6.0
 const STEP := 0.055                       # 扇一下干多少
-const HINT := {"zh": "←→ 交替按，扇干这一页", "en": "Alternate ← → to fan the page dry"}
+const HINT := {"zh": "←→ 交替按，扇干这一页", "en": "Alternate ← → to fan the page dry", "fr": "Alterner ← et → pour sécher la page"}
 
 var dry := 0.0
 var _last := 0

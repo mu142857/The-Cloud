@@ -16,7 +16,7 @@ const POT := Rect2(56, 56, 120, 60)
 const SURF_Y := 70.0
 const BEAT := 1.25
 const WINDOW := 0.2
-const HINT := {"zh": "大泡「咕嘟」的那一下按空格，放进去", "en": "Press Space right as the big bubble pops"}
+const HINT := {"zh": "大泡「咕嘟」的那一下按空格，放进去", "en": "Press Space right as the big bubble pops", "fr": "Appuie sur Espace quand la grosse bulle éclate"}
 
 var ings: Array = []
 var idx := 0
@@ -41,7 +41,7 @@ func run(lv: Node2D, _w: Node2D, r: Node, st: Dictionary) -> void:
 	story = r
 	level = lv
 	step = st
-	ings = st.get("ingredients", [{"zh": "河虾", "en": "River shrimp"}, {"zh": "一把葱", "en": "Scallions"}, {"zh": "一颗小石头", "en": "A small pebble"}])
+	ings = st.get("ingredients", [{"zh": "河虾", "en": "River shrimp", "fr": "Crevettes de rivière"}, {"zh": "一把葱", "en": "Scallions", "fr": "Ciboules"}, {"zh": "一颗小石头", "en": "A small pebble", "fr": "Un petit caillou"}])
 	_easy = _enter({})
 	_build("RiverCook", [])
 	await _fade_in()

@@ -24,7 +24,7 @@ const SLOW := 0.42                        # 刚按下去两滴之间隔多久
 const FAST := 0.075                       # 按满 RAMP 秒以后
 const RAMP := 2.4
 const G := 620.0                          # 下落的加速度（像素 / 秒²）
-const HINT := {"zh": "按住接松脂，到红线就松手", "en": "Hold to catch the sap. Let go at the red line."}
+const HINT := {"zh": "按住接松脂，到红线就松手", "en": "Hold to catch the sap. Let go at the red line.", "fr": "Maintiens pour recueillir la sève. Relâche au trait rouge."}
 const SAP := [Color("#7d552f"), Color("#a8642e"), Color("#c8823c"), Color("#e8b860"), Color("#f0d28c")]
 
 var stage := ""                           # catch / spill / lid / done

@@ -55,7 +55,7 @@ static func item(id: String) -> Dictionary:
 ## 名字前面加「油炸的」、描述后面加一句，能烧的燃烧值 +10。标记是 StoryState 的 flag fried_<id>（跟着存档、换章带过去）；同一 id 的几件一起算炸过。
 const FRIED := "fried_"
 const FRIED_BURN := 10      # 11-07 作者：「炸了之后燃烧的提高 10」。本来就不能烧的（burn / keepsake_burn 是 0、no_burn）还是不能烧
-const FRIED_DESC := {"zh": "外面裹了一层金黄的酥皮，闻着有点油香。料理鼠妈炸的。", "en": "Coated in a golden crust, smelling faintly of oil. Mama Rat fried it."}
+const FRIED_DESC := {"zh": "外面裹了一层金黄的酥皮，闻着有点油香。料理鼠妈炸的。", "en": "Coated in a golden crust, smelling faintly of oil. Mama Rat fried it.", "fr": "Une croûte dorée, avec une légère odeur d’huile. Maman Rate l’a fait frire."}
 
 
 static func fried(it: Dictionary) -> Dictionary:
@@ -63,10 +63,14 @@ static func fried(it: Dictionary) -> Dictionary:
 	var nm = it.get("name", {})
 	if nm is Dictionary:
 		o["name"] = {"zh": "油炸的" + str(nm.get("zh", "")), "en": "Fried " + str(nm.get("en", "")) if str(nm.get("en", "")) != "" else ""}
+		if str(nm.get("fr", "")) != "":
+			o["name"]["fr"] = "%s (friture)" % nm["fr"]
 	for k in ["desc", "desc_fixed"]:
 		var d = it.get(k, null)
 		if d is Dictionary:       # 英文空着的照旧空着（回落中文那条也带上炸过的那句）
 			o[k] = {"zh": str(d.get("zh", "")) + FRIED_DESC["zh"], "en": str(d.get("en", "")) + " " + FRIED_DESC["en"] if str(d.get("en", "")) != "" else ""}
+			if str(d.get("fr", "")) != "":
+				o[k]["fr"] = str(d["fr"]) + " " + FRIED_DESC["fr"]
 	if not it.get("no_burn", false):
 		for k in ["burn", "keepsake_burn"]:
 			if int(it.get(k, 0)) > 0:

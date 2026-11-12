@@ -39,7 +39,7 @@ const SFX_CATCH := "res://audio/sfx/pickup.wav"
 const SFX_DROP := "res://audio/sfx/thud.wav"
 const SFX_CLACK := "res://audio/sfx/wood_knock.wav"
 const SFX_DONE := "res://audio/sfx/bell_soft.wav"
-const HINT := {"zh": "← → / A D：接住大嘴鸟抛过来的果子", "en": "← → / A D: catch the toucan's fruit"}
+const HINT := {"zh": "← → / A D：接住大嘴鸟抛过来的果子", "en": "← → / A D: catch the toucan's fruit", "fr": "← → / A D : attraper les fruits du toucan"}
 
 
 static func need_of(st: Dictionary) -> int:

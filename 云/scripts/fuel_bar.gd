@@ -105,7 +105,7 @@ func _draw() -> void:
 	var f := UITheme.font()
 	var txt := "%d / %d" % [int(round(shown)), need]
 	if infinite:
-		txt = I18n.pick({"zh": "无限", "en": "MAX"})   # 像素字体里的「∞」画出来像「∝」
+		txt = I18n.pick({"zh": "无限", "en": "MAX", "fr": "MAX"})   # 像素字体里的「∞」画出来像「∝」
 	var tw := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 	var fw := float(FLAME.get_width())
 	var total := fw + 4.0 + BAR_W + 5.0 + tw

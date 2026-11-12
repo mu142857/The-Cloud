@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, viewport-fit=cover">
@@ -191,8 +191,8 @@ body {
 
 		<div id="status">
 			<img id="status-splash" src="splash.webp" alt="" onerror="this.style.display='none'">
-			<div id="status-title" class="px">云</div>
-			<div id="status-sub" class="px">THE CLOUD</div>
+			<div id="status-title" class="px">The Cloud</div>
+			<div id="status-sub" class="px">云</div>
 			<div id="status-bar"><div id="status-fill"></div></div>
 			<div id="status-line" class="px"></div>
 			<div id="status-version" class="px">__CLOUD_VERSION__</div>
@@ -201,10 +201,63 @@ body {
 
 		<div id="rotate">
 			<img class="pixel" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGIAAAALCAYAAACEXlicAAABUklEQVR4nMVXSQ7CMAykiFf0xI3/P4cbp3wDFNRIVjT2jJ0i5tImtR3vTrfLgfZ6vvtzvz+2sRftZ2kUtEOOBZJZPW/ms+v+nj0rowejdZ2OnDIQBcvj83gYHQI7z5Nxhn3Kvv3GMHhvjCBzmF3bLFOc1UTFI309GUhPSx9VBJNl9yw/ko/eBz1tN8jgSBFkHDIymzEdLItZ+VcrwkO2bUf++FbErFQnUipiBZVZtDu9feX8TMUrwUZ8dm9+DlmnzoiIlwWyiQH3nMOcFDmV6VkZ8ln73BkxK8YG1mrGDGSCWK2IqIWq/J6uCJbOCxwNhOK0rEOqV8FWPC/iQ63iTKgz4soE2XnhfWNG9O+/MlRBpOewrfpPspoAYUXYyP3TgWpL8Cos07vZ1XfOZLX1IrrZt30NA4F6fXQTYMowtGKw2d+wgtk+KxO1S+USoyTATPMBr/4YB5XkU8MAAAAASUVORK5CYII=" alt="请把手机横过来">
-			<div id="rotate-tap" class="px">建议横屏游玩 · 点一下继续</div>
+			<div id="rotate-tap" class="px">Turn your device sideways · Tap to continue</div>
 		</div>
 
 		<script>
+// 11-12：加载文字与游戏使用同一个语言选择。没有手动设置时使用浏览器语言。
+const cloudLanguages = ['en', 'zh', 'fr'];
+function cloudBrowserLanguage() {
+	const locale = (navigator.language || '').toLowerCase().split(/[-_]/)[0];
+	return cloudLanguages.includes(locale) ? locale : 'en';
+}
+window.cloudGetLanguage = function () {
+	try {
+		const chosen = localStorage.getItem('theCloudLanguage');
+		if (cloudLanguages.includes(chosen)) return chosen;
+	} catch (e) { /* 浏览器禁用存储 */ }
+	return cloudBrowserLanguage();
+};
+window.cloudRememberLanguage = function (language) {
+	if (!cloudLanguages.includes(language)) return;
+	try { localStorage.setItem('theCloudLanguage', language); } catch (e) { /* 浏览器禁用存储 */ }
+	document.documentElement.lang = language;
+	document.title = cloudBootStrings.title[cloudLanguages.indexOf(language)];
+};
+
+const cloudBootStrings = {
+	title: ["The Cloud", "云", "Le Nuage"],
+	subtitle: ["云", "THE CLOUD", "THE CLOUD"],
+	canvas: ["Your browser does not support the canvas tag.", "这个浏览器不支持画布。", "Ce navigateur ne prend pas en charge l’élément canvas."],
+	rotate: ["Turn your device sideways · Tap to continue", "建议横屏游玩 · 点一下继续", "Tournez votre appareil · Touchez pour continuer"],
+	timeout: ["The game took too long to start.", "启动超时。", "Le démarrage du jeu a pris trop de temps."],
+	unknown: ["Something went wrong.", "出了点问题。", "Un problème est survenu."],
+	bootRetry: ["Could not start. Trying again…", "启动失败，自动重试一次……", "Le jeu n’a pas démarré. Nouvel essai…"],
+	lowMemory: ["Not enough memory to start the game.\nClose other apps and reopen this page.\n", "手机内存不够，游戏没能启动。\n关掉后台的其他应用，退出这个页面再重新打开。\n", "Mémoire insuffisante pour lancer le jeu.\nFermez les autres applications et rouvrez cette page.\n"],
+	loadFailed: ["Could not load the game. Close and reopen this page.\n", "加载失败，请退出后重新打开。\n", "Impossible de charger le jeu. Fermez et rouvrez cette page.\n"],
+	reconnect: ["Connection stalled. Reconnecting…", "网络卡住了，正在重新连接……", "Connexion interrompue. Reconnexion…"],
+	reconnectMany: ["Still reconnecting (attempt %d)…", "人有点多，还在重新连接（第 %d 次）……", "Reconnexion en cours (tentative %d)…"],
+	slowBoot: ["Still starting the game…", "手机有点慢，正在启动……", "Le jeu est toujours en cours de démarrage…"],
+	missingFeatures: ["This browser lacks features required to run the game:\n", "这个浏览器缺少运行游戏所需的功能：\n", "Ce navigateur ne dispose pas des fonctions nécessaires au jeu :\n"],
+	starting: ["Download complete. Starting the game…", "下载好了，启动中……", "Téléchargement terminé. Démarrage du jeu…"],
+	slowDownload: ["The download is taking a while. Please wait…", "网有点慢，再等等……", "Le téléchargement est lent. Patientez encore un peu…"],
+	stalled: ["Download stalled (%s)", "下载卡住了（%s）", "Téléchargement interrompu (%s)"],
+	connectError: ["no connection", "连不上", "connexion impossible"],
+	noData: ["no data", "没数据", "aucune donnée reçue"],
+	interrupted: ["connection stopped responding", "下到一半不动了", "la connexion ne répond plus"],
+};
+const cloudBootLanguage = window.cloudGetLanguage();
+function cloudBootText(key) {
+	return cloudBootStrings[key][cloudLanguages.indexOf(cloudBootLanguage)];
+}
+document.documentElement.lang = cloudBootLanguage;
+document.title = cloudBootText('title');
+document.getElementById('canvas').textContent = cloudBootText('canvas');
+document.getElementById('status-title').textContent = cloudBootText('title');
+document.getElementById('status-sub').textContent = cloudBootText('subtitle');
+document.getElementById('rotate-tap').textContent = cloudBootText('rotate');
+if (cloudBootLanguage !== 'zh') document.querySelector('#rotate img').hidden = true;
+
 // B 站 App 里：页面跟着手机转、绝不沉浸（App 自己那条点赞、评论栏要留着，手册第一条）。
 // Toy 的 SDK 会把这个告诉 App；不在 App 里时调用会被拒绝，无所谓。登录、关注、云存档、排行榜这版都没接。
 (function () {
@@ -308,7 +361,7 @@ window.cloudPhone = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent)
 	const HEAD_WAIT = 15000;
 	const CHUNK_WAIT = 20000;
 	function stalled(why) {
-		const e = new Error('下载卡住了（' + why + '）');
+		const e = new Error(cloudBootText('stalled').replace('%s', why));
 		e.stalled = true;
 		if (typeof window.cloudNetRetry === 'function') {
 			window.cloudNetRetry();
@@ -342,13 +395,13 @@ window.cloudPhone = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent)
 		const packedUrl = url.replace(name, PACKED[name]);
 		const ctl = typeof AbortController === 'function' ? new AbortController() : null;
 		const opts = Object.assign({}, init || {}, ctl ? { signal: ctl.signal } : {});
-		return within(realFetch(packedUrl, opts), HEAD_WAIT, '连不上', ctl).then(function (res) {
+		return within(realFetch(packedUrl, opts), HEAD_WAIT, cloudBootText('connectError'), ctl).then(function (res) {
 			if (!res.ok || !res.body) {
 				return realFetch(input, init);
 			}
 			// 服务器可能已经帮忙解压了（Content-Encoding）：先看前两个字节是不是 gzip 头
 			const reader = res.body.getReader();
-			return within(reader.read(), CHUNK_WAIT, '没数据', ctl).then(function (first) {
+			return within(reader.read(), CHUNK_WAIT, cloudBootText('noData'), ctl).then(function (first) {
 				const head = first.value || new Uint8Array(0);
 				const gz = head.length >= 2 && head[0] === 0x1f && head[1] === 0x8b;
 				let stream = new ReadableStream({
@@ -361,7 +414,7 @@ window.cloudPhone = /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent)
 						}
 					},
 					pull: function (controller) {
-						return within(reader.read(), CHUNK_WAIT, '下到一半不动了', ctl).then(function (r) {
+						return within(reader.read(), CHUNK_WAIT, cloudBootText('interrupted'), ctl).then(function (r) {
 							if (r.done) {
 								controller.close();
 							} else {
@@ -436,28 +489,28 @@ const engine = new Engine(GODOT_CONFIG);
 
 	// 启动失败先自动刷新重来一次；下载卡住时告诉玩家在重连；下完以后慢的手机提示一下，太久没反应就报超时。
 	let failed = false;
-	const TIMEOUT = '启动超时。';
+	const TIMEOUT = cloudBootText('timeout');
 	function fail(err) {
 		if (failed) {
 			return;
 		}
 		failed = true;
 		console.error(err);
-		const text = err instanceof Error ? err.message : (typeof err === 'string' ? err : '出了点问题。');
+		const text = err instanceof Error ? err.message : (typeof err === 'string' ? err : cloudBootText('unknown'));
 		// 启动失败（不是超时）先自动刷新重来一次：多是一时内存紧，换个干净的页面再编译常常就好了。只重来一次。
 		let retried = false;
 		try {
 			retried = sessionStorage.getItem('cloudBootRetry') === '1';
 			if (!retried && text !== TIMEOUT) {
 				sessionStorage.setItem('cloudBootRetry', '1');
-				line.textContent = '启动失败，自动重试一次……';
+				line.textContent = cloudBootText('bootRetry');
 				setTimeout(function () { location.reload(); }, 800);
 				return;
 			}
 		} catch (e) { /* 存不了就不重试，直接报 */ }
 		const memory = /memory|内存|allocat|oom/i.test(text);
-		notice.textContent = (memory ? '手机内存不够，游戏没能启动。\n关掉后台的其他应用，退出这个页面再重新打开。\n'
-			: '加载失败，请退出后重新打开。\n') + text;
+		notice.textContent = (memory ? cloudBootText('lowMemory')
+			: cloudBootText('loadFailed')) + text;
 		notice.style.display = 'block';
 		line.textContent = '';
 	}
@@ -467,7 +520,7 @@ const engine = new Engine(GODOT_CONFIG);
 	window.cloudNetRetry = function () {
 		netRetries += 1;
 		if (!failed && fullAt === 0) {
-			line.textContent = netRetries < 3 ? '网络卡住了，正在重新连接……' : '人有点多，还在重新连接（第 ' + netRetries + ' 次）……';
+			line.textContent = netRetries < 3 ? cloudBootText('reconnect') : cloudBootText('reconnectMany').replace('%d', netRetries);
 		}
 	};
 	// 下载完以后还要在手机上编译、启动，慢的手机要十几秒：别让人以为卡死了。一直不动就提示退出重进。
@@ -482,7 +535,7 @@ const engine = new Engine(GODOT_CONFIG);
 			clearInterval(watch);
 			fail(TIMEOUT);
 		} else if (fullAt > 0 && Date.now() - fullAt > 12000) {
-			line.textContent = '手机有点慢，正在启动……';
+			line.textContent = cloudBootText('slowBoot');
 		}
 	}, 1000);
 
@@ -490,7 +543,7 @@ const engine = new Engine(GODOT_CONFIG);
 		threads: GODOT_THREADS_ENABLED,
 	});
 	if (missing.length !== 0) {
-		fail('这个浏览器缺少运行游戏所需的功能：\n' + missing.join('\n'));
+		fail(cloudBootText('missingFeatures') + missing.join('\n'));
 		return;
 	}
 	engine.startGame({
@@ -503,9 +556,9 @@ const engine = new Engine(GODOT_CONFIG);
 				fill.style.width = (pct * 100).toFixed(1) + '%';
 				if (pct >= 1) {
 					fullAt = fullAt || Date.now();
-					line.textContent = '下载好了，启动中……';
+					line.textContent = cloudBootText('starting');
 				} else if (Date.now() - started > 15000 && pct < 0.5) {
-					line.textContent = '网有点慢，再等等……';
+					line.textContent = cloudBootText('slowDownload');
 				}
 			}
 		},

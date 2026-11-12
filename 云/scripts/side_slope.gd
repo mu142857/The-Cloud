@@ -41,8 +41,8 @@ const FOG_MARGIN := 32.0
 const SFX_CHIME := "res://audio/sfx/bell_soft.wav"
 const SFX_STEP := "res://audio/sfx/tap.wav"
 const SFX_WRONG := "res://audio/sfx/tree_sway.wav"
-const WRONG_INNER := {"zh": "不是这边……", "en": "Not this way..."}
-const HINT := {"zh": "← → / A D：踩着发光的蹄印走", "en": "← → / A D: step on the glowing hoofprint"}
+const WRONG_INNER := {"zh": "不是这边……", "en": "Not this way...", "fr": "Ce n’est pas par là…"}
+const HINT := {"zh": "← → / A D：踩着发光的蹄印走", "en": "← → / A D: step on the glowing hoofprint", "fr": "← → / A D : suivre les traces lumineuses"}
 
 const FOG_SHADER := """
 shader_type canvas_item;
@@ -281,7 +281,8 @@ func _went_wrong() -> void:
 	var back := fog_at(step, int(s["i"]))
 	_fog_to(FOG_THICK.x, FOG_THICK.y, 0.7)
 	var w: Dictionary = step.get("wrong_inner", WRONG_INNER)
-	await story.run_steps([{"do": "inner", "zh": str(w.get("zh", "")), "en": str(w.get("en", "")), "style": "fade", "sec": 1.6}])
+	await story.run_steps([{"do": "inner", "zh": str(w.get("zh", "")), "en": str(w.get("en", "")),
+		"fr": str(w.get("fr", "")), "style": "fade", "sec": 1.6}])
 	await _wait(0.6)
 	_fog_to(back.x, back.y, 1.4)
 	await _walk(_cur)

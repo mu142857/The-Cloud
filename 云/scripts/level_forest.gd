@@ -26,7 +26,7 @@ extends Node2D
 ##
 ## 调试（命令行 -- 后面，建议加 --fixed-fps 60 让时间可重复）：
 ##   --stage=headphones|title|settings|crash|play|wood|bag   直接跳到某一段
-##   --lang=zh|en       临时换语言（不存）
+##   --lang=zh|en|fr       临时换语言（不存）
 ##   --quality=lite     临时换画质（不存）
 ##   --shot=绝对路径.png --shot_at=秒   这一段开始后多少秒存一张图后退出（默认 1 秒）
 ##   --shots=目录 --start=帧 --every=帧 --count=张   连拍 shot_000.png …
@@ -133,7 +133,6 @@ const START_HOT := Color("#efe9f5")
 const START_SPACING := 2
 const GEAR_A := 0.45
 const GEAR_PLAY_A := 0.6
-const LANG_ON := Color("#b9aecb")      # 左下角语言切换：当前语言
 const LANG_OFF := Color("#6d6385")     # 另一种语言（悬停时亮成 START_HOT）
 
 ## 闪电：不再是整屏白闪，而是冷色的天光从林冠后面亮一下（远景几层被照亮，近处的树干、林冠成了剪影），
@@ -225,8 +224,11 @@ var _has_save := false           # 进标题时查一次存档（_ready）
 var _credits_page = null         # 打开着的制作人员页（scripts/credits_page.gd）
 var _leaving_title := false      # 设置面板点了「返回标题」，正在淡到黑（_back_to_title）
 var _gear: TextureButton
-var _lang_corner: HBoxContainer   # 标题界面左下角的「EN / 中文」，跟着标题一起出现、消失
+var _lang_corner: Button
+var _lang_modal: ColorRect
+var _lang_heading: Label
 var _lang_btns := {}
+var _settings_lang_btns := {}
 var _bag_btn: TextureButton
 var _hud_burn: HBoxContainer
 var _hud_burn_label: Label
@@ -814,25 +816,16 @@ func _build_ui() -> void:
 	_gear.mouse_entered.connect(func(): _gear.self_modulate = Color(1.6, 1.6, 1.6))
 	_gear.mouse_exited.connect(func(): _gear.self_modulate = Color.WHITE)
 
-	# ---- 左下角语言切换（只在标题界面；设置里也能换）
-	_lang_corner = HBoxContainer.new()
-	_lang_corner.add_theme_constant_override("separation", 5)
-	_lang_corner.position = Vector2(8, 270 - 8 - 14)
+	# 11-12：语言入口留在标题左下角，弹窗复用设置面板的像素主题。
+	_lang_corner = Button.new()
+	_lang_corner.position = Vector2(8, 240)
+	_lang_corner.custom_minimum_size = Vector2(22, 22)
+	_lang_corner.icon = _language_globe()
+	_lang_corner.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lang_corner.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_lang_corner.pressed.connect(_open_language)
+	_lang_corner.mouse_entered.connect(_sfx_soft)
 	_title_root.add_child(_lang_corner)
-	for l in ["en", "zh"]:
-		if l == "zh":
-			_lang_corner.add_child(_label("/", 14, LANG_OFF))
-		var b := Button.new()
-		UITheme.flat_button(b)
-		b.add_theme_font_size_override("font_size", 14)
-		b.add_theme_color_override("font_hover_color", START_HOT)
-		b.add_theme_color_override("font_hover_pressed_color", START_HOT)
-		b.focus_mode = Control.FOCUS_NONE
-		b.text = "EN" if l == "en" else "中文"
-		b.pressed.connect(_on_lang_corner.bind(l))
-		b.mouse_entered.connect(_sfx_soft)
-		_lang_corner.add_child(b)
-		_lang_btns[l] = b
 	# ---- 右下角、齿轮左边：网页版的版本号（只有 Toy 网页版有，传完一看就知道线上是不是新版）
 	var ver := _web_version()
 	if ver != "":
@@ -985,6 +978,7 @@ func _build_ui() -> void:
 	_sett_dim.visible = false
 	_sett_dim.gui_input.connect(_on_dim_input)
 	_pause_gate.ui_root.add_child(_sett_dim)
+	_build_language_picker()
 	_build_settings(_pause_gate.ui_root)
 	_pause_gate.ui_root.add_child(_gear)     # 齿轮在面板上面：开着的时候再点一下 = 关
 	_build_bag(root)
@@ -1011,12 +1005,13 @@ func _build_ui() -> void:
 	copy.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hp_root.add_child(copy)
 	var headphones: Array = I18n.STR["headphones"]
-	var english := _label(headphones[0], 14, UITheme.TEXT)
-	english.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	copy.add_child(english)
-	var chinese := _label(headphones[1], 11, UITheme.TEXT_DIM)
-	chinese.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	copy.add_child(chinese)
+	var headline := _label(I18n.t("headphones") if I18n.lang == "fr" else headphones[0], 14, UITheme.TEXT)
+	headline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	copy.add_child(headline)
+	if I18n.lang != "fr":
+		var chinese := _label(headphones[1], 11, UITheme.TEXT_DIM)
+		chinese.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		copy.add_child(chinese)
 	$Top.add_child(_hp_root)
 
 
@@ -1102,6 +1097,89 @@ func _slider(h: HBoxContainer, key: String, value: float, on_change: Callable) -
 	_settings_widgets[key] = s
 
 
+func _language_globe() -> ImageTexture:
+	var pixels := [
+		"    #####    ",
+		"  ##  #  ##  ",
+		" #   # #   # ",
+		" #  #   #  # ",
+		"#   #   #   #",
+		"#   #   #   #",
+		"#############",
+		"#   #   #   #",
+		"#   #   #   #",
+		" #  #   #  # ",
+		" #   # #   # ",
+		"  ##  #  ##  ",
+		"    #####    ",
+	]
+	var icon := Image.create(13, 13, false, Image.FORMAT_RGBA8)
+	for y in pixels.size():
+		for x in pixels[y].length():
+			if pixels[y][x] == "#":
+				icon.set_pixel(x, y, UITheme.TEXT)
+	return ImageTexture.create_from_image(icon)
+
+
+func _build_language_picker() -> void:
+	_lang_modal = ColorRect.new()
+	_lang_modal.color = Color(0.04, 0.07, 0.09, 0.66)
+	_lang_modal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_lang_modal.hide()
+	_title_root.add_child(_lang_modal)
+	_lang_modal.gui_input.connect(_language_backdrop_input)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lang_modal.add_child(center)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size.x = 118
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	center.add_child(panel)
+	var list := VBoxContainer.new()
+	panel.add_child(list)
+	_lang_heading = _label("", 14, UITheme.TEXT)
+	list.add_child(_lang_heading)
+	var group := ButtonGroup.new()
+	for l in I18n.LANGS:
+		var b := Button.new()
+		b.text = I18n.LANG_NAMES[l]
+		b.custom_minimum_size.y = 22
+		b.toggle_mode = true
+		b.button_group = group
+		b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		b.pressed.connect(_on_lang_corner.bind(l))
+		b.mouse_entered.connect(_sfx_soft)
+		list.add_child(b)
+		_lang_btns[l] = b
+	var options := list.get_children().slice(1)
+	for i in options.size():
+		var b: Button = options[i]
+		b.focus_next = b.get_path_to(options[(i + 1) % options.size()])
+		b.focus_previous = b.get_path_to(options[posmod(i - 1, options.size())])
+		b.focus_neighbor_bottom = b.focus_next
+		b.focus_neighbor_top = b.focus_previous
+		b.focus_neighbor_left = NodePath(".")
+		b.focus_neighbor_right = NodePath(".")
+
+
+func _open_language() -> void:
+	_sfx("ui_click", -10.0)
+	_lang_modal.show()
+	(_lang_btns[GameSettings.lang] as Button).grab_focus()
+
+
+func _close_language() -> void:
+	_lang_modal.hide()
+	_lang_corner.grab_focus()
+
+
+func _language_backdrop_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_lang_modal.accept_event()
+		_close_language()
+
+
 func _build_settings(root: Control) -> void:
 	_settings = PanelContainer.new()
 	_settings.visible = false
@@ -1118,7 +1196,17 @@ func _build_settings(root: Control) -> void:
 	v.add_child(sep)
 
 	var h := _row(v, "language")
-	_toggle_pair(h, "lang", "", "", func(): _set_lang("en"), func(): _set_lang("zh"))
+	var group := ButtonGroup.new()
+	for l in I18n.LANGS:
+		var b := Button.new()
+		b.text = I18n.LANG_NAMES[l]
+		b.toggle_mode = true
+		b.button_group = group
+		b.custom_minimum_size = Vector2(64, 18)
+		b.pressed.connect(_set_lang.bind(l))
+		b.pressed.connect(func(): _sfx("ui_click", -10.0))
+		h.add_child(b)
+		_settings_lang_btns[l] = b
 	h = _row(v, "vol_master")
 	_slider(h, "vol_master", GameSettings.vol_master, _set_vol.bind("vol_master"))
 	h = _row(v, "vol_music")
@@ -1169,17 +1257,15 @@ func _set_vol(x: float, key: String) -> void:
 
 
 func _set_lang(l: String) -> void:
-	GameSettings.set_lang(l)
+	GameSettings.set_lang(l, true)
 	GameSettings.save()
 	_retext()
 
 
 func _on_lang_corner(l: String) -> void:
-	if l == GameSettings.lang:
-		return
 	_sfx("ui_click", -10.0)
 	_set_lang(l)
-	_sync_settings()
+	_close_language()
 
 
 func _set_quality(q: String) -> void:
@@ -1197,8 +1283,6 @@ func _set_fullscreen(on: bool) -> void:
 func _sync_settings() -> void:
 	var w := _settings_widgets
 	(w["back_title"] as Button).visible = free_roam == "" and not state in [S.HEADPHONES, S.INTRO, S.TITLE]
-	(w["lang_a"] as Button).set_pressed_no_signal(GameSettings.lang == "en")
-	(w["lang_b"] as Button).set_pressed_no_signal(GameSettings.lang == "zh")
 	(w["q_a"] as Button).set_pressed_no_signal(not GameSettings.lite())
 	(w["q_b"] as Button).set_pressed_no_signal(GameSettings.lite())
 	(w["fs_a"] as Button).set_pressed_no_signal(GameSettings.fullscreen)
@@ -1636,10 +1720,11 @@ func _retext() -> void:
 	_continue_btn.text = I18n.t("continue")
 	_skip_label.text = I18n.t("skip_again")
 	_layout_title()
-	for l in _lang_btns:
-		var on: bool = l == GameSettings.lang
-		(_lang_btns[l] as Button).add_theme_color_override("font_color", LANG_ON if on else LANG_OFF)
-		(_lang_btns[l] as Button).mouse_default_cursor_shape = Control.CURSOR_ARROW if on else Control.CURSOR_POINTING_HAND
+	_lang_corner.accessibility_name = I18n.t("language")
+	_lang_heading.text = I18n.t("language")
+	for l in I18n.LANGS:
+		(_lang_btns[l] as Button).set_pressed_no_signal(l == GameSettings.lang)
+		(_settings_lang_btns[l] as Button).set_pressed_no_signal(l == GameSettings.lang)
 	_even(_burn_pop_sub, _burn_pop_sub.text, 14)
 	_burn_pop_sub.text = I18n.t("to_launch") % Inventory.get_launch_burn()
 	_update_hud()
@@ -1647,8 +1732,6 @@ func _retext() -> void:
 	w["title"].text = I18n.t("settings")
 	for k in ["language", "vol_master", "vol_music", "vol_sfx", "quality", "fullscreen"]:
 		w["lbl_" + k].text = I18n.t(k)
-	w["lang_a"].text = I18n.LANG_NAMES["en"]
-	w["lang_b"].text = I18n.LANG_NAMES["zh"]
 	for pre in ["q", "fs"]:
 		var keys: Array = w[pre + "_keys"]
 		w[pre + "_a"].text = I18n.t(keys[0])
@@ -1920,17 +2003,17 @@ func _update_objective() -> void:
 	for so in story.side_objectives(true):
 		side_list.append({"key": str(so.get("zh", "")), "text": story.txt(so), "completed": so.get("completed", false)})
 	if chapter == "forest" and StoryState.has("c1_rabbit_done"):
-		var practice := I18n.pick({"zh": "陪兔子练舞", "en": "Practice dancing with the rabbit"})
+		var practice := I18n.pick({"zh": "陪兔子练舞", "en": "Practice dancing with the rabbit", "fr": "S’entraîner à danser avec le lapin"})
 		side_list.append({"key": "c1_rabbit_practice", "text": practice, "completed": StoryState.has("c1_rabbit_helped")})
 	_sync_side_rows(side_list)
 	var side_line := _side_text
 	# 11-08 修：原来修好飞船后把划掉的「修好飞船」塞进支线那一块（暗色小字、夹在主线和「支线」标题之间，看着像支线），
 	# 而且主线还没走完（还要「出发，回飞船」）时也显示「主线已完成」。现在：修好了但下一条主线还没出来 → 主线那行写「修好飞船（完成）」。
 	# 11-08 作者：左上角「主线」「支线」字样去掉，多余
-	var main_done_txt := I18n.pick({"zh": "目标已完成", "en": "Objective complete"})
+	var main_done_txt := I18n.pick({"zh": "目标已完成", "en": "Objective complete", "fr": "Objectif accompli"})
 	var repaired: bool = chapter == "forest" and StoryState.has("c1_fixed") and not StoryState.has("launched")
 	if repaired:
-		main_done_txt = I18n.pick({"zh": "修好飞船（完成）", "en": "Repair the ship (done)"})
+		main_done_txt = I18n.pick({"zh": "修好飞船（完成）", "en": "Repair the ship (done)", "fr": "Vaisseau réparé"})
 	var key: String = main_done_txt + str(not side_line.is_empty()) if o.is_empty() else str(story.txt(o)) + "|" + str(o.get("show_fuel", false))
 	if side_line != "" and not _hud_side.visible:
 		_hud_side.modulate.a = 0.0
@@ -3189,7 +3272,7 @@ func _open_settings() -> void:
 	_settings.visible = true
 	_sett_dim.visible = true
 	_center_settings()
-	(_settings_widgets["lang_a"] as Button).grab_focus()
+	(_settings_lang_btns[GameSettings.lang] as Button).grab_focus()
 
 
 ## 自动测试靠关卡的 _process 走（乱玩、截图），暂停了就走不动了：这些时候面板照开，不真暂停
@@ -3201,12 +3284,12 @@ func _pause_tree(on: bool) -> void:
 
 ## 每帧（pause_gate._process，暂停时也跑）：齿轮一直在，只跟着全黑转场淡；制作人员页盖着时不用
 func gear_tick() -> void:
-	_gear.visible = _credits_page == null and not (story != null and story.montage_ui != null)   # 结局回看不能跳：齿轮也收起来
+	_gear.visible = not _lang_modal.visible and _credits_page == null and not (story != null and story.montage_ui != null)   # 结局回看不能跳：齿轮也收起来
 	_gear.modulate.a = (GEAR_A if state == S.TITLE else GEAR_PLAY_A) * (1.0 - fade.color.a)
 	if _settings.visible and get_tree().paused:
 		var f := get_viewport().gui_get_focus_owner()     # 方向键别把焦点走到面板外面暂停着的按钮（对话的选项）上
 		if f != null and not _settings.is_ancestor_of(f):
-			(_settings_widgets["lang_a"] as Button).grab_focus()
+			(_settings_lang_btns[GameSettings.lang] as Button).grab_focus()
 
 
 ## pause_gate._input：比所有小游戏、对话框都先收到。Esc 开 / 关设置，点齿轮开 / 关；暂停时制作人员页的按键也从这里给
@@ -3217,6 +3300,11 @@ func gate_input(event: InputEvent) -> void:
 
 
 func gate_event(event: InputEvent) -> void:
+	if _lang_modal.visible:
+		if event.is_action_pressed("ui_cancel"):
+			_handled()
+			_close_language()
+		return
 	if _leaving_title:                             # 返回标题淡到黑的路上：按什么都不算
 		_handled()
 		return
@@ -3341,6 +3429,8 @@ func _input(event: InputEvent) -> void:
 	if _autoplay or _shots_dir != "" or _shot != "" or _story_auto != "":
 		_handled()
 		return
+	if _lang_modal.visible:
+		return
 	# 最近一次用的是鼠标还是键盘（互动提示画小鼠标还是「E」）
 	if event is InputEventMouseButton and event.pressed:
 		story.hotspots.use_mouse = true
@@ -3401,6 +3491,11 @@ func _input(event: InputEvent) -> void:
 			_open_test_scene(TEST_SCENES[k])
 			return
 		if k in [KEY_TAB, KEY_B, KEY_I]:
+			if state == S.TITLE and k == KEY_TAB and not _settings.visible:
+				if get_viewport().gui_get_focus_owner() == null:
+					_lang_corner.grab_focus()
+					_handled()
+				return
 			if not _settings.visible:
 				_toggle_bag()
 			_handled()
@@ -3427,7 +3522,9 @@ func _input(event: InputEvent) -> void:
 			var focus := get_viewport().gui_get_focus_owner()
 			if event.is_action_pressed("ui_accept"):
 				_handled()
-				if focus == _credits_btn:
+				if focus == _lang_corner:
+					_open_language()
+				elif focus == _credits_btn:
 					_open_credits()
 				elif focus == _continue_btn or (focus != _start_btn and _has_save):
 					_on_continue()
@@ -3535,7 +3632,7 @@ func _show_achievement(entry: Dictionary) -> void:
 	toast.add_child(row)
 	var icon := _label("★", 19, Color("#ffd779"))
 	row.add_child(icon)
-	var text := _label(I18n.pick({"zh": "成就解锁", "en": "Achievement unlocked"}) + "\n" + I18n.pick(entry), 12, UITheme.TEXT)
+	var text := _label(I18n.pick({"zh": "成就解锁", "en": "Achievement unlocked", "fr": "Succès débloqué"}) + "\n" + I18n.pick(entry), 12, UITheme.TEXT)
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
@@ -5307,7 +5404,7 @@ func _free_exits() -> Array:
 					w._marker_room[nm] = str(r)
 					var up: bool = int(e[2]) > int(e[0])
 					out.append({"id": "free_exit_%d" % out.size(), "at": nm, "room": str(r),
-						"label": {"zh": "上楼" if up else "下楼", "en": "Upstairs" if up else "Downstairs"},
+						"label": {"zh": "上楼" if up else "下楼", "en": "Upstairs" if up else "Downstairs", "fr": "Monter" if up else "Descendre"},
 						"free_stairs": int(e[2]) - int(e[0])})
 	return out
 

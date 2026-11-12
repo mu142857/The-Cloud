@@ -246,11 +246,10 @@ func _play_end() -> void:
 	_end_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_end_box.modulate.a = 0.0
 	add_child(_end_box)
-	var zh := I18n.is_zh()
-	var big := _label("感谢游玩" if zh else "Thank you for playing", 28, Color("#d8d4cc"))
+	var big := _label(I18n.row_text(["Thank you for playing", "感谢游玩", "Merci d’avoir joué"]), 28, Color("#d8d4cc"))
 	big.position = Vector2(0, 30)
 	_end_box.add_child(big)
-	var small := _label("2026 年 11 月" if zh else "November 2026", 14, Color(0.62, 0.6, 0.58))
+	var small := _label(I18n.row_text(["November 2026", "2026 年 11 月", "Novembre 2026"]), 14, Color(0.62, 0.6, 0.58))
 	small.position = Vector2(0, 68)
 	_end_box.add_child(small)
 	var tw := create_tween()

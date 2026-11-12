@@ -9,7 +9,7 @@
    "not": [
     "sb_toucan_done"
    ],
-   "zh": "陪大嘴鸟接果子",
+   "zh": "陪大嘴鸟接果子", "fr": "Attraper des fruits pour le toucan",
    "en": "Catch fruit for the toucan",
    "added": true
   }
@@ -20,7 +20,7 @@
    "at": "glade_toucan",
    "room": "forest",
    "label": {
-    "zh": "大嘴鸟",
+    "zh": "大嘴鸟", "fr": "Toucan",
     "en": "Toucan"
    },
    "need": [
@@ -37,7 +37,7 @@
    "at": "glade_toucan",
    "room": "forest",
    "label": {
-    "zh": "大嘴鸟",
+    "zh": "大嘴鸟", "fr": "Toucan",
     "en": "Toucan"
    },
    "need": [
@@ -56,7 +56,7 @@
    "at": "glade_toucan",
    "room": "forest",
    "label": {
-    "zh": "大嘴鸟",
+    "zh": "大嘴鸟", "fr": "Toucan",
     "en": "Toucan"
    },
    "need": [
@@ -75,7 +75,7 @@
    "at": "glade_toucan",
    "room": "forest",
    "label": {
-    "zh": "大嘴鸟",
+    "zh": "大嘴鸟", "fr": "Toucan",
     "en": "Toucan"
    },
    "need": [
@@ -104,13 +104,13 @@
    },
    {
     "say": "toucan",
-    "zh": "哎，会走路的！接得住果子吗？",
+    "zh": "哎，会走路的！接得住果子吗？", "fr": "Hé, quelqu’un qui marche ! Tu sais attraper des fruits ?",
     "en": "Hey, something that walks! Can you catch fruit?",
     "added": true
    },
    {
     "say": "toucan",
-    "zh": "接住五个，我就跟你换样好东西。",
+    "zh": "接住五个，我就跟你换样好东西。", "fr": "Attrapes-en cinq et je te donnerai quelque chose de bien.",
     "en": "Catch five and I'll trade you something good.",
     "added": true
    },
@@ -124,7 +124,7 @@
      "miss": [
       {
        "say": "toucan",
-       "zh": "掉了掉了。没事，地上的也算我的。",
+       "zh": "掉了掉了。没事，地上的也算我的。", "fr": "Raté. Ce n’est pas grave, ceux par terre sont à moi aussi.",
        "en": "Dropped it. That's fine, the ground ones are mine too.",
        "added": true
       }
@@ -132,7 +132,7 @@
      "auto": [
       {
        "say": "toucan",
-       "zh": "算了，我直接往你手里扔。",
+       "zh": "算了，我直接往你手里扔。", "fr": "Tant pis. Je vais te les lancer directement dans les mains.",
        "en": "Never mind. I'll just toss them into your hands.",
        "added": true
       }
@@ -140,7 +140,7 @@
      "win": [
       {
        "say": "toucan",
-       "zh": "接得比我妈还好。",
+       "zh": "接得比我妈还好。", "fr": "Tu attrapes mieux que ma maman.",
        "en": "You catch better than my mom.",
        "added": true
       }
@@ -149,7 +149,7 @@
    },
    {
     "say": "toucan",
-    "zh": "尾羽给你。不过……",
+    "zh": "尾羽给你。不过……", "fr": "La plume est à toi. Mais…",
     "en": "The tail feather's yours. But...",
     "added": true
    },
@@ -163,7 +163,7 @@
   "sb_toucan_ask_mom": [
    {
     "say": "toucan",
-    "zh": "听说你给那头鹿当妈妈。那也给我当回孩子，叫我一声妈妈。",
+    "zh": "听说你给那头鹿当妈妈。那也给我当回孩子，叫我一声妈妈。", "fr": "On dit que tu es la maman de ce cerf. Alors sois mon enfant pour une fois. Appelle-moi maman.",
     "en": "I hear you're that deer's mom. Then be my kid for once. Call me Mom.",
     "added": true
    },
@@ -171,17 +171,17 @@
     "do": "choice",
     "options": [
      {
-      "zh": "妈妈",
+      "zh": "妈妈", "fr": "Maman",
       "en": "Mom",
       "scene": "sb_toucan_mama"
      },
      {
-      "zh": "不",
+      "zh": "不", "fr": "Non",
       "en": "No",
       "scene": "sb_toucan_no"
      },
      {
-      "zh": "你嘴太大了，当不了妈妈",
+      "zh": "你嘴太大了，当不了妈妈", "fr": "Ton bec est trop gros pour être maman",
       "en": "Your beak's too big to be a mom",
       "scene": "sb_toucan_mouth"
      }
@@ -191,7 +191,7 @@
   "sb_toucan_ask_child": [
    {
     "say": "toucan",
-    "zh": "听说你管那头鹿叫妈妈。多叫一个也不多，叫我一声妈妈。",
+    "zh": "听说你管那头鹿叫妈妈。多叫一个也不多，叫我一声妈妈。", "fr": "Il paraît que tu appelles ce cerf maman. Une de plus, ça ne fait pas de mal. Appelle-moi maman.",
     "en": "I hear you call that deer Mom. One more won't hurt. Call me Mom.",
     "added": true
    },
@@ -199,17 +199,17 @@
     "do": "choice",
     "options": [
      {
-      "zh": "妈妈",
+      "zh": "妈妈", "fr": "Maman",
       "en": "Mom",
       "scene": "sb_toucan_mama"
      },
      {
-      "zh": "不",
+      "zh": "不", "fr": "Non",
       "en": "No",
       "scene": "sb_toucan_no"
      },
      {
-      "zh": "你嘴太大了，当不了妈妈",
+      "zh": "你嘴太大了，当不了妈妈", "fr": "Ton bec est trop gros pour être maman",
       "en": "Your beak's too big to be a mom",
       "scene": "sb_toucan_mouth"
      }
@@ -223,7 +223,7 @@
    },
    {
     "say": "toucan",
-    "zh": "……再叫一声。算了，一声够我记很久了。",
+    "zh": "……再叫一声。算了，一声够我记很久了。", "fr": "… Redis-le. Non, une fois suffit. Je m’en souviendrai longtemps.",
     "en": "...Say it again. No, once is enough. I'll remember it a long time.",
     "added": true
    },
@@ -241,7 +241,7 @@
   "sb_toucan_mama_mom": [
    {
     "say": "toucan",
-    "zh": "那头鹿以后得管我叫外婆了。",
+    "zh": "那头鹿以后得管我叫外婆了。", "fr": "Alors le cerf doit m’appeler mamie maintenant.",
     "en": "So that deer has to call me Grandma now.",
     "added": true
    }
@@ -249,7 +249,7 @@
   "sb_toucan_mama_child": [
    {
     "say": "toucan",
-    "zh": "鹿那边要是问起来，就说我是你二妈。",
+    "zh": "鹿那边要是问起来，就说我是你二妈。", "fr": "Si le cerf te demande, dis-lui que je suis ton autre maman.",
     "en": "If the deer asks, tell it I'm your other mom.",
     "added": true
    }
@@ -261,7 +261,7 @@
    },
    {
     "say": "toucan",
-    "zh": "有骨气。尾羽照给，拿着。",
+    "zh": "有骨气。尾羽照给，拿着。", "fr": "Bien, tu as du caractère. Tu as quand même droit à la plume. Tiens.",
     "en": "Good, you've got a spine. You still get the feather. Here.",
     "added": true
    },
@@ -282,13 +282,13 @@
    },
    {
     "say": "toucan",
-    "zh": "嗯嗯。嗯嗯嗯。",
+    "zh": "嗯嗯。嗯嗯嗯。", "fr": "Mmm. Mmm-mmm.",
     "en": "Mm-mm. Mm-mm-mm.",
     "added": true
    },
    {
     "narr": {
-     "zh": "它嘴闭得太紧，说不出话了。尾羽还是丢了过来。",
+     "zh": "它嘴闭得太紧，说不出话了。尾羽还是丢了过来。", "fr": "Il serre trop fort le bec pour parler. Il te lance tout de même la plume.",
      "en": "It has shut its beak too tight to talk. It tosses the feather over anyway."
     },
     "added": true
@@ -315,7 +315,7 @@
   "sb_toucan_bye_mama": [
    {
     "say": "toucan",
-    "zh": "乖孩子，路过要回来看妈妈。",
+    "zh": "乖孩子，路过要回来看妈妈。", "fr": "Brave petite. Viens voir ta maman quand tu repasseras.",
     "en": "Good kid. Come see your mom when you pass by.",
     "added": true
    }
@@ -323,7 +323,7 @@
   "sb_toucan_bye_no": [
    {
     "say": "toucan",
-    "zh": "果子还多着呢，我又不走。",
+    "zh": "果子还多着呢，我又不走。", "fr": "Il reste plein de fruits. Je ne bouge pas.",
     "en": "Plenty more fruit. I'm not going anywhere.",
     "added": true
    }
@@ -331,7 +331,7 @@
   "sb_toucan_bye_mouth": [
    {
     "say": "toucan",
-    "zh": "嗯嗯嗯。",
+    "zh": "嗯嗯嗯。", "fr": "Mmm-mmm.",
     "en": "Mm-mm-mm.",
     "added": true
    }
@@ -342,7 +342,7 @@
    "id": "sb_toucan_feather",
    "name": {
     "en": "Toucan's Tail Feather",
-    "zh": "大嘴鸟的尾羽"
+    "zh": "大嘴鸟的尾羽", "fr": "Plume de queue du toucan"
    },
    "rarity": "uncommon",
    "burn": 0,
@@ -351,7 +351,7 @@
    "fuel_kind": "unrelated",
    "desc": {
     "en": "The toucan said it was the best feather, then had second thoughts while plucking it out.",
-    "zh": "大嘴鸟说是最好的一根，拔的时候又后悔了。"
+    "zh": "大嘴鸟说是最好的一根，拔的时候又后悔了。", "fr": "Le toucan a dit que c’était sa plus belle plume, puis a hésité en l’arrachant."
    },
    "category": "keepsake",
    "added": true,

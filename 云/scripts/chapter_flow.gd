@@ -29,11 +29,11 @@ const CHAPTERS := {
 	"forest": {"story": "res://data/story_forest.json", "next": "flight1", "hud_fuel": false},   # 11-05 夜测：第一关新版没有燃料表，没目标的时候左上角别冒出「10 / 200」
 	"flight1": {"story": "res://data/story_flight1.json", "start": "start_flight1", "room": "cockpit", "next": "river",
 		"carry_flags": BARTER_FOREST + C1_FLAGS, "items_extra": ["res://data/items_later.json"],
-		"end_card": {"zh": "第一章结束", "en": "End of Chapter One"}},
+		"end_card": {"zh": "第一章结束", "en": "End of Chapter One", "fr": "Fin du chapitre un"}},
 	"river": {"story": "res://data/story_river.json", "start": "start_river", "room": "river_bank", "spawn": "river_bank_hatch", "next": "final",
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass"] + BARTER_FOREST + C1_FLAGS, "hud_fuel": false,
 		"items_extra": ["res://data/items_later.json"],
-		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two"}},
+		"end_card": {"zh": "第二章　完", "en": "End of Chapter Two", "fr": "Fin du chapitre deux"}},
 	# carry_flags：飞行一烧了哪件（燃料柜空的那格）；森林的 returned_all / returned_any / saw_rock（尾声鹿、弥洛的分支）
 	"final": {"story": "res://data/story_final.json", "start": "start_final", "room": "cockpit", "next": "",
 		"carry_flags": ["burned_blue_stone", "burned_commute_card", "burned_rain_glass", "saw_rock", "musicbox_fixed",
@@ -144,7 +144,7 @@ static func go(tree: SceneTree, ch: String) -> void:
 	Engine.set_meta(PICK_META, true)          # 换章也要压过命令行 --chapter=（不然 --chapter=flight1 --story_chain 演完又回到 flight1 开头）
 	for prev in CHAPTERS:
 		if CHAPTERS[prev].get("next", "") == ch and CHAPTERS[prev].has("end_card"):
-			var opening := {"zh": "第二章开始", "en": "Chapter Two Begins"} if ch == "river" else {}
+			var opening := {"zh": "第二章开始", "en": "Chapter Two Begins", "fr": "Début du chapitre deux"} if ch == "river" else {}
 			await _end_card(tree, CHAPTERS[prev]["end_card"], opening)
 	(load("res://scripts/audio_fade.gd") as GDScript).release(tree.current_scene, 0.8)   # 还在响的长声音（引擎、冲刺）淡掉，不被重新载入掐断
 	tree.reload_current_scene.call_deferred()
@@ -262,10 +262,47 @@ static func load_save() -> bool:
 	for p in info(ch).get("items_extra", []):
 		register_items(str(p))
 	register_side_items()
-	Engine.set_meta(CARRY_META, (cf.get_value("save", "carry", {}) as Dictionary).duplicate(true))
+	var carry: Dictionary = cf.get_value("save", "carry", {})
+	_restore_journal_french(carry.get("journal", []))
+	Engine.set_meta(CARRY_META, carry)
 	Engine.set_meta(CHAPTER_META, ch)
 	Engine.set_meta(PICK_META, true)          # 和 go() 一样：压过命令行 --chapter=
 	return true
+
+
+## 11-12：旧存档只存了中英文日记。按原文补法语，保留条目的标记和划线。
+static func _restore_journal_french(entries: Array) -> void:
+	var missing := {}
+	for entry in entries:
+		if entry is Dictionary and str(entry.get("fr", "")) == "" and str(entry.get("zh", "")) != "":
+			var zh := str(entry["zh"])
+			if not missing.has(zh):
+				missing[zh] = []
+			missing[zh].append(entry)
+	if missing.is_empty():
+		return
+	var paths: Array = []
+	for chapter_info in CHAPTERS.values():
+		paths.append(chapter_info["story"])
+	var dir := SIDE_PREFIX.get_base_dir()
+	for f in DirAccess.get_files_at(dir):
+		if f.begins_with(SIDE_PREFIX.get_file()) and f.ends_with(".json"):
+			paths.append(dir.path_join(f))
+	for path in paths:
+		_restore_journal_entries(JSON.parse_string(FileAccess.get_file_as_string(path)), missing)
+
+
+static func _restore_journal_entries(value, missing: Dictionary) -> void:
+	if value is Dictionary:
+		if value.get("do", "") == "journal" and str(value.get("fr", "")) != "":
+			for entry in missing.get(str(value.get("zh", "")), []):
+				if str(entry.get("en", "")) == str(value.get("en", "")):
+					entry["fr"] = value["fr"]
+		for child in value.values():
+			_restore_journal_entries(child, missing)
+	elif value is Array:
+		for child in value:
+			_restore_journal_entries(child, missing)
 
 
 ## 回标题（新游戏）：清掉章节和带过去的状态

@@ -57,7 +57,7 @@ func _ready() -> void:
 	add_child(hud)
 	var help := Label.new()
 	help.theme = UITheme.get_theme()
-	help.text = story.txt({"zh": "兔子舞步   方向键 / WASD 模仿   R 重玩   Esc 返回标题", "en": "Rabbit dance   Arrows / WASD   R: retry   Esc: title"})
+	help.text = story.txt({"zh": "兔子舞步   方向键 / WASD 模仿   R 重玩   Esc 返回标题", "en": "Rabbit dance   Arrows / WASD   R: retry   Esc: title", "fr": "Danse du lapin   Flèches / WASD   R : rejouer   Échap : titre"})
 	help.position = Vector2(12, 12)
 	help.add_theme_font_size_override("font_size", 12)
 	hud.add_child(help)
@@ -82,9 +82,9 @@ func _start() -> void:
 func _process(_delta: float) -> void:
 	if dance == null or dance.s.is_empty():
 		return
-	var phase := story.txt({"zh": "轮到你模仿", "en": "Your turn"}) if dance.listening else story.txt({"zh": "看兔子示范", "en": "Watch the rabbit"})
+	var phase := story.txt({"zh": "轮到你模仿", "en": "Your turn", "fr": "À toi"}) if dance.listening else story.txt({"zh": "看兔子示范", "en": "Watch the rabbit", "fr": "Observe le lapin"})
 	if complete:
-		phase = story.txt({"zh": "完成！按 R 再玩一次", "en": "Complete! Press R to play again"})
+		phase = story.txt({"zh": "完成！按 R 再玩一次", "en": "Complete! Press R to play again", "fr": "Terminé ! Appuie sur R pour rejouer"})
 	var n: int = DANCE.SEQS.size()
 	status.text = "%d / %d   %s" % [mini(int(dance.s["round"]) + 1, n), n, phase]
 

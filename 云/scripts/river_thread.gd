@@ -13,7 +13,7 @@ extends "res://scripts/river_kit.gd"
 const PIPE_Y := 78.0
 const NUT := Vector2(116, 78)
 const SPEED := 1.1                         # 每秒拧多少圈
-const HINT := {"zh": "←→ 拧接头", "en": "← → to turn the joint"}
+const HINT := {"zh": "←→ 拧接头", "en": "← → to turn the joint", "fr": "← → Tourner le raccord"}
 
 var turns := 2.5
 var p := 0.0                               # 拧进去多少圈（负 = 往外退）
@@ -143,7 +143,7 @@ func _draw_board(b: Control) -> void:
 			_line(b, c + Vector2(cos(a) * 9.0, sin(a) * 15.0), c + Vector2(cos(a + TAU / 6.0) * 9.0, sin(a + TAU / 6.0) * 15.0), Color("#b8a272"), 1.0)
 	b.draw_rect(Rect2(c + Vector2(-2, -15), Vector2(4, 30)), Color(0, 0, 0, 0.12))
 	# 印着的箭头：「↻ 拧紧」（往右）——是错的
-	_text(b, Vector2(132, 44), _tr(step.get("arrow", {"zh": "拧紧", "en": "tighten"})), PAPER_DIM, 90.0, HORIZONTAL_ALIGNMENT_LEFT)
+	_text(b, Vector2(132, 44), _tr(step.get("arrow", {"zh": "拧紧", "en": "tighten", "fr": "serrer"})), PAPER_DIM, 90.0, HORIZONTAL_ALIGNMENT_LEFT)
 	_line(b, Vector2(134, 50), Vector2(176, 50), PAPER_DIM, 1.0)
 	_line(b, Vector2(172, 47), Vector2(176, 50), PAPER_DIM, 1.0)
 	_line(b, Vector2(172, 53), Vector2(176, 50), PAPER_DIM, 1.0)
@@ -151,7 +151,7 @@ func _draw_board(b: Control) -> void:
 	var nr := Rect2(30, 96, 76, 22)
 	b.draw_rect(nr, Color("#e9e0a8"))
 	b.draw_rect(Rect2(nr.position + Vector2(nr.size.x - 5, 0), Vector2(5, 3)), Color("#c9c08a"))
-	_text(b, nr.position + Vector2(0, 16), _tr(step.get("note", {"zh": "反方向！", "en": "OTHER WAY!"})), INK, nr.size.x)
+	_text(b, nr.position + Vector2(0, 16), _tr(step.get("note", {"zh": "反方向！", "en": "OTHER WAY!", "fr": "DANS L’AUTRE SENS !"})), INK, nr.size.x)
 	# 进度：拧进去几圈（右下角三个小点）
 	var n := int(ceil(turns))
 	for k in n:

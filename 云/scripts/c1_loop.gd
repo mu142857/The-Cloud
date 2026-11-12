@@ -26,6 +26,7 @@ const END_AFTER := 15.0                    # 那句出来以后再往前走多�
 const CG_DIST := 2880.0                    # 片头 CG 至少卷多远（原来 Main 卷 3 圈）
 const CG_PRE_V := 160.0                    # CG 的 mechanic 开始之前（那句「好熟悉的感觉」）先按这个速度卷
 const WARN_ZH := "如果不奔跑的话，或许就再也出不去了……"
+const WARN_FR := "Si je ne cours pas… je ne sortirai peut-être jamais d’ici…"
 const WARN_EN := "If I don't run... maybe I'll never get out of here..."
 
 var level: Node2D
@@ -150,7 +151,7 @@ func _count_walk(delta: float, story: Node) -> void:
 	_walk_t += delta
 	if not _warned and _walk_t >= WARN_AFTER:
 		_warned = true
-		story._inner({"zh": WARN_ZH, "en": WARN_EN, "style": "fade", "sec": 4.0})
+		story._inner({"zh": WARN_ZH, "en": WARN_EN, "fr": WARN_FR, "style": "fade", "sec": 4.0})
 		print("C1LOOP warn t=%.1f d=%.0f" % [_walk_t, d])
 	elif _warned:
 		_after_warn += delta

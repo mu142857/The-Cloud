@@ -54,11 +54,11 @@ const SFX := "res://audio/sfx/tap.wav"
 const SFX_MISS := "res://audio/sfx/pat.wav"
 const SFX_ROUND := "res://audio/sfx/bell_soft.wav"
 const PITCH := {"left": 1.0, "down": 0.891, "right": 1.122, "up": 1.335}     # 每个键一个音：do re mi fa 那样排开
-const HINT := {"zh": "方向键 / WASD：跟着兔子跳", "en": "Arrow keys / WASD: follow the rabbit"}
+const HINT := {"zh": "方向键 / WASD：跟着兔子跳", "en": "Arrow keys / WASD: follow the rabbit", "fr": "Flèches / WASD : imiter le lapin"}
 const HINT_LAYER := 15
 const QUIT_HOLD := 1.0                  # 长按 Esc 多久算退出
 const QUIT_SHOW := 2.5                  # 松开以后「长按 Esc 退出」那行还留多久
-const QUIT_HINT := {"zh": "长按 Esc 退出练舞", "en": "Hold Esc to leave practice"}
+const QUIT_HINT := {"zh": "长按 Esc 退出练舞", "en": "Hold Esc to leave practice", "fr": "Maintenir Échap pour quitter"}
 const QUIT_BAR_W := 64.0
 const QUIT_BAND := 26.0                 # 下面电影黑边的高度（level_forest.BAR_H）：提示放在它上面，不被压住
 

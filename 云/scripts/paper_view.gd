@@ -27,14 +27,14 @@ const FLIP_SEC := 0.36
 const REVEAL_WAIT := 0.9
 const OUT_BLACK := 1.6          # "out": "black"：看完画慢慢压到全黑要多久
 const LABEL_INK := Color8(40, 48, 104)
-## 背面的地名：[中文, 英文, 中心 x, 上沿 y]，纸上坐标（和 tools/paper_map_art.py 的 LABELS 同步）
+## 背面的地名：[中文, 英文, 中心 x, 上沿 y, 法语]，纸上坐标（和 tools/paper_map_art.py 的 LABELS 同步）
 const BACK_LABELS := [
-	["母星", "Home", 26, 97],
-	["森林星", "Forest", 58, 3],
-	["河流星", "River", 101, 93],
-	["云层星", "Clouds", 149, 5],
-	["小镇", "Town", 179, 37],      # 小镇在云层星上（11-07 作者），不单独成星
-	["芦苇星", "Reeds", 163, 98],   # 占位名，等作者定
+	["母星", "Home", 26, 97, "Chez moi"],
+	["森林星", "Forest", 58, 3, "Forêt"],
+	["河流星", "River", 101, 93, "Rivière"],
+	["云层星", "Clouds", 149, 5, "Nuages"],
+	["小镇", "Town", 179, 37, "Village"],      # 小镇在云层星上（11-07 作者），不单独成星
+	["芦苇星", "Reeds", 163, 98, "Roseaux"],   # 占位名，等作者定
 ]
 
 
@@ -179,17 +179,15 @@ class View extends Control:
 			l.add_theme_font_size_override("font_size", 14)
 			l.add_theme_color_override("font_color", LABEL_INK)
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			l.text = str(row[0]) if I18n.is_zh() else str(row[1])
+			l.text = I18n.row_text([row[1], row[0], row[4]])
 			l.size = Vector2(80, 16)
 			l.position = Vector2(float(row[2]) * SCALE - 40.0, float(row[3]) * SCALE)
 			l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_labels.add_child(l)
 
 	func _set_hint() -> void:
-		if I18n.is_zh():
-			_hint.text = "A / D 翻面　　空格 收起" if _can_flip else "空格 收起"
-		else:
-			_hint.text = "A / D  flip     Space  close" if _can_flip else "Space  close"
+		_hint.text = I18n.row_text(["A / D  flip     Space  close", "A / D 翻面　　空格 收起", "A / D  Retourner     Espace  Fermer"]) if _can_flip \
+			else I18n.row_text(["Space  close", "空格 收起", "Espace  Fermer"])
 
 	## 翻面：横向压扁到 0（sine 缓进）→ 换另一面 → 展开（sine 缓停）
 	func flip() -> void:

@@ -32,15 +32,15 @@ const HINT_TEX := preload("res://art/level1/hint_arrow.png")
 const BG := Color(0.02, 0.05, 0.04, 0.88)
 const EDGE := Color(0.5, 0.6, 0.55, 0.45)
 const TXT := {
-	"put_in": ["Put it in", "放进去"],
-	"put_back": ["Put it back for now", "先放回去"],
-	"route": ["Check the route", "看看航线"],
-	"back": ["Back", "回去"],
-	"route_title": ["Route", "航线"],
-	"from": ["Forest", "森林"],
-	"to": ["River planet", "河流星球"],
-	"keys": ["← → choose   E look", "← → 挑   E 拿起来看"],
-	"close": ["Close the cabinet", "收起燃料柜"],
+	"put_in": ["Put it in", "放进去", "Y déposer l’objet"],
+	"put_back": ["Put it back for now", "先放回去", "Reposer"],
+	"route": ["Check the route", "看看航线", "Consulter la route"],
+	"back": ["Back", "回去", "Retour"],
+	"route_title": ["Route", "航线", "Route"],
+	"from": ["Forest", "森林", "Forêt"],
+	"to": ["River planet", "河流星球", "Planète de la Rivière"],
+	"keys": ["← → choose   E look", "← → 挑   E 拿起来看", "← → Choisir   E Examiner"],
+	"close": ["Close the cabinet", "收起燃料柜", "Fermer le placard"],
 }
 
 var runner: Node
@@ -175,7 +175,7 @@ func _burn(id: String) -> void:
 
 static func _tx(k: String) -> String:
 	var row: Array = TXT[k]
-	return row[1] if I18n.is_zh() else row[0]
+	return I18n.row_text(row)
 
 
 func _label(text: String, c: Color) -> Label:

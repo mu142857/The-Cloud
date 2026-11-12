@@ -27,12 +27,12 @@ const GROUND_C := Color("#7fc7a4")
 const LINE_C := Color("#d9c9a0")
 const PT_C := {"faded": Color("#c9a86a"), "weak": Color("#8fb8c8"), "broadcast": Color("#e8dcb0")}
 const TXT := {
-	"ok": ["Confirm", "确认"],
-	"back": ["Not yet", "再想想"],
-	"keys_nav": ["← → choose   E select", "← → 选   E 确定"],
-	"keys_action": ["↑ ↓ choose   E select", "↑ ↓ 选   E 确定"],
-	"short": [" (%d more fuel needed)", "（燃料还差 %d）"],
-	"locked": ["Not enough fuel: %d short.", "燃料不够，还差 %d。"],
+	"ok": ["Confirm", "确认", "Confirmer"],
+	"back": ["Not yet", "再想想", "Pas encore"],
+	"keys_nav": ["← → choose   E select", "← → 选   E 确定", "← → Choisir   E Valider"],
+	"keys_action": ["↑ ↓ choose   E select", "↑ ↓ 选   E 确定", "↑ ↓ Choisir   E Valider"],
+	"short": [" (%d more fuel needed)", "（燃料还差 %d）", " (il manque %d de carburant)"],
+	"locked": ["Not enough fuel: %d short.", "燃料不够，还差 %d。", "Il manque %d de carburant."],
 }
 
 var runner: Node
@@ -110,7 +110,7 @@ func _tw(s: String) -> float:
 
 
 func _tx(k: String) -> String:
-	return TXT[k][1] if I18n.is_zh() else TXT[k][0]
+	return I18n.row_text(TXT[k])
 
 
 func _opt_label(i: int) -> String:
@@ -190,7 +190,7 @@ func _confirm_text(i: int) -> String:
 	var c = opts[i].get("confirm", null)
 	if c != null:
 		return runner.txt(c)
-	return _opt_label(i) + ("？" if I18n.is_zh() else "?")
+	return _opt_label(i) + I18n.row_text(["?", "？", " ?"])
 
 
 func _style() -> void:

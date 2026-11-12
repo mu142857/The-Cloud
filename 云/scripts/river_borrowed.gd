@@ -21,10 +21,10 @@ const POP := 4.2                          # 多久破一个泡泡
 const READ := 2.4                         # 忘了以后翻本子多久
 const BOX := Vector2(34, 24)
 const ROW_Y := [58.0, 106.0]               # 两排（标签在箱子下面，最下面一行留给翻出来的东西那句字）
-const HINT := {"zh": "←→ 选箱子，空格打开。趁她还记得", "en": "← → to pick a crate, Space to open. While she still remembers."}
-const DEFAULT_JUNK := [{"zh": "一只袜子。标签：借来的。", "en": "One sock. Label: borrowed."},
-	{"zh": "一只小一点的箱子。里面还有一只更小的。", "en": "A smaller crate. With an even smaller one inside."},
-	{"zh": "阿汀的午饭。泡发了。", "en": "Ting's lunch. Very soaked."}]
+const HINT := {"zh": "←→ 选箱子，空格打开。趁她还记得", "en": "← → to pick a crate, Space to open. While she still remembers.", "fr": "← → Choisir une caisse, Espace pour l’ouvrir. Tant qu’elle s’en souvient."}
+const DEFAULT_JUNK := [{"zh": "一只袜子。标签：借来的。", "en": "One sock. Label: borrowed.", "fr": "Une chaussette. Étiquette : « Empruntée »."},
+	{"zh": "一只小一点的箱子。里面还有一只更小的。", "en": "A smaller crate. With an even smaller one inside.", "fr": "Une petite caisse. À l’intérieur, une caisse encore plus petite."},
+	{"zh": "阿汀的午饭。泡发了。", "en": "Ting's lunch. Very soaked.", "fr": "Le déjeuner de Ting. Complètement trempé."}]
 
 var boxes: Array = []                     # [{d, x, row, sp, ph, open_t}]
 var sel := 0
@@ -305,10 +305,13 @@ func _draw_board(b: Control) -> void:
 			b.draw_texture(rr["tex"], (p - Vector2(8, 8)).round(), Color(1, 1, 1, 1.0 - maxf(0.0, u - 0.6) / 0.4))
 	_caption(b, panel.y - 6, _caption_s, UITheme.TEXT, clampf(_caption_t / 0.4, 0.0, 1.0))
 	# 找到了几样
-	var t := ("读取头 %s　密封圈 %s" % ["有" if "head" in got else "—", "有" if "seal" in got else "—"]) if I18n.is_zh() \
-		else ("Head %s  Seal %s" % ["ok" if "head" in got else "-", "ok" if "seal" in got else "-"])
+	var have := I18n.row_text(["ok", "有", "OK"])
+	var none := I18n.row_text(["-", "—", "—"])
+	var head := have if "head" in got else none
+	var seal := have if "seal" in got else none
+	var t := I18n.row_text(["Head %s  Seal %s", "读取头 %s　密封圈 %s", "Tête %s  Joint %s"]) % [head, seal]
 	if _no_seal_box():
-		t = ("读取头 %s" % ("有" if "head" in got else "—")) if I18n.is_zh() else ("Head %s" % ("ok" if "head" in got else "-"))
+		t = I18n.row_text(["Head %s", "读取头 %s", "Tête %s"]) % head
 	_text(b, Vector2(0, 19), t, UITheme.TEXT_DIM, panel.x - 8.0, HORIZONTAL_ALIGNMENT_RIGHT)
 
 

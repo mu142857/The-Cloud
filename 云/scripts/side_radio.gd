@@ -23,7 +23,7 @@ const LOCK_SEC := 0.7
 const VMAX := 26.0                        # 最快每秒走多少
 const VMIN := 5.0
 const ACC_SEC := 1.4
-const HINT := {"zh": "←→ 或按住左右拧旋钮，找小吃棚的台", "en": "← → or hold left / right to turn the dial. Find the stall's station."}
+const HINT := {"zh": "←→ 或按住左右拧旋钮，找小吃棚的台", "en": "← → or hold left / right to turn the dial. Find the stall's station.", "fr": "← → Tourne le bouton pour retrouver la station de la buvette."}
 const BROADCAST := Color("#a9d8bc")
 const CAP_RECT := Rect2(20, 50, 128, 82)  # 字幕在面板里的位置：喇叭布那一块（radio_panel.png 的 16..151 × 48..134）
 const CAP_BG := Color("#17140e")
@@ -152,8 +152,8 @@ static func pick_stations(st: Dictionary) -> Array:
 
 
 const DEFAULT := [
-	{"f": 20, "zh": "……今天晴，明天晴，以后也一直晴……", "en": "...Sunny today, sunny tomorrow, sunny from now on..."},
-	{"f": 88, "zh": "热乎的——刚出锅的——", "en": "Piping hot! Fresh out of the pot!", "final": true},
+	{"f": 20, "zh": "……今天晴，明天晴，以后也一直晴……", "en": "...Sunny today, sunny tomorrow, sunny from now on...", "fr": "… Soleil aujourd’hui, soleil demain, soleil pour toujours…"},
+	{"f": 88, "zh": "热乎的——刚出锅的——", "en": "Piping hot! Fresh out of the pot!", "fr": "Tout chaud ! Tout juste sorti de la marmite !", "final": true},
 ]
 
 

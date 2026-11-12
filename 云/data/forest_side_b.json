@@ -14,7 +14,7 @@
    "not": [
     "sb_slope_done"
    ],
-   "zh": "去坡地的雾里看看",
+   "zh": "去坡地的雾里看看", "fr": "Regarder le brouillard sur la pente",
    "en": "Look into the fog on the slope",
    "added": true
   }
@@ -25,7 +25,7 @@
    "at": "sb_slope_start",
    "room": "forest",
    "label": {
-    "zh": "雾",
+    "zh": "雾", "fr": "Brume",
     "en": "Fog"
    },
    "need": [
@@ -56,7 +56,7 @@
    },
    {
     "say": "chen",
-    "zh": "……鹿？",
+    "zh": "……鹿？", "fr": "… Cerf ?",
     "en": "...Deer?",
     "added": true
    },
@@ -71,7 +71,7 @@
      "auto": [
       {
        "do": "inner",
-       "zh": "……跟着光走。",
+       "zh": "……跟着光走。", "fr": "… Suivre la lumière.",
        "en": "...Follow the light.",
        "style": "fade",
        "sec": 1.8
@@ -110,7 +110,7 @@
       },
       {
        "say": "deer",
-       "zh": "你顺着咱的蹄印找来的？",
+       "zh": "你顺着咱的蹄印找来的？", "fr": "Tu as suivi mes traces de sabots jusqu’ici ?",
        "en": "You followed my hoofprints here?",
        "added": true
       },
@@ -138,7 +138,7 @@
      "start": [
       {
        "do": "inner",
-       "zh": "地上有蹄印……踩着走？",
+       "zh": "地上有蹄印……踩着走？", "fr": "Des traces de sabots… Les suivre ?",
        "en": "Hoofprints on the ground... follow them?",
        "style": "fade",
        "sec": 2.2
@@ -150,17 +150,17 @@
     "do": "choice",
     "options": [
      {
-      "zh": "后来呢？",
+      "zh": "后来呢？", "fr": "Et après ?",
       "en": "And then?",
       "scene": "sb_slope_then"
      },
      {
-      "zh": "那我陪你站一会儿",
+      "zh": "那我陪你站一会儿", "fr": "Alors je resterai un moment ici avec toi",
       "en": "Then I'll stand here with you a while",
       "scene": "sb_slope_stand"
      },
      {
-      "zh": "那我现在也指着雾里说：那边有大象",
+      "zh": "那我现在也指着雾里说：那边有大象", "fr": "Alors je montre le brouillard, moi aussi : il y a un éléphant là-bas",
       "en": "Then I'm pointing into the fog too: there's an elephant out there",
       "need": [
        "c1_mom"
@@ -168,7 +168,7 @@
       "scene": "sb_slope_point_mom"
      },
      {
-      "zh": "那你捡了我，咱俩扯平了",
+      "zh": "那你捡了我，咱俩扯平了", "fr": "Alors tu m’as ramassé. On est quittes",
       "en": "Then you picked me up. We're even",
       "not": [
        "c1_mom"
@@ -181,19 +181,19 @@
   "sb_slope_mom": [
    {
     "say": "deer",
-    "zh": "妈妈，其实咱以前真的有过一个妈妈。",
+    "zh": "妈妈，其实咱以前真的有过一个妈妈。", "fr": "Maman, j’ai vraiment eu une maman, avant.",
     "en": "Mom, I really did have a mom once, before.",
     "added": true
    },
    {
     "say": "deer",
-    "zh": "她带咱走过这儿，指着雾里说，那边有大象。",
+    "zh": "她带咱走过这儿，指着雾里说，那边有大象。", "fr": "Elle m’a emmené par ici et a montré le brouillard. Elle a dit qu’il y avait un éléphant là-bas.",
     "en": "She brought me through here and pointed into the fog. Said there was an elephant out there.",
     "added": true
    },
    {
     "say": "deer",
-    "zh": "咱个子矮，什么也没看见。就记得她站了好久。",
+    "zh": "咱个子矮，什么也没看见。就记得她站了好久。", "fr": "J’étais trop petit pour voir quoi que ce soit. Je me souviens juste qu’elle est restée là longtemps.",
     "en": "I was too short to see anything. I just remember her standing there a long time.",
     "added": true
    }
@@ -201,19 +201,19 @@
   "sb_slope_child": [
    {
     "say": "deer",
-    "zh": "孩子，其实咱也是被人捡回来的。",
+    "zh": "孩子，其实咱也是被人捡回来的。", "fr": "Mon petit, moi aussi, quelqu’un m’a trouvée et recueillie.",
     "en": "Kiddo, the truth is, someone found me and took me in too.",
     "added": true
    },
    {
     "say": "deer",
-    "zh": "捡咱的那位带咱走过这儿，指着雾里说，那边有大象。",
+    "zh": "捡咱的那位带咱走过这儿，指着雾里说，那边有大象。", "fr": "La personne qui m’a trouvée m’a emmenée par ici et m’a montré le brouillard. Elle a dit qu’il y avait un éléphant là-bas.",
     "en": "The one who found me brought me through here and pointed into the fog. Said there was an elephant out there.",
     "added": true
    },
    {
     "say": "deer",
-    "zh": "咱个子矮，什么也没看见。就记得她站了好久。",
+    "zh": "咱个子矮，什么也没看见。就记得她站了好久。", "fr": "J’étais trop petit pour voir quoi que ce soit. Je me souviens juste qu’elle est restée là longtemps.",
     "en": "I was too short to see anything. I just remember her standing there a long time.",
     "added": true
    }
@@ -221,7 +221,7 @@
   "sb_slope_then": [
    {
     "say": "deer",
-    "zh": "后来就剩咱自己走这条路了。",
+    "zh": "后来就剩咱自己走这条路了。", "fr": "Après ça, j’ai continué à prendre ce chemin toute seule.",
     "en": "After that it was just me, walking this path.",
     "added": true
    },
@@ -247,7 +247,7 @@
    },
    {
     "say": "deer",
-    "zh": "……嗯。",
+    "zh": "……嗯。", "fr": "… Hum.",
     "en": "...Mm.",
     "added": true
    },
@@ -282,7 +282,7 @@
    },
    {
     "say": "deer",
-    "zh": "……妈妈说有，那就有。",
+    "zh": "……妈妈说有，那就有。", "fr": "… Si maman dit qu’il y en a un, il y en a un.",
     "en": "...If Mom says there is, then there is.",
     "added": true
    },
@@ -308,7 +308,7 @@
    },
    {
     "say": "deer",
-    "zh": "扯平了。那咱谁也不欠谁，接着当一家人。",
+    "zh": "扯平了。那咱谁也不欠谁，接着当一家人。", "fr": "On est quittes. Personne ne doit rien à personne. On reste une famille, c’est tout.",
     "en": "Even. Then nobody owes anybody. We just keep being family.",
     "added": true
    },
@@ -338,7 +338,7 @@
    },
    {
     "say": "deer",
-    "zh": "这布条是她系在咱角上的。给你，雾里好认路。",
+    "zh": "这布条是她系在咱角上的。给你，雾里好认路。", "fr": "Elle avait noué ce tissu à mon bois. Prends-le. Ça aide à se repérer dans le brouillard.",
     "en": "She tied this cloth on my antler. Take it. It's easier to find your way in fog.",
     "added": true
    },
@@ -356,7 +356,7 @@
    },
    {
     "say": "deer",
-    "zh": "咱先回去等你。",
+    "zh": "咱先回去等你。", "fr": "Je rentre t’attendre.",
     "en": "I'll head back and wait for you.",
     "added": true
    },
@@ -404,7 +404,7 @@
    "id": "sb_antler_cloth",
    "name": {
     "en": "Antler Cloth",
-    "zh": "鹿角上的布条"
+    "zh": "鹿角上的布条", "fr": "Tissu noué au bois"
    },
    "rarity": "rare",
    "burn": 0,
@@ -413,7 +413,7 @@
    "fuel_kind": "none",
    "desc": {
     "en": "The knot is hard to undo. Whoever tied it probably never thought about parting.",
-    "zh": "打了个很难解的结，系的人大概没想过分别。"
+    "zh": "打了个很难解的结，系的人大概没想过分别。", "fr": "Le nœud est difficile à défaire. La personne qui l’a fait ne pensait sûrement pas à se séparer."
    },
    "category": "keepsake",
    "added": true,

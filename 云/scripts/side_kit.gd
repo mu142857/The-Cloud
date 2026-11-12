@@ -19,7 +19,7 @@ const SFX_DIR := "res://audio/sfx/"
 const DIM := Color(0.02, 0.03, 0.03, 0.72)
 const FAILS_GIVE := 3
 const ENTER_GIVE := 3
-const QUIT_TIP := {"zh": "Esc 退出", "en": "Esc to leave"}
+const QUIT_TIP := {"zh": "Esc 退出", "en": "Esc to leave", "fr": "Échap pour quitter"}
 
 signal _stage(kind: String)
 

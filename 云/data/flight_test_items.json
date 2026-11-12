@@ -12,8 +12,8 @@
       "fuel": 40,
       "count": 5,
       "icon": "res://art/flight/item_wood.png",
-      "name": {"en": "Glowwood", "zh": "发光木头"},
-      "desc": {"en": "Still warm from the forest.", "zh": "还带着森林里的温度。"}
+      "name": {"en": "Glowwood", "zh": "发光木头", "fr": "Bois luisant"},
+      "desc": {"en": "Still warm from the forest.", "zh": "还带着森林里的温度。", "fr": "Il a gardé la chaleur de la forêt."}
     },
     {
       "id": "moss",
@@ -21,8 +21,8 @@
       "fuel": 20,
       "count": 1,
       "icon": "res://art/flight/item_moss.png",
-      "name": {"en": "Dry moss", "zh": "干苔藓"},
-      "desc": {"en": "Burns fast. Smells like rain.", "zh": "烧得很快，有雨的味道。"}
+      "name": {"en": "Dry moss", "zh": "干苔藓", "fr": "Mousse sèche"},
+      "desc": {"en": "Burns fast. Smells like rain.", "zh": "烧得很快，有雨的味道。", "fr": "Brûle vite. Sent la pluie."}
     },
     {
       "id": "canvas",
@@ -30,8 +30,8 @@
       "fuel": 30,
       "count": 1,
       "icon": "res://art/flight/item_canvas.png",
-      "name": {"en": "Torn canvas", "zh": "破帆布"},
-      "desc": {"en": "Used to be the ship's sunshade.", "zh": "原来是飞船的遮阳篷。"}
+      "name": {"en": "Torn canvas", "zh": "破帆布", "fr": "Toile déchirée"},
+      "desc": {"en": "Used to be the ship's sunshade.", "zh": "原来是飞船的遮阳篷。", "fr": "Elle servait de pare-soleil au vaisseau."}
     },
     {
       "id": "pinecone",
@@ -40,9 +40,9 @@
       "count": 1,
       "icon": "res://art/flight/item_pinecone.png",
       "placeholder": true,
-      "name": {"en": "A pinecone", "zh": "一颗松果"},
+      "name": {"en": "A pinecone", "zh": "一颗松果", "fr": "Pomme de pin"},
       "desc": {"en": "She pressed it into my hand. \"Plant it, and a forest will come find you.\"",
-               "zh": "她塞到我手里的。「种下去，就会有一片森林来找你。」"}
+               "zh": "她塞到我手里的。「种下去，就会有一片森林来找你。」", "fr": "Elle me l’a mise dans la main. « Plante-la, et une forêt viendra te trouver. »"}
     },
     {
       "id": "drawing",
@@ -51,9 +51,9 @@
       "count": 1,
       "icon": "res://art/flight/item_drawing.png",
       "placeholder": true,
-      "name": {"en": "Her drawing of me", "zh": "她画的我"},
+      "name": {"en": "Her drawing of me", "zh": "她画的我", "fr": "Son dessin de moi"},
       "desc": {"en": "The eyes are way too big. I don't think I've ever looked that happy.",
-               "zh": "眼睛画得太大了。我好像从来没有笑得那么开心过。"}
+               "zh": "眼睛画得太大了。我好像从来没有笑得那么开心过。", "fr": "Les yeux sont beaucoup trop grands. Je crois que je n’ai jamais eu l’air aussi heureuse."}
     },
     {
       "id": "letter",
@@ -62,9 +62,9 @@
       "count": 1,
       "icon": "res://art/flight/item_letter.png",
       "placeholder": true,
-      "name": {"en": "Unsent letter", "zh": "没寄出的信"},
+      "name": {"en": "Unsent letter", "zh": "没寄出的信", "fr": "Lettre jamais envoyée"},
       "desc": {"en": "To home. Three lines in, I ran out of things I knew how to say.",
-               "zh": "写给家里的。写到第三行，就不知道该怎么说下去了。"}
+               "zh": "写给家里的。写到第三行，就不知道该怎么说下去了。", "fr": "Pour la maison. Au bout de trois lignes, je ne savais plus quoi dire."}
     },
     {
       "id": "scarf",
@@ -73,9 +73,9 @@
       "count": 1,
       "icon": "res://art/flight/item_scarf.png",
       "placeholder": true,
-      "name": {"en": "Mom's scarf", "zh": "妈妈的围巾"},
+      "name": {"en": "Mom's scarf", "zh": "妈妈的围巾", "fr": "Écharpe de maman"},
       "desc": {"en": "She wrapped it around me twice the day I left. \"It's cold out there.\"",
-               "zh": "出发那天，妈妈给我绕了两圈。「外面冷。」"}
+               "zh": "出发那天，妈妈给我绕了两圈。「外面冷。」", "fr": "Elle me l’a enroulée deux fois autour du cou le jour de mon départ. « Il fait froid dehors. »"}
     }
   ]
 }

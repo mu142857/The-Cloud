@@ -1,8 +1,8 @@
 extends RefCounted
 ## --qa_text：玩家看得到的每一句字，用游戏字体（UITheme.font()，14 号）按它真正的框量一遍（换行算进去），
-## 中英文各量一遍（en 空着就是中文那句）。四章剧本 + data/forest_side_*.json + 物品表 + 通讯器 + 片头字幕都查。
+## 中英法各量一遍（en 空着就是中文那句）。四章剧本 + data/forest_side_*.json + 物品表 + 通讯器 + 片头字幕都查。
 ## 框的尺寸照抄各脚本里的常数（改了那边记得改这里的 BOX）。11-04 作者：「字又到外面了」。
-## 输出：QA_TEXT <类别> <出处> [zh|en] <问题>「字」，最后 QA_TEXT_SUMMARY 每类几条。用法见 docs/QA_自动检查.md。
+## 输出：QA_TEXT <类别> <出处> [zh|en|fr] <问题>「字」，最后 QA_TEXT_SUMMARY 每类几条。用法见 docs/QA_自动检查.md。
 
 const STORIES := ["res://data/story_forest.json", "res://data/story_flight1.json", "res://data/story_river.json",
 	"res://data/story_final.json"]
@@ -68,12 +68,15 @@ func _json(p: String):
 	return JSON.parse_string(FileAccess.get_file_as_string(p)) if FileAccess.file_exists(p) else null
 
 
-## 一段字（{zh, en}）在某种框里量两遍
+## 用每种语言量一段字
 func check(cat: String, where: String, d) -> void:
 	if not d is Dictionary:
 		return
 	var zh := str(d.get("zh", ""))
 	var en := str(d.get("en", ""))
+	var fr := str(d.get("fr", ""))
+	if fr != "":
+		_one(cat, where, "fr", fr)
 	if zh != "":
 		_one(cat, where, "zh", zh)
 	if en != "" or zh != "":
@@ -159,7 +162,7 @@ func _step(where: String, st: Dictionary) -> void:
 				check("inner", where, st)
 		"choice":
 			for o in st.get("options", []):
-				check("choice", where, {"zh": "  " + str(o.get("zh", "")), "en": "  " + str(o.get("en", "")) if str(o.get("en", "")) != "" else ""})
+				check("choice", where, {"zh": "  " + str(o.get("zh", "")), "en": "  " + str(o.get("en", "")) if str(o.get("en", "")) != "" else "", "fr": "  " + str(o.get("fr", "")) if str(o.get("fr", "")) != "" else ""})
 		"pick":
 			for o in st.get("options", []):
 				if o is Dictionary and o.get("label", null) is Dictionary:
@@ -231,7 +234,7 @@ func _items(arr: Array, fn: String) -> void:
 		# 拿到东西的提示：「获得：名字」
 		var nm = it.get("name", {})
 		if nm is Dictionary:
-			check("toast", where + "(获得)", {"zh": "获得：" + str(nm.get("zh", "")), "en": "Got: " + str(nm.get("en", "")) if str(nm.get("en", "")) != "" else ""})
+			check("toast", where + "(获得)", {"zh": "获得：" + str(nm.get("zh", "")), "en": "Got: " + str(nm.get("en", "")) if str(nm.get("en", "")) != "" else "", "fr": "Objet obtenu : " + str(nm.get("fr", "")) if str(nm.get("fr", "")) != "" else ""})
 
 
 func _credits_file() -> void:

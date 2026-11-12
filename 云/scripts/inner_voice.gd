@@ -62,9 +62,10 @@ static func node() -> Node:
 	return _inst
 
 
-static func say(zh: String, en := "", style := "drift", sec := 0.0) -> float:
+static func say(zh: String, en := "", style := "drift", sec := 0.0, fr := "") -> float:
 	var n = node()
-	return n.show_line(zh, en, style, sec)
+	var text := fr if I18n.lang == "fr" and fr != "" else (en if not I18n.is_zh() and en != "" else zh)
+	return n.show_line(text, style, sec)
 
 
 static func clear(sec := FADE_OUT) -> void:
@@ -85,9 +86,8 @@ func _ready() -> void:
 	follow_viewport_enabled = false            # 屏幕坐标，镜头平移和缩放不带着字走
 
 
-func show_line(zh: String, en: String, style: String, sec: float) -> float:
+func show_line(text: String, style: String, sec: float) -> float:
 	fade_all(FADE_OUT * 0.7)
-	var text := en if (I18n.lang != "zh" and en != "") else zh
 	if text == "":
 		return 0.0
 	if not style in ["drift", "fade", "spin"]:

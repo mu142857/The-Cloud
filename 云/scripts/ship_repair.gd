@@ -54,8 +54,8 @@ const HOT := [Color("#4a2226"), Color("#962f2c"), Color("#c9473a"), Color("#e879
 const HOLE := Color("#142a2c")
 const HOVER := Color("#1c2125")
 
-const HINT_PIPES := {"zh": "点水管转动，把炉火接到喷口", "en": "Click the pipes to turn them. Lead the fire to the nozzle."}
-const HINT_HAMMER := {"zh": "圈里几个点就敲几下，敲够了就停手", "en": "Hit each part as many times as its dots, then stop."}
+const HINT_PIPES := {"zh": "点水管转动，把炉火接到喷口", "en": "Click the pipes to turn them. Lead the fire to the nozzle.", "fr": "Clique sur les tuyaux pour les tourner et mener la flamme à la tuyère."}
+const HINT_HAMMER := {"zh": "圈里几个点就敲几下，敲够了就停手", "en": "Hit each part as many times as its dots, then stop.", "fr": "Frappe chaque pièce autant de fois qu’elle a de points."}
 
 # 水管方向位：北 1 / 东 2 / 南 4 / 西 8；基准形状（转 0 格时）
 const N := 1

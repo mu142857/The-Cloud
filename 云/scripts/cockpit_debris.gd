@@ -193,18 +193,18 @@ const VIEW_SEC := 1.5         # 缩小 / 放回各多少秒
 const STEAM_C := Color(0.86, 0.9, 0.88)
 const CRACK_C := Color(1.0, 0.62, 0.3)
 const TXT := {
-	"hint": ["↑ ↓  Dodge the debris", "↑ ↓  躲开碎石"],
-	"hint_leak": ["↑ ↓ Dodge    ← → Walk    hold E  Fix leaks", "↑ ↓ 躲碎石    ← → 走动    按住 E 修漏气"],
-	"leak": ["Leak! ← →  walk over, hold E", "漏气了！← → 走过去，按住 E"],
-	"leak_e": ["E", "E"],
-	"dark_hint": ["↑ ↓  Listen for the quiet lane", "↑ ↓  听——找最安静的那条"],
-	"refuel": ["Fuel below the line!  Press F to go to the cargo hold", "燃料低于绿线！按 F 去货舱添燃料"],
-	"refuel_none": ["Fuel below the line... nothing left to burn", "燃料低于绿线……已经没有能烧的了"],
+	"hint": ["↑ ↓  Dodge the debris", "↑ ↓  躲开碎石", "↑ ↓  Éviter les débris"],
+	"hint_leak": ["↑ ↓ Dodge    ← → Walk    hold E  Fix leaks", "↑ ↓ 躲碎石    ← → 走动    按住 E 修漏气", "↑↓ Évite  ←→ Marche  E long"],
+	"leak": ["Leak! ← →  walk over, hold E", "漏气了！← → 走过去，按住 E", "Fuite ! ← → Approchez, maintenez E"],
+	"leak_e": ["E", "E", "E"],
+	"dark_hint": ["↑ ↓  Listen for the quiet lane", "↑ ↓  听——找最安静的那条", "↑↓ Suivre le silence"],
+	"refuel": ["Fuel below the line!  Press F to go to the cargo hold", "燃料低于绿线！按 F 去货舱添燃料", "Carburant sous le seuil ! F pour aller en soute"],
+	"refuel_none": ["Fuel below the line... nothing left to burn", "燃料低于绿线……已经没有能烧的了", "Carburant sous le seuil… Plus rien à brûler"],
 }
 const BUMP_LINES := [
-	{"zh": "……稳住。", "en": "...Steady.", "added": true},
-	{"zh": "哎。没事。", "en": "Ugh. It's fine.", "added": true},
-	{"zh": "这儿也有石头。", "en": "Rocks here too.", "added": true},
+	{"zh": "……稳住。", "en": "...Steady.", "fr": "… Doucement.", "added": true},
+	{"zh": "哎。没事。", "en": "Ugh. It's fine.", "fr": "Ouf. Ça va.", "added": true},
+	{"zh": "这儿也有石头。", "en": "Rocks here too.", "fr": "Des cailloux ici aussi.", "added": true},
 ]
 
 var runner: Node
@@ -518,12 +518,12 @@ func _build() -> void:
 	if _zoom:
 		_build_leaks()
 	if _repair_at != "":
-		_hint.text = I18n.pick({"zh": "← → 在舱内移动     ↑ ↓ 驾驶飞船", "en": "← → Walk in the cabin     ↑ ↓ Steer the ship"})
+		_hint.text = I18n.pick({"zh": "← → 在舱内移动     ↑ ↓ 驾驶飞船", "en": "← → Walk in the cabin     ↑ ↓ Steer the ship", "fr": "← → Marcher     ↑ ↓ Piloter"})
 
 
 func _build_repair_hint() -> void:
 	_repair_hint = Label.new()
-	_repair_hint.text = I18n.pick({"zh": "E 修理漏气处", "en": "E   Repair leak"})
+	_repair_hint.text = I18n.pick({"zh": "E 修理漏气处", "en": "E   Repair leak", "fr": "E   Colmater la fuite"})
 	_repair_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_repair_hint.add_theme_font_size_override("font_size", 13)
 	_repair_hint.add_theme_stylebox_override("normal", UITheme.box(Color("#293332"), Color("#ddc08a"), 1, Vector4(4, 2, 4, 2)))
@@ -772,7 +772,7 @@ func _draw_leaks() -> void:
 
 static func _tx(k: String) -> String:
 	var row: Array = TXT[k]
-	return row[1] if I18n.is_zh() else row[0]
+	return I18n.row_text(row)
 
 
 func _process(delta: float) -> void:

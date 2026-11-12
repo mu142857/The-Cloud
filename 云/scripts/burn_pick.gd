@@ -49,14 +49,14 @@ const TRAY_Y := 214.0
 const KEYS_Y := 240.0
 const CAP := 15                                     # 一排最多摆几格（15 × 24 = 360）
 const TXT := {
-	"title": ["Choose something to burn", "选择你要烧掉的物品"],
-	"ask": ["Burn %s?", "要烧掉「%s」吗？"],
-	"yes": ["Burn it", "烧掉"],
-	"no": ["Not yet", "再想想"],
-	"keys": ["← → choose   Enter burn", "← → 挑选   回车 烧掉"],
-	"power": ["Power %d", "动力 %d"],
-	"go": ["Move on", "继续前行"],
-	"go_key": ["   F move on", "   F 继续前行"],
+	"title": ["Choose something to burn", "选择你要烧掉的物品", "Choisir un objet à brûler"],
+	"ask": ["Burn %s?", "要烧掉「%s」吗？", "Brûler %s ?"],
+	"yes": ["Burn it", "烧掉", "Brûler"],
+	"no": ["Not yet", "再想想", "Pas encore"],
+	"keys": ["← → choose   Enter burn", "← → 挑选   回车 烧掉", "← → Choisir   Entrée Brûler"],
+	"power": ["Power %d", "动力 %d", "Puissance %d"],
+	"go": ["Move on", "继续前行", "Poursuivre"],
+	"go_key": ["   F move on", "   F 继续前行", "   F Poursuivre"],
 }
 const GO_Y := 238.0                                 # 「继续前行」按钮（右下角，和按键提示一行）
 
@@ -200,7 +200,7 @@ static func burnable(list = null, kind := "") -> Array[String]:
 
 static func _tx(k: String) -> String:
 	var row: Array = TXT[k]
-	return row[1] if I18n.is_zh() else row[0]
+	return I18n.row_text(row)
 
 
 func _label(text: String, c: Color) -> Label:

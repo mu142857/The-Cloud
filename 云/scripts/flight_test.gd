@@ -637,7 +637,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_touch = event.pressed
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_L:
-			GameSettings.set_lang("zh" if I18n.lang == "en" else "en")
+			GameSettings.set_lang(I18n.LANGS[(I18n.LANGS.find(I18n.lang) + 1) % I18n.LANGS.size()])
 			return
 		if event.keycode == KEY_ESCAPE:
 			get_tree().quit()

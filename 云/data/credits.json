@@ -5,16 +5,16 @@
  "gap": 2.4,
  "music": "",
  "entries": [
-  {"id": "mumu", "style": "fireflies", "name": {"zh": "木木", "en": "Mumu"}, "role": {"zh": "程序 & 美术", "en": "Code & Art"}, "batch": 1,
+  {"id": "mumu", "style": "fireflies", "name": {"zh": "木木", "fr": "Mumu", "en": "Mumu"}, "role": {"zh": "程序 & 美术", "fr": "Code et graphismes", "en": "Code & Art"}, "batch": 1,
    "color": "39e47a", "depth": 0.15, "dx": 40, "y": 112, "start": 0.0, "hold": 2.0},
-  {"id": "bentootoo", "style": "mist", "name": {"zh": "本2兔", "en": "Bentootoo"}, "role": {"zh": "剧情 & 音乐", "en": "Story & Music"}, "batch": 1,
+  {"id": "bentootoo", "style": "mist", "name": {"zh": "本2兔", "fr": "Bentootoo", "en": "Bentootoo"}, "role": {"zh": "剧情 & 音乐", "fr": "Scénario et musique", "en": "Story & Music"}, "batch": 1,
    "color": "3bbcc8", "depth": 0.15, "dx": 45, "y": 136, "start": 4.2, "hold": 1.8},
-  {"id": "wutong", "style": "leaves", "name": {"zh": "梧桐", "en": "Wutong"}, "role": {"zh": "美术", "en": "Art"}, "batch": 2,
+  {"id": "wutong", "style": "leaves", "name": {"zh": "梧桐", "fr": "Wutong", "en": "Wutong"}, "role": {"zh": "美术", "fr": "Graphismes", "en": "Art"}, "batch": 2,
    "color": "e08638", "depth": 0.15, "dx": 42, "y": 112, "start": 8.4, "pace": 1.4, "hold": 1.8},
-  {"id": "oscar", "style": "light", "name": {"zh": "奥斯卡", "en": "Zpbrqols"}, "role": {"zh": "美术", "en": "Art"}, "batch": 2,
+  {"id": "oscar", "style": "light", "name": {"zh": "奥斯卡", "fr": "Zpbrqols", "en": "Zpbrqols"}, "role": {"zh": "美术", "fr": "Graphismes", "en": "Art"}, "batch": 2,
    "color": "c8b83b", "depth": 0.15, "dx": 42, "y": 136, "start": 12.6, "pace": 1.4, "hold": 1.8},
-  {"id": "special_thanks", "style": "sky", "role": {"zh": "特别感谢", "en": "Special Thanks"}, "run": false,
-   "names": [{"zh": "Meadow", "en": "Meadow"}, {"zh": "高艺晨(小高星)", "en": "高艺晨(小高星)"}, {"zh": "Sothere456", "en": "Sothere456"}],
+  {"id": "special_thanks", "style": "sky", "role": {"zh": "特别感谢", "fr": "Remerciements", "en": "Special Thanks"}, "run": false,
+   "names": [{"zh": "Meadow", "fr": "Meadow", "en": "Meadow"}, {"zh": "高艺晨(小高星)", "fr": "高艺晨(小高星)", "en": "高艺晨(小高星)"}, {"zh": "Sothere456", "fr": "Sothere456", "en": "Sothere456"}],
    "color": "d8d4cc", "screen_y": 40, "hold": 3.6}
  ]
 }

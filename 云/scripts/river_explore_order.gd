@@ -93,6 +93,7 @@ static func board_lines() -> Array:
 	for r in board_rows():
 		var zh := str(r.get("zh", ""))
 		var en := str(r.get("en", zh))
+		var fr := str(r.get("fr", ""))
 		var xs: Array = r.get("x", [])
 		if not xs.is_empty():
 			var pz: Array = []
@@ -102,7 +103,9 @@ static func board_lines() -> Array:
 				pe.append("%d ×" % int(n))
 			zh += "（试过 %s）" % "、".join(pz)
 			en += " (tried %s)" % ", ".join(pe)
-		out.append({"zh": zh, "en": en, "struck": row_done(r)})
+			if fr != "":
+				fr += " (essais : %s)" % ", ".join(pe)
+		out.append({"zh": zh, "en": en, "fr": fr, "struck": row_done(r)})
 	return out
 
 

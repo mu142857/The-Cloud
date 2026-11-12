@@ -32,8 +32,8 @@ const SH_B := 4
 const SH_KID := 8
 const WAVE := [1, 2, 3, 2]
 const WAVE_SEC := 0.16
-const HINT_LIGHT := {"zh": "点一下灯芯", "en": "Click the wick."}
-const HINT_PICK := {"zh": "做一个一样的手影", "en": "Make the same hand shadow."}
+const HINT_LIGHT := {"zh": "点一下灯芯", "en": "Click the wick.", "fr": "Clique sur la mèche."}
+const HINT_PICK := {"zh": "做一个一样的手影", "en": "Make the same hand shadow.", "fr": "Reproduis l’ombre avec tes mains."}
 const SAP := [Color("#7d552f"), Color("#c8823c"), Color("#e8b860")]
 const HOT := [Color("#962f2c"), Color("#c9473a"), Color("#e8795a"), Color("#f0c070")]
 

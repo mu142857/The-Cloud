@@ -30,10 +30,10 @@ const VENT := Vector2(206, 128)
 const RISE := 0.34                        # 按住每秒涨多少
 const TOL := 0.055
 const FAILS_AUTO := 5
-const HINT := {"zh": "按住转闸轮，管子不咕噜了就松手", "en": "Hold to turn the wheel. Let go when the pipe goes quiet."}
-const DEFAULT_GATES := [{"t": 0.42, "label": {"zh": "第一道闸", "en": "Gate one"}},
-	{"t": 0.66, "label": {"zh": "第二道闸", "en": "Gate two"}},
-	{"t": 0.86, "label": {"zh": "大闸", "en": "The big gate"}}]
+const HINT := {"zh": "按住转闸轮，管子不咕噜了就松手", "en": "Hold to turn the wheel. Let go when the pipe goes quiet.", "fr": "Maintiens pour tourner. Relâche quand le tuyau se tait."}
+const DEFAULT_GATES := [{"t": 0.42, "label": {"zh": "第一道闸", "en": "Gate one", "fr": "Première vanne"}},
+	{"t": 0.66, "label": {"zh": "第二道闸", "en": "Gate two", "fr": "Deuxième vanne"}},
+	{"t": 0.86, "label": {"zh": "大闸", "en": "The big gate", "fr": "Grande vanne"}}]
 const DEFAULT_DOODLES := [{"t": 0.12, "kind": "fish"}, {"t": 0.42, "kind": "shoe"}, {"t": 0.66, "kind": "pot"}, {"t": 0.9, "kind": "whale"}]
 
 var gates: Array = []

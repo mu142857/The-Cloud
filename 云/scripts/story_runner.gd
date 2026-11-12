@@ -1905,7 +1905,7 @@ func _fly_to_bag(icon: Texture2D, from: Vector2) -> void:
 
 
 func _journal(st: Dictionary) -> void:
-	var e := {"zh": str(st.get("zh", "")), "en": str(st.get("en", ""))}
+	var e := {"zh": str(st.get("zh", "")), "en": str(st.get("en", "")), "fr": str(st.get("fr", ""))}
 	if st.has("tag"):
 		e["tag"] = str(st["tag"])
 	var holder := _journal_holder()
@@ -2570,7 +2570,7 @@ func _update_nudge(delta: float) -> void:
 			var who := str(hl.get("who", "chen"))
 			if who == "chen" and data.get("hints_inner", false):
 				# 11-07 作者：晨的独白不出对话框，打在屏幕上（剧本顶层 "hints_inner": true 的章节）
-				_inner({"zh": str(hl.get("zh", "")), "en": str(hl.get("en", "")), "style": "fade", "sec": 2.4})
+				_inner({"zh": str(hl.get("zh", "")), "en": str(hl.get("en", "")), "fr": str(hl.get("fr", "")), "style": "fade", "sec": 2.4})
 				return
 			var tl := txt_lang(hl)
 			dlg.murmur(txt_in(speaker_def(who), str(tl[1])), NAME_COLORS.get(who, UITheme.ACCENT), str(tl[0]),
@@ -2706,21 +2706,21 @@ func _pet_menu(who: String, h: Dictionary) -> bool:
 	if choice == (0 if h.get("pet_only", false) else 1):
 		chen._set_facing(1 if n.position.x > chen.position.x else -1)
 		chen.spr.play(&"reach")
-		var response := {"zh": "嘿嘿。", "en": "Hehe."}
+		var response := {"zh": "嘿嘿。", "en": "Hehe.", "fr": "Hé hé."}
 		match who:
 			"deer":
-				response = {"zh": "妈妈，再摸一下嘛。", "en": "One more time, Mom."} if StoryState.has("c1_mom") else {"zh": "乖孩子，轻一点。", "en": "Easy, kiddo. Be gentle."}
+				response = {"zh": "妈妈，再摸一下嘛。", "en": "One more time, Mom.", "fr": "Encore une fois, maman."} if StoryState.has("c1_mom") else {"zh": "乖孩子，轻一点。", "en": "Easy, kiddo. Be gentle.", "fr": "Doucement, mon petit."}
 			"miluo":
-				response = {"zh": "轻点，我可不是绒毛玩偶。", "en": "Easy. I'm no stuffed toy."}
+				response = {"zh": "轻点，我可不是绒毛玩偶。", "en": "Easy. I'm no stuffed toy.", "fr": "Doucement. Je ne suis pas une peluche."}
 			"toucan":
-				response = {"zh": "翅膀可以，别碰喙。", "en": "The wing's fine. Mind the beak."}
+				response = {"zh": "翅膀可以，别碰喙。", "en": "The wing's fine. Mind the beak.", "fr": "L’aile, oui. Attention au bec."}
 			"rabbit", "rabbit_doe":
-				response = {"zh": "小心，耳朵怕痒。", "en": "Careful. My ears are ticklish."}
+				response = {"zh": "小心，耳朵怕痒。", "en": "Careful. My ears are ticklish.", "fr": "Attention, j’ai les oreilles chatouilleuses."}
 			_:
 				n.hop()
 		response["say"] = who if not who.begins_with("rabbit_kit_") else "chen"
 		if who.begins_with("rabbit_kit_"):
-			response = {"say": "chen", "zh": "好软。", "en": "So soft."}
+			response = {"say": "chen", "zh": "好软。", "en": "So soft.", "fr": "C’est si doux."}
 		await _say(response)
 		dlg.close_box()
 	busy = false
@@ -5378,7 +5378,7 @@ func _inner(st: Dictionary) -> void:
 	var sec := float(st.get("sec", 0.0))
 	var total := sec
 	if gd != null:
-		var r = gd.call("say", str(st.get("zh", "")), str(st.get("en", "")), str(st.get("style", "drift")), sec)
+		var r = gd.call("say", str(st.get("zh", "")), str(st.get("en", "")), str(st.get("style", "drift")), sec, str(st.get("fr", "")))
 		if r is float or r is int:
 			total = maxf(float(r), sec)      # say 返回到完全消失的总秒数（包括只飘过一次的 drift）
 		var n = gd.call("node")
@@ -5530,7 +5530,7 @@ func _burn_held(st: Dictionary) -> void:
 	if not ff:
 		var tt: String = I18n.t("gave_item") % ("、" if I18n.is_zh() else ", ").join(names)
 		if UITheme.font().get_string_size(tt, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x > 420.0:
-			tt = I18n.pick({"zh": "交出 %d 件东西", "en": "Handed over %d items"}) % list.size()   # 11-04 --qa_live：名字连起来出屏
+			tt = I18n.pick({"zh": "交出 %d 件东西", "en": "Handed over %d items", "fr": "%d objets remis"}) % list.size()   # 11-04 --qa_live：名字连起来出屏
 		dlg.toast(Inventory.icon(first), tt)
 		await _wait(0.6)
 
@@ -5562,7 +5562,7 @@ func _update_one_way(delta: float) -> void:
 	if chen._vel > 0.0 or level._wall_block:
 		_one_way_t = 0.0
 		var ow: Dictionary = data["one_way"]
-		_inner({"zh": ow.get("zh", ""), "en": ow.get("en", ""), "style": "fade", "sec": 3.0})
+		_inner({"zh": ow.get("zh", ""), "en": ow.get("en", ""), "fr": ow.get("fr", ""), "style": "fade", "sec": 3.0})
 
 
 ## 背包查看（剧本顶层 item_views）：这件东西现在按「查看」播哪段；"" = 没有

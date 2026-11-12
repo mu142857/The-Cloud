@@ -195,9 +195,9 @@ const SPEED_C := Color(0.72, 0.8, 0.8)
 const DUST_C := Color(0.4, 0.44, 0.44)
 const GHOST_C := Color(0.6, 0.78, 0.82)
 const TXT := {
-	"hint": ["Mash E to dash", "狂按 E 冲刺"],
-	"push": ["Mash E to push through", "狂按 E 推开"],
-	"ach": ["Achievement", "成就"],
+	"hint": ["Mash E to dash", "狂按 E 冲刺", "Appuyez vite sur E pour sprinter"],
+	"push": ["Mash E to push through", "狂按 E 推开", "Appuyez vite sur E pour forcer le passage"],
+	"ach": ["Achievement", "成就", "Succès"],
 }
 
 var runner: Node
@@ -584,7 +584,7 @@ func _label(text: String, col: Color) -> Label:
 
 static func _tx(k: String) -> String:
 	var row: Array = TXT[k]
-	return str(row[1] if I18n.is_zh() else row[0])
+	return str(I18n.row_text(row))
 
 
 # ======================================================================= 进
