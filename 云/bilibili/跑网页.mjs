@@ -6,7 +6,7 @@
 //       node bilibili/跑网页.mjs http://127.0.0.1:8765/_test.html 480 ../导出/B站/logs/x.log ../导出/B站/logs/x.png 'STORY_SCENE start_river|BACK_TO_TITLE'
 // Chrome 自带的 --screenshot --timeout 不行：页面 load 一结束就截图退出，游戏才跑了几秒。
 import { spawn } from 'node:child_process';
-import { writeFileSync, appendFileSync, mkdtempSync } from 'node:fs';
+import { writeFileSync, appendFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -20,6 +20,11 @@ const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chro
   '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows',
   '--autoplay-policy=no-user-gesture-required', '--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--disable-gpu',
   '--window-size=1440,810', 'about:blank'], { stdio: 'ignore' });
+// 退出时删掉这次的临时 Chrome 配置：每个约 150M，以前不删，一个月在系统临时文件夹里攒了 70G。
+// 正常跑完、超时 process.exit、Ctrl-C、被外面 kill 都会走到这里。
+const cleanTmp = () => { try { chrome.kill('SIGKILL'); } catch (e) {} for (const d of [prof]) try { rmSync(d, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch (e) {} };
+process.on('exit', cleanTmp);
+for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, () => process.exit(130));
 
 writeFileSync(out, `# ${url} 最多 ${secs}s 停于 /${stopRe}/\n`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
